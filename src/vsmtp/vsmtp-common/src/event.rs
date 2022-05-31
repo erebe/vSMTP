@@ -69,12 +69,6 @@ pub enum Event {
     /// buffer.
     /// Syntax = `"DATA" CRLF`
     DataCmd,
-    /// Lines ended by CRLF sent between [Event::DataCmd] and [Event::DataEnd]
-    // DataLine(String),
-    /// The mail data are terminated by a line containing only a period. This
-    /// is the end of mail data indication.
-    /// Syntax = `"." CRLF`
-    // DataEnd,
     /// "RSET\r\n"
     /// This command specifies that the current mail transaction will be
     /// aborted. Any stored sender, recipients, and mail data MUST be
@@ -340,15 +334,15 @@ impl Event {
     /// # Errors
     ///
     /// * input length is too long (> 998)
-    pub fn parse_data(input: &str) -> Result<Option<String>, CodeID> {
-        match input {
+    pub fn parse_data(input: String) -> Result<Option<String>, CodeID> {
+        match input.as_str() {
             "." => Ok(None),
             too_long if too_long.len() > 998 => Err(CodeID::UnrecognizedCommand),
             dot_string if dot_string.starts_with('.') => {
                 // https://www.rfc-editor.org/rfc/rfc5321#section-4.5.2
                 Ok(Some(dot_string[1..].to_string()))
             }
-            _ => Ok(Some(input.to_string())),
+            _ => Ok(Some(input)),
         }
     }
 }
