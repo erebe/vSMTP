@@ -14,19 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::error::RuntimeError;
-use crate::modules::types::types::{Context, Message, Server};
+use crate::modules::types::types::{Context, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::AuthCredentials;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::Address;
 
-#[doc(hidden)]
-#[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod mail_context {
 
@@ -135,11 +131,6 @@ pub mod mail_context {
                 .message_id
                 .clone(),
         )
-    }
-
-    #[rhai_fn(global, get = "mail", return_raw, pure)]
-    pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail").to_string())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
