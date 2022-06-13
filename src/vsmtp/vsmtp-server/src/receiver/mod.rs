@@ -320,6 +320,7 @@ where
             conn.timestamp,
             conn.config.clone(),
             conn.client_addr,
+            conn.server_addr,
             conn.error_count,
             true,
             conn.is_authenticated,
