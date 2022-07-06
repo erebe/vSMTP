@@ -15,9 +15,8 @@
  *
 */
 use crate::{
-    context_from_file_path,
-    delivery::{add_trace_information, send_mail},
-    log_channels, message_from_file_path,
+    delivery::{add_trace_information, send_mail, SenderOutcome},
+    log_channels,
     receiver::MailHandlerError,
     ProcessMessage,
 };
@@ -30,7 +29,7 @@ use vsmtp_common::{
     },
     state::StateSMTP,
     status::Status,
-    transfer::{EmailTransferStatus, Transfer},
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -106,44 +105,26 @@ async fn handle_one_in_delivery_queue_inner(
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    let (context_filepath, message_filepath) = (
-        queue_path!(
-            &config.server.queues.dirpath,
-            Queue::Deliver,
-            &process_message.message_id
-        ),
-        std::path::PathBuf::from_iter([
-            config.server.queues.dirpath.clone(),
-            "mails".into(),
-            process_message.message_id.clone().into(),
-        ]),
+    log::debug!(
+        target: log_channels::DELIVERY,
+        "processing email '{}'",
+        process_message.message_id
     );
 
-    let ctx = context_from_file_path(&context_filepath)
-        .await
-        .with_context(|| {
-            format!(
-                "failed to deserialize email in delivery queue '{}'",
-                process_message.message_id
-            )
-        })?;
+    let (mail_context, mail_message) = Queue::Deliver
+        .read(&config.server.queues.dirpath, &process_message.message_id)
+        .await?;
 
-    let message = message_from_file_path(message_filepath).await?;
+    let (mut mail_context, mut mail_message, result) = RuleState::just_run_when(
+        &StateSMTP::Delivery,
+        config.as_ref(),
+        resolvers.clone(),
+        &rule_engine,
+        mail_context,
+        mail_message,
+    )?;
 
-    let ((mut ctx, message), result) = {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
-        let mut state =
-            RuleState::with_context(&config, resolvers.clone(), &rule_engine, ctx, Some(message));
-        let result = rule_engine.run_when(&mut state, &StateSMTP::Delivery);
-
-        (state.take()?, result)
-    };
-    let mut message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
-
-    add_trace_information(&config, &mut ctx, &mut message, &result)?;
+    add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
 
     match result {
         Status::Quarantine(path) => {
@@ -152,56 +133,77 @@ async fn handle_one_in_delivery_queue_inner(
 
             path.push(format!("{}.json", process_message.message_id));
 
-            Queue::write_to_quarantine(&path, &ctx)
+            Queue::write_to_quarantine(&path, &mail_context)
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-            log::warn!("delivery skipped due to quarantine.");
+            log::warn!(
+                target: log_channels::DELIVERY,
+                "delivery skipped due to quarantine."
+            );
+
+            // after processing the email is removed from the delivery queue.
+            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+
+            Ok(())
         }
         Status::Deny(_) => {
             // we update rcpt email status and write to dead queue in case of a deny.
-            for rcpt in &mut ctx.envelop.rcpt {
-                rcpt.email_status =
-                    EmailTransferStatus::Failed("rule engine denied the email.".to_string());
+            for rcpt in &mut mail_context.envelop.rcpt {
+                rcpt.email_status = EmailTransferStatus::Failed {
+                    timestamp: std::time::SystemTime::now(),
+                    reason: "rule engine denied the email.".to_string(),
+                };
             }
-            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
+            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
+
+            log::warn!(
+                target: log_channels::DELIVERY,
+                "mail has been denied, moved to `dead` queue."
+            );
+
+            // after processing the email is removed from the delivery queue.
+            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+
+            Ok(())
         }
         _ => {
-            send_mail(&config, &mut ctx, &message, &resolvers).await;
-            // .context(format!(
-            //     "failed to send '{}' located in the delivery queue",
-            //     process_message.message_id
-            // ))?;
-
-            if ctx
-                .envelop
-                .rcpt
-                .iter()
-                .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
-            {
-                Queue::Deferred
-                    .write_to_queue(&config.server.queues.dirpath, &ctx)
-                    .context("failed to move message from delivery queue to deferred queue")?;
+            match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+                SenderOutcome::MoveToDead => {
+                    Queue::Deliver
+                        .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
+                        .with_context(|| {
+                            format!(
+                                "cannot move file from `{}` to `{}`",
+                                Queue::Deliver,
+                                Queue::Dead
+                            )
+                        })?;
+                }
+                SenderOutcome::MoveToDeferred => {
+                    Queue::Deliver
+                        .move_to(
+                            &Queue::Deferred,
+                            &config.server.queues.dirpath,
+                            &mail_context,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "cannot move file from `{}` to `{}`",
+                                Queue::Deliver,
+                                Queue::Deferred
+                            )
+                        })?;
+                }
+                SenderOutcome::RemoveFromDisk => {
+                    Queue::Deliver
+                        .remove(&config.server.queues.dirpath, &process_message.message_id)?;
+                }
             }
 
-            if ctx.envelop.rcpt.iter().any(|rcpt| {
-                matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
-                    || matches!(rcpt.transfer_method, Transfer::None)
-            }) {
-                Queue::Dead
-                    .write_to_queue(&config.server.queues.dirpath, &ctx)
-                    .context("failed to move message from delivery queue to dead queue")?;
-            }
+            Ok(())
         }
-    };
-
-    // after processing the email is removed from the delivery queue.
-    std::fs::remove_file(context_filepath).context(format!(
-        "failed to remove '{}' from the delivery queue",
-        process_message.message_id
-    ))?;
-
-    Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -246,12 +248,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -269,7 +275,7 @@ mod tests {
             "message_from_deliver_to_deferred",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();

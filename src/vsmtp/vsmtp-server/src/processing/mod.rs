@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, log_channels, message_from_file_path, receiver::MailHandlerError,
-    ProcessMessage,
-};
+use crate::{log_channels, receiver::MailHandlerError, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     queue::Queue,
@@ -116,37 +113,24 @@ async fn handle_one_in_working_queue_inner(
         message_filepath.display(),
     );
 
-    let (ctx, message) = tokio::join!(
-        context_from_file_path(&context_filepath),
-        message_from_file_path(message_filepath)
-    );
-    let (ctx, message) = (
-        ctx.with_context(|| {
-            format!(
-                "failed to deserialize email in working queue '{}'",
-                context_filepath.display()
-            )
-        })?,
-        message.context("error while reading message")?,
-    );
+    let (mail_context, mail_message) = Queue::Working
+        .read(&config.server.queues.dirpath, &process_message.message_id)
+        .await?;
 
-    let ((ctx, message), result) = {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
-        let mut state =
-            RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx, Some(message));
-        let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
-
-        (state.take()?, result)
-    };
+    let (ctx, message, result) = RuleState::just_run_when(
+        &StateSMTP::PostQ,
+        config.as_ref(),
+        resolvers,
+        &rule_engine,
+        mail_context,
+        mail_message,
+    )?;
 
     // writing the mails in any case because we don't know (yet) if it changed
     Queue::write_to_mails(
         &config.server.queues.dirpath,
         &process_message.message_id,
-        &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
+        &message,
     )?;
 
     let queue = match result {
@@ -278,12 +262,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -301,7 +289,7 @@ mod tests {
             "test",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();
@@ -361,12 +349,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -384,7 +376,7 @@ mod tests {
             "test_denied",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();
