@@ -251,9 +251,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.10"
+version = "3.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69c5a7f9997be616e47f0577ee38c91decb33392c5be4866494f34cdf329a9aa"
+checksum = "d646c7ade5eb07c4aa20e907a922750df0c448892513714fd3e4acbc7130829f"
 dependencies = [
  "atty",
  "bitflags",
@@ -681,9 +681,9 @@ checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
 
 [[package]]
 name = "hashbrown"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db0d4cf898abf0081f964436dc980e96670a0f36863e4b83aaacdb65c9d7ccc3"
+checksum = "607c8a29735385251a339424dd462993c0fed8fa09d378f259377df08c126022"
 
 [[package]]
 name = "heck"
@@ -1364,8 +1364,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.7.0"
-source = "git+https://github.com/schungx/rhai?rev=5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82#5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f8a1b0ce6aba109eb3628f36db9c1818c1d396bd5a56449d5203e96e4b713a7"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1378,8 +1379,9 @@ dependencies = [
 
 [[package]]
 name = "rhai_codegen"
-version = "1.4.0"
-source = "git+https://github.com/schungx/rhai?rev=5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82#5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75a39bc2aa9258b282ee5518dac493491a9c4c11a6d7361b9d2644c922fc6488"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2003,7 +2005,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 name = "vqueue"
 version = "1.1.3"
 dependencies = [
- "clap 3.2.10",
+ "clap 3.2.11",
  "itertools",
  "pretty_assertions",
  "vsmtp-common",
@@ -2014,7 +2016,7 @@ dependencies = [
 name = "vsmtp"
 version = "1.1.3"
 dependencies = [
- "clap 3.2.10",
+ "clap 3.2.11",
  "diff",
  "vsmtp-common",
  "vsmtp-config",
@@ -2264,9 +2266,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "0.22.3"
+version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44d8de8415c823c8abd270ad483c6feeac771fad964890779f9a8cb24fbbc1bf"
+checksum = "f1c760f0d366a6c24a02ed7816e23e691f5d92291f94d15e836006fd11b04daf"
 dependencies = [
  "webpki",
 ]
