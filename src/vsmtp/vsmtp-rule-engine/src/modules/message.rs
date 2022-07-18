@@ -35,7 +35,6 @@ pub mod message {
     pub fn get_header(this: &mut Message, header: &str) -> EngineResult<String> {
         Ok(vsl_guard_ok!(this.read())
             .get_header(header)
-            .map(ToString::to_string)
             .unwrap_or_default())
     }
 
@@ -63,7 +62,7 @@ pub mod message {
     /// Get the message body as a string
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(this.read()).to_string())
+        Ok(vsl_guard_ok!(this.read()).inner().to_string())
     }
 
     /// Change the sender of the envelop
@@ -134,22 +133,39 @@ pub mod message {
                 },
             )
     }
+
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn headers(
+        this: &mut Message,
+        name: &str,
+        count: rhai::INT,
+    ) -> EngineResult<rhai::Dynamic> {
+        let guard = vsl_guard_ok!(this.read());
+        let name_lowercase = name.to_lowercase();
+        Ok(guard
+            .inner()
+            .headers()
+            .iter()
+            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
+            .take(
+                usize::try_from(count)
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())?,
+            )
+            .map(|(key, value)| format!("{key}:{value}"))
+            .collect::<Vec<_>>()
+            .into())
+    }
 }
 
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod message_calling_parse {
-    use vsmtp_common::mail_context::MessageBody;
 
     #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_mail_from_message(this: &mut Message, new_addr: &str) -> EngineResult<()> {
         let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
 
-        let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
+        vsl_parse_ok!(vsl_guard_ok!(this.write())).rewrite_mail_from(new_addr.full());
         Ok(())
     }
 
@@ -163,10 +179,7 @@ pub mod message_calling_parse {
         let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
+        vsl_parse_ok!(writer).rewrite_rcpt(old_addr.full(), new_addr.full());
         Ok(())
     }
 
@@ -176,10 +189,7 @@ pub mod message_calling_parse {
         let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
+        vsl_parse_ok!(writer).add_rcpt(new_addr.full());
         Ok(())
     }
 
@@ -189,10 +199,7 @@ pub mod message_calling_parse {
         let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
+        vsl_parse_ok!(writer).remove_rcpt(addr.full());
         Ok(())
     }
 }
