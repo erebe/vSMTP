@@ -87,7 +87,7 @@ impl RawBody {
 
     ///
     #[must_use]
-    pub fn get_header(&self, name: &str, with_key: bool) -> Option<String> {
+    pub fn get_header(&self, name: &str, with_key: bool, with_multiline: bool) -> Option<String> {
         for (idx, header) in self.headers.iter().enumerate() {
             if header.starts_with(' ') || header.starts_with('\t') {
                 continue;
@@ -100,10 +100,13 @@ impl RawBody {
                         .iter()
                         .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
                     {
+                        if with_multiline {
+                            value.push_str("\r\n");
+                        }
                         value.push_str(i);
                     }
                     return Some(if with_key {
-                        format!("{key}:{value}", value = value.trim_start())
+                        format!("{key}:{value}")
                     } else {
                         value.trim_start().to_string()
                     });

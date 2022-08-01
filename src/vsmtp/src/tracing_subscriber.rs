@@ -17,12 +17,24 @@
 use crate::Args;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_config::Config;
 
 /// Initialize the tracing subsystem.
-pub fn initialize(args: &Args, config: &Config) {
+///
+/// # Errors
+///
+/// * The logs path in the configuration file are invalid.
+/// * Failed to initialize the tracing subsystem.
+pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
+    std::fs::create_dir_all(config.server.logs.filepath.clone())
+        .context("Cannot create `server.logs` directory")?;
+
     let writer_backend = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp")
         .with_filter(|metadata| !metadata.target().starts_with("app"));
+
+    std::fs::create_dir_all(config.app.logs.filepath.clone())
+        .context("Cannot create `app.logs` directory")?;
 
     let writer_app = tracing_appender::rolling::daily(&config.app.logs.filepath, "app")
         .with_filter(|metadata| metadata.target().starts_with("app"));
@@ -38,8 +50,8 @@ pub fn initialize(args: &Args, config: &Config) {
     #[cfg(not(debug_assertions))]
     let layer = fmt::layer()
         .compact()
-        .with_thread_ids(true)
-        .with_target(true);
+        .with_thread_ids(false)
+        .with_target(false);
 
     let subscriber = tracing_subscriber::registry()
         .with(EnvFilter::builder().try_from_env().unwrap_or_else(|_| {
@@ -57,7 +69,7 @@ pub fn initialize(args: &Args, config: &Config) {
     if args.no_daemon {
         subscriber
             .with(fmt::layer().with_writer(writer_backend.and(writer_app).and(std::io::stdout)))
-            .init();
+            .try_init()
     } else {
         subscriber
             .with(
@@ -65,6 +77,7 @@ pub fn initialize(args: &Args, config: &Config) {
                     .with_writer(writer_backend.and(writer_app))
                     .with_ansi(false),
             )
-            .init();
+            .try_init()
     }
+    .map_err(|e| anyhow::anyhow!("{e}"))
 }

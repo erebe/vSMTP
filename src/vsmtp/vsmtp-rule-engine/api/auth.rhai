@@ -226,12 +226,51 @@ fn check_spf(header) {
     check_spf(header, "strict")
 }
 
-private fn sys_dkim_verify(policy) {
+/// Process the SASL authentication mechanism.
+///
+/// The current implementation support "PLAIN" mechanism, and will call the
+/// `testsaslauthd` program to check the credentials.
+///
+/// The credentials will be verified depending on the mode of `saslauthd`.
+///
+/// A native implementation will be provided in the future.
+///
+/// # Module:Security
+/// ```
+fn authenticate() {
+    switch ctx().auth.type {
+        "Verify" => {
+            service authd cmd = #{
+                timeout: "1s",
+                command: "testsaslauthd",
+                args: ["-u", ctx().auth.authid, "-p", ctx().auth.authpass]
+            };
+
+            let result = authd.cmd_run();
+
+            if result.has_signal {
+                return false;
+            }
+
+            if result.has_code && result.code == 0 {
+                accept()
+            } else {
+                deny()
+            }
+
+        },
+        "Query" => {
+            deny()
+        }
+    }
+}
+
+private fn sys_verify_dkim(policy) {
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
     let last_error = `dkim=none`;
 
-    for i in msg().headers("DKIM-Signature", policy.nbr_headers) {
+    for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
         try {
             let signature = sys::parse_signature(i);
 
@@ -247,7 +286,7 @@ private fn sys_dkim_verify(policy) {
 
             for key in sys::get_public_key(srv(), signature, policy.on_multiple_key_records) {
                 try {
-                    sys::dkim_verify(msg(), signature, key);
+                    sys::verify_dkim(msg(), signature, key);
                     log("warn", `DKIM signature successfully verified`);
 
                     if key.has_debug_flag {
@@ -283,8 +322,8 @@ private fn sys_dkim_verify(policy) {
 /// * `deny()` - no signature could be verified.
 ///
 /// # Module:Security
-fn dkim_verify() {
-    let result = sys_dkim_verify(#{
+fn verify_dkim() {
+    let result = sys_verify_dkim(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
         nbr_headers: 5,
         // the dns query may result in multiple public key, the registry with invalid format are ignored.
@@ -294,7 +333,7 @@ fn dkim_verify() {
         expiration_epsilon: 100,
     });
 
-    let header = `${hostname()};
+    let header = `${get_root_domain(ctx().server_name)};
   ${result}`;
 
     prepend_header("Authentication-Results", header);
@@ -302,6 +341,10 @@ fn dkim_verify() {
 }
 
 /// Produce a `DKIM-Signature` header.
-fn dkim_sign(selector, headers_field) {
-    sys::dkim_sign(msg(), ctx(), srv(), selector, headers_field)
+fn sign_dkim(selector, headers_field, canonicalization) {
+    sys::sign_dkim(msg(), ctx(), srv(), selector, headers_field, canonicalization)
+}
+
+fn sign_dkim(selector) {
+    sys::sign_dkim(msg(), ctx(), srv(), selector, ["From", "To", "Date", "Subject"], "simple/relaxed")
 }

@@ -52,11 +52,13 @@ macro_rules! queue_path {
         {
             let buf = std::path::PathBuf::from($queues_dirpath).join(format!("{}", $queue));
             if !buf.exists() {
-                std::fs::DirBuilder::new()
-                    .recursive(true)
-                    .create(&buf).map(|_| buf)
+                $crate::re::anyhow::Context::with_context(
+                    std::fs::create_dir_all(&buf),
+                    || format!("Cannot create queue folder: `{}`", buf.display())
+                )
+                .map(|_| buf)
             } else {
-                std::io::Result::Ok(buf)
+                $crate::re::anyhow::Ok(buf)
             }
         }
     };
@@ -100,7 +102,7 @@ impl Queue {
         &self,
         queues_dirpath: &std::path::Path,
         ctx: &MailContext,
-    ) -> std::io::Result<()> {
+    ) -> anyhow::Result<()> {
         let message_id = &ctx
             .metadata
             .as_ref()

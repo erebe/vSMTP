@@ -1,26 +1,5 @@
 #{
     authenticate: [
-        rule "auth /etc/shadow" || {
-            switch ctx().auth.type {
-                "Verify" => {
-                    let result = srv().run_service(ctx(), "saslauthd");
-
-                    if result.has_signal {
-                        // timed out
-                        return false;
-                    }
-
-                    if result.has_code && result.code == 0 {
-                        accept()
-                    } else {
-                        deny()
-                    }
-
-                },
-                "Query" => {
-                    deny()
-                }
-            }
-        }
+        rule "login" || authenticate()
     ]
 }

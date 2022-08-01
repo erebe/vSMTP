@@ -57,7 +57,7 @@ pub enum MailHandlerError {
     #[error("couldn't write to quarantine file: `{0}`")]
     WriteQuarantineFile(std::io::Error),
     #[error("couldn't write to queue `{0}` got: `{1}`")]
-    WriteToQueue(Queue, std::io::Error),
+    WriteToQueue(Queue, String),
     #[error("couldn't send message to next process `{0}` got: `{1}`")]
     SendToNextProcess(Process, tokio::sync::mpsc::error::SendError<ProcessMessage>),
 }
@@ -155,7 +155,7 @@ impl MailHandler {
         if let Some(queue) = write_to_queue {
             queue
                 .write_to_queue(&conn.config.server.queues.dirpath, &mail_context)
-                .map_err(|error| MailHandlerError::WriteToQueue(queue, error))?;
+                .map_err(|error| MailHandlerError::WriteToQueue(queue, error.to_string()))?;
         }
 
         // TODO: even if it's a rare case, a result of None should remove the

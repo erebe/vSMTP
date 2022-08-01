@@ -25,11 +25,11 @@ use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
-        eprintln!("ERROR: {}", err);
-        log::error!("ERROR: {}", err);
+        eprintln!("vSMTP terminating error: '{err}'");
+        log::error!("vSMTP terminating error: '{err}'");
         err.chain().skip(1).for_each(|cause| {
-            eprintln!("because: {}", cause);
-            log::error!("because: {}", cause);
+            eprintln!("because: {cause}");
+            log::error!("because: {cause}");
         });
         std::process::exit(1);
     }
@@ -100,10 +100,7 @@ fn try_main() -> anyhow::Result<()> {
         // setuid(config.server.system.user.uid())?;
     }
 
-    vsmtp::tracing_subscriber::initialize(&args, &config);
+    vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
-    start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
-        log::error!("vSMTP terminating error: '{e}'");
-        e
-    })
+    start_runtime(config, sockets, args.timeout.map(|t| t.0))
 }
