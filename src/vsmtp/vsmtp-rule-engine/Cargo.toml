@@ -60,7 +60,7 @@ wait-timeout = "0.2.0"
 
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
-time = { version = "0.3.11", default-features = false, features = [
+time = { version = "0.3.12", default-features = false, features = [
   "std",
   "formatting",
   "macros",
