@@ -17,13 +17,15 @@
 use crate::rule_state::RuleState;
 use crate::tests::helpers::get_default_config;
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::re::serde_json;
+use vsmtp_common::rcpt::Rcpt;
+use vsmtp_common::re::{addr, serde_json, tokio};
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
     mail_context::MessageMetadata, state::StateSMTP, status::Status, transfer::Transfer,
     MessageBody,
 };
 use vsmtp_common::{CodeID, ReplyOrCodeID};
+use vsmtp_config::build_resolvers;
 use vsmtp_config::field::FieldServerVirtual;
 use vsmtp_mail_parser::MailMimeParser;
 
@@ -317,6 +319,23 @@ fn test_hostname() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_lookup() {
+    let config = vsmtp_config::Config::default();
+    let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
+    let mut state = RuleState::new(&config, resolvers, &re);
+    state.context().write().unwrap().envelop.rcpt = vec![
+        Rcpt::new(addr!("john.doe@example.com")),
+        Rcpt::new(addr!("foo.bar@localhost")),
+    ];
+
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::RcptTo),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

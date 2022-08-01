@@ -8,7 +8,21 @@
             } else {
                 deny()
             }
-        }
+        },
+    ],
+
+    rcpt: [
+        action "reverse lookup" || print(`client ip: ${"127.0.0.1"} -> ${rlookup("127.0.0.1")}`),
+
+        action "lookup recipients" || {
+            let domain = rcpt().domain;
+            let ips = lookup(domain);
+
+            print(`ips found for ${domain}`);
+            for ip in ips { print(`- ${ip}`); }
+        },
+
+        rule "trailing" || accept(),
     ],
 
     preq: [

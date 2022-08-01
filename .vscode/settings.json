@@ -62,6 +62,7 @@
         "recv",
         "repr",
         "rhai",
+        "rlookup",
         "roadmap",
         "rsasl",
         "Rset",

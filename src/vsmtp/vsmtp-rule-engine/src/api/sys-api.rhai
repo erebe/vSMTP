@@ -1328,6 +1328,74 @@ fn date() { sys::date() }
 /// # Module:Utils
 fn time() { sys::time() }
 
+/// Performs a dual-stack DNS lookup for the given hostname.
+///
+/// # Args
+///
+/// * `host` - A valid hostname to search.
+///
+/// # Return
+///
+/// * `array` - an array of IPs. The array is empty if no IPs were found for the host.
+///
+/// # Effective smtp stage
+///
+/// All of them.
+///
+/// # Example
+/// ```js
+/// #{
+///     rcpt: [
+///        action "perform lookup" || {
+///             let domain = rcpt().domain;
+///             let ips = lookup(domain);
+///
+///             print(`ips found for ${domain}`);
+///             for ip in ips {
+///                 print(`- ${ip}`);
+///             }
+///        }
+///     ]
+/// }
+/// ```
+///
+/// # Module:Utils
+fn lookup(host) { sys::lookup(srv(), host) }
+
+/// Performs a reverse lookup for the given IP.
+///
+/// # Args
+///
+/// * `ip` - The IP to query.
+///
+/// # Return
+///
+/// * `array` - an array of FQDNs. The array is empty if nothing was found.
+///
+/// # Effective smtp stage
+///
+/// All of them.
+///
+/// # Example
+/// ```js
+/// #{
+///     connect: [
+///        action "perform reverse lookup" || {
+///             let domains = rlookup(client_ip());
+///
+///             print(`domains found for ip ${client_ip()}`);
+///             for domain in domains {
+///                 print(`- ${domain}`);
+///             }
+///        }
+///     ]
+/// }
+/// ```
+///
+/// # Module:Utils
+fn rlookup(ip) { sys::rlookup(srv(), ip) }
+
+
 /// Get the value of a key in a database.
 ///
 /// # Args
