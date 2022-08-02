@@ -15,10 +15,40 @@
  *
  */
 use crate::Args;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_subscriber::fmt::writer::{MakeWriterExt, OptionalWriter};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_config::Config;
+
+struct SyslogWriter(syslog::Logger<syslog::LoggerBackend, syslog::Formatter3164>);
+
+impl std::io::Write for SyslogWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.backend.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.backend.flush()
+    }
+}
+
+struct MakeSyslogWriter;
+
+impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
+    type Writer = fmt::writer::OptionalWriter<SyslogWriter>;
+
+    fn make_writer(&self) -> Self::Writer {
+        let formatter = syslog::Formatter3164::default();
+
+        match syslog::unix(formatter) {
+            Err(e) => {
+                eprintln!("Cannot initialize syslog: {e}");
+                OptionalWriter::none()
+            }
+            Ok(logger) => OptionalWriter::some(SyslogWriter(logger)),
+        }
+    }
+}
 
 /// Initialize the tracing subsystem.
 ///
@@ -74,7 +104,11 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         subscriber
             .with(
                 fmt::layer()
-                    .with_writer(writer_backend.and(writer_app))
+                    .with_writer(
+                        writer_backend
+                            .and(writer_app)
+                            .and(MakeSyslogWriter.with_max_level(tracing::Level::INFO)),
+                    )
                     .with_ansi(false),
             )
             .try_init()

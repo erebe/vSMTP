@@ -64,6 +64,8 @@ tracing = "0.1.36"
 tracing-appender = "0.2.2"
 console-subscriber = { version = "0.1.6", optional = true }
 
+syslog = "6.0.1"
+
 [features]
 default = ["vsmtp-common/gsasl_bindgen"]
 tokio_console = ["console-subscriber"]
