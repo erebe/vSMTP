@@ -155,7 +155,7 @@ fn get_headers(this: &mut Message, name: &str, count: usize) -> EngineResult<rha
 
     Ok(guard
         .inner()
-        .headers()
+        .headers(true)
         .iter()
         .filter(|(key, _)| key.to_lowercase() == name_lowercase)
         .take(count)

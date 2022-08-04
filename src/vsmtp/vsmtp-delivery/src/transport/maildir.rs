@@ -28,12 +28,12 @@ use vsmtp_config::{re::users, Config};
 /// see <https://en.wikipedia.org/wiki/Maildir>
 //
 // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
-//       and https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
 pub struct Maildir;
 
 #[async_trait::async_trait]
 impl Transport for Maildir {
+    #[tracing::instrument(skip(self, config, metadata, content))]
     async fn deliver(
         self,
         config: &Config,
@@ -44,7 +44,7 @@ impl Transport for Maildir {
     ) -> Vec<Rcpt> {
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
-                write_to_maildir(
+                Self::write_to_maildir(
                     rcpt,
                     &user,
                     config.server.system.group_local.as_ref(),
@@ -53,29 +53,21 @@ impl Transport for Maildir {
                 )
             }) {
                 Some(Ok(_)) => {
-                    log::info!(
-                        "(msg={}) successfully delivered to {rcpt} as maildir",
-                        metadata.message_id
-                    );
+                    log::info!("successfully delivered to `{rcpt}` as maildir");
 
                     rcpt.email_status = EmailTransferStatus::Sent {
                         timestamp: std::time::SystemTime::now(),
                     }
                 }
                 Some(Err(e)) => {
-                    log::error!(
-                        "(msg={}) failed to write email in maildir of '{rcpt}': {e}",
-                        metadata.message_id
-                    );
+                    log::error!("failed to write email in maildir of '{rcpt}': {e}");
 
                     rcpt.email_status.held_back(e);
                 }
                 None => {
                     log::error!(
-                        "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
-                        metadata.message_id,
+                        "failed to write email in maildir of '{}', user not found",
                         rcpt.address.local_part(),
-                        rcpt.address.local_part()
                     );
 
                     rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
@@ -88,64 +80,78 @@ impl Transport for Maildir {
     }
 }
 
-// NOTE: see https://en.wikipedia.org/wiki/Maildir
-fn create_maildir(
-    user: &users::User,
-    group_local: Option<&users::Group>,
-    metadata: &MessageMetadata,
-) -> anyhow::Result<std::path::PathBuf> {
-    let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
+impl Maildir {
+    fn create_and_chown(
+        path: &std::path::PathBuf,
+        user: &users::User,
+        group_local: Option<&users::Group>,
+    ) -> anyhow::Result<()> {
+        log::trace!("creating folder at `{}`", path.display());
 
-    let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
-        if !path.exists() {
-            std::fs::create_dir(&path).with_context(|| format!("failed to create {:?}", path))?;
+        if path.exists() {
+            log::trace!("folder `{}` already exists", path.display());
+        } else {
+            std::fs::create_dir(&path)
+                .with_context(|| format!("failed to create {}", path.display()))?;
+
+            log::trace!(
+                "setting the right ({}:{}) for folder at `{}`",
+                user.uid(),
+                group_local.map_or(u32::MAX, users::Group::gid),
+                path.display()
+            );
+
             chown(path, Some(user.uid()), group_local.map(users::Group::gid))
                 .with_context(|| format!("failed to set user rights to {:?}", path))?;
         }
 
         Ok(())
-    };
+    }
 
+    // NOTE: see https://en.wikipedia.org/wiki/Maildir
     // create and set rights for the MailDir & new folder if they don't exists.
-    create_and_chown(&maildir, user)?;
-    maildir.push("new");
-    create_and_chown(&maildir, user)?;
-    maildir.push(format!("{}.eml", metadata.message_id));
+    fn create_maildir(
+        user: &users::User,
+        group_local: Option<&users::Group>,
+        metadata: &MessageMetadata,
+    ) -> anyhow::Result<std::path::PathBuf> {
+        let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
+        Self::create_and_chown(&maildir, user, group_local)?;
+        maildir.push("new");
 
-    Ok(maildir)
-}
+        Self::create_and_chown(&maildir, user, group_local)?;
+        maildir.push(format!("{}.eml", metadata.message_id));
 
-fn write_to_maildir(
-    rcpt: &Rcpt,
-    user: &users::User,
-    group_local: Option<&users::Group>,
-    metadata: &MessageMetadata,
-    content: &str,
-) -> anyhow::Result<()> {
-    let maildir = create_maildir(user, group_local, metadata)?;
+        Ok(maildir)
+    }
 
-    let mut email = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(&maildir)?;
+    fn write_to_maildir(
+        rcpt: &Rcpt,
+        user: &users::User,
+        group_local: Option<&users::Group>,
+        metadata: &MessageMetadata,
+        content: &str,
+    ) -> anyhow::Result<()> {
+        let file_in_maildir_inbox = Self::create_maildir(user, group_local, metadata)?;
 
-    std::io::Write::write_all(&mut email, format!("Delivered-To: {rcpt}\n").as_bytes())?;
-    std::io::Write::write_all(&mut email, content.as_bytes())?;
+        let mut email = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&file_in_maildir_inbox)?;
 
-    chown(
-        &maildir,
-        Some(user.uid()),
-        group_local.map(users::Group::gid),
-    )?;
+        std::io::Write::write_all(&mut email, format!("Delivered-To: {rcpt}\n").as_bytes())?;
+        std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-    log::debug!(
-        "(msg={}) {} bytes written to {:?}'s inbox",
-        metadata.message_id,
-        content.len(),
-        user
-    );
+        chown(
+            &file_in_maildir_inbox,
+            Some(user.uid()),
+            group_local.map(users::Group::gid),
+        )?;
 
-    Ok(())
+        log::debug!("{} bytes written to `{:?}`'s inbox", content.len(), user);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -178,7 +184,7 @@ mod test {
             .expect("current user has been deleted after running this test");
         let message_id = "test_message";
 
-        write_to_maildir(
+        Maildir::write_to_maildir(
             &Rcpt::new(addr!("john.doe@example.com")),
             &current,
             None,

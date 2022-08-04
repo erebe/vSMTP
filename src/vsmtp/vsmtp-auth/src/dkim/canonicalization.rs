@@ -171,9 +171,8 @@ impl std::str::FromStr for Canonicalization {
 
 #[cfg(test)]
 mod tests {
+    use crate::dkim::{CanonicalizationAlgorithm, SigningAlgorithm};
     use vsmtp_common::RawBody;
-
-    use crate::{CanonicalizationAlgorithm, SigningAlgorithm};
 
     macro_rules! test_canonicalization {
         ($name:ident, $canon:expr, $algo:expr, $expected:expr) => {
@@ -227,7 +226,7 @@ mod tests {
         );
 
         assert_eq!(
-            msg.headers()
+            msg.headers(false)
                 .into_iter()
                 .map(|(key, value)| CanonicalizationAlgorithm::Relaxed
                     .canonicalize_header(&format!("{key}:{value}")))
@@ -241,7 +240,7 @@ mod tests {
 
         assert_eq!(
             CanonicalizationAlgorithm::Relaxed.canonicalize_headers(
-                &msg.headers()
+                &msg.headers(false)
                     .iter()
                     .map(|(key, value)| format!("{key}:{value}"))
                     .collect::<Vec<_>>()
@@ -267,7 +266,7 @@ mod tests {
         );
 
         assert_eq!(
-            msg.headers()
+            msg.headers(false)
                 .into_iter()
                 .map(|(key, value)| CanonicalizationAlgorithm::Simple
                     .canonicalize_header(&format!("{key}:{value}")))
@@ -280,7 +279,7 @@ mod tests {
 
         assert_eq!(
             CanonicalizationAlgorithm::Simple.canonicalize_headers(
-                &msg.headers()
+                &msg.headers(false)
                     .iter()
                     .map(|(key, value)| format!("{key}:{value}"))
                     .collect::<Vec<_>>()

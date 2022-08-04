@@ -111,10 +111,9 @@ mod utils_rhai {
     #[rhai_fn(global, return_raw)]
     pub fn get_root_domain(domain: &str) -> EngineResult<String> {
         if let Ok(domain) = addr::parse_domain_name(domain) {
-            domain
+            Ok(domain
                 .root()
-                .map(ToString::to_string)
-                .ok_or_else(|| format!("failed to get root domain from {domain}").into())
+                .map_or_else(|| domain.to_string(), ToString::to_string))
         } else {
             Err(format!("failed to parse as domain: `{domain}`").into())
         }

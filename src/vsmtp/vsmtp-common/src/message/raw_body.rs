@@ -61,7 +61,7 @@ impl RawBody {
     ///
     // TODO: make it lazy if possible
     #[must_use]
-    pub fn headers(&self) -> Vec<(String, String)> {
+    pub fn headers(&self, with_multiline: bool) -> Vec<(String, String)> {
         let mut out = vec![];
         for (idx, header) in self.headers.iter().enumerate() {
             if header.starts_with(' ') || header.starts_with('\t') {
@@ -75,6 +75,9 @@ impl RawBody {
                         .iter()
                         .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
                     {
+                        if with_multiline {
+                            s.push_str("\r\n");
+                        }
                         s.push_str(i);
                     }
                     out.push((key.to_string(), s));

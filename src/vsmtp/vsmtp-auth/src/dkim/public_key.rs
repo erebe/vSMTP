@@ -55,7 +55,7 @@ pub enum Flags {
 
 /// The public key exposed by the Signing Domain Identifier, claiming the
 /// responsibility for a [`crate::Signature`]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PublicKey {
     /// tag "v="
     /// MUST be "DKIM1"
@@ -74,6 +74,23 @@ pub struct PublicKey {
     pub service_type: Vec<ServiceType>,
     /// tag "t="
     pub flags: Vec<Flags>,
+}
+
+impl std::fmt::Debug for PublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PublicKey")
+            .field("version", &self.version)
+            .field(
+                "acceptable_hash_algorithms",
+                &self.acceptable_hash_algorithms,
+            )
+            .field("type", &self.r#type)
+            .field("notes", &self.notes)
+            .field("public_key", &base64::encode(&self.public_key))
+            .field("service_type", &self.service_type)
+            .field("flags", &self.flags)
+            .finish()
+    }
 }
 
 impl PublicKey {
@@ -165,12 +182,10 @@ impl std::str::FromStr for PublicKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
+    use crate::dkim::{
         public_key::{Flags, ServiceType, Type, Version},
-        HashAlgorithm,
+        HashAlgorithm, PublicKey,
     };
-
-    use super::PublicKey;
 
     #[test]
     fn parse() {

@@ -15,9 +15,8 @@
  *
 */
 
-use vsmtp_common::RawBody;
-
 use super::{Canonicalization, SigningAlgorithm};
+use vsmtp_common::{re::log, RawBody};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -27,6 +26,14 @@ pub enum ParseError {
     SyntaxError { reason: String },
     #[error("invalid argument: `{reason}`")]
     InvalidArgument { reason: String },
+}
+
+impl Default for ParseError {
+    fn default() -> Self {
+        ParseError::InvalidArgument {
+            reason: "`default` invoked".to_string(),
+        }
+    }
 }
 
 // NOTE: currently "dns/txt" is the only format supported (by signers and verifiers)
@@ -150,12 +157,10 @@ impl Signature {
         out
     }
 
-    ///
-    #[must_use]
-    pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
+    pub(crate) fn get_header_for_hash(&self, message: &RawBody) -> String {
         let mut last_index = std::collections::HashMap::<&str, usize>::new();
 
-        let headers = message.headers();
+        let headers = message.headers(true);
 
         let mut output = vec![];
         for header in &self.headers_field {
@@ -184,8 +189,17 @@ impl Signature {
                 .header
                 .canonicalize_header(&self.signature_without_headers()),
         );
+        output
+    }
 
-        self.signing_algorithm.hash(output)
+    ///
+    #[must_use]
+    pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
+        let header = self.get_header_for_hash(message);
+
+        log::debug!("header before hash={:?}", header);
+
+        self.signing_algorithm.hash(header)
     }
 }
 
@@ -389,7 +403,7 @@ impl std::str::FromStr for Signature {
 #[cfg(test)]
 mod tests {
     use super::{Canonicalization, QueryMethod, Signature, SigningAlgorithm};
-    use crate::CanonicalizationAlgorithm;
+    use crate::dkim::CanonicalizationAlgorithm;
 
     #[test]
     fn from_str_wikipedia() {

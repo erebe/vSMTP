@@ -15,10 +15,8 @@
  *
 */
 
-use crate::HashAlgorithm;
-
-use super::{PublicKey, Signature, SigningAlgorithm};
-use vsmtp_common::RawBody;
+use super::{HashAlgorithm, PublicKey, Signature, SigningAlgorithm};
+use vsmtp_common::{re::log, RawBody};
 
 /// Possible error produced by [`Signature::verify`]
 #[derive(Debug, thiserror::Error)]
@@ -42,8 +40,13 @@ pub enum VerifierError {
     #[error("the key has been revoked, or is empty")]
     KeyMissingOrRevoked,
     /// The public key is invalid
-    #[error("the key format could not be recognized")]
-    KeyFormatInvalid,
+    #[error("the key format could not be recognized: `{e_pkcs1}` and `{e_pkcs8}`")]
+    KeyFormatInvalid {
+        /// Error produced when trying to convert to format `PKCS1`
+        e_pkcs1: rsa::pkcs1::Error,
+        /// Error produced when trying to convert to format `PKCS8`
+        e_pkcs8: rsa::pkcs8::spki::Error,
+    },
     /// The hash produced of the body does not match the hash in the signature
     #[error("body hash does not match")]
     BodyHashMismatch,
@@ -59,6 +62,12 @@ pub enum VerifierError {
         /// Error produced by `base64::`
         error: base64::DecodeError,
     },
+}
+
+impl Default for VerifierError {
+    fn default() -> Self {
+        VerifierError::KeyMissingOrRevoked
+    }
 }
 
 impl Signature {
@@ -101,25 +110,30 @@ impl Signature {
         }
 
         let headers_hash = self.get_header_hash(message);
+        log::debug!("headers_hash={}", base64::encode(&headers_hash));
 
         // the type of public_key is not precised in the DNS record,
         // so we try each format..
 
-        let key =
-            <rsa::RsaPublicKey as rsa::pkcs1::DecodeRsaPublicKey>::from_pkcs1_der(&key.public_key)
+        let key = match <rsa::RsaPublicKey as rsa::pkcs1::DecodeRsaPublicKey>::from_pkcs1_der(
+            &key.public_key,
+        )
+        .map(Box::new)
+        {
+            Ok(key) => key,
+            Err(e_pkcs1) => {
+                match <rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(
+                    &key.public_key,
+                )
                 .map(Box::new)
-                .or_else(|e| {
-                    println!("invalid format: {e}");
-                    <rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(
-                        &key.public_key,
-                    )
-                    .map(Box::new)
-                })
-                .map_err(|e| {
-                    println!("invalid format: {e}");
-                    VerifierError::KeyFormatInvalid
-                })?;
-
+                {
+                    Ok(key) => key,
+                    Err(e_pkcs8) => {
+                        return Err(VerifierError::KeyFormatInvalid { e_pkcs1, e_pkcs8 });
+                    }
+                }
+            }
+        };
         rsa::PublicKey::verify(
             key.as_ref(),
             rsa::PaddingScheme::PKCS1v15Sign {

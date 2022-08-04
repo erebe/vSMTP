@@ -29,7 +29,7 @@ use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
-use rhai::{plugin::EvalAltResult, Engine, Scope, AST};
+use rhai::{Engine, Scope, AST};
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::queue::Queue;
 use vsmtp_common::queue_path;
@@ -173,52 +173,57 @@ impl RuleEngine {
     /// receiving delegation results)
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            // check if we need to skip directive execution or resume because of a delegation.
-            let directive_set = match rule_state.skipped() {
-                Some(Status::DelegationResult) if smtp_state.email_received() => {
-                    if let Some(header) = rule_state
-                        .message()
-                        .read()
-                        .unwrap()
-                        .get_header("X-VSMTP-DELEGATION")
-                    {
-                        let header =
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
+        let directive_set =
+            if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
+                directive_set
+            } else {
+                return Status::Next;
+            };
 
-                        let (stage, directive_name, message_id) = match (
-                            header.args.get("stage"),
-                            header.args.get("directive"),
-                            header.args.get("id"),
-                        ) {
-                            (Some(stage), Some(directive_name), Some(message_id)) => {
-                                (stage, directive_name, message_id)
-                            }
-                            _ => return Status::DelegationResult,
-                        };
+        // check if we need to skip directive execution or resume because of a delegation.
+        let directive_set = match rule_state.skipped() {
+            Some(Status::DelegationResult) if smtp_state.email_received() => {
+                if let Some(header) = rule_state
+                    .message()
+                    .read()
+                    .unwrap()
+                    .get_header("X-VSMTP-DELEGATION")
+                {
+                    let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
-                        if *stage == smtp_state.to_string() {
-                            if let Some(d) = directive_set
-                                .iter()
-                                .position(|directive| directive.name() == directive_name)
-                            {
-                                // If delegation results are coming in and that this is the correct
-                                // directive that has been delegated, we need to pull
-                                // the old context because its state has been lost
-                                // when the delegation happened.
-                                //
-                                // There is however no need to discard the old email because it
-                                // will be overridden by the results once it's time to write
-                                // in the 'mail' queue.
-                                let path_to_context = queue_path!(
-                                    &rule_state.server.config.server.queues.dirpath,
-                                    Queue::Delegated,
-                                    message_id
-                                );
+                    let (stage, directive_name, message_id) = match (
+                        header.args.get("stage"),
+                        header.args.get("directive"),
+                        header.args.get("id"),
+                    ) {
+                        (Some(stage), Some(directive_name), Some(message_id)) => {
+                            (stage, directive_name, message_id)
+                        }
+                        _ => return Status::DelegationResult,
+                    };
 
-                                // FIXME: this is only useful for preq, the other processes
-                                //        already fetch the old context.
-                                match MailContext::from_file_path_sync(&path_to_context) {
+                    if *stage == smtp_state.to_string() {
+                        if let Some(d) = directive_set
+                            .iter()
+                            .position(|directive| directive.name() == directive_name)
+                        {
+                            // If delegation results are coming in and that this is the correct
+                            // directive that has been delegated, we need to pull
+                            // the old context because its state has been lost
+                            // when the delegation happened.
+                            //
+                            // There is however no need to discard the old email because it
+                            // will be overridden by the results once it's time to write
+                            // in the 'mail' queue.
+                            let path_to_context = queue_path!(
+                                &rule_state.server.config.server.queues.dirpath,
+                                Queue::Delegated,
+                                message_id
+                            );
+
+                            // FIXME: this is only useful for preq, the other processes
+                            //        already fetch the old context.
+                            match MailContext::from_file_path_sync(&path_to_context) {
                                     Ok(mut context) => {
                                         context.metadata.as_mut().unwrap().skipped = None;
                                         *rule_state.context().write().unwrap() = context;
@@ -226,96 +231,63 @@ impl RuleEngine {
                                     Err(err) => log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}")
                                 };
 
-                                rule_state.resume();
-                                &directive_set[d..]
-                            } else {
-                                return Status::DelegationResult;
-                            }
+                            rule_state.resume();
+                            &directive_set[d..]
                         } else {
                             return Status::DelegationResult;
                         }
                     } else {
                         return Status::DelegationResult;
                     }
-                }
-                Some(status) => return (*status).clone(),
-                None => &directive_set[..],
-            };
-
-            match self.execute_directives(rule_state, directive_set, smtp_state) {
-                Ok(status) => {
-                    if status.stop() {
-                        log::debug!(
-                            "[{smtp_state}] the rule engine will skip all rules because of the previous result."
-                        );
-                        rule_state.skipping(status.clone());
-                    }
-
-                    return status;
-                }
-                Err(error) => {
-                    log::error!("{}", Self::parse_stage_error(error, smtp_state));
-
-                    // if an error occurs, the engine denies the connection by default.
-                    let state_if_error = deny();
-                    rule_state.skipping(state_if_error.clone());
-                    return state_if_error;
+                } else {
+                    return Status::DelegationResult;
                 }
             }
-        }
+            Some(status) => return (*status).clone(),
+            None => &directive_set[..],
+        };
 
-        Status::Next
+        #[allow(clippy::single_match_else)]
+        match self.execute_directives(rule_state, directive_set, smtp_state) {
+            Ok(status) => {
+                if status.stop() {
+                    log::debug!(
+                        "[{smtp_state}] the rule engine will skip all rules because of the previous result."
+                    );
+                    rule_state.skipping(status.clone());
+                }
+
+                status
+            }
+            Err(_) => {
+                // TODO: keep the error for the `deferred` info
+
+                // if an error occurs, the engine denies the connection by default.
+                let state_if_error = deny();
+                rule_state.skipping(state_if_error.clone());
+                state_if_error
+            }
+        }
     }
 
+    #[allow(clippy::similar_names)]
     fn execute_directives(
         &self,
         state: &mut RuleState,
         directives: &[Directive],
-        smtp_state: &StateSMTP,
+        stage: &StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(state, &self.ast, smtp_state)?;
-
-            log::debug!(
-                "[{smtp_state}] {} '{}' evaluated => {status:?}.",
-                directive.directive_type(),
-                directive.name(),
-            );
+            status = directive.execute(state, &self.ast, stage)?;
 
             if status != Status::Next {
                 break;
             }
         }
 
-        log::debug!("[{smtp_state}] stage evaluated => {status:?}.");
-
         Ok(status)
-    }
-
-    fn parse_stage_error(error: Box<EvalAltResult>, smtp_state: &StateSMTP) -> String {
-        match *error {
-            // NOTE: since all errors are caught and thrown in "run_rules", errors
-            //       are always wrapped in ErrorInFunctionCall.
-            EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
-                let error = error.cast::<rhai::Map>();
-                let rule = error
-                    .get("rule")
-                    .map_or_else(|| "unknown rule".to_string(), ToString::to_string);
-                let error = error.get("message").map_or_else(
-                    || "vsl internal unexpected error".to_string(),
-                    ToString::to_string,
-                );
-
-                format!(
-                    "stage '{smtp_state}' skipped => rule engine failed in '{rule}':\n\t{error}"
-                )
-            }
-            _ => {
-                format!("stage '{smtp_state}' skipped => rule engine failed:\n\t{error}",)
-            }
-        }
     }
 
     /// create a rhai engine to compile all scripts with vsl's configuration.

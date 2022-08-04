@@ -15,11 +15,13 @@
  *
 */
 
-use crate::{signature::QueryMethod, Canonicalization, Signature, SigningAlgorithm};
+use super::{signature::QueryMethod, Canonicalization, Signature, SigningAlgorithm};
 use vsmtp_common::RawBody;
 
 impl Signature {
     /// # Errors
+    ///
+    /// * the signature with the `private_key` failed
     pub fn sign(
         message: &RawBody,
         selector: &str,
@@ -31,15 +33,20 @@ impl Signature {
         let mut signature = Signature {
             version: 1,
             signing_algorithm: SigningAlgorithm::RsaSha256,
-            sdid: String::default(),
-            selector: String::default(),
+            sdid: sdid.to_string(),
+            selector: selector.to_string(),
             canonicalization,
             query_method: vec![QueryMethod::default()],
+            // TODO:
             auid: String::default(),
+            // TODO:
             signature_timestamp: None,
+            // TODO:
             expire_time: None,
+            // TODO:
             body_length: None,
-            headers_field: vec![],
+            headers_field,
+            // TODO:
             copy_header_fields: None,
             body_hash: String::default(),
             signature: String::default(),
@@ -54,9 +61,6 @@ impl Signature {
                 .unwrap_or_default(),
         );
 
-        signature.sdid = sdid.to_string();
-        signature.headers_field = headers_field;
-        signature.selector = selector.to_string();
         signature.body_hash = base64::encode(signature.signing_algorithm.hash(&body_hash));
 
         signature.raw = signature.to_string();
@@ -81,6 +85,7 @@ impl Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: write the other parameters
         f.write_fmt(format_args!(
             "DKIM-Signature: v={}; a={}; d={}; s={};\r\n\tc={}; q={}; h={};\r\n\tbh={};\r\n\tb={}",
             self.version,
@@ -108,12 +113,11 @@ impl std::fmt::Display for Signature {
 
 #[cfg(test)]
 mod tests {
-    use vsmtp_common::MessageBody;
-
-    use crate::{
+    use crate::dkim::{
         public_key::{Type, Version},
         Canonicalization, CanonicalizationAlgorithm, HashAlgorithm, PublicKey, Signature,
     };
+    use vsmtp_common::MessageBody;
 
     #[test]
     fn sign_and_verify() {

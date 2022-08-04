@@ -1,4 +1,21 @@
-use crate::{PublicKey, Signature};
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+use crate::dkim::{PublicKey, Signature};
 use trust_dns_resolver::config::ResolverOpts;
 use vsmtp_common::MessageBody;
 
@@ -6,7 +23,7 @@ async fn verify(mail: &str) {
     let body = MessageBody::try_from(mail).unwrap();
 
     let resolver = trust_dns_resolver::TokioAsyncResolver::tokio(
-        trust_dns_resolver::config::ResolverConfig::google(),
+        trust_dns_resolver::config::ResolverConfig::cloudflare(),
         ResolverOpts::default(),
     )
     .unwrap();
@@ -55,28 +72,17 @@ async fn mail_1() {
 
 #[tokio::test]
 async fn mail_2() {
-    verify(&include_str!("mail_2.eml").replace('\n', "\r\n")).await;
-}
-
-#[tokio::test]
-async fn mail_3() {
-    verify(&include_str!("mail_3.eml").replace('\n', "\r\n")).await;
+    verify(include_str!("mail_2.eml")).await;
 }
 
 #[test]
 #[ignore = "need `sudo apt install python3-dkim`"]
 fn mail_1_3rd_party() {
-    verify_3rd_party("./src/tests/mail_1.eml");
+    verify_3rd_party("./src/dkim/tests/mail_1.eml");
 }
 
 #[test]
 #[ignore = "need `sudo apt install python3-dkim`"]
 fn mail_2_3rd_party() {
-    verify_3rd_party("./src/tests/mail_2.eml");
-}
-
-#[test]
-#[ignore = "need `sudo apt install python3-dkim`"]
-fn mail_3_3rd_party() {
-    verify_3rd_party("./src/tests/mail_3.eml");
+    verify_3rd_party("./src/dkim/tests/mail_2.eml");
 }
