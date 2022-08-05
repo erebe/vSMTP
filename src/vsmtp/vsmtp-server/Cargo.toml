@@ -38,7 +38,7 @@ tracing = "0.1.36"
 
 async-trait = "0.1.57"
 fastrand = "1.8.0"
-thiserror = "1.0.31"
+thiserror = "1.0.32"
 
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"
