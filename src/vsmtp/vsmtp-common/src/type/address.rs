@@ -15,10 +15,8 @@
  *
 */
 /// Address Email
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Debug, serde_with::SerializeDisplay, Eq, serde_with::DeserializeFromStr)]
 pub struct Address {
-    #[serde(skip)]
     at_sign: usize,
     full: String,
 }
@@ -31,34 +29,20 @@ pub struct Address {
 #[macro_export]
 macro_rules! addr {
     ($e:expr) => {
-        $crate::Address::try_from($e.to_string()).unwrap()
+        <$crate::Address as std::str::FromStr>::from_str($e).unwrap()
     };
 }
 
-impl TryFrom<&str> for Address {
-    type Error = anyhow::Error;
+impl std::str::FromStr for Address {
+    type Err = anyhow::Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Err(error) = addr::parse_email_address(value) {
-            anyhow::bail!("'{}' is not a valid address: {}", value, error)
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Err(error) = addr::parse_email_address(s) {
+            anyhow::bail!("'{s}' is not a valid address: {error}")
         }
         Ok(Self {
-            at_sign: value.find('@').expect("no '@' in address"),
-            full: value.to_string(),
-        })
-    }
-}
-
-impl TryFrom<String> for Address {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        if let Err(error) = addr::parse_email_address(&value) {
-            anyhow::bail!("'{}' is not a valid address: {}", value, error)
-        }
-        Ok(Self {
-            at_sign: value.find('@').expect("no '@' in address"),
-            full: value,
+            at_sign: s.find('@').expect("no '@' in address"),
+            full: s.to_string(),
         })
     }
 }

@@ -286,7 +286,7 @@ async fn test_receiver_13() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![addr!(format!("aa{}@bb", self.count)).into()]
+                vec![addr!(&format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 *message.parsed::<MailMimeParser>().unwrap(),
@@ -377,7 +377,7 @@ async fn test_receiver_14() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![addr!(format!("aa{}@bb", self.count)).into()]
+                vec![addr!(&format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 *message.parsed::<MailMimeParser>().unwrap(),

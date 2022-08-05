@@ -21,32 +21,93 @@ use rhai::plugin::{
 };
 use vsmtp_common::re::log;
 
+pub use logging_rhai::*;
+
 #[rhai::plugin::export_module]
 mod logging_rhai {
 
-    /// log a message to the file system / console with the specified level.
+    /// # Examples
+    ///
+    /// ```
+    /// vsmtp_test::vsl::run(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (obj/str)" || {
+    ///       object message string = "Hello world!";
+    ///
+    ///       log("error", message);
+    ///     },
+    ///   ],
+    /// }
+    /// "#);
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
+    #[doc = "overloaded as `log(level, message)`"]
     pub fn log_str_obj(level: &str, message: SharedObject) {
         log(level, &message.to_string());
     }
 
-    /// log a message to the file system / console with the specified level.
+    /// # Examples
+    ///
+    /// ```
+    /// vsmtp_test::vsl::run(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (obj/str)" || {
+    ///       object level string = "warn";
+    ///
+    ///       log(level, "I love vsl!");
+    ///     },
+    ///   ],
+    /// }
+    /// "#);
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
+    #[doc = "overloaded as `log(level, message)`"]
     pub fn log_obj_str(level: &mut SharedObject, message: &str) {
         log(&level.to_string(), message);
     }
 
-    /// log a message to the file system / console with the specified level.
+    /// # Examples
+    ///
+    /// ```
+    /// vsmtp_test::vsl::run(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (obj/obj)" || {
+    ///       object level string = "trace";
+    ///       object message string = "connection established";
+    ///
+    ///       log(level, message);
+    ///     },
+    ///   ],
+    /// }
+    /// "#);
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
+    #[doc = "overloaded as `log(level, message)`"]
     pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
         log(&level.to_string(), &message.to_string());
     }
 
-    /// log a message to the file system / console with the specified level.
+    /// # Examples
+    ///
+    /// ```
+    /// vsmtp_test::vsl::run(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (str/str)" || {
+    ///       log("info", "ehlo world");
+    ///     },
+    ///   ],
+    /// }
+    /// "#);
+    /// ```
     #[rhai_fn(global, name = "log")]
+    #[doc = "overloaded as `log(level, message)`"]
     pub fn log(level: &str, message: &str) {
         const APP_TARGET: &str = "app";
 
@@ -54,10 +115,8 @@ mod logging_rhai {
             Ok(level) => log::log!(target: APP_TARGET, level, "{message}"),
             Err(e) => log::warn!(
                 target: APP_TARGET,
-                "Got an error with level `{level}`: `{e}`. Message was: '{message}'"
+                "Got an error with level `{level}`: `{e}`. Message was: '{message}'",
             ),
         }
     }
 }
-
-pub use logging_rhai::*;

@@ -136,7 +136,9 @@ impl Object {
 
             "address" => {
                 let value = Self::value::<S, String>(map, "value")?;
-                Ok(Self::Address(Address::try_from(value)?))
+                Ok(Self::Address(<Address as std::str::FromStr>::from_str(
+                    &value,
+                )?))
             }
 
             "identifier" => Ok(Self::Identifier(Self::value::<S, String>(map, "value")?)),
@@ -173,7 +175,9 @@ impl Object {
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", path),
                             },
                             "address" => {
-                                content.push(Self::Address(Address::try_from(line)?));
+                                content.push(Self::Address(
+                                    <Address as std::str::FromStr>::from_str(&line)?,
+                                ));
                             }
                             "string" => content.push(Self::Str(line)),
                             "identifier" => content.push(Self::Identifier(line)),

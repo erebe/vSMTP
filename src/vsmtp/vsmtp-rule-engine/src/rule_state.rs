@@ -25,7 +25,6 @@ use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
 use vsmtp_common::re::anyhow;
-use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_common::{
     envelop::Envelop,
@@ -235,30 +234,6 @@ impl RuleState {
     #[must_use]
     pub fn message(&self) -> Message {
         self.message.clone()
-    }
-
-    /// Instantiate a [`RuleState`] and run it for the only `state` provided
-    ///
-    /// # Return
-    ///
-    /// A tuple with the mail context, body, result status, and skip status.
-    #[must_use]
-    pub fn just_run_when(
-        state: &StateSMTP,
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
-        rule_engine: &RuleEngine,
-        mail_context: MailContext,
-        mail_message: MessageBody,
-    ) -> (MailContext, MessageBody, Status, Option<Status>) {
-        let mut rule_state =
-            Self::with_context(config, resolvers, rule_engine, mail_context, mail_message);
-        let result = rule_engine.run_when(&mut rule_state, state);
-
-        let (mail_context, mail_message, skipped) = rule_state
-            .take()
-            .expect("should not have strong reference here");
-        (mail_context, mail_message, result, skipped)
     }
 
     /// Consume the instance and return the inner [`MailContext`] and [`MessageBody`]

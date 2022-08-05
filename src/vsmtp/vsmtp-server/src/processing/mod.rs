@@ -23,7 +23,7 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::RuleEngine;
 
 pub async fn start(
     config: std::sync::Arc<Config>,
@@ -86,11 +86,10 @@ async fn handle_one_in_working_queue_inner(
         .read(&config.server.queues.dirpath, &process_message.message_id)
         .await?;
 
-    let (mut mail_context, mail_message, _, skipped) = RuleState::just_run_when(
+    let (mut mail_context, mail_message, _, skipped) = rule_engine.just_run_when(
         &StateSMTP::PostQ,
         config.as_ref(),
         resolvers,
-        &rule_engine,
         mail_context,
         mail_message,
     );

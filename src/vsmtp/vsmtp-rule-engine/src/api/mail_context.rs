@@ -334,15 +334,23 @@ mod mail_context_rhai {
 
 /// internal generic function to rewrite the `mail_from` value of the envelop.
 fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-    vsl_guard_ok!(context.write()).envelop.mail_from =
-        vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    vsl_guard_ok!(context.write()).envelop.mail_from = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
     Ok(())
 }
 
 /// internal generic function to rewrite a recipient of the envelop.
 fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
-    let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
-    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    let old_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(old_addr)
+    );
+    let new_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
 
     let mut context = vsl_guard_ok!(context.write());
 
@@ -366,7 +374,7 @@ fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
         .rcpt
         .push(Rcpt::new(vsl_conversion_ok!(
             "address",
-            Address::try_from(new_addr.to_string())
+            <Address as std::str::FromStr>::from_str(new_addr)
         )));
 
     Ok(())
@@ -374,7 +382,7 @@ fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
 
 /// internal generic function to remove a recipient to the envelop.
 fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {
-    let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
+    let addr = vsl_conversion_ok!("address", <Address as std::str::FromStr>::from_str(addr));
 
     let mut email = vsl_guard_ok!(context.write());
 

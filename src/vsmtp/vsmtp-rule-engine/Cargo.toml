@@ -72,6 +72,7 @@ trust-dns-resolver = "0.21.2"
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+vsmtp-test = { path = "../vsmtp-test" }
 
 [features]
 default = ["vsmtp-common/gsasl_bindgen"]

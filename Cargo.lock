@@ -2720,6 +2720,7 @@ dependencies = [
  "pretty_assertions",
  "serde",
  "serde_json",
+ "serde_with",
  "strum",
  "tokio",
  "tokio-stream",
@@ -2802,6 +2803,7 @@ dependencies = [
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
+ "vsmtp-test",
  "wait-timeout",
 ]
 

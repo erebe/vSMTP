@@ -79,13 +79,14 @@ pub mod api {
 
     /// backend for DKIM functionality.
     pub mod dkim;
-    /// write information to a specific file.
+    /// Log a message of `level` in the `app` target, which will be written to the
+    /// the fie you specified in the field `app.logs.filepath` form the [`vsmtp_config::Config`].
     pub mod logging;
-    /// Extensions for the `MailContext` type.
+    /// Extensions for the [`vsmtp_common::mail_context::MailContext`] type.
     pub mod mail_context;
-    /// Extensions for the `MessageBody` type.
+    /// Extensions for the [`vsmtp_common::MessageBody`] type.
     pub mod message;
-    /// Extensions for the `MessageBody` type.
+    /// Extensions for the [`vsmtp_common::MessageBody`] type.
     pub mod message_parsed;
     /// State Engine & filtering backend.
     pub mod rule_state;

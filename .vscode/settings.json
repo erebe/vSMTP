@@ -26,6 +26,7 @@
         "domainkey",
         "ehlo",
         "ENHANCEDSTATUSCODES",
+        "esmtp",
         "ESMTPA",
         "ESMTPSA",
         "Expn",

@@ -119,7 +119,10 @@ mod message_parsed {
 
 /// internal generic function to rewrite the value of the `From` header.
 fn rewrite_mail_from_message(message: &mut Message, new_addr: &str) -> EngineResult<()> {
-    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    let new_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
 
     let mut writer = vsl_guard_ok!(message.write());
     vsl_parse_ok!(writer).rewrite_mail_from(new_addr.full());
@@ -129,8 +132,14 @@ fn rewrite_mail_from_message(message: &mut Message, new_addr: &str) -> EngineRes
 
 /// internal generic function to rewrite the value of the `To` header.
 fn rewrite_rcpt_message(message: &mut Message, old_addr: &str, new_addr: &str) -> EngineResult<()> {
-    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
-    let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
+    let new_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
+    let old_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(old_addr)
+    );
 
     let mut writer = vsl_guard_ok!(message.write());
     vsl_parse_ok!(writer).rewrite_rcpt(old_addr.full(), new_addr.full());
@@ -139,7 +148,10 @@ fn rewrite_rcpt_message(message: &mut Message, old_addr: &str, new_addr: &str) -
 
 /// internal generic function to add a recipient to the `To` header.
 fn add_rcpt_message(message: &mut Message, new_addr: &str) -> EngineResult<()> {
-    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    let new_addr = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
 
     let mut writer = vsl_guard_ok!(message.write());
     vsl_parse_ok!(writer).add_rcpt(new_addr.full());
@@ -148,7 +160,7 @@ fn add_rcpt_message(message: &mut Message, new_addr: &str) -> EngineResult<()> {
 
 /// internal generic function to remove a recipient to the `To` header.
 fn remove_rcpt_message(this: &mut Message, addr: &str) -> EngineResult<()> {
-    let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
+    let addr = vsl_conversion_ok!("address", <Address as std::str::FromStr>::from_str(addr));
 
     let mut writer = vsl_guard_ok!(this.write());
     vsl_parse_ok!(writer).remove_rcpt(addr.full());

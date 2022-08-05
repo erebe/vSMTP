@@ -54,7 +54,7 @@ pub enum Flags {
 }
 
 /// The public key exposed by the Signing Domain Identifier, claiming the
-/// responsibility for a [`crate::Signature`]
+/// responsibility for a [`crate::dkim::Signature`]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PublicKey {
     /// tag "v="

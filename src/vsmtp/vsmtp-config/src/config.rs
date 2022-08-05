@@ -197,7 +197,8 @@ pub mod field {
         /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
         #[serde(default = "FieldServerLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
-        /// Format of the output, see [`log4rs::encode::pattern`]
+        /// Unused
+        // Format of the output, see [`log4rs::encode::pattern`]
         // FIXME: UNUSED
         #[serde(default = "FieldServerLogs::default_format")]
         pub format: String,

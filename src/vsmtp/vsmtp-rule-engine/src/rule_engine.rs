@@ -1,4 +1,3 @@
-use crate::api::StandardVSLPackage;
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,28 +14,32 @@ use crate::api::StandardVSLPackage;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use crate::api::rule_state::deny;
-use crate::api::EngineResult;
-use crate::api::SharedObject;
-use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
-use crate::dsl::directives::{Directive, Directives};
-use crate::dsl::object::parsing::{create_object, parse_object};
-use crate::dsl::rule::parsing::{create_rule, parse_rule};
-use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::dsl::service::Service;
+use crate::api::{rule_state::deny, EngineResult, SharedObject, StandardVSLPackage};
+use crate::dsl::{
+    action::parsing::{create_action, parse_action},
+    delegation::parsing::{create_delegation, parse_delegation},
+    directives::{Directive, Directives},
+    object::parsing::{create_object, parse_object},
+    rule::parsing::{create_rule, parse_rule},
+    service::{
+        parsing::{create_service, parse_service},
+        Service,
+    },
+};
 use crate::rule_state::RuleState;
 use anyhow::Context;
-use rhai::module_resolvers::FileModuleResolver;
-use rhai::packages::Package;
-use rhai::{Engine, Scope, AST};
-use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::queue::Queue;
-use vsmtp_common::queue_path;
-use vsmtp_common::re::{anyhow, log};
-use vsmtp_common::state::StateSMTP;
-use vsmtp_common::status::Status;
-use vsmtp_config::Config;
+use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
+use vsmtp_common::re::serde_json;
+use vsmtp_common::MessageBody;
+use vsmtp_common::{
+    mail_context::MailContext,
+    queue::Queue,
+    queue_path,
+    re::{anyhow, log},
+    state::StateSMTP,
+    status::Status,
+};
+use vsmtp_config::{Config, Resolvers};
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
@@ -186,7 +189,7 @@ impl RuleEngine {
                 if let Some(header) = rule_state
                     .message()
                     .read()
-                    .unwrap()
+                    .expect("Mutex poisoned")
                     .get_header("X-VSMTP-DELEGATION")
                 {
                     let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
@@ -268,6 +271,32 @@ impl RuleEngine {
                 state_if_error
             }
         }
+    }
+
+    /// Instantiate a [`RuleState`] and run it for the only `state` provided
+    ///
+    /// # Return
+    ///
+    /// A tuple with the mail context, body, result status, and skip status.
+    #[must_use]
+    pub fn just_run_when(
+        &self,
+        state: &StateSMTP,
+        config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
+        mail_context: MailContext,
+        mail_message: MessageBody,
+    ) -> (MailContext, MessageBody, Status, Option<Status>) {
+        let mut rule_state =
+            RuleState::with_context(config, resolvers, self, mail_context, mail_message);
+
+        let result = self.run_when(&mut rule_state, state);
+
+        let (mail_context, mail_message, skipped) = rule_state
+            .take()
+            .expect("should not have strong reference here");
+
+        (mail_context, mail_message, result, skipped)
     }
 
     #[allow(clippy::similar_names)]
@@ -440,10 +469,10 @@ impl RuleEngine {
     }
 
     fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
-        let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
+        let server_config = serde_json::to_string(&config.server)
             .context("failed to convert the server configuration to json")?;
 
-        let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
+        let app_config = serde_json::to_string(&config.app)
             .context("failed to convert the app configuration to json")?;
 
         let mut toml_module = rhai::Module::new();
