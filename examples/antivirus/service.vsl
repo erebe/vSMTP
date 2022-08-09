@@ -1,0 +1,4 @@
+service antivirus cmd = #{
+    timeout: "15s",
+    command: "./examples/antivirus/clamscan.sh",
+};

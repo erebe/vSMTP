@@ -702,7 +702,8 @@ fn mail_from() { ctx().mail_from }
 /// # Effective smtp stage
 ///
 /// `rcpt` and onwards. Please note that `rcpt()` will always return
-/// the last recipient received in stages after the `rcpt` stage
+/// the last recipient received in stages after the `rcpt` stage. Therefore,
+/// this functions is best used in the `rcpt` stage.
 ///
 /// # Return
 ///

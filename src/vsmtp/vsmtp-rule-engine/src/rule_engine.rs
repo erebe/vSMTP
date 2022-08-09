@@ -62,7 +62,7 @@ pub struct RuleEngine {
 impl RuleEngine {
     /// creates a new instance of the rule engine, reading all files in the
     /// `script_path` parameter.
-    /// if `script_path` is `None`, an warning is emitted and a deny-all script
+    /// if `script_path` is `None`, a warning is emitted and a deny-all script
     /// is loaded.
     ///
     /// # Errors

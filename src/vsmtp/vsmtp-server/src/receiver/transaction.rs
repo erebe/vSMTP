@@ -102,11 +102,7 @@ impl Transaction {
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
                 }
-                {
-                    let state = self.rule_state.message();
-                    *state.write().unwrap() = MessageBody::default();
-                }
-
+                self.reset_message();
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::Left(CodeID::Ok))
             }
 
@@ -119,7 +115,11 @@ impl Transaction {
                 ReplyOrCodeID::Left(CodeID::Closing),
             ),
 
-            (_, Event::HeloCmd(helo)) => {
+            (state, Event::HeloCmd(helo)) => {
+                if !matches!(state, StateSMTP::Connect) {
+                    self.reset_message();
+                }
+
                 self.set_helo(helo);
 
                 match self
@@ -141,7 +141,11 @@ impl Transaction {
                 ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Unimplemented))
             }
 
-            (_, Event::EhloCmd(helo)) => {
+            (state, Event::EhloCmd(helo)) => {
+                if !matches!(state, StateSMTP::Connect) {
+                    self.reset_message();
+                }
+
                 self.set_helo(helo);
 
                 match self
@@ -301,10 +305,6 @@ impl Transaction {
                 rcpt: vec![],
             };
         }
-        {
-            let state = self.rule_state.message();
-            *state.write().unwrap() = MessageBody::default();
-        }
     }
 
     fn set_mail_from<
@@ -342,10 +342,6 @@ impl Transaction {
             });
             log::trace!("envelop=\"{:?}\"", ctx.envelop);
         }
-        {
-            let state = self.rule_state.message();
-            *state.write().unwrap() = MessageBody::default();
-        }
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: Address) {
@@ -356,6 +352,12 @@ impl Transaction {
             .envelop
             .rcpt
             .push(Rcpt::new(rcpt_to));
+    }
+
+    /// reset the message but keeps headers.
+    fn reset_message(&mut self) {
+        let state = self.rule_state.message();
+        *state.write().unwrap() = MessageBody::default();
     }
 
     pub async fn new<

@@ -27,25 +27,9 @@ macro_rules! rules_path {
     ];
 }
 
-macro_rules! root_example {
-    ( $( $x:expr ),* ) => {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("examples/vsl")
-            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
-            .to_path_buf()
-    };
-}
-
 mod actions;
 mod context;
 mod engine;
-mod integrations;
 mod message;
 mod rules;
 mod types;

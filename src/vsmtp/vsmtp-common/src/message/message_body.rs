@@ -172,13 +172,26 @@ impl MessageBody {
         self.raw.set_header(name, value);
     }
 
+    /// push a header to the header section.
+    ///
+    /// push back
+    pub fn append_header(&mut self, name: &str, value: &str) {
+        if let Some(parsed) = &mut self.parsed {
+            parsed.push_headers([(name.to_string(), value.to_string())]);
+        }
+
+        self.raw.add_header(name, value);
+    }
+
     /// prepend a header to the header section.
-    pub fn add_header(&mut self, name: &str, value: &str) {
+    ///
+    /// push front
+    pub fn prepend_header(&mut self, name: &str, value: &str) {
         if let Some(parsed) = &mut self.parsed {
             parsed.prepend_headers([(name.to_string(), value.to_string())]);
         }
 
-        self.raw.add_header(name, value);
+        self.raw.prepend_header([format!("{name}: {value}")]);
     }
 
     /// # Errors
@@ -204,27 +217,5 @@ impl MessageBody {
         }
         self.parse::<P>()?;
         self.parsed::<P>()
-    }
-
-    /// push a header to the header section.
-    ///
-    /// push back
-    pub fn append_header(&mut self, name: &str, value: &str) {
-        self.raw.add_header(name, value);
-
-        if let Some(parsed) = &mut self.parsed {
-            parsed.push_headers([(name.to_string(), value.to_string())]);
-        }
-    }
-
-    /// prepend a header to the header section.
-    ///
-    /// push front
-    pub fn prepend_header(&mut self, name: &str, value: &str) {
-        if let Some(parsed) = &mut self.parsed {
-            parsed.prepend_headers([(name.to_string(), value.to_string())]);
-        }
-
-        self.raw.prepend_header([format!("{name}: {value}")]);
     }
 }

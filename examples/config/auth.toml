@@ -19,7 +19,7 @@ must_be_authenticated = true
 enable_dangerous_mechanism_in_clair = true
 
 [app.vsl]
-filepath = "./examples/config/auth/main.vsl"
+filepath = "./examples/auth/main.vsl"
 
 [app.logs]
 filepath = "./tmp/dev/app.log"

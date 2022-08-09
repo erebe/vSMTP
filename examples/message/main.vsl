@@ -1,0 +1,61 @@
+// Here is a generic example of what is possible to do
+// with the `message` api of vsl.
+//
+// Those examples are not necessarily meant to be relevant.
+// They are just here to show you what functions you can use
+// to manipulate the message.
+
+import "mail" as mail;
+import "codes" as codes;
+
+#{
+    // the email has not been received yet, but you can already
+    // manipulate headers.
+    connect: [
+        action "add info header" || {
+            // `append_header` & `prepend_header` enables you to add new headers at the start or end
+            // of the header section of the email. Once the email is received, all of those added headers
+            // will be prepended to those received in the preq stage. If you absolutely want to append headers
+            // to those received, use `append_header` from the `preq` stage and onward.
+
+            // use string interpolation to insert variables into the header's value (or name!).
+            append_header("X-Connect", `from ${ctx().client_ip}:${ctx().client_port} at ${ctx().connection_timestamp} by ${ctx().server_name}`);
+            prepend_header(mail::info_header, "processing");
+        }
+    ],
+
+    // the totality of the message is available at this stage.
+    preq: [
+        // a simple rule to reject forwarding.
+        rule "deny incoming forwards" || {
+            if "FWD" in get_header("Subject") {
+                deny(codes::deny_forwarding)
+            } else {
+                next()
+            }
+        },
+
+        action "rewrite headers" || {
+            // you can rewrite the `From` header.
+            rewrite_mail_from_message(mail::anonymous);
+
+            // you can add, replace or remove recipients to the `To` header.
+            add_rcpt_message("john.doe@example.com");
+
+            // replacing the value of `green` address by `anonymous` in the `To` header.
+            rewrite_rcpt_message(mail::green, mail::anonymous);
+
+            remove_rcpt_message("someone@example.com");
+        },
+
+        // if the `mail::info_header` already exists, it will be replaced using `set_header`.
+        action "update info header" || set_header(mail::info_header, mail::info_value),
+        action "display the email" || log("trace", `${msg().mail}`),
+    ],
+
+    delivery: [
+        // this line is implicit as all recipient are set to be delivered
+        // by default.
+        action "setup delivery" || deliver_all(),
+    ],
+}

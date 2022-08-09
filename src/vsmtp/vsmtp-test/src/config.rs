@@ -16,6 +16,23 @@
 */
 use vsmtp_config::Config;
 
+/// find a file in root examples.
+#[macro_export]
+macro_rules! root_example {
+    ( $( $x:expr ),* ) => {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("examples/")
+            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
+            .to_path_buf()
+    };
+}
+
 /// Get a config for local test
 ///
 /// # Panics

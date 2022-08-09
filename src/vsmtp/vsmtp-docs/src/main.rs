@@ -58,6 +58,36 @@ fn generate_variable_documentation_from_module(module: &rhai::Module) -> String 
     format!("|name|value|\n| - | - |\n{}\n", variables_doc.join("\n"))
 }
 
+#[derive(Clone, Eq)]
+struct Module {
+    name: String,
+    description: String,
+}
+
+impl std::hash::Hash for Module {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.name.hash(state);
+    }
+}
+
+impl PartialEq for Module {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Module {
+    fn new(name: &str, description: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+        }
+    }
+}
+
 /// Generate markdown documentation for each functions in a module.
 /// Functions can have a "# Markdown:{module}" syntax in their comments
 /// to filter them by module.
@@ -66,13 +96,13 @@ fn generate_variable_documentation_from_module(module: &rhai::Module) -> String 
 /// If a module is not specified in a function comment, it will be put in
 /// the "other" module.
 fn generate_function_documentation_from_module(
-    module_names: &[&str],
+    modules_metadata: &[Module],
     module: &rhai::Module,
-) -> Vec<(String, String)> {
-    let mut functions_doc: std::collections::HashMap<&str, Vec<_>> = module_names
+) -> Vec<(String, String, String)> {
+    let mut functions_doc: std::collections::HashMap<Module, Vec<_>> = modules_metadata
         .iter()
-        .map(|key| (*key, vec![]))
-        .collect::<std::collections::HashMap<_, _>>();
+        .map(|module| (module.clone(), vec![]))
+        .collect();
 
     for (_, _, _, _, metadata) in module.iter_script_fn_info() {
         let comments = &metadata
@@ -92,20 +122,24 @@ fn generate_function_documentation_from_module(
 
         let comments = comments.replace(&format!("{MODULE_SYNTAX}{module}"), "");
 
-        functions_doc.entry(module).or_default().push(format!(
-            "<details><summary>{}({})</summary><br/>{}</details>",
-            metadata.name,
-            metadata.params.join(", "),
-            &comments
-        ));
+        functions_doc
+            .entry(Module::new(module, ""))
+            .or_default()
+            .push(format!(
+                "<details><summary>{}({})</summary><br/>{}</details>",
+                metadata.name,
+                metadata.params.join(", "),
+                &comments
+            ));
     }
 
-    let sorted = module_names.iter().fold(vec![], |mut acc, module| {
+    let sorted = modules_metadata.iter().fold(vec![], |mut acc, module| {
         acc.push((
-            (*module).to_string(),
+            module.name.to_string(),
+            module.description.to_string(),
             functions_doc
                 .get(module)
-                .unwrap_or_else(|| panic!("the {} module isn't known", module))
+                .unwrap_or_else(|| panic!("the {} module isn't known", module.name))
                 .clone(),
         ));
 
@@ -114,9 +148,9 @@ fn generate_function_documentation_from_module(
 
     sorted
         .into_iter()
-        .map(|(module, mut functions)| {
+        .map(|(name, description, mut functions)| {
             functions.sort();
-            (module, functions.join("\n"))
+            (name, description, functions.join("\n"))
         })
         .collect::<Vec<_>>()
 }
@@ -134,16 +168,16 @@ fn main() {
 
     let functions = generate_function_documentation_from_module(
         &[
-            "Status",
-            "Transaction",
-            "Connection",
-            "Auth",
-            "Envelop",
-            "Message",
-            "Delivery",
-            "Security",
-            "Services",
-            "Utils",
+            Module::new("Status", "The state of an SMTP transaction can be changed through specific functions from this module."),
+            Module::new("Transaction", "At each SMTP stage, data from the client is received via 'SMTP commands'. This module lets you query the content of the commands."),
+            Module::new("Connection", "Metadata is available for each client, this module lets you query those metadatas."),
+            Module::new("Auth", "This module contains authentication mechanisms to secure your server."),
+            Module::new("Envelop", "The SMTP envelop can be mutated by several function from this module."),
+            Module::new("Message", "Those methods are used to query data from the email and/or mutate it."),
+            Module::new("Delivery", "Those methods are used to setup the method of delivery for one / every recipient."),
+            Module::new("Security", "This module contains multiple security functions that you can use to protect your server."),
+            Module::new("Services", "Services are external programs that can be used via the functions available in this module."),
+            Module::new("Utils", "Those miscellaneous functions lets you query data from your system, log stuff, perform dns lookups etc ..."),
         ],
         &vsl_rhai_module,
     );
@@ -161,14 +195,15 @@ fn main() {
 
     path.push("any.md");
 
-    for (module, functions) in functions {
+    for (module, description, functions) in functions {
         path.set_file_name(format!("{}.md", module));
         let mut file = std::fs::OpenOptions::new()
             .append(true)
             .create(true)
             .open(&path)
             .unwrap();
-        file.write_all(format!("# {}\n", module).as_bytes())
+
+        file.write_all(format!("# {}\n## {}\n", module, description).as_bytes())
             .expect("failed to write function docs");
         file.write_all(functions.as_bytes())
             .expect("failed to write function docs");

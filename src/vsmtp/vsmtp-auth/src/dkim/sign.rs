@@ -155,7 +155,7 @@ mod tests {
         )
         .unwrap();
 
-        message.add_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+        message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
         let key = PublicKey {
             version: Version::Dkim1,

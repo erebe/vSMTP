@@ -123,7 +123,7 @@ where
     let rule_engine =
         std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
 
-    let receivers = std::sync::Arc::new(std::collections::HashMap::new());
+    let receivers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
 
     let result = conn
         .receive(None, rsasl, rule_engine, receivers, mail_handler)

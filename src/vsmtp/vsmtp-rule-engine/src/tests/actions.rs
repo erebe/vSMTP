@@ -33,7 +33,7 @@ use vsmtp_mail_parser::MailMimeParser;
 fn test_logs() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/logs.vsl"]),
+        &Some(rules_path!["actions", "logs.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -47,7 +47,7 @@ fn test_logs() {
 fn test_users() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/utils.vsl"]),
+        &Some(rules_path!["actions", "utils.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -62,7 +62,7 @@ fn test_users() {
 fn test_context_write() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/write.vsl"]),
+        &Some(rules_path!["actions", "write.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -115,7 +115,7 @@ fn test_context_write() {
 fn test_context_dump() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/dump.vsl"]),
+        &Some(rules_path!["actions", "dump.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -167,7 +167,7 @@ fn test_context_dump() {
 fn test_quarantine() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/quarantine.vsl"]),
+        &Some(rules_path!["actions", "quarantine.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -218,7 +218,7 @@ fn test_quarantine() {
 fn test_transports() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/transports.vsl"]),
+        &Some(rules_path!["actions", "transports.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -282,7 +282,7 @@ fn test_transports() {
 fn test_transports_all() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/transports_all.vsl"]),
+        &Some(rules_path!["actions", "transports_all.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -312,7 +312,7 @@ fn test_transports_all() {
 fn test_hostname() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/utils.vsl"]),
+        &Some(rules_path!["actions", "utils.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -326,7 +326,7 @@ fn test_hostname() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_lookup() {
     let config = vsmtp_config::Config::default();
-    let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
     let mut state = RuleState::new(&config, resolvers, &re);
     state.context().write().unwrap().envelop.rcpt = vec![
@@ -343,7 +343,7 @@ async fn test_lookup() {
 #[test]
 fn test_in_domain_and_server_name() {
     let (mut state, config) = get_default_state("./tmp/app");
-    let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
@@ -360,7 +360,7 @@ fn test_in_domain_and_server_name_sni() {
         ("green.com".to_string(), FieldServerVirtual::default()),
     ]);
 
-    let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 

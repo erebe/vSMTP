@@ -201,7 +201,12 @@ impl Mail {
 
     /// rewrite a header with a new value or push it to the header stack.
     pub fn set_header(&mut self, name: &str, value: &str) {
-        if let Some((_, old_value)) = self.headers.0.iter_mut().find(|(header, _)| header == name) {
+        if let Some((_, old_value)) = self
+            .headers
+            .0
+            .iter_mut()
+            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
+        {
             *old_value = value.to_string();
         } else {
             self.headers.0.push((name.to_string(), value.to_string()));
@@ -214,7 +219,7 @@ impl Mail {
         self.headers
             .0
             .iter()
-            .find(|(header, _)| header == name)
+            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
             .map(|(_, value)| value.as_str())
     }
 
@@ -226,7 +231,7 @@ impl Mail {
             .0
             .iter()
             .rev()
-            .find(|(header, _)| header == name)
+            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
             .map(|(_, value)| value.as_str())
     }
 

@@ -23,7 +23,7 @@ use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
 #[tokio::test]
-async fn test_doe_family_setup() {
+async fn test_family_setup() {
     #[derive(Clone)]
     struct MailHandler;
 
@@ -47,7 +47,7 @@ async fn test_doe_family_setup() {
         }
     }
 
-    let toml = include_str!("../../../../../../examples/config/doe_family/vsmtp.toml");
+    let toml = include_str!("../../../../../../examples/family/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
 
     assert!(test_receiver! {

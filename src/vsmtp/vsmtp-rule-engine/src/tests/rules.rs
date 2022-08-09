@@ -24,7 +24,7 @@ use vsmtp_mail_parser::MailMimeParser;
 fn test_connect_rules() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["rules/connect.vsl"]),
+        &Some(rules_path!["rules/connect.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -44,7 +44,7 @@ fn test_connect_rules() {
 fn test_helo_rules() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["rules/helo.vsl"]),
+        &Some(rules_path!["rules/helo.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -58,7 +58,7 @@ fn test_helo_rules() {
 fn test_mail_from_rules() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["rules/mail.vsl"]),
+        &Some(rules_path!["rules/mail.vsl"]),
     )
     .unwrap();
 
@@ -100,7 +100,7 @@ fn test_mail_from_rules() {
 fn test_rcpt_rules() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["rules/rcpt.vsl"]),
+        &Some(rules_path!["rules/rcpt.vsl"]),
     )
     .unwrap();
 

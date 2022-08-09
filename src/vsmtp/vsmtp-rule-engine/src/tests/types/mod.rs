@@ -17,6 +17,7 @@
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{state::StateSMTP, status::Status, CodeID, MessageBody, ReplyOrCodeID};
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
+use vsmtp_test::root_example;
 
 #[test]
 fn test_status() {
@@ -134,11 +135,11 @@ fn test_config_display() {
         .with_virtual_entries(&[VirtualEntry {
             domain: "domain@example.com".to_string(),
             tls: Some((
-                root_example!["../config/tls/certificate.crt"]
+                root_example!["config/tls/certificate.crt"]
                     .to_str()
                     .unwrap()
                     .to_string(),
-                root_example!["../config/tls/private_key.key"]
+                root_example!["config/tls/private_key.key"]
                     .to_str()
                     .unwrap()
                     .to_string(),
