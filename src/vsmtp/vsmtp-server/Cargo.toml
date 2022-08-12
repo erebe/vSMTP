@@ -5,7 +5,7 @@ name = "vsmtp-server"
 version = "1.1.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.58"
+rust-version = "1.60"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -34,9 +34,11 @@ vsmtp-rule-engine = { path = "../vsmtp-rule-engine", default-features = false, v
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.3" }
 vsmtp-delivery = { path = "../vsmtp-delivery", default-features = false, version = "1.1.3" }
 
-async-trait = "0.1.56"
-fastrand = "1.7.0"
-thiserror = "1.0.31"
+tracing = "0.1.36"
+
+async-trait = "0.1.57"
+fastrand = "1.8.0"
+thiserror = "1.0.32"
 
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"
@@ -44,8 +46,8 @@ futures = "0.3.21"
 
 signal-hook = "0.3.14"
 
-trust-dns-resolver = "0.21.2"
-time = { version = "0.3.11", default-features = false, features = [
+trust-dns-resolver = { version = "0.21.2", default-features = false }
+time = { version = "0.3.12", default-features = false, features = [
   "std",
   "formatting",
   "macros",
@@ -58,7 +60,7 @@ vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.2.1"
 
 ## Benchmark
-criterion = { version = "0.3.5", features = ["async_tokio", "html_reports"] }
+criterion = { version = "0.3.6", features = ["async_tokio", "html_reports"] }
 iai = "0.1.1"
 rand = "0.8.5"
 

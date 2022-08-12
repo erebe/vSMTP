@@ -15,7 +15,6 @@
  *
 */
 use super::Transport;
-use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
@@ -26,7 +25,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 
-/// the email will be directly delivered to the server, without mx lookup.
+/// the email will be directly delivered to the server, **without** mx lookup.
 pub struct Forward<'r> {
     to: ForwardTarget,
     resolver: &'r TokioAsyncResolver,
@@ -128,11 +127,7 @@ impl<'r> Transport for Forward<'r> {
     ) -> Vec<Rcpt> {
         match self.deliver_inner(config, from, &*to, content).await {
             Ok(_) => {
-                log::info!(
-                    target: log_channels::FORWARD,
-                    "(msg={}) email successfully forwarded",
-                    metadata.message_id,
-                );
+                log::info!("(msg={}) email successfully forwarded", metadata.message_id);
 
                 for i in &mut to {
                     i.email_status = EmailTransferStatus::Sent {
@@ -142,7 +137,6 @@ impl<'r> Transport for Forward<'r> {
             }
             Err(error) => {
                 log::error!(
-                    target: log_channels::FORWARD,
                     "(msg={}) failed to forward email: {error}",
                     metadata.message_id,
                     error = error

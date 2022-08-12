@@ -1,3 +1,5 @@
+use vsmtp_config::Config;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,7 +17,7 @@
  *
 */
 use super::{cmd::parse_cmd_service, smtp::parse_smtp_service, Service};
-use crate::modules::EngineResult;
+use crate::api::EngineResult;
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
@@ -83,6 +85,7 @@ pub fn parse_service(
 pub fn create_service(
     context: &mut rhai::EvalContext,
     input: &[rhai::Expression],
+    config: &Config,
 ) -> EngineResult<rhai::Dynamic> {
     let service_name = input[0].get_string_value().unwrap().to_string();
     let service_type = input[1].get_string_value().unwrap().to_string();
@@ -90,8 +93,8 @@ pub fn create_service(
     let service = match service_type.as_str() {
         "db" => open_database(context, input, &service_name),
         "cmd" => parse_cmd_service(context, input, &service_name),
-        "smtp" => parse_smtp_service(context, input, &service_name),
-        unknown => Err(format!("{unknown} serice does not exist").into()),
+        "smtp" => parse_smtp_service(context, input, &service_name, config),
+        unknown => Err(format!("{unknown} service type does not exist").into()),
     }?;
 
     let ptr = std::sync::Arc::new(service);
@@ -127,7 +130,14 @@ fn open_database(
 
         let service = match database_type {
             "csv" => super::databases::csv::parse_csv_database(service_name, &options)?,
-            _ => todo!(),
+            t => {
+                return Err(rhai::EvalAltResult::ErrorMismatchDataType(
+                    "csv".to_string(),
+                    t.to_string(),
+                    rhai::Position::NONE,
+                )
+                .into())
+            }
         };
 
         Ok(service)

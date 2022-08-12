@@ -14,14 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    log_channels,
-    mail_context::{MailContext, MessageBody},
-};
+use crate::{mail_context::MailContext, MessageBody};
 use anyhow::Context;
 
 /// identifiers for all mail queues.
-#[derive(Debug, PartialEq, Copy, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
 #[strum(serialize_all = "lowercase")]
 pub enum Queue {
     /// Postq.
@@ -55,11 +52,13 @@ macro_rules! queue_path {
         {
             let buf = std::path::PathBuf::from($queues_dirpath).join(format!("{}", $queue));
             if !buf.exists() {
-                std::fs::DirBuilder::new()
-                    .recursive(true)
-                    .create(&buf).map(|_| buf)
+                $crate::re::anyhow::Context::with_context(
+                    std::fs::create_dir_all(&buf),
+                    || format!("Cannot create queue folder: `{}`", buf.display())
+                )
+                .map(|_| buf)
             } else {
-                std::io::Result::Ok(buf)
+                $crate::re::anyhow::Ok(buf)
             }
         }
     };
@@ -103,7 +102,7 @@ impl Queue {
         &self,
         queues_dirpath: &std::path::Path,
         ctx: &MailContext,
-    ) -> std::io::Result<()> {
+    ) -> anyhow::Result<()> {
         let message_id = &ctx
             .metadata
             .as_ref()
@@ -120,10 +119,7 @@ impl Queue {
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
-        log::debug!(
-            target: log_channels::QUEUE,
-            "mail {message_id} successfully written to {self} queue"
-        );
+        log::debug!("successfully written to {self} queue");
 
         Ok(())
     }
@@ -152,43 +148,6 @@ impl Queue {
 
     ///
     /// # Errors
-    ///
-    /// * failed to create the folder in `queues_dirpath`
-    pub fn write_to_mails(
-        queues_dirpath: &std::path::Path,
-        message_id: &str,
-        message: &MessageBody,
-    ) -> std::io::Result<()> {
-        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
-        if !buf.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&buf)?;
-        }
-        let mut to_write = buf.join(message_id);
-        to_write.set_extension(match &message {
-            MessageBody::Raw { .. } => "eml",
-            MessageBody::Parsed(_) => "json",
-        });
-
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&to_write)?;
-
-        std::io::Write::write_all(
-            &mut file,
-            match message {
-                MessageBody::Raw { .. } => message.to_string(),
-                MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
-            }
-            .as_bytes(),
-        )?;
-
-        Ok(())
-    }
-
-    ///
-    /// # Errors
     pub async fn read_mail_context(
         &self,
         dirpath: &std::path::Path,
@@ -202,42 +161,6 @@ impl Queue {
 
         serde_json::from_str::<MailContext>(&content)
             .with_context(|| format!("Cannot deserialize: '{content:?}'"))
-    }
-
-    /// # Errors
-    pub async fn read_mail_message(
-        dirpath: &std::path::Path,
-        id: &str,
-    ) -> anyhow::Result<MessageBody> {
-        let mut message_filepath =
-            std::path::PathBuf::from_iter([dirpath.to_path_buf(), "mails".into(), id.into()]);
-
-        message_filepath.set_extension("json");
-        if message_filepath.exists() {
-            let content = tokio::fs::read_to_string(&message_filepath)
-                .await
-                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
-
-            return serde_json::from_str::<MessageBody>(&content)
-                .with_context(|| format!("Cannot deserialize: '{content:?}'"));
-        }
-
-        message_filepath.set_extension("eml");
-        if message_filepath.exists() {
-            let content = tokio::fs::read_to_string(&message_filepath)
-                .await
-                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
-
-            let (headers, body) = content
-                .split_once("\r\n\r\n")
-                .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
-
-            return Ok(MessageBody::Raw {
-                headers: headers.lines().map(str::to_string).collect(),
-                body: Some(body.to_string()),
-            });
-        }
-        anyhow::bail!("failed to read message: {message_filepath:?} does not exist",)
     }
 
     /// Return a message body from a file path.
@@ -255,7 +178,7 @@ impl Queue {
     ) -> anyhow::Result<(MailContext, MessageBody)> {
         let (context, message) = tokio::join!(
             self.read_mail_context(dirpath, id),
-            Self::read_mail_message(dirpath, id)
+            MessageBody::read_mail_message(dirpath, id)
         );
 
         Ok((context?, message?))

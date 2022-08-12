@@ -34,13 +34,6 @@ pub mod transport {
     use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow, Address};
     use vsmtp_config::Config;
 
-    mod log_channels {
-        pub const DELIVER: &str = "server::delivery::deliver";
-        pub const FORWARD: &str = "server::delivery::forward";
-        pub const MAILDIR: &str = "server::delivery::maildir";
-        pub const MBOX: &str = "server::delivery::mbox";
-    }
-
     ///
     #[async_trait::async_trait]
     pub trait Transport {
@@ -55,14 +48,15 @@ pub mod transport {
         ) -> Vec<Rcpt>;
     }
 
-    /// delivery transport.
-    pub mod deliver;
-    /// forwarding transport.
-    pub mod forward;
-    /// maildir transport.
-    pub mod maildir;
-    /// mbox transport.
-    pub mod mbox;
+    mod deliver;
+    mod forward;
+    mod maildir;
+    mod mbox;
+
+    pub use deliver::Deliver;
+    pub use forward::Forward;
+    pub use maildir::Maildir;
+    pub use mbox::MBox;
 
     /// no transfer will be made if this resolver is selected.
     pub struct NoTransfer;

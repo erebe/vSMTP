@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delegate, log_channels, receiver::MailHandlerError, Process, ProcessMessage};
+use crate::{delegate, receiver::MailHandlerError, Process, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
     re::{anyhow, log, tokio},
@@ -23,11 +23,11 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::RuleEngine;
 
 pub async fn start(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -45,19 +45,15 @@ pub async fn start(
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[tracing::instrument(skip(config, rule_engine, resolvers, delivery_sender))]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
-    log::info!(
-        target: log_channels::POSTQ,
-        "handling message in working queue {}",
-        process_message.message_id
-    );
+    log::info!("handling message in `{queue}`", queue = Queue::Working);
 
     if let Err(e) = handle_one_in_working_queue_inner(
         config,
@@ -68,28 +64,18 @@ async fn handle_one_in_working_queue(
     )
     .await
     {
-        log::warn!(
-            target: log_channels::POSTQ,
-            "failed to handle one email in working queue: {}",
-            e
-        );
+        log::warn!("failed to handle one email in working queue: `{e}`");
     }
 }
 
 #[allow(clippy::too_many_lines)]
 async fn handle_one_in_working_queue_inner(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::POSTQ,
-        "received a new message: {}",
-        process_message.message_id,
-    );
-
     let queue = if process_message.delegated {
         Queue::Delegated
     } else {
@@ -100,16 +86,15 @@ async fn handle_one_in_working_queue_inner(
         .read(&config.server.queues.dirpath, &process_message.message_id)
         .await?;
 
-    let (mut mail_context, mail_message, _, skipped) = RuleState::just_run_when(
+    let (mut mail_context, mail_message, _, skipped) = rule_engine.just_run_when(
         &StateSMTP::PostQ,
         config.as_ref(),
         resolvers,
-        &rule_engine,
         mail_context,
         mail_message,
-    )?;
+    );
 
-    let mut write_to_queue = Option::<Queue>::None;
+    let mut move_to_queue = Option::<Queue>::None;
     let mut send_to_delivery = false;
     let mut write_email = true;
     let mut delegated = false;
@@ -127,12 +112,12 @@ async fn handle_one_in_working_queue_inner(
 
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to quarantine.",);
+            log::warn!("skipped due to quarantine.");
         }
         Some(Status::Delegated(delegator)) => {
             mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
 
-            // FIXME: find a way to use `write_to_queue` instead to be consistant
+            // FIXME: find a way to use `write_to_queue` instead to be consistent
             //        with the rest of the function.
             // NOTE:  moving here because the delegation process could try to
             //        pickup the email before it's written on disk.
@@ -142,12 +127,9 @@ async fn handle_one_in_working_queue_inner(
                 &mail_context,
             )?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -157,7 +139,7 @@ async fn handle_one_in_working_queue_inner(
             write_email = false;
             delegated = true;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to delegation.",);
+            log::warn!("skipped due to delegation.");
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -171,19 +153,15 @@ async fn handle_one_in_working_queue_inner(
                 };
             }
 
-            write_to_queue = Some(Queue::Dead);
+            move_to_queue = Some(Queue::Dead);
         }
         Some(reason) => {
-            log::warn!(
-                target: log_channels::POSTQ,
-                "skipped due to '{}'.",
-                reason.as_ref()
-            );
-            write_to_queue = Some(Queue::Deliver);
+            log::warn!("skipped due to '{}'.", reason.as_ref());
+            move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
         None => {
-            write_to_queue = Some(Queue::Deliver);
+            move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
     };
@@ -191,21 +169,14 @@ async fn handle_one_in_working_queue_inner(
     // FIXME: sending the email down a ProcessMessage instead
     //        of writing on disk would be great here.
     if write_email {
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            &process_message.message_id,
-            &mail_message,
-        )
-        .map_err(MailHandlerError::WriteMessageBody)?;
+        mail_message
+            .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
-        log::debug!(
-            target: log_channels::TRANSACTION,
-            "(msg={}) email written in 'mails' queue.",
-            process_message.message_id
-        );
+        log::debug!("email written in 'mails' queue.");
     }
 
-    if let Some(next_queue) = write_to_queue {
+    if let Some(next_queue) = move_to_queue {
         queue.move_to(&next_queue, &config.server.queues.dirpath, &mail_context)?;
     }
 
@@ -229,12 +200,12 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
-        re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
+        MessageBody,
     };
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     #[tokio::test]
@@ -252,11 +223,7 @@ mod tests {
 
         assert!(handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::from_script(&config, "#{}")
-                    .context("failed to initialize the engine")
-                    .unwrap(),
-            )),
+            std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap()),
             resolvers,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
@@ -315,14 +282,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test")
         .unwrap();
 
         let (delivery_sender, mut delivery_receiver) =
@@ -336,11 +303,7 @@ mod tests {
 
         handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::from_script(&config, "#{}")
-                    .context("failed to initialize the engine")
-                    .unwrap(),
-            )),
+            std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap()),
             resolvers,
             ProcessMessage {
                 message_id: "test".to_string(),
@@ -403,14 +366,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test_denied",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test_denied")
         .unwrap();
 
         let (delivery_sender, _delivery_receiver) =
@@ -424,14 +387,13 @@ mod tests {
 
         handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
+            std::sync::Arc::new(
                 RuleEngine::from_script(
                     &config,
                     &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", StateSMTP::PostQ),
                 )
-                .context("failed to initialize the engine")
                 .unwrap(),
-            )),
+            ),
             resolvers,
             ProcessMessage {
                 message_id: "test_denied".to_string(),

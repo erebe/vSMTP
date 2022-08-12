@@ -15,7 +15,6 @@
  *
 */
 use super::Transport;
-use crate::transport::log_channels;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
@@ -36,7 +35,7 @@ enum ResultSendMail {
     Failed(String),
 }
 
-/// the email will be forwarded to another mail exchanger via mx record resolution & smtp.
+/// the email will be sent to another mail exchanger via mx record resolution & smtp.
 pub struct Deliver<'r> {
     resolver: &'r TokioAsyncResolver,
 }
@@ -85,11 +84,10 @@ impl<'r> Deliver<'r> {
         Ok(())
     }
 
-    // FIXME: should just return a `ResultSendMail`
+    #[tracing::instrument(skip(self, config, from, content))]
     async fn deliver_one_domain(
         &self,
         config: &Config,
-        metadata: &MessageMetadata,
         content: &str,
         from: &Address,
         domain: &str,
@@ -121,31 +119,17 @@ impl<'r> Deliver<'r> {
         let records = self
             .get_mx_records(domain)
             .await
-            .with_context(|| {
-                format!(
-                    "(msg={}) failed to get mx records for '{domain}'",
-                    metadata.message_id
-                )
-            })
+            .with_context(|| format!("failed to get mx records for '{domain}'"))
             .map_err(ResultSendMail::IncreaseHeldBack)?;
 
         if records.is_empty() {
-            log::warn!(
-                target: log_channels::DELIVER,
-                "(msg={}) empty set of MX records found for '{domain}'",
-                metadata.message_id
-            );
+            log::warn!("empty set of MX records found for '{domain}'");
 
             // using directly the AAAA record instead of an mx record.
             // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
             self.send_email(config, domain, &envelop, from, content)
                 .await
-                .with_context(|| {
-                    format!(
-                        "(msg={}) failed to send message from '{from}' for '{domain}'",
-                        metadata.message_id
-                    )
-                })
+                .with_context(|| format!("failed to send message from '{from}' for '{domain}'"))
                 .map_err(ResultSendMail::IncreaseHeldBack)?;
         }
 
@@ -157,9 +141,7 @@ impl<'r> Deliver<'r> {
             // see https://datatracker.ietf.org/doc/html/rfc7505
             if host == "." {
                 log::warn!(
-                    target: log_channels::DELIVER,
-                    "(msg={}) trying to delivery to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages.",
-                    metadata.message_id
+                    "trying to delivery to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
 
                 return Err(ResultSendMail::Failed(
@@ -172,17 +154,15 @@ impl<'r> Deliver<'r> {
                 .await
             {
                 Ok(_) => return Ok(()),
-                Err(err) => log::warn!(
-                    target: log_channels::DELIVER,
-                    "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
-                    metadata.message_id
-                ),
+                Err(err) => {
+                    log::warn!("failed to send message from '{from}' for '{domain}': {err}");
+                }
             }
         }
 
-        return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
+        Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
             "no valid mail exchanger found for '{domain}'",
-        )));
+        )))
     }
 }
 
@@ -191,7 +171,7 @@ impl<'r> Transport for Deliver<'r> {
     async fn deliver(
         self,
         config: &Config,
-        metadata: &MessageMetadata,
+        _: &MessageMetadata,
         from: &vsmtp_common::Address,
         to: Vec<Rcpt>,
         content: &str,
@@ -208,7 +188,7 @@ impl<'r> Transport for Deliver<'r> {
             // TODO: run the delivery on different domain concurrently
 
             match self
-                .deliver_one_domain(config, metadata, content, from, domain, &*rcpt)
+                .deliver_one_domain(config, content, from, domain, &*rcpt)
                 .await
             {
                 Ok(_) => rcpt.iter_mut().for_each(|i| {
@@ -217,10 +197,8 @@ impl<'r> Transport for Deliver<'r> {
                     };
                 }),
                 Err(ResultSendMail::IncreaseHeldBack(error)) => {
-                    log::error!(
-                        target: log_channels::DELIVER,
-                        "(msg={}) TEMP ERROR, failed to send message from '{from}' for '{domain}': {error}",
-                        metadata.message_id,
+                    log::warn!(
+                        "TEMP ERROR, failed to send message from '{from}' for '{domain}': {error}",
                         from = from.full(),
                         domain = domain,
                         error = error
@@ -231,9 +209,7 @@ impl<'r> Transport for Deliver<'r> {
                 }
                 Err(ResultSendMail::Failed(reason)) => {
                     log::error!(
-                        target: log_channels::DELIVER,
-                        "(msg={}) PERM ERROR, failed to send message from '{from}' for '{domain}': {reason}",
-                        metadata.message_id,
+                        "PERM ERROR, failed to send message from '{from}' for '{domain}': {reason}",
                         from = from.full(),
                         domain = domain,
                         reason = reason

@@ -4,6 +4,18 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* "Deliver-To" header to local delivery (mbox & maildir) (#443)
+* `lookup` & `rlookup` vsl functions. (#473)
+* Support for DKIM. (#457)
+* Support for syslogs. (#475)
+
+### Changed
+
+* Stabilization of vsl's api. (#452)
+* Replaced `log4rs` by the `tracing` crate for logs. (#460)
+
 ## [1.1.3] - 2022-07-12
 
 ### Changed

@@ -16,7 +16,7 @@
 */
 use crate::{
     delivery::{send_mail, SenderOutcome},
-    log_channels, ProcessMessage,
+    ProcessMessage,
 };
 use vsmtp_common::{
     queue::Queue,
@@ -43,26 +43,20 @@ pub async fn flush_deferred_queue(
         if let Err(e) =
             handle_one_in_deferred_queue(config.clone(), resolvers.clone(), process_message).await
         {
-            log::warn!(target: log_channels::DEFERRED, "{}", e);
+            log::warn!("{}", e);
         }
     }
 
     Ok(())
 }
 
-// NOTE: emails stored in the deferred queue are likely to slow down the process.
-//       the pickup process of this queue should be slower than pulling from the delivery queue.
-//       https://www.postfix.org/QSHAPE_README.html#queues
+#[tracing::instrument(skip(config, resolvers))]
 async fn handle_one_in_deferred_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::DEFERRED,
-        "processing email '{}'",
-        process_message.message_id
-    );
+    log::debug!("processing email");
 
     let (mut mail_context, mail_message) = Queue::Deferred
         .read(&config.server.queues.dirpath, &process_message.message_id)
@@ -99,10 +93,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer, TransferErrors},
+        MessageBody, RawBody,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
@@ -158,14 +153,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test_deferred",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test_deferred")
         .unwrap();
 
         let resolvers = build_resolvers(&config).unwrap();
@@ -234,13 +229,14 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            Queue::read_mail_message(&config.server.queues.dirpath, "test_deferred")
+            *MessageBody::read_mail_message(&config.server.queues.dirpath, "test_deferred")
                 .await
-                .unwrap(),
-            MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
-                body: Some("Hello world".to_string()),
-            }
+                .unwrap()
+                .inner(),
+            RawBody::new(
+                vec!["Date: bar".to_string(), "From: foo".to_string()],
+                "Hello world\r\n".to_string(),
+            )
         );
     }
 }

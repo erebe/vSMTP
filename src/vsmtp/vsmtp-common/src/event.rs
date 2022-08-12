@@ -184,8 +184,13 @@ impl Event {
 
     fn parse_domain_or_address_literal(args: &[&str]) -> anyhow::Result<String> {
         match args {
+            [ip] if ip.starts_with("[IPv6:") && ip.ends_with(']') => Ok(ip
+                ["[IPv6:".len()..ip.len() - 1]
+                .parse::<std::net::Ipv6Addr>()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .to_string()),
             [ip] if ip.starts_with('[') && ip.ends_with(']') => Ok(ip[1..ip.len() - 1]
-                .parse::<std::net::IpAddr>()
+                .parse::<std::net::Ipv4Addr>()
                 .map_err(|e| anyhow::anyhow!(e))?
                 .to_string()),
             [domain] => Ok(addr::parse_domain_name(domain)
@@ -196,9 +201,12 @@ impl Event {
     }
 
     fn parse_arg_helo(args: &[&str]) -> Result<Self, CodeID> {
-        match Self::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Self::HeloCmd(out)),
-            Err(_) => Err(CodeID::SyntaxErrorParams),
+        match args {
+            [domain] => match addr::parse_domain_name(domain) {
+                Ok(_) => Ok(Self::HeloCmd((*domain).to_string())),
+                Err(_) => Err(CodeID::SyntaxErrorParams),
+            },
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 
@@ -226,7 +234,7 @@ impl Event {
     }
 
     fn parse_arg_mail_from(args: &[&str]) -> Result<Self, CodeID> {
-        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, CodeID> {
+        fn parse_esmtp_args(path: &str, args: &[&str]) -> Result<Event, CodeID> {
             let mut bitmime = None;
             let mut auth_mailbox = None;
 
@@ -255,7 +263,10 @@ impl Event {
                 if path.is_empty() {
                     None
                 } else {
-                    Some(Address::try_from(path).map_err(|_| CodeID::SyntaxErrorParams)?)
+                    Some(
+                        <Address as std::str::FromStr>::from_str(path)
+                            .map_err(|_| CodeID::SyntaxErrorParams)?,
+                    )
                 },
                 bitmime,
                 auth_mailbox,
@@ -265,7 +276,7 @@ impl Event {
         match args {
             // note: separated word (can return a warning)
             [from, reverse_path, ..] if from.to_ascii_uppercase() == "FROM:" => {
-                parse_esmtp_args(Self::from_path(reverse_path, true)?, &args[2..])
+                parse_esmtp_args(&Self::from_path(reverse_path, true)?, &args[2..])
             }
             [from_and_reverse_path, ..] => match from_and_reverse_path
                 .to_ascii_uppercase()
@@ -273,7 +284,7 @@ impl Event {
             {
                 Some("") | None => Err(CodeID::SyntaxErrorParams),
                 Some(_) => parse_esmtp_args(
-                    Self::from_path(&from_and_reverse_path["FROM:".len()..], true)?,
+                    &Self::from_path(&from_and_reverse_path["FROM:".len()..], true)?,
                     &args[1..],
                 ),
             },
@@ -292,10 +303,11 @@ impl Event {
         // TODO: parse "<Postmaster@" Domain ">" / "<Postmaster>"
 
         #[allow(clippy::missing_const_for_fn)]
-        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, CodeID> {
+        fn parse_esmtp_args(path: &str, args: &[&str]) -> Result<Event, CodeID> {
             if args.is_empty() {
                 Ok(Event::RcptCmd(
-                    Address::try_from(path).map_err(|_| CodeID::SyntaxErrorParams)?,
+                    <Address as std::str::FromStr>::from_str(path)
+                        .map_err(|_| CodeID::SyntaxErrorParams)?,
                 ))
             } else {
                 Err(CodeID::ParameterUnimplemented)
@@ -305,13 +317,13 @@ impl Event {
         match args {
             // NOTE: separated word (can return a warning)
             [to, forward_path, ..] if to.to_ascii_uppercase() == "TO:" => {
-                parse_esmtp_args(Self::from_path(forward_path, false)?, &args[2..])
+                parse_esmtp_args(&Self::from_path(forward_path, false)?, &args[2..])
             }
             [to_and_forward_path, ..] => {
                 match to_and_forward_path.to_ascii_uppercase().strip_prefix("TO:") {
                     Some("") | None => Err(CodeID::SyntaxErrorParams),
                     Some(_) => parse_esmtp_args(
-                        Self::from_path(&to_and_forward_path["TO:".len()..], false)?,
+                        &Self::from_path(&to_and_forward_path["TO:".len()..], false)?,
                         &args[1..],
                     ),
                 }

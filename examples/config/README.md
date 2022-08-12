@@ -1,16 +1,13 @@
-# vSMTP Configuration format
+# Config
 
-This folder contain example of vSMTP configuration.
+This folder contain examples of vSMTP configuration.
 
-At startup of the server, the configuration is read and entirely parsed,
-producing an error if the format is invalid or a field value is incorrect.
+When the server starts up, the configuration is read,
+producing an error if the format is invalid or a field is incorrect.
 
-All the possible errors are detected at startup making the server never
-failing if the configuration is successfully loaded.
+All fields are optional, and defaults are used if missing.
 
-All the field are optional, and defaulted if missing.
-
-See the [minimal] config. And use `vsmtp config-show` to see the default values.
+Check out the [minimal] config to get started and use `vsmtp config-show` to see the default values.
 
 * [simple](./simple.toml)
 * [tls](./tls.toml)

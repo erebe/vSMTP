@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::transport::log_channels;
 
 use super::Transport;
 
@@ -32,10 +31,10 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
 );
 
-#[derive(Default)]
 /// resolver use to write emails on the system following the
 /// application/mbox Media Type.
 /// (see [rfc4155](https://datatracker.ietf.org/doc/html/rfc4155#appendix-A))
+#[derive(Default)]
 pub struct MBox;
 
 // FIXME: use UsersCache.
@@ -58,6 +57,7 @@ impl Transport for MBox {
                 // NOTE: only linux system is supported here, is the
                 //       path to all mboxes always /var/mail ?
                 write_content_to_mbox(
+                    rcpt,
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
                     config.server.system.group_local.as_ref(),
@@ -67,7 +67,6 @@ impl Transport for MBox {
             }) {
                 Some(Ok(_)) => {
                     log::info!(
-                        target: log_channels::MBOX,
                         "(msg={}) successfully delivered to {rcpt} as mbox",
                         metadata.message_id
                     );
@@ -78,18 +77,20 @@ impl Transport for MBox {
                 }
                 Some(Err(e)) => {
                     log::error!(
-                        target: log_channels::MBOX,
-                        "failed to write email '{}' in mbox of '{rcpt}': {e}",
-                        metadata.message_id
+                        "failed to write email '{}' in {}'s mbox: {}",
+                        metadata.message_id,
+                        rcpt.address.local_part(),
+                        e
                     );
 
                     rcpt.email_status.held_back(e);
                 }
                 None => {
                     log::error!(
-                        target: log_channels::MBOX,
-                        "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
-                        metadata.message_id
+                        "failed to write email '{}' in {}'s mbox: '{}' is not a user",
+                        metadata.message_id,
+                        rcpt.address.local_part(),
+                        rcpt.address.local_part(),
                     );
 
                     rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
@@ -118,6 +119,7 @@ fn build_mbox_message(
 }
 
 fn write_content_to_mbox(
+    rcpt: &Rcpt,
     mbox: &std::path::Path,
     user: &users::User,
     group_local: Option<&users::Group>,
@@ -127,17 +129,15 @@ fn write_content_to_mbox(
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&mbox)
-        .with_context(|| format!("could not open {:?} mbox", mbox))?;
+        .open(&mbox)?;
 
     chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
         .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
-    std::io::Write::write_all(&mut file, content.as_bytes())
-        .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
+    std::io::Write::write_all(&mut file, format!("Delivered-To: {rcpt}\n").as_bytes())?;
+    std::io::Write::write_all(&mut file, content.as_bytes())?;
 
     log::debug!(
-        target: log_channels::MBOX,
         "(msg={}) {} bytes written to {:?}",
         metadata.message_id,
         content.len(),
@@ -205,9 +205,15 @@ This is a raw email.
         let metadata = MessageMetadata::default();
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
-
-        write_content_to_mbox(&mbox, &user, None, &metadata, content)
-            .expect("could not write to mbox");
+        write_content_to_mbox(
+            &Rcpt::new(addr!("john.doe@example.com")),
+            &mbox,
+            &user,
+            None,
+            &metadata,
+            content,
+        )
+        .expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),

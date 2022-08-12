@@ -15,10 +15,9 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{
-    addr, mail_context::MessageBody, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
-};
+use vsmtp_common::{state::StateSMTP, status::Status, CodeID, MessageBody, ReplyOrCodeID};
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
+use vsmtp_test::root_example;
 
 #[test]
 fn test_status() {
@@ -31,7 +30,7 @@ fn test_status() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -46,7 +45,7 @@ fn test_time_and_date() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -61,24 +60,7 @@ fn test_ip() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
-    );
-}
-
-#[test]
-fn test_address() {
-    let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["address", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
-
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -122,14 +104,11 @@ fn test_services() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -156,11 +135,11 @@ fn test_config_display() {
         .with_virtual_entries(&[VirtualEntry {
             domain: "domain@example.com".to_string(),
             tls: Some((
-                root_example!["../config/tls/certificate.crt"]
+                root_example!["config/tls/certificate.crt"]
                     .to_str()
                     .unwrap()
                     .to_string(),
-                root_example!["../config/tls/private_key.key"]
+                root_example!["config/tls/private_key.key"]
                     .to_str()
                     .unwrap()
                     .to_string(),
@@ -175,13 +154,10 @@ fn test_config_display() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Helo),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

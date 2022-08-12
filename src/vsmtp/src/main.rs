@@ -20,19 +20,26 @@ use vsmtp_common::{
     libc_abstraction::{daemon, initgroups},
     re::{anyhow, log, serde_json},
 };
-use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
+use vsmtp_config::Config;
 use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
-        eprintln!("ERROR: {}", err);
-        log::error!("ERROR: {}", err);
+        eprintln!("vSMTP terminating error: '{err}'");
+        log::error!("vSMTP terminating error: '{err}'");
         err.chain().skip(1).for_each(|cause| {
-            eprintln!("because: {}", cause);
-            log::error!("because: {}", cause);
+            eprintln!("because: {cause}");
+            log::error!("because: {cause}");
         });
         std::process::exit(1);
     }
+}
+
+fn bind_sockets(addr: &[std::net::SocketAddr]) -> anyhow::Result<Vec<std::net::TcpListener>> {
+    addr.iter()
+        .cloned()
+        .map(socket_bind_anyhow)
+        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
 }
 
 fn try_main() -> anyhow::Result<()> {
@@ -71,30 +78,9 @@ fn try_main() -> anyhow::Result<()> {
     }
 
     let sockets = (
-        config
-            .server
-            .interfaces
-            .addr
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
-        config
-            .server
-            .interfaces
-            .addr_submission
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
-        config
-            .server
-            .interfaces
-            .addr_submissions
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        bind_sockets(&config.server.interfaces.addr)?,
+        bind_sockets(&config.server.interfaces.addr_submission)?,
+        bind_sockets(&config.server.interfaces.addr_submissions)?,
     );
 
     if !args.no_daemon {
@@ -114,13 +100,7 @@ fn try_main() -> anyhow::Result<()> {
         // setuid(config.server.system.user.uid())?;
     }
 
-    get_log4rs_config(&config, args.no_daemon)
-        .context("Logs configuration contain error")
-        .map(log4rs::init_config)
-        .context("Cannot initialize logs")??;
+    vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
-    start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
-        log::error!("vSMTP terminating error: '{e}'");
-        e
-    })
+    start_runtime(config, sockets, args.timeout.map(|t| t.0))
 }

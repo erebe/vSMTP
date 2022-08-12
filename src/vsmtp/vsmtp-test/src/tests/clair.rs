@@ -17,9 +17,9 @@
 use crate::{config, test_receiver};
 use vsmtp_common::{
     addr,
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::tokio,
-    CodeID, {BodyType, Mail},
+    CodeID, MailHeaders, MessageBody, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_server::Connection;
@@ -33,7 +33,9 @@ async fn test_receiver_1() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -269,14 +271,14 @@ async fn test_receiver_13() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
-
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
                 mail.envelop.mail_from.full(),
@@ -284,23 +286,25 @@ async fn test_receiver_13() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![addr!(format!("aa{}@bb", self.count)).into()]
+                vec![addr!(&format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                message,
-                MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        (
-                            "from",
-                            format!("john{} doe <john{}@doe>", self.count, self.count)
-                        ),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v))
-                    .collect::<Vec<_>>(),
+                *message.parsed::<MailMimeParser>().unwrap(),
+                Mail {
+                    headers: MailHeaders(
+                        [
+                            (
+                                "from",
+                                format!("john{} doe <john{}@doe>", self.count, self.count)
+                            ),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }))
+                }
             );
 
             self.count += 1;
@@ -358,14 +362,14 @@ async fn test_receiver_14() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
-
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(
                 mail.envelop.mail_from.full(),
@@ -373,23 +377,25 @@ async fn test_receiver_14() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![addr!(format!("aa{}@bb", self.count)).into()]
+                vec![addr!(&format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                message,
-                MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        (
-                            "from",
-                            format!("john{} doe <john{}@doe>", self.count, self.count)
-                        ),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v))
-                    .collect::<Vec<_>>(),
+                *message.parsed::<MailMimeParser>().unwrap(),
+                Mail {
+                    headers: MailHeaders(
+                        [
+                            (
+                                "from",
+                                format!("john{} doe <john{}@doe>", self.count, self.count)
+                            ),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }))
+                }
             );
 
             self.count += 1;

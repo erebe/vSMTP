@@ -20,9 +20,9 @@ use crate::{
 };
 use vsmtp_common::{
     addr,
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::{base64, tokio, vsmtp_rsasl},
-    CodeID,
+    CodeID, MessageBody,
 };
 use vsmtp_server::Connection;
 use vsmtp_server::{auth, OnMail};
@@ -60,7 +60,9 @@ async fn plain_in_clair_unsecured() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -116,7 +118,9 @@ async fn login_in_clair_unsecured() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -176,7 +180,9 @@ async fn anonymous_in_clair_unsecured() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -232,7 +238,9 @@ async fn plain_in_clair_unsecured_utf8() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -395,7 +403,9 @@ async fn plain_in_clair_unsecured_without_initial_response() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,

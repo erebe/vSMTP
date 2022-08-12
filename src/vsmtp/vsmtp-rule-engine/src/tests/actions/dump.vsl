@@ -1,0 +1,35 @@
+#{
+    preq: [
+        action "dump raw email to disk" || {
+            try {
+                object path string = "tests/generated";
+
+                dump("tests/generated");
+                dump(path);
+                next();
+            } catch (e) {
+                print(e);
+                deny();
+            }
+        },
+
+        rule "trailing preq" || accept(),
+    ],
+
+    postq: [
+        action "dump parsed email to disk" || {
+            try {
+                object path string = "tests/generated";
+
+                dump("tests/generated");
+                dump(path);
+        		next();
+            } catch (e) {
+                print(e);
+                deny();
+            }
+        },
+
+        rule "trailing postq" || accept(),
+    ]
+}

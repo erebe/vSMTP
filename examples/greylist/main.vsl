@@ -1,0 +1,23 @@
+/// Here is a really simple greylist implementation.
+/// The goal of a greylist is to temporarily reject a transaction from a new sender.
+/// If the mail is legitimate, the originating server will (most of the time) try again after a delay.
+import "db" as db;
+
+#{
+    mail: [
+        rule "greylist" || {
+
+            // if the sender is not recognized in our database,
+            // we deny the transaction and write the sender into
+            // the database.
+            if db::greylist.get(ctx().mail_from).len() == 0 {
+                db::greylist.set([ctx().mail_from.to_string()]);
+                deny()
+            } else {
+                // the user is known by the server, the transaction
+                // can proceed.
+                accept()
+            }
+        }
+    ],
+}

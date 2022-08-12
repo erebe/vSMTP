@@ -1,0 +1,27 @@
+Received: from [192.168.0.22] (85-170-11-26.rev.numericable.fr [85.170.11.26])
+	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits))
+	(No client certificate requested)
+	by mta-01.virid-it.com (Postfix) with ESMTPSA id 2F22B7E2E0
+	for <mlala@negabit.com>; Wed,  3 Aug 2022 15:48:03 +0000 (UTC)
+Authentication-Results: mta-01.virid-it.com; dmarc=fail (p=quarantine dis=none) header.from=virid-it.com
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=virid-it.com; s=mail;
+	t=1659541683; bh=Touenr7dUe0Mxv9r3OfnQ+GHpFRIdDa3Wa3TWnDOQKs=;
+	h=Date:To:From:Subject:From;
+	b=XiJRwvV3vXxGuVPqZGoN9xjrVuEhHK0gbjB8bVrSHvXRj8wmpXdnWfW6otmL/kNCR
+	 il+SvdQMXNG3sIUXTv/d7b0ByUkIA3F3kPM3MtAPlGiC8mvcyHvL4szBxBjn0+U8hz
+	 NfevWgPPZ37d3w2rEi2ezfTwmosrTHdjKHTEpamY=
+Message-ID: <795d74e1-7c0a-5c30-c7f6-9dc45beef00b@virid-it.com>
+Date: Wed, 3 Aug 2022 17:48:03 +0200
+MIME-Version: 1.0
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101
+ Thunderbird/102.1.0
+Content-Language: en-US
+To: mlala@negabit.com
+From: Pag <pag@virid-it.com>
+Subject: after dns update
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+
+okok
+

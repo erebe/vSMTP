@@ -1,1 +1,0 @@
-# vSMTP testing policies

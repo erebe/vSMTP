@@ -18,7 +18,7 @@ use crate::Config;
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../../../examples/config/antivirus.toml");
+    let toml = include_str!("../../../../../../examples/antivirus/vsmtp.toml");
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
@@ -35,7 +35,7 @@ fn parse() {
             .with_default_smtp_codes()
             .without_auth()
             .with_default_app()
-            .with_vsl("./examples/config/antivirus/main.vsl")
+            .with_vsl("./examples/antivirus/main.vsl")
             .with_default_app_logs()
             .with_system_dns()
             .without_virtual_entries()

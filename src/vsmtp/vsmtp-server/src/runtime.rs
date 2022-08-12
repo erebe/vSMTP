@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delivery, log_channels, processing, ProcessMessage, Server};
+use crate::{delivery, processing, ProcessMessage, Server};
 use vsmtp_common::{
     queue::Queue,
     re::{
@@ -23,7 +23,7 @@ use vsmtp_common::{
     },
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
     sender: tokio::sync::mpsc::Sender<()>,
@@ -47,10 +47,7 @@ where
         .spawn(move || {
             let name_rt = name.clone();
             runtime.block_on(async move {
-                log::info!(
-                    target: log_channels::RUNTIME,
-                    "Runtime '{name_rt}' started successfully"
-                );
+                log::info!("Runtime '{name_rt}' started successfully");
 
                 match timeout {
                     Some(duration) => {
@@ -82,7 +79,7 @@ pub fn start_runtime(
 ) -> anyhow::Result<()> {
     <Queue as strum::IntoEnumIterator>::iter()
         .map(|q| vsmtp_common::queue_path!(create_if_missing => &config.server.queues.dirpath, q))
-        .collect::<std::io::Result<Vec<_>>>()?;
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     let mut error_handler = tokio::sync::mpsc::channel::<()>(3);
 
@@ -91,14 +88,14 @@ pub fn start_runtime(
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size),
     );
 
-    let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
+    let rule_engine =
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone())?);
 
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
     );
 
     let config_arc = std::sync::Arc::new(config);
-    let rule_engine_arc = std::sync::Arc::new(std::sync::RwLock::new(rule_engine));
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
@@ -106,7 +103,7 @@ pub fn start_runtime(
         config_arc.server.system.thread_pool.delivery,
         delivery::start(
             config_arc.clone(),
-            rule_engine_arc.clone(),
+            rule_engine.clone(),
             resolvers.clone(),
             delivery_channel.1,
         ),
@@ -119,7 +116,7 @@ pub fn start_runtime(
         config_arc.server.system.thread_pool.processing,
         processing::start(
             config_arc.clone(),
-            rule_engine_arc.clone(),
+            rule_engine.clone(),
             resolvers.clone(),
             working_channel.1,
             delivery_channel.0.clone(),
@@ -134,19 +131,19 @@ pub fn start_runtime(
         async move {
             let server = match Server::new(
                 config_arc.clone(),
-                rule_engine_arc.clone(),
+                rule_engine.clone(),
                 resolvers.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             ) {
                 Ok(server) => server,
                 Err(error) => {
-                    log::error!(target: log_channels::SERVER, "{}", error);
+                    log::error!("{}", error);
                     return;
                 }
             };
             if let Err(error) = server.listen_and_serve(sockets).await {
-                log::error!(target: log_channels::SERVER, "{}", error);
+                log::error!("{}", error);
             }
         },
         timeout,
@@ -161,8 +158,8 @@ pub fn start_runtime(
     ])?;
     let _signal_handler = std::thread::spawn(move || {
         for sig in signals.forever() {
-            log::info!(target: log_channels::RUNTIME, "Received signal '{}'", sig);
-            log::warn!(target: log_channels::RUNTIME, "Stopping vSMTP server");
+            log::info!("Received signal '{}'", sig);
+            log::warn!("Stopping vSMTP server");
             error_handler_sig
                 .blocking_send(())
                 .expect("failed to send terminating instruction");

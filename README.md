@@ -30,8 +30,8 @@
 
 <div align="center">
   <a href="https://www.whatrustisit.com">
-    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg?logo=rust"
-      alt="Rustc Version 1.58.0" />
+    <img src="https://img.shields.io/badge/rustc-1.60%2B-informational.svg?logo=rust"
+      alt="Rustc Version 1.60.0" />
   </a>
   <a href="https://crates.io/crates/vsmtp">
     <img src="https://img.shields.io/crates/v/vsmtp.svg"
@@ -90,7 +90,7 @@ Follow us on [viridit.com](https://viridit.com)
 
 ## Filtering
 
-vSMTP enable you to create complex set of rules to filter your emails using the vsl programming language based on [Rhai](https://github.com/rhaiscript/rhai).
+vSMTP enable you to create complex set of rules to filter your emails using [vSMTP's scripting language (vsl)](https://vsmtp.rs/reference/vSL/vsl.html) based on [Rhai](https://github.com/rhaiscript/rhai).
 You can:
 
 - inspect / modify the content of incoming emails.
@@ -141,6 +141,8 @@ import "database" as db;
 }
 ```
 
+Check out the [api](https://github.com/viridIT/vSMTP/tree/main/src/vsmtp/vsmtp-rule-engine/src/api) folder to get a view of what you can do with vsl.
+
 ## Benchmarks
 
 Comparison between Postfix 3.6.4 & vSMTP 1.0.1 performances, performed on a Ubuntu 22.04 LTS running with an AMD Ryzen 5 5600X 6-Core Processor.
@@ -169,7 +171,7 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 > vSMTP is currently under development.
 
-The next releases "1.2.x" will focus on SQL databases support, DKIM & DMARK. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
+The next releases "1.2.x" will focus on SQL databases support, DKIM & DMARC. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
 
 A guideline about contributing to vSMTP can be found in the [contributing](CONTRIBUTING.md) section.
 

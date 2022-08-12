@@ -16,15 +16,15 @@
 */
 
 use vsmtp_common::{
-    mail_context::MessageBody,
     re::{anyhow, tokio},
-    CodeID, ConnectionKind,
+    CodeID, ConnectionKind, MessageBody,
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{auth, handle_connection, Connection, OnMail};
+use vsmtp_rule_engine::RuleEngine;
+use vsmtp_server::{auth, Connection, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
+#[derive(Debug)]
 pub struct Mock<'a, T: AsRef<[u8]> + Unpin> {
     read_cursor: std::io::Cursor<T>,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,
@@ -79,7 +79,9 @@ pub struct DefaultMailHandler;
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
-    async fn on_mail<S: tokio::io::AsyncWrite + tokio::io::AsyncRead + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncWrite + tokio::io::AsyncRead + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
@@ -93,7 +95,7 @@ impl OnMail for DefaultMailHandler {
 ///
 /// # Errors
 ///
-/// * the outcome of [`handle_connection`]
+/// * the outcome of [`Connection::receive`]
 ///
 /// # Panics
 ///
@@ -118,14 +120,14 @@ where
         &mut mock,
     );
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
-    ));
+    let rule_engine =
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
 
-    let receivers = std::sync::Arc::new(std::collections::HashMap::new());
+    let receivers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
 
-    let result =
-        handle_connection(&mut conn, None, rsasl, rule_engine, receivers, mail_handler).await;
+    let result = conn
+        .receive(None, rsasl, rule_engine, receivers, mail_handler)
+        .await;
     tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
         .await
         .unwrap();

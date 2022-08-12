@@ -1,19 +1,18 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
-    CodeID, ConnectionKind
-};
+use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind, MessageBody};
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{handle_connection, Connection, OnMail};
+use vsmtp_rule_engine::RuleEngine;
+use vsmtp_server::{Connection, OnMail};
 use vsmtp_test::receiver::Mock;
 
 struct FuzzOnMail;
 
 #[async_trait::async_trait]
 impl OnMail for FuzzOnMail {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         _: &mut Connection<S>,
         _: Box<MailContext>,
@@ -59,14 +58,12 @@ fuzz_target!(|data: &[u8]| {
         &mut mock,
     );
 
-    let re = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &None).expect("failed to build rule engine"),
-    ));
+    let re =
+        std::sync::Arc::new(RuleEngine::new(&config, &None).expect("failed to build rule engine"));
 
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(handle_connection(
-            &mut conn,
+        .block_on(conn.receive(
             None,
             None,
             re,

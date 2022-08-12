@@ -20,22 +20,22 @@ use crate::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
     },
-    log_channels,
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
+    MessageBody,
 };
 use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
+use vsmtp_rule_engine::RuleEngine;
 
 mod deferred;
 mod deliver;
@@ -44,16 +44,19 @@ mod deliver;
 /// or parsed by the vMime process.
 pub async fn start(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {
     if let Err(e) =
         flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
     {
-        log::error!(target: log_channels::DELIVERY, "flushing queue failed: {e}",);
+        log::error!("flushing queue failed: `{e}`");
     }
 
+    // NOTE: emails stored in the deferred queue are likely to slow down the process.
+    //       the pickup process of this queue should be slower than pulling from the delivery queue.
+    //       https://www.postfix.org/QSHAPE_README.html#queues
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
 
@@ -70,13 +73,9 @@ pub async fn start(
                 );
             }
             _ = flush_deferred_interval.tick() => {
-                log::info!(
-                    target: log_channels::DEFERRED,
-                    "cronjob delay elapsed, flushing queue.",
-                );
-                tokio::spawn(
-                    flush_deferred_queue(config.clone(), resolvers.clone())
-                );
+                log::info!("cronjob delay elapsed `{}s`, flushing queue.",
+                    config.server.queues.delivery.deferred_retry_period.as_secs());
+                tokio::spawn(flush_deferred_queue(config.clone(), resolvers.clone()));
             }
         };
     }
@@ -112,7 +111,7 @@ pub async fn send_mail(
         return SenderOutcome::MoveToDead;
     }
 
-    let message_content = message_body.to_string();
+    let message_content = message_body.inner().to_string();
 
     let root_server_resolver = resolvers
         .get(&config.server.domain)
@@ -132,7 +131,7 @@ pub async fn send_mail(
                 }
                 .unwrap_or(root_server_resolver);
 
-                forward::Forward::new(forward_target.clone(), resolver).deliver(
+                Forward::new(forward_target.clone(), resolver).deliver(
                     config,
                     metadata,
                     from,
@@ -140,7 +139,7 @@ pub async fn send_mail(
                     &message_content,
                 )
             }
-            Transfer::Deliver => smtp_deliver::Deliver::new({
+            Transfer::Deliver => Deliver::new({
                 resolvers
                     .get(
                         to.get(0)
@@ -151,10 +150,8 @@ pub async fn send_mail(
                     .unwrap_or(root_server_resolver)
             })
             .deliver(config, metadata, from, to, &message_content),
-            Transfer::Mbox => mbox::MBox.deliver(config, metadata, from, to, &message_content),
-            Transfer::Maildir => {
-                maildir::Maildir.deliver(config, metadata, from, to, &message_content)
-            }
+            Transfer::Mbox => MBox.deliver(config, metadata, from, to, &message_content),
+            Transfer::Maildir => Maildir.deliver(config, metadata, from, to, &message_content),
             Transfer::None => unreachable!(),
         })
         .collect::<Vec<_>>();
@@ -164,6 +161,8 @@ pub async fn send_mail(
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
+
+    log::trace!("the recipients are: `{:#?}`", message_ctx.envelop.rcpt);
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut message_ctx.envelop.rcpt {
@@ -281,10 +280,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::{
-        mail_context::{ConnectionContext, MessageBody},
-        status::Status,
-    };
+    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody, RawBody};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -344,38 +340,32 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        let mut message = MessageBody::Raw {
-            headers: vec![],
-            body: Some("".to_string()),
-        };
+        let mut message = MessageBody::default();
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
-            message,
-            MessageBody::Raw {
-                headers: vec![
-                    [
-                        "Received: from localhost".to_string(),
-                        format!(" by {domain}", domain = config.server.domain),
-                        " with SMTP".to_string(),
-                        format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
-                        {
-                            let odt: time::OffsetDateTime =
-                                ctx.metadata.as_ref().unwrap().timestamp.into();
-                            odt.format(&time::format_description::well_known::Rfc2822)
-                                .unwrap()
-                        }
-                    ]
-                    .concat(),
-                    format!(
-                        "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
-                        id = ctx.metadata.as_ref().unwrap().message_id,
-                        ver = env!("CARGO_PKG_VERSION"),
-                    ),
-                ],
-                body: Some("".to_string()),
-            }
+            *message.inner(),
+            RawBody::new_empty(vec![
+                [
+                    "Received: from localhost".to_string(),
+                    format!(" by {domain}", domain = config.server.domain),
+                    " with SMTP".to_string(),
+                    format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
+                    {
+                        let odt: time::OffsetDateTime =
+                            ctx.metadata.as_ref().unwrap().timestamp.into();
+                        odt.format(&time::format_description::well_known::Rfc2822)
+                            .unwrap()
+                    }
+                ]
+                .concat(),
+                format!(
+                    "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
+                    id = ctx.metadata.as_ref().unwrap().message_id,
+                    ver = env!("CARGO_PKG_VERSION"),
+                ),
+            ])
         );
     }
 }

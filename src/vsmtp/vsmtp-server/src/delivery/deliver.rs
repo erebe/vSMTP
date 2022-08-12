@@ -17,7 +17,6 @@
 use crate::{
     delegate,
     delivery::{add_trace_information, send_mail, SenderOutcome},
-    log_channels,
     receiver::MailHandlerError,
     ProcessMessage,
 };
@@ -33,14 +32,14 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::RuleEngine;
 
 pub async fn flush_deliver_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
-    log::info!(target: log_channels::DELIVERY, "Flushing deliver queue");
+    log::info!("Flushing deliver queue");
 
     let dir_entries =
         std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
@@ -63,29 +62,21 @@ pub async fn flush_deliver_queue(
 
 /// handle and send one email pulled from the delivery queue.
 ///
-/// # Args
-/// * `config` - the server's config.
-/// * `resolvers` - a list of dns with their associated domains.
-/// * `path` - the path to the message file.
-/// * `rule_engine` - an instance of the rule engine.
-///
 /// # Errors
+///
 /// * failed to open the email.
 /// * failed to parse the email.
 /// * failed to send an email.
 /// * rule engine mutex is poisoned.
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
-///
-/// # Panics
 pub async fn handle_one_in_delivery_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) {
     log::info!(
-        target: log_channels::DELIVERY,
         "handling message in delivery queue {}",
         process_message.message_id
     );
@@ -93,11 +84,7 @@ pub async fn handle_one_in_delivery_queue(
     if let Err(e) =
         handle_one_in_delivery_queue_inner(config, resolvers, process_message, rule_engine).await
     {
-        log::warn!(
-            target: log_channels::DELIVERY,
-            "failed to handle one email in delivery queue: {}",
-            e
-        );
+        log::warn!("failed to handle one email in delivery queue: {e}");
     }
 }
 
@@ -106,13 +93,9 @@ async fn handle_one_in_delivery_queue_inner(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::DELIVERY,
-        "processing email '{}'",
-        process_message.message_id
-    );
+    log::debug!("processing email '{}'", process_message.message_id);
 
     let queue = if process_message.delegated {
         Queue::Delegated
@@ -124,14 +107,13 @@ async fn handle_one_in_delivery_queue_inner(
         .read(&config.server.queues.dirpath, &process_message.message_id)
         .await?;
 
-    let (mut mail_context, mut mail_message, result, skipped) = RuleState::just_run_when(
+    let (mut mail_context, mut mail_message, result, skipped) = rule_engine.just_run_when(
         &StateSMTP::Delivery,
         config.as_ref(),
         resolvers.clone(),
-        &rule_engine,
         mail_context,
         mail_message,
-    )?;
+    );
 
     match &skipped {
         Some(Status::Quarantine(path)) => {
@@ -147,14 +129,11 @@ async fn handle_one_in_delivery_queue_inner(
             // after processing the email is removed from the delivery queue.
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
-            log::warn!(target: log_channels::DELIVERY, "skipped due to quarantine.",);
+            log::warn!("skipped due to quarantine.");
 
             return Ok(());
         }
@@ -167,19 +146,16 @@ async fn handle_one_in_delivery_queue_inner(
                 &mail_context,
             )?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
             delegate(delegator, &mail_context, &mail_message)
                 .map_err(MailHandlerError::DelegateMessage)?;
 
-            log::warn!(target: log_channels::DELIVERY, "skipped due to delegation.",);
+            log::warn!("skipped due to delegation.");
 
             return Ok(());
         }
@@ -196,26 +172,16 @@ async fn handle_one_in_delivery_queue_inner(
 
             queue.move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "mail has been denied and moved to the `dead` queue.",
-            );
+            log::warn!("mail has been denied and moved to the `dead` queue.");
 
             return Ok(());
         }
         Some(reason) => {
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "skipped due to '{}'.",
-                reason.as_ref()
-            );
+            log::warn!("skipped due to '{}'.", reason.as_ref());
         }
         None => {}
     };
@@ -229,6 +195,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Dead)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::MoveToDeferred => {
             queue
@@ -240,6 +210,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Deferred)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::RemoveFromDisk => {
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
@@ -256,13 +230,14 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer},
+        MessageBody,
     };
     use vsmtp_config::build_resolvers;
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     #[tokio::test]
@@ -314,19 +289,20 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(
             &config.server.queues.dirpath,
             "message_from_deliver_to_deferred",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
         )
         .unwrap();
 
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::from_script(&config, "#{}").unwrap(),
-        ));
+        let rule_engine = std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap());
 
         let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 

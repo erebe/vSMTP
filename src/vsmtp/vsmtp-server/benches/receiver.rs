@@ -17,12 +17,7 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{
-    addr,
-    mail_context::{MailContext, MessageBody},
-    re::tokio,
-    CodeID,
-};
+use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID, MessageBody};
 use vsmtp_config::Config;
 use vsmtp_server::{Connection, OnMail};
 
@@ -31,7 +26,9 @@ struct DefaultMailHandler;
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         _: &mut Connection<S>,
         _: Box<MailContext>,
@@ -92,7 +89,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,

@@ -1,0 +1,30 @@
+import "service" as svc;
+
+fn has_virus() {
+    // running the service with the email's content as an argument.
+    let result = svc::antivirus.cmd_run([`${ctx().mail}`]);
+
+    // The command could timeout.
+    // You could use a `throw` statement here.
+    if result.has_signal {
+        return false;
+    }
+
+    // if the returned code is not zero, that means
+    // clamscan detected a virus.
+    result.has_code && result.code != 0
+}
+
+#{
+    preq: [
+        rule "antivirus" || {
+            // if clamscan detects a virus, we quarantine the email.
+            if has_virus() {
+                log("warn", "virus detected, email quarantined.");
+                quarantine("virus")
+            } else {
+                accept()
+            }
+        }
+    ],
+}

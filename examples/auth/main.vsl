@@ -1,0 +1,5 @@
+#{
+    authenticate: [
+        rule "login" || authenticate()
+    ]
+}

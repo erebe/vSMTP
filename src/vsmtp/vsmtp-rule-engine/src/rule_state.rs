@@ -1,19 +1,36 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+use super::server_api::ServerAPI;
+use crate::api::{Context, Message, Server, SharedObject};
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
-use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::modules::types::types::{Context, Message, Server};
+use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
-
-use super::server_api::ServerAPI;
-use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::re::anyhow;
-use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
+use vsmtp_common::{
+    envelop::Envelop,
+    mail_context::{ConnectionContext, MailContext},
+    MessageBody,
+};
 use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
@@ -32,6 +49,16 @@ pub struct RuleState {
     skip: Option<Status>,
 }
 
+impl std::fmt::Debug for RuleState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuleState")
+            .field("mail_context", &self.mail_context)
+            .field("message", &self.message)
+            .field("skip", &self.skip)
+            .finish()
+    }
+}
+
 impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
@@ -45,6 +72,7 @@ impl RuleState {
             resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+            // TODO: add `Default` trait to `ConnectionContext`.
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
@@ -69,10 +97,7 @@ impl RuleState {
             envelop: Envelop::default(),
             metadata: None,
         }));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::Raw {
-            headers: vec![],
-            body: None,
-        }));
+        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
         let engine = Self::build_rhai_engine(
             mail_context.clone(),
@@ -109,7 +134,7 @@ impl RuleState {
             .flat_map(|(_, d)| d)
             .any(|d| match d {
                 Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                    Service::Smtp { receiver, .. } => *receiver == conn.server_address,
                     _ => false,
                 },
                 _ => false,
@@ -170,6 +195,7 @@ impl RuleState {
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
+        let config = server.config.clone();
 
         // NOTE: on_var is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
@@ -193,9 +219,16 @@ impl RuleState {
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw("service", parse_service, true, create_service)
+            .register_custom_syntax_raw(
+                "service",
+                parse_service,
+                true,
+                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                    create_service(context, input, &config)
+                },
+            )
             .register_iterator::<Vec<vsmtp_common::Address>>()
-            .register_iterator::<Vec<std::sync::Arc<Object>>>();
+            .register_iterator::<Vec<SharedObject>>();
 
         engine
     }
@@ -212,37 +245,7 @@ impl RuleState {
         self.message.clone()
     }
 
-    /// Instantiate a [`RuleState`] and run it for the only `state` provided
-    ///
-    /// # Return
-    /// A tuple with the mail context, body, result status, and skip status.
-    ///
-    /// # Errors
-    ///
-    /// * `rule_engine` mutex poisoned
-    pub fn just_run_when(
-        state: &StateSMTP,
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
-        rule_engine: &std::sync::RwLock<RuleEngine>,
-        mail_context: MailContext,
-        mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, MessageBody, Status, Option<Status>)> {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
-        let mut rule_state =
-            Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
-        let result = rule_engine.run_when(&mut rule_state, state);
-
-        let (mail_context, mail_message, skipped) = rule_state
-            .take()
-            .expect("should not have strong reference here");
-        Ok((mail_context, mail_message, result, skipped))
-    }
-
-    /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
+    /// Consume the instance and return the inner [`MailContext`] and [`MessageBody`]
     ///
     /// # Errors
     ///

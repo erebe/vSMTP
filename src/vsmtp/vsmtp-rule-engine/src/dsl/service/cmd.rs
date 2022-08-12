@@ -15,8 +15,7 @@
  *
 */
 
-use crate::log_channels;
-use crate::{dsl::service::Service, modules::EngineResult};
+use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::re::users;
@@ -100,11 +99,7 @@ pub fn run(
         }
     }
 
-    log::trace!(
-        target: log_channels::SERVICES,
-        "cmd running command: {:#?}",
-        child
-    );
+    log::trace!("cmd running command: {child:#?}");
 
     let mut child = match child.spawn() {
         Ok(child) => child,

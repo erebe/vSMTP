@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    auth::{self, Session},
-    log_channels,
-};
+use crate::auth::{self, Session};
 
 use super::Connection;
 use vsmtp_common::{
@@ -27,7 +24,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::Resolvers;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
 #[must_use]
@@ -59,7 +56,7 @@ async fn auth_step<S>(
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     if buffer == [b'*'] {
         return Err(AuthExchangeError::Canceled);
@@ -104,13 +101,13 @@ const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 pub async fn on_authentication<S>(
     conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     // TODO: if initial data == "=" ; it mean empty ""
 
@@ -124,7 +121,6 @@ where
             .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
         {
             log::warn!(
-                target: log_channels::AUTH,
                 "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted connection!"
             );
         } else {
@@ -165,7 +161,7 @@ where
     while !succeeded {
         succeeded = match conn.read(READ_TIMEOUT).await {
             Ok(Some(buffer)) => {
-                log::trace!(target: log_channels::AUTH, "{buffer}");
+                log::trace!("{buffer}");
                 auth_step(conn, &mut session, buffer.as_bytes()).await
             }
             Ok(None) => Err(AuthExchangeError::ReadingMessage(std::io::Error::new(

@@ -1,0 +1,14 @@
+/// This is type of service that lets you interact
+/// with a csv database.
+
+service greylist db:csv = #{
+    // the location of the database on disk.
+    connector: "../../../examples/greylist/greylist.csv",
+    // the access flags used to query the database.
+    access: "O_RDWR",
+    // refresh rate, can be "always" or "no".
+    refresh: "always",
+    // the delimiter character between each line's record
+    // in the csv file.
+    delimiter: ',',
+};

@@ -6,21 +6,16 @@ Depending on versions fixes and user feedbacks, the production version is expect
 
 > Release before 1.3 should not be used for production purpose.
 
-## Current version : 1.1
+## Current version : 1.2
 
-- Security delegation via SMTP.
-
-## Planned features and releases
-
-### Release 1.2.x : End of June 2022
-
-- SQL databases support.
 - Performance improvement : connection caches.
 - [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
 
+## Planned features and releases
+
 ### Release 1.3.x
 
-- Redis, Memcached & LDAP databases support.
+- SQL, Redis, Memcached & LDAP databases support.
 - Security shield : DDoS, zombies and SPAM bots countermeasures.
 - Performance improvement : content caches.
 
@@ -32,6 +27,10 @@ Depending on versions fixes and user feedbacks, the production version is expect
 - [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
 
 ## Older releases
+
+### Release 1.1
+
+- Security delegation via SMTP.
 
 ### Releases 1.0
 

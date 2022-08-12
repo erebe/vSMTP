@@ -15,20 +15,23 @@
  *
  */
 
-use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
+use super::service::Service;
+use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::StateSMTP, status::Status};
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
 
 /// a type of rule that can be executed from a function pointer.
+#[derive(strum::AsRefStr)]
+#[strum(serialize_all = "lowercase")]
 pub enum Directive {
     /// execute code that return a status.
     Rule { name: String, pointer: rhai::FnPtr },
     /// execute code that does not need a return value.
     Action { name: String, pointer: rhai::FnPtr },
     /// delegate a message to a service, and execute the
-    /// inner rhai function when the message is forwared
+    /// inner rhai function when the message is forwarded
     /// to the service receive endpoint.
     Delegation {
         name: String,
@@ -37,29 +40,30 @@ pub enum Directive {
     },
 }
 
-impl Directive {
-    pub const fn directive_type(&self) -> &str {
-        match self {
-            Directive::Rule { .. } => "rule",
-            Directive::Action { .. } => "action",
-            Directive::Delegation { .. } => "delegate",
-        }
+impl std::fmt::Debug for Directive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Directive")
+            .field("type", &self.as_ref())
+            .field("name", &self.name())
+            .finish_non_exhaustive()
     }
+}
 
+impl Directive {
     pub fn name(&self) -> &str {
         match self {
-            Directive::Rule { name, .. }
-            | Directive::Action { name, .. }
-            | Directive::Delegation { name, .. } => name,
+            Self::Delegation { name, .. } | Self::Rule { name, .. } | Self::Action { name, .. } => {
+                name
+            }
         }
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[tracing::instrument(skip(state, ast), err, ret)]
     pub fn execute(
         &self,
         state: &mut RuleState,
         ast: &rhai::AST,
-        smtp_stage: &StateSMTP,
+        stage: &StateSMTP,
     ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {
@@ -83,7 +87,7 @@ impl Directive {
                     let args = vsl_guard_ok!(state.message().read())
                         .get_header("X-VSMTP-DELEGATION")
                         .and_then(|header| {
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
                                 .args
                                 .get("directive")
                                 .cloned()
@@ -104,9 +108,7 @@ impl Directive {
                             vsl_guard_ok!(state.message().write()).prepend_header(
                                 "X-VSMTP-DELEGATION",
                                 &format!(
-                                    "sent; stage={}; directive=\"{}\"; id=\"{}\"",
-                                    smtp_stage,
-                                    name,
+                                    "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
                                     vsl_guard_ok!(state.context().read())
                                         .metadata
                                         .as_ref()
@@ -121,8 +123,7 @@ impl Directive {
                 }
 
                 Err(format!(
-                    "cannot delegate security using a '{}' service in {}:'{}'.",
-                    service, smtp_stage, name,
+                    "cannot delegate security using a '{service}' service in {stage}: '{name}'.",
                 )
                 .into())
             }
