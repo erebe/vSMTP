@@ -9,19 +9,19 @@ import "services" as svc;
     //       be absolute, it does not integrate well with unit tests.
 
     // You can use files to serve as a blacklist, or directly write it in vsl.
-    // rule "blacklist" || if ctx().mail_from.domain in obj::blacklist { deny() } else { next() }
-    rule "blacklist" || if ctx().mail_from.domain == "spam-domain.org" { deny() } else { next() }
+    // rule "blacklist" || if mail_from().domain in obj::blacklist { deny() } else { next() },
+    rule "blacklist" || if mail_from().domain == "spam-domain.org" { deny() } else { next() }
   ],
 
   rcpt: [
     // Jane will always be added as a bcc when jenny is part of the recipients.
-    action "bcc jenny" || if obj::jenny in ctx().rcpt_list { bcc(obj::jane) },
+    action "bcc jenny" || if obj::jenny == rcpt() { bcc(obj::jane) },
 
     // Prevent delivery to untrusted domains using a regex.
     // you could also use the `check_relay` function in this case.
     action "do not deliver untrusted domains" || {
-      if ctx().rcpt == obj::untrusted {
-        disable_delivery(ctx().rcpt);
+      if rcpt() == obj::untrusted {
+        disable_delivery(rcpt());
       }
     }
   ],
@@ -31,7 +31,7 @@ import "services" as svc;
   //       the following preq delegation is still valid, you can use it
   //       in you own scripts.
 
-  // preq: [
+  // postq: [
   //   delegate svc::clamsmtpd "antivirus" || {
   //     // clamav inserts the 'X-Virus-Infected' header
   //     // once a virus is detected.
@@ -41,13 +41,13 @@ import "services" as svc;
   //       next()
   //     }
   //   }
-  // ]
+  // ],
 
   delivery: [
     action "setup delivery" ||
       // We loop over all recipients and deliver locally if any of them is part of the family.
       // otherwise, we simply deliver the email over SMTP.
-      for rcpt in ctx().rcpt_list {
+      for rcpt in rcpt_list() {
         if rcpt in obj::family_addr { maildir(rcpt) } else { deliver(rcpt) }
       }
   ],

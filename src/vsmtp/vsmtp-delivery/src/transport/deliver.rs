@@ -160,9 +160,9 @@ impl<'r> Deliver<'r> {
             }
         }
 
-        return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
+        Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
             "no valid mail exchanger found for '{domain}'",
-        )));
+        )))
     }
 }
 

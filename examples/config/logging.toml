@@ -2,9 +2,6 @@ version_requirement = ">=1.0.0, <2.0.0"
 
 [server.logs]
 filepath = "/var/log/vsmtp/vsmtp.log"
-# see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html
-# for all available formats.
-format = "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}"
 
 level = [
     "default=warn",
@@ -30,4 +27,3 @@ text = "STARTTLS is required to send mail"
 
 [app.logs]
 filepath = "/var/log/vsmtp/app.log"
-format = "{d} - {m}{n}"

@@ -38,7 +38,10 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
     type Writer = fmt::writer::OptionalWriter<SyslogWriter>;
 
     fn make_writer(&self) -> Self::Writer {
-        let formatter = syslog::Formatter3164::default();
+        let formatter = syslog::Formatter3164 {
+            facility: syslog::Facility::LOG_MAIL,
+            ..Default::default()
+        };
 
         match syslog::unix(formatter) {
             Err(e) => {

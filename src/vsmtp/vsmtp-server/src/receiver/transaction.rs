@@ -216,7 +216,7 @@ impl Transaction {
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
-                // TODO: handle : mail_from can be "<>""
+                // TODO: handle : mail_from can be "<>"
                 self.set_mail_from(mail_from.unwrap(), connection);
 
                 match self

@@ -33,7 +33,7 @@
 use std::io::Write;
 
 use rhai::packages::Package;
-use vsmtp_rule_engine::{modules::StandardVSLPackage, rule_engine::RuleEngine, SharedObject};
+use vsmtp_rule_engine::{api::SharedObject, api::StandardVSLPackage, RuleEngine};
 
 const MODULE_SYNTAX: &str = "# Module:";
 
@@ -126,7 +126,18 @@ fn generate_function_documentation_from_module(
             .entry(Module::new(module, ""))
             .or_default()
             .push(format!(
-                "<details><summary>{}({})</summary><br/>{}</details>",
+                r"<details>
+<summary>
+<code>
+{}({})
+</code>
+</summary>
+<br/>
+<div style='padding: 10px; border-radius: 5px; border-style: solid; border-color: white'>
+{}
+</div>
+<br/>
+</details>",
                 metadata.name,
                 metadata.params.join(", "),
                 &comments

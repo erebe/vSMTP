@@ -71,7 +71,7 @@ impl RuleEngine {
     pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
         log::debug!("building vsl compiler and modules ...");
 
-        let mut compiler = Self::new_compiler();
+        let mut compiler = Self::new_compiler(config);
 
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
         let vsl_native_module = StandardVSLPackage::new().as_shared_module();
@@ -138,7 +138,7 @@ impl RuleEngine {
     ///
     /// * failed to compile the script.
     pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
-        let mut compiler = Self::new_compiler();
+        let mut compiler = Self::new_compiler(config);
 
         let vsl_native_module = StandardVSLPackage::new().as_shared_module();
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
@@ -321,8 +321,9 @@ impl RuleEngine {
 
     /// create a rhai engine to compile all scripts with vsl's configuration.
     #[must_use]
-    pub fn new_compiler() -> rhai::Engine {
+    pub fn new_compiler(config: &Config) -> rhai::Engine {
         let mut engine = Engine::new();
+        let config = config.clone();
 
         // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
@@ -342,7 +343,14 @@ impl RuleEngine {
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw("service", parse_service, true, create_service)
+            .register_custom_syntax_raw(
+                "service",
+                parse_service,
+                true,
+                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                    create_service(context, input, &config)
+                },
+            )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
 

@@ -115,7 +115,7 @@ mod logging_rhai {
             Ok(level) => log::log!(target: APP_TARGET, level, "{message}"),
             Err(e) => log::warn!(
                 target: APP_TARGET,
-                "Got an error with level `{level}`: `{e}`. Message was: '{message}'",
+                "level `{level}` is invalid: `{e}`. Message was: '{message}'",
             ),
         }
     }

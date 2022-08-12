@@ -30,7 +30,7 @@ fn parse() {
             .with_ipv4_localhost()
             .with_logs_settings(
                 "/var/log/vsmtp/vsmtp.log",
-                "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+                "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}",
                 &[
                     "default=warn".parse().unwrap(),
                     "receiver=info".parse().unwrap(),

@@ -19,6 +19,13 @@
 ///         // any other rules that don't need to be run.
 ///         rule "check for trusted source" || if client_ip() == "192.168.1.10" { faccept() } else { next() },
 ///     ],
+///
+///     // The following rules will not be evaluated if `client_ip() == "192.168.1.10"` is true.
+///     mail: [
+///         rule "another rule" || {
+///             // ... doing stuff
+///         }
+///     ],
 /// }
 ///
 /// # Module:Status
@@ -39,12 +46,12 @@ fn faccept() { sys::faccept() }
 ///     connect: [
 ///         // "ignored checks" will be ignored because the previous rule returned accept.
 ///         rule "accept" || accept(),
-///         rule "ignored checks" || print("this will be ignored.")
+///         action "ignore checks" || print("this will be ignored because the previous rule used accept()."),
 ///     ],
 ///
 ///     mail: [
 ///         // rule evaluation is resumed in the next stage.
-///         rule "resuming rules" || print("we resume rule evaluation here.");
+///         rule "resume rules" || print("evaluation resumed!");
 ///     ]
 /// }
 /// ```
@@ -62,9 +69,9 @@ fn accept() { sys::accept() }
 /// ```js
 /// #{
 ///     connect: [
-///         // once "go next" is evaluated, the rule engine execute "another rule".
-///         rule "go next" || next(),
-///         rule "another rule" || print("checking stuff ..."),
+///         // once "go to the next rule" is evaluated, the rule engine execute "another rule".
+///         rule "go to the next rule" || next(),
+///         action "another rule" || print("checking stuff ..."),
 ///     ],
 /// }
 /// ```
@@ -83,7 +90,7 @@ fn next() { sys::next() }
 /// ```js
 /// #{
 ///     rcpt: [
-///         rule "" || {
+///         rule "check for satan" || {
 ///            // The client is denied if a recipient's domain matches satan.org,
 ///            // this is a blacklist, sort-of.
 ///            if ctx().rcpt.domain == "satan.org" {
@@ -109,7 +116,7 @@ fn deny() { sys::deny() }
 /// ```js
 /// #{
 ///     rcpt: [
-///         rule "" || {
+///         rule "check for satan" || {
 ///            // a custom error code can be used with `deny`.
 ///            object error_code code = #{ code: 550, enhanced: "", text: "satan.org is not welcome here." };
 ///
@@ -128,7 +135,7 @@ fn deny() { sys::deny() }
 /// # Module:Status
 fn deny(code) { sys::deny(code) }
 
-/// Ask the client to retry to send the current comment by sending an information code.
+/// Ask the client to retry to send the current command by sending an information code.
 ///
 /// # Effective smtp stage
 ///
@@ -138,7 +145,7 @@ fn deny(code) { sys::deny(code) }
 /// ```js
 /// #{
 ///     connect: [
-///         rule "" || {
+///         rule "please retry" || {
 ///            object info_code code = #{ code: 451, enhanced: "", text: "failed to understand you request, please retry." };
 ///            info(info_code)
 ///        },
@@ -154,7 +161,7 @@ fn info(code) { sys::info(code) }
 ///
 /// # Args
 ///
-/// * `queue` - the relative path to the queue where the email will be quarantined.
+/// * `queue` - the relative path to the queue where the email will be quarantined. This path will be concatenated to the [app.dirpath] field in your `vsmtp.toml`.
 ///
 /// # Effective smtp stage
 ///
@@ -162,6 +169,8 @@ fn info(code) { sys::info(code) }
 ///
 /// # Example
 /// ```js
+/// import "services" as svc;
+///
 /// #{
 ///     postq: [
 ///           delegate svc::clamsmtpd "check email for virus" || {
@@ -902,7 +911,7 @@ fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 /// }
 /// ```
 ///
-/// # Module:Message
+/// # Module:Envelop
 fn bcc(rcpt) { add_rcpt_envelop(rcpt) }
 
 /// Rewrite the value of the `MAIL FROM` command has well has

@@ -19,7 +19,7 @@ use vsmtp_common::re::anyhow;
 use vsmtp_config::re::humantime;
 
 ///
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timeout(pub std::time::Duration);
 
 impl std::str::FromStr for Timeout {
@@ -33,7 +33,7 @@ impl std::str::FromStr for Timeout {
 }
 
 ///
-#[derive(Debug, clap::Parser, PartialEq)]
+#[derive(Debug, clap::Parser, PartialEq, Eq)]
 #[clap(about, version, author)]
 pub struct Args {
     /// Path of the vSMTP configuration file (toml format)
@@ -54,7 +54,7 @@ pub struct Args {
 }
 
 ///
-#[derive(Debug, clap::Subcommand, PartialEq)]
+#[derive(Debug, clap::Subcommand, PartialEq, Eq)]
 pub enum Commands {
     /// Show the loaded config (as serialized json format)
     ConfigShow,

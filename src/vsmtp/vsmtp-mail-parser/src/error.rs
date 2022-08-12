@@ -17,7 +17,7 @@
 // NOTE: should be improved
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParserError {
     InvalidMail(String),
     MandatoryHeadersNotFound(String),
@@ -45,7 +45,7 @@ impl std::fmt::Display for ParserError {
                     message
                 )
             }
-            ParserError::MisplacedBoundary(message) => {
+            Self::MisplacedBoundary(message) => {
                 write!(f, "Misplaced boundary in mime message, {}", message)
             }
         }

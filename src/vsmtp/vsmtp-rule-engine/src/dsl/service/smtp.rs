@@ -19,11 +19,18 @@ use crate::dsl::service::SmtpConnection;
 use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
 use vsmtp_common::re::lettre;
+use vsmtp_config::Config;
 
 pub fn parse_smtp_service(
     context: &mut rhai::EvalContext,
     input: &[rhai::Expression],
     service_name: &str,
+    // NOTE: not used right now, but could be used to configure
+    //       tls parameters for delegation separately from regular
+    //       sockets config.
+    //
+    //       to remove if configured using vsl.
+    _: &Config,
 ) -> EngineResult<Service> {
     /// extract a value from a `rhai::Map`, optionally inserting a default value.
     fn get_or_default<T: Clone + Send + Sync + 'static>(
@@ -80,14 +87,12 @@ pub fn parse_smtp_service(
             .into();
 
     Ok(Service::Smtp {
-        delegator: {
-            SmtpConnection(std::sync::Arc::new(std::sync::Mutex::new(
-                lettre::SmtpTransport::builder_dangerous(delegator_addr.ip().to_string())
-                    .port(delegator_addr.port())
-                    .timeout(Some(delegator_timeout))
-                    .build(),
-            )))
-        },
+        delegator: SmtpConnection(std::sync::Arc::new(std::sync::Mutex::new(
+            lettre::SmtpTransport::builder_dangerous(delegator_addr.ip().to_string())
+                .port(delegator_addr.port())
+                .timeout(Some(delegator_timeout))
+                .build(),
+        ))),
         receiver: receiver_addr,
     })
 }

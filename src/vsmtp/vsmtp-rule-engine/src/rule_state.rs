@@ -72,6 +72,7 @@ impl RuleState {
             resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+            // TODO: add `Default` trait to `ConnectionContext`.
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
@@ -194,6 +195,7 @@ impl RuleState {
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
+        let config = server.config.clone();
 
         // NOTE: on_var is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
@@ -217,7 +219,14 @@ impl RuleState {
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw("service", parse_service, true, create_service)
+            .register_custom_syntax_raw(
+                "service",
+                parse_service,
+                true,
+                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                    create_service(context, input, &config)
+                },
+            )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
 

@@ -48,7 +48,7 @@ pub struct MailHandler {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MailHandlerError {
-    #[error("Could not delegate message: `{0}`")]
+    #[error("Could not delegate message: `{0:#?}`")]
     DelegateMessage(anyhow::Error),
     #[error("couldn't write to `mails` folder: `{0}`")]
     WriteMessageBody(std::io::Error),
