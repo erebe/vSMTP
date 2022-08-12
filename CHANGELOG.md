@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [1.2.0] - 2022-08-12
+
 ### Added
 
 * "Deliver-To" header to local delivery (mbox & maildir) (#443)
