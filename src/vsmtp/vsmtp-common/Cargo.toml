@@ -27,7 +27,7 @@ addr = { version = "0.15.4" }
 vsmtp-rsasl = { version = "1.5.1-rc2", default-features = false }
 
 strum = { version = "0.24.1", features = ["derive"] }
-libc = "0.2.127"
+libc = "0.2.131"
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
     "builder",
