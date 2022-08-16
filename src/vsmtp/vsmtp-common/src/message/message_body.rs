@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{r#trait::mail_parser::ParserOutcome, Either, Mail, MailParser, RawBody};
+use crate::{traits::mail_parser::ParserOutcome, Mail, MailParser, RawBody};
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -24,11 +24,11 @@ pub struct MessageBody {
     parsed: Option<Mail>,
 }
 
-impl From<Either<RawBody, Mail>> for MessageBody {
-    fn from(this: Either<RawBody, Mail>) -> Self {
+impl From<either::Either<RawBody, Mail>> for MessageBody {
+    fn from(this: either::Either<RawBody, Mail>) -> Self {
         match this {
-            Either::Left(raw) => Self { raw, parsed: None },
-            Either::Right(_parsed) => todo!(),
+            either::Left(raw) => Self { raw, parsed: None },
+            either::Right(_parsed) => todo!(),
         }
     }
 }
@@ -59,7 +59,7 @@ impl TryFrom<&str> for MessageBody {
                     body.push_str("\r\n");
                 }
 
-                Ok(Either::Left(RawBody::new(headers, body)))
+                Ok(either::Left(RawBody::new(headers, body)))
             }
         }
 
@@ -200,8 +200,8 @@ impl MessageBody {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn parse<P: MailParser>(&mut self) -> anyhow::Result<()> {
         match P::default().parse_raw(&self.raw)? {
-            Either::Left(_) => anyhow::bail!("the parser did not produced a `Mail` part."),
-            Either::Right(parsed) => {
+            either::Left(_) => anyhow::bail!("the parser did not produced a `Mail` part."),
+            either::Right(parsed) => {
                 self.parsed = Some(parsed);
                 Ok(())
             }

@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::auth::Mechanism;
 
 /// State of the pipeline SMTP
 #[derive(
@@ -39,32 +38,20 @@ pub enum StateSMTP {
     Connect,
     /// After receiving HELO/EHLO command
     Helo,
-    /// After receiving STARTTLS command
-    NegotiationTLS,
     /// After receiving AUTH command
-    Authenticate(Mechanism, Option<Vec<u8>>),
+    Authenticate,
     /// After receiving MAIL FROM command
     #[strum(serialize = "mail")]
     MailFrom,
     /// After receiving RCPT TO command
     #[strum(serialize = "rcpt")]
     RcptTo,
-    /// After receiving DATA command
-    Data,
     /// Before write on disk
     PreQ,
-    /// After receiving QUIT command
-    Stop,
     /// After connection closed
     PostQ,
     /// Right before sending to recipient
     Delivery,
-}
-
-impl Default for StateSMTP {
-    fn default() -> Self {
-        Self::Connect
-    }
 }
 
 impl StateSMTP {

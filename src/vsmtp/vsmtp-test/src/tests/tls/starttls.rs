@@ -76,7 +76,6 @@ async fn double_starttls() {
             "250-testserver.com",
             "250-8BITMIME",
             "250 SMTPUTF8",
-            "220 testserver.com Service ready",
             "554 5.5.1 Error: TLS already active",
             "221 Service closing transmission channel",
         ],

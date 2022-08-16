@@ -54,16 +54,13 @@ pub enum ConnectionKind {
 }
 
 #[macro_use]
-mod r#type {
+mod types {
     #[macro_use]
     pub mod address;
     pub mod code_id;
     pub mod reply;
     pub mod reply_code;
 }
-
-mod either;
-pub use either::Either;
 
 mod message {
     pub mod mail;
@@ -74,10 +71,10 @@ mod message {
 }
 
 pub use message::{mail::*, message_body::MessageBody, mime_type::*, raw_body::RawBody};
-pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
+pub use types::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
-pub type ReplyOrCodeID = Either<CodeID, Reply>;
+pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
 
 /// envelop of a transaction
 pub mod envelop;
@@ -118,11 +115,11 @@ pub mod auth {
     pub use mechanism::Mechanism;
 }
 
-mod r#trait {
+mod traits {
     pub mod mail_parser;
 }
 
-pub use r#trait::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
+pub use traits::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
 
 #[cfg(test)]
 mod tests {
@@ -136,6 +133,7 @@ pub mod re {
     pub use addr;
     pub use anyhow;
     pub use base64;
+    pub use either;
     pub use lettre;
     pub use libc;
     pub use log;

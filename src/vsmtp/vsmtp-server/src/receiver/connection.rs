@@ -33,8 +33,6 @@ where
     pub server_name: String,
     /// connection timestamp
     pub timestamp: std::time::SystemTime,
-    /// is still alive
-    pub is_alive: bool,
     /// server's configuration
     pub config: std::sync::Arc<Config>,
     /// peer socket address
@@ -62,7 +60,6 @@ where
             .field("kind", &self.kind)
             .field("server_name", &self.server_name)
             .field("timestamp", &self.timestamp)
-            .field("is_alive", &self.is_alive)
             .field("client_addr", &self.client_addr)
             .field("server_addr", &self.server_addr)
             .field("error_count", &self.error_count)
@@ -90,7 +87,6 @@ where
             kind,
             server_name: config.server.domain.clone(),
             timestamp: std::time::SystemTime::now(),
-            is_alive: true,
             config,
             client_addr,
             server_addr,
@@ -121,7 +117,6 @@ where
             kind,
             server_name,
             timestamp,
-            is_alive: true,
             config,
             client_addr,
             server_addr,

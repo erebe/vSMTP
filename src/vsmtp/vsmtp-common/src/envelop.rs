@@ -42,9 +42,9 @@ impl Default for Envelop {
 pub mod test {
     use crate::mail_context::ConnectionContext;
 
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
     /// create an empty email context for testing purposes.
+    #[must_use]
+    #[doc(hidden)]
     pub fn get_default_context() -> crate::mail_context::MailContext {
         crate::mail_context::MailContext {
             connection: ConnectionContext {

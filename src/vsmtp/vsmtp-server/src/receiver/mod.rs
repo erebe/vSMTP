@@ -22,10 +22,10 @@ use crate::{auth, receiver::auth_exchange::AuthExchangeError};
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::MAIL_CAPACITY,
-    re::{anyhow, log, tokio},
+    re::{anyhow, either, log, tokio},
     state::StateSMTP,
     status::Status,
-    CodeID, ConnectionKind, Either, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
+    CodeID, ConnectionKind, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
 };
 use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
@@ -64,7 +64,7 @@ impl MailParserOnFly for NoParsing {
             body.push_str("\r\n");
         }
 
-        Ok(Either::Left(RawBody::new(headers, body)))
+        Ok(either::Left(RawBody::new(headers, body)))
     }
 }
 
@@ -104,60 +104,58 @@ where
 
         self.send_code(CodeID::Greetings).await?;
 
-        while self.is_alive {
+        loop {
             let mut transaction =
                 Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
 
-            if let Some(outcome) = transaction.receive(self, &helo_domain).await? {
-                match outcome {
-                    TransactionResult::HandshakeSMTP => {
-                        if !self
-                            .handle_stream(mail_handler, transaction, &mut helo_domain)
-                            .await?
-                        {
-                            return Ok(());
-                        }
+            match transaction.receive(self, &helo_domain).await? {
+                TransactionResult::HandshakeSMTP => {
+                    self.send_code(CodeID::DataStart).await?;
+
+                    if !self
+                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .await?
+                    {
+                        return Ok(());
                     }
-                    TransactionResult::HandshakeTLS => {
-                        if let Some(tls_config) = tls_config {
-                            return self
-                                .upgrade_to_secured(
-                                    tls_config,
-                                    rsasl,
-                                    rule_engine,
-                                    resolvers,
-                                    mail_handler,
-                                )
-                                .await;
-                        }
-                        self.send_code(CodeID::TlsNotAvailable).await?;
-                        anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
-                    }
-                    TransactionResult::HandshakeSASL(
-                        helo_pre_auth,
-                        mechanism,
-                        initial_response,
-                    ) => {
-                        if let Some(rsasl) = &rsasl {
-                            self.handle_auth(
-                                rsasl.clone(),
-                                rule_engine.clone(),
-                                resolvers.clone(),
-                                &mut helo_domain,
-                                mechanism,
-                                initial_response,
-                                helo_pre_auth,
+                }
+                TransactionResult::HandshakeTLS => {
+                    if let Some(tls_config) = tls_config {
+                        return self
+                            .upgrade_to_secured(
+                                tls_config,
+                                rsasl,
+                                rule_engine,
+                                resolvers,
+                                mail_handler,
                             )
-                            .await?;
-                        } else {
-                            self.send_code(CodeID::Unimplemented).await?;
-                        }
+                            .await;
                     }
+                    self.send_code(CodeID::TlsNotAvailable).await?;
+                    anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
+                }
+                TransactionResult::HandshakeSASL(helo_pre_auth, mechanism, initial_response) => {
+                    if let Some(rsasl) = &rsasl {
+                        self.handle_auth(
+                            rsasl.clone(),
+                            rule_engine.clone(),
+                            resolvers.clone(),
+                            &mut helo_domain,
+                            mechanism,
+                            initial_response,
+                            helo_pre_auth,
+                        )
+                        .await?;
+                    } else {
+                        self.send_code(CodeID::Unimplemented).await?;
+                    }
+                }
+                TransactionResult::SessionEnded(code) => {
+                    self.send_reply_or_code(code).await?;
+                    return Ok(());
                 }
             }
         }
-
-        Ok(())
     }
 
     // NOTE: the implementation of `receive` and `receive_secured` are very similar,
@@ -181,48 +179,46 @@ where
 
         let mut helo_domain = None;
 
-        while self.is_alive {
+        loop {
             let mut transaction =
                 Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
 
-            if let Some(outcome) = transaction.receive(self, &helo_domain).await? {
-                match outcome {
-                    TransactionResult::HandshakeSMTP => {
-                        if !self
-                            .handle_stream(mail_handler, transaction, &mut helo_domain)
-                            .await?
-                        {
-                            return Ok(());
-                        }
+            match transaction.receive(self, &helo_domain).await? {
+                TransactionResult::HandshakeSMTP => {
+                    self.send_code(CodeID::DataStart).await?;
+
+                    if !self
+                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .await?
+                    {
+                        return Ok(());
                     }
-                    TransactionResult::HandshakeTLS => {
-                        self.send_code(CodeID::AlreadyUnderTLS).await?;
+                }
+                TransactionResult::HandshakeTLS => {
+                    self.send_code(CodeID::AlreadyUnderTLS).await?;
+                }
+                TransactionResult::HandshakeSASL(helo_pre_auth, mechanism, initial_response) => {
+                    if let Some(rsasl) = &rsasl {
+                        self.handle_auth(
+                            rsasl.clone(),
+                            rule_engine.clone(),
+                            resolvers.clone(),
+                            &mut helo_domain,
+                            mechanism,
+                            initial_response,
+                            helo_pre_auth,
+                        )
+                        .await?;
+                    } else {
+                        self.send_code(CodeID::Unimplemented).await?;
                     }
-                    TransactionResult::HandshakeSASL(
-                        helo_pre_auth,
-                        mechanism,
-                        initial_response,
-                    ) => {
-                        if let Some(rsasl) = &rsasl {
-                            self.handle_auth(
-                                rsasl.clone(),
-                                rule_engine.clone(),
-                                resolvers.clone(),
-                                &mut helo_domain,
-                                mechanism,
-                                initial_response,
-                                helo_pre_auth,
-                            )
-                            .await?;
-                        } else {
-                            self.send_code(CodeID::Unimplemented).await?;
-                        }
-                    }
+                }
+                TransactionResult::SessionEnded(code) => {
+                    self.send_reply_or_code(code).await?;
+                    return Ok(());
                 }
             }
         }
-
-        Ok(())
     }
 
     async fn upgrade_to_secured<M>(
@@ -237,6 +233,10 @@ where
         M: OnMail + Send,
     {
         let mut secured_conn = {
+            if self.kind != ConnectionKind::Tunneled {
+                self.send_code(CodeID::Greetings).await?;
+            }
+
             let smtps_config = self.config.server.tls.as_ref().ok_or_else(|| {
                 anyhow::anyhow!(
                     "server accepted tls encrypted transaction, but not tls config provided"
@@ -301,11 +301,13 @@ where
             let preq_headers = message.inner().headers_lines();
 
             match &mut body {
-                Either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),
-                Either::Right(parsed) => parsed.prepend_headers(preq_headers.filter_map(|s| {
-                    s.split_once(':')
-                        .map(|(key, value)| (key.to_string(), value.to_string()))
-                })),
+                either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),
+                either::Right(parsed) => {
+                    parsed.prepend_headers(preq_headers.filter_map(|s| {
+                        s.split_once(':')
+                            .map(|(key, value)| (key.to_string(), value.to_string()))
+                    }));
+                }
             };
 
             *message = MessageBody::from(body);

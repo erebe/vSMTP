@@ -313,6 +313,12 @@ pub mod field {
         },
     }
 
+    impl Default for TlsSecurityLevel {
+        fn default() -> Self {
+            TlsSecurityLevel::Encrypt
+        }
+    }
+
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
@@ -328,6 +334,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
         /// Policy of security for the TLS connection.
+        #[serde(default)]
         pub security_level: TlsSecurityLevel,
         /// Ignore the client’s ciphersuite order.
         /// Instead, choose the top ciphersuite in the server list which is supported by the client.

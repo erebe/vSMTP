@@ -25,7 +25,7 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address};
+use vsmtp_common::{auth::Credentials, state::StateSMTP, Address};
 
 pub use mail_context_rhai::*;
 
@@ -108,7 +108,7 @@ mod mail_context_rhai {
         Ok(vsl_missing_ok!(
             vsl_guard_ok!(context.read()).connection.credentials,
             "auth",
-            StateSMTP::Authenticate(Mechanism::Anonymous, None)
+            StateSMTP::Authenticate
         )
         .clone())
     }

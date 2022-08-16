@@ -77,10 +77,11 @@ async fn test_receiver_1() {
 #[tokio::test]
 async fn test_receiver_2() {
     assert!(test_receiver! {
-        ["foo\r\n"].concat(),
+        ["foo\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "501 Syntax error in parameters or arguments\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -90,10 +91,11 @@ async fn test_receiver_2() {
 #[tokio::test]
 async fn test_receiver_3() {
     assert!(test_receiver! {
-        ["MAIL FROM:<john@doe>\r\n"].concat(),
+        ["MAIL FROM:<john@doe>\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -103,10 +105,11 @@ async fn test_receiver_3() {
 #[tokio::test]
 async fn test_receiver_4() {
     assert!(test_receiver! {
-        ["RCPT TO:<john@doe>\r\n"].concat(),
+        ["RCPT TO:<john@doe>\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -116,11 +119,12 @@ async fn test_receiver_4() {
 #[tokio::test]
 async fn test_receiver_5() {
     assert!(test_receiver! {
-        ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"].concat(),
+        ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -144,10 +148,11 @@ async fn test_receiver_6() {
 #[tokio::test]
 async fn test_receiver_10() {
     assert!(test_receiver! {
-        ["HELP\r\n"].concat(),
+        ["HELP\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "214 joining us https://viridit.com/support\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -165,6 +170,7 @@ async fn test_receiver_11() {
             ".\r\n",
             "DATA\r\n",
             "MAIL FROM:<b@b>\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -176,6 +182,7 @@ async fn test_receiver_11() {
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
             "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -193,6 +200,7 @@ async fn test_receiver_11_bis() {
             ".\r\n",
             "DATA\r\n",
             "RCPT TO:<b@b>\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -204,6 +212,7 @@ async fn test_receiver_11_bis() {
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -217,10 +226,11 @@ async fn test_receiver_12() {
 
     assert!(test_receiver! {
         with_config => config,
-        ["EHLO postmaster\r\n"].concat(),
+        ["EHLO postmaster\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "502 Command not implemented\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -243,6 +253,7 @@ async fn max_rcpt_reached() {
             "RCPT TO:<foo+4@bar.com>\r\n",
             "RCPT TO:<foo+5@bar.com>\r\n",
             "RCPT TO:<foo+6@bar.com>\r\n",
+            "QUIT\r\n",
         ].concat(),
         [
             "220 testserver.com Service ready\r\n",
@@ -257,6 +268,7 @@ async fn max_rcpt_reached() {
             "250 Ok\r\n",
             "452 Requested action not taken: too many recipients\r\n",
             "452 Requested action not taken: too many recipients\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }

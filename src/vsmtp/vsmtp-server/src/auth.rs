@@ -15,8 +15,8 @@
  *
 */
 use vsmtp_common::{
-    auth::Credentials, auth::Mechanism, mail_context::ConnectionContext, re::vsmtp_rsasl,
-    state::StateSMTP, status::Status,
+    auth::Credentials, mail_context::ConnectionContext, re::vsmtp_rsasl, state::StateSMTP,
+    status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{RuleEngine, RuleState};
@@ -93,10 +93,7 @@ impl vsmtp_rsasl::Callback<std::sync::Arc<Config>, SessionState> for Callback {
             let mut rule_state =
                 RuleState::with_connection(&config, resolvers.clone(), rule_engine, conn);
 
-            rule_engine.run_when(
-                &mut rule_state,
-                &StateSMTP::Authenticate(Mechanism::default(), None),
-            )
+            rule_engine.run_when(&mut rule_state, &StateSMTP::Authenticate)
         };
 
         match prop {

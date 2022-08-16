@@ -19,8 +19,8 @@ use super::helpers::get_mime_type;
 use super::helpers::read_header;
 use crate::log_channels;
 use vsmtp_common::{
-    re::{anyhow::Context, log},
-    BodyType, Either, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader, MimeMultipart,
+    re::{anyhow::Context, either, log},
+    BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader, MimeMultipart,
     ParserOutcome,
 };
 
@@ -40,7 +40,7 @@ pub struct MailMimeParser {
 
 impl MailParser for MailMimeParser {
     fn parse_lines(&mut self, data: &[&str]) -> ParserOutcome {
-        Ok(Either::Right(
+        Ok(either::Right(
             self.parse_inner(&mut &data[..]).context("parsing failed")?,
         ))
     }

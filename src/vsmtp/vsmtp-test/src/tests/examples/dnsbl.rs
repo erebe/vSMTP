@@ -29,7 +29,7 @@ async fn test_dnsbl_1() {
         ].concat(),
         [
             "220 testserver.com Service ready\r\n",
-            "554 permanent problems with the remote server\r\n"
+            "554 permanent problems with the remote server\r\n",
         ]
         .concat()
     }

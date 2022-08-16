@@ -117,7 +117,6 @@ impl RuleState {
 
     /// create a new rule state with connection data.
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
     pub fn with_connection(
         config: &Config,
         resolvers: std::sync::Arc<Resolvers>,
@@ -143,7 +142,11 @@ impl RuleState {
             state.skip = Some(Status::DelegationResult);
         }
 
-        state.mail_context.write().unwrap().connection = conn;
+        state
+            .mail_context
+            .write()
+            .expect("`mail_context` mutex is not poisoned here")
+            .connection = conn;
 
         state
     }

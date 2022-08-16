@@ -246,8 +246,7 @@ impl Object {
             (Object::File(file), other) => Ok(file.iter().any(|element| *other == *element)),
             (Object::Rg4(rg4), Object::Ip4(ip4)) => Ok(rg4.contains(ip4)),
             (Object::Rg6(rg6), Object::Ip6(ip6)) => Ok(rg6.contains(ip6)),
-            #[allow(clippy::unnecessary_to_owned)]
-            (Object::Regex(regex), other) => Ok(regex.find(&other.to_string()).is_some()),
+            (Object::Regex(regex), other) => Ok(regex.find(other.as_ref()).is_some()),
             (Object::Address(addr), Object::Identifier(identifier)) => {
                 Ok(addr.local_part() == identifier.as_str())
             }

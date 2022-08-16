@@ -90,7 +90,6 @@ async fn starttls_under_tunnel() {
         [
             "220 testserver.com Service ready",
             "250 Ok",
-            "220 testserver.com Service ready",
             "554 5.5.1 Error: TLS already active",
             "221 Service closing transmission channel",
         ]

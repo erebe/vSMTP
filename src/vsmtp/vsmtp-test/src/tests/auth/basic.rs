@@ -382,6 +382,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
             "EHLO client.com\r\n",
             "AUTH PLAIN foobar\r\n",
             "MAIL FROM:<foo@bar>\r\n",
+            "QUIT\r\n"
         ].concat(),
         [
             "220 testserver.com Service ready\r\n",
@@ -392,6 +393,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
             "250 SMTPUTF8\r\n",
             "501 5.5.2 Invalid, not base64\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ].concat()
     }
     .is_ok());
@@ -474,6 +476,7 @@ async fn no_auth_with_authenticated_policy() {
         [
             "EHLO client.com\r\n",
             "MAIL FROM:<foo@bar>\r\n",
+            "QUIT\r\n",
         ].concat(),
         [
             "220 testserver.com Service ready\r\n",
@@ -483,6 +486,7 @@ async fn no_auth_with_authenticated_policy() {
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
             "530 5.7.0 Authentication required\r\n",
+            "221 Service closing transmission channel\r\n"
         ].concat()
     }
     .is_ok());
