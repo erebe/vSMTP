@@ -367,12 +367,21 @@ impl RuleEngine {
             .compile_scripts_with_scope(
                 &rhai::Scope::new(),
                 [
+                    // objects.
                     include_str!("../api/codes.rhai"),
                     include_str!("../api/networks.rhai"),
+                    // functions.
                     include_str!("../api/auth.rhai"),
+                    include_str!("../api/connection.rhai"),
+                    include_str!("../api/delivery.rhai"),
+                    include_str!("../api/envelop.rhai"),
+                    include_str!("../api/internal.rhai"),
+                    include_str!("../api/message.rhai"),
+                    include_str!("../api/security.rhai"),
+                    include_str!("../api/services.rhai"),
+                    include_str!("../api/status.rhai"),
+                    include_str!("../api/transaction.rhai"),
                     include_str!("../api/utils.rhai"),
-                    include_str!("../api/sys-api.rhai"),
-                    include_str!("../api/rhai-api.rhai"),
                 ],
             )
             .context("failed to compile vsl's api")?;

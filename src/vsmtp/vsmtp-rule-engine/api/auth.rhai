@@ -15,299 +15,71 @@
  *
 */
 
-//
-// standard library for authentication
-//
-
-/// Do not accept a message from a known internal domain if the client is unknown.
-///
-/// # Args
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
-///
-/// # Return
-/// * `deny()`
-/// * `next()`
+/// Check if the client's connexion was secure.
 ///
 /// # Effective smtp stage
-/// `mail` and onwards.
 ///
-/// # Example
-/// ```js
-/// mail: [
-///    rule "check mail relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
-///        check_mail_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// # Module:Security
-/// ```
-fn check_mail_relay(allowed_hosts) {
-    if in_domain(ctx().mail_from)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        deny(code554_7_1)
-    } else {
-        next()
-    }
-}
-
-/// Do not accept open relaying.
-///
-/// # Args
-///
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
+/// `authenticate` only.
 ///
 /// # Return
-/// * `deny()`
-/// * `next()`
 ///
-/// # Effective smtp stage
-/// `rcpt` only.
-///
-/// # Example
-/// ```js
-/// rcpt: [
-///    rule "check rcpt relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
-///        check_rcpt_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// # Module:Security
-/// ```
-fn check_rcpt_relay(allowed_hosts) {
-    if !in_domain(ctx().rcpt)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt_envelop(ctx().rcpt);
-        info(code554_7_1)
-    } else {
-        next()
-    }
-}
-
-/// create key-value pairs of spf results
-/// to inject into the spf or auth headers.
-private fn spf_key_value_list(query) {
-`receiver=${hostname()};
- client-ip=${ctx().client_ip};
- envelope_from=${ctx().mail_from};
- identity=mailfrom;
- ${
-   if "mechanism" in query { `mechanism=${query.mechanism};` }
-   else if "problem" in query { `problem=${query.problem};` }
- }`
-}
-
-/// Record results in a spf header (RFC 7208-9)
-private fn spf_header(query) {
-    `${query.result} ${spf_key_value_list(query)}`
-}
-
-/// Record results in the auth header (RFC 7208-9)
-fn auth_header(query) {
-`${hostname()}; spf=${query.result}
- reason="${spf_key_value_list(query)}"
- smtp.mailfrom=${ctx().mail_from}`;
-}
-
-
-/// Check spf record following the Sender Policy Framework (RFC 7208).
-/// see https://datatracker.ietf.org/doc/html/rfc7208
-///
-/// # Args
-///
-/// * `header` - "spf" | "auth" | "both" | "none"
-/// * `policy` - "strict" | "soft"
-///
-/// # Return
-/// * `deny(code550_7_23 | code451_7_24 | code550_7_24)` - an error occurred during lookup. (returned even when a softfail is received using the "strict" policy)
-/// * `next()` - the operation succeeded.
-///
-/// # Effective smtp stage
-/// `rcpt` and onwards.
-///
-/// # Errors
-/// * The `header` argument is not valid.
-/// * The `policy` argument is not valid.
-///
-/// # Note
-/// `check_spf` only checks for the sender's identity, not the `helo` value.
+/// * `bool` - true if the client securely connected with the auth protocol, false otherwise.
 ///
 /// # Example
 /// ```js
 /// #{
-///     mail: [
-///        rule "check spf" || check_spf("spf", "soft")
+///     authenticate: [
+///        action "log info" || log("info", `${is_secured()}`),
 ///     ]
 /// }
-///
-/// #{
-///     mail: [
-///         // if this check succeed, it wil return `next`.
-///         // if it fails, it might return `deny` with a custom code
-///         // (X.7.24 or X.7.25 for exemple)
-///         //
-///         // if you want to use the return status, just put the check_spf
-///         // function on the last line of your rule.
-///         rule "check spf 1" || {
-///             log("debug", `running sender policy framework on ${ctx().mail_from} identity ...`);
-///             check_spf("spf", "soft")
-///         },
-///
-///         // policy is set to "strict" by default.
-///         rule "check spf 2" || check_spf("both"),
-///
-///         // you can also use the low level system api.
-///         rule "check spf 3" || {
-///             let query = sys::check_spf(ctx(), srv());
-///
-///             log("debug", `result: ${query.result}`);
-///
-///             // the 'result' parameter gives you the result of evaluation.
-///             // (see https://datatracker.ietf.org/doc/html/rfc7208#section-2.6)
-///             //
-///             // the 'cause' parameter gives you the cause of the result if there
-///             // was an error, and the mechanism of the result if it succeeded.
-///             switch query.result {
-///                 "pass" => next(),
-///                 "fail" => {
-///                     log("error", `check spf error: ${query.cause}`);
-///                     deny()
-///                 },
-///                 _ => next(),
-///             };
-///         },
-///     ],
-/// }
 /// ```
 ///
-/// # Module:Security
-fn check_spf(header, policy) {
+/// # Module:Auth
+fn is_secured() { ctx().is_secured }
 
-    if in_domain(ctx().mail_from) {
-        return next();
-    }
-
-    const AUTH_HEADER = "Authentication-Results";
-    const SPF_HEADER = "Received-SPF";
-
-    let query = sys::check_spf(ctx(), srv());
-
-    // TODO: The Received-SPF header field is a trace field
-    // and SHOULD be prepended to the existing header, above the Received: field
-    // It MUST appear above all other Received-SPF fields in the message.
-    switch header {
-        // It is RECOMMENDED that SMTP receivers record the result"
-        "spf" => prepend_header(SPF_HEADER, spf_header(query)),
-        "auth" => prepend_header(AUTH_HEADER, auth_header(query)),
-        "both" => {
-            prepend_header(AUTH_HEADER, auth_header(query));
-            prepend_header(SPF_HEADER, spf_header(query));
-        },
-        "none" => {},
-        _ => throw `spf 'header' argument must be 'spf', 'auth' or 'both', not '${header}'`,
-    }
-
-    if policy == "strict" {
-        switch query.result {
-            "pass" => next(),
-            "fail" => deny(code550_7_23),
-            "softfail" => deny(code550_7_23),
-            "temperror" => deny(code451_7_24),
-            "permerror" => deny(code550_7_24),
-            _ => next(),
-        }
-    } else if policy == "soft" {
-        switch query.result {
-            "fail" => deny(code550_7_23),
-            "temperror" => deny(code451_7_24),
-            "permerror" => deny(code550_7_24),
-            _ => next(),
-        }
-    } else {
-        throw `spf 'policy' argument must be 'strict' or 'soft', not '${policy}'`;
-    }
-}
-
-/// Check spf record following the Sender Policy Framework (RFC 7208).
-/// A wrapper with the policy set to "strict" by default.
-/// see https://datatracker.ietf.org/doc/html/rfc7208
-///
-/// # Args
-///
-/// * `header` - "spf" | "auth" | "both" | "none"
-///
-/// # Return
-/// * `deny(code550_7_23 | code451_7_24 | code550_7_24)` - an error occurred during lookup. (returned even when a softfail is received using the "strict" policy)
-/// * `next()` - the operation succeeded.
+/// Check if the client is authenticated.
 ///
 /// # Effective smtp stage
-/// `rcpt` and onwards.
 ///
-/// # Errors
-/// * The `header` argument is not valid.
-/// * The `policy` argument is not valid.
+/// `authenticate` only.
 ///
-/// # Note
-/// `check_spf` only checks for the sender's identity, not the `helo` value.
+/// # Return
+///
+/// * `bool` - true if the client succeeded to authenticate itself, false otherwise.
 ///
 /// # Example
 /// ```js
 /// #{
-///     mail: [
-///        rule "check spf relay" || check_spf(allowed_hosts),
+///     authenticate: [
+///        action "log info" || log("info", `${is_authenticated()}`),
 ///     ]
 /// }
+/// ```
 ///
+/// # Module:Auth
+fn is_authenticated() { ctx().is_authenticated }
+
+/// Get authentication credentials from the client.
+///
+/// # Effective smtp stage
+///
+/// `authenticate` only.
+///
+/// # Return
+///
+/// * `Credentials` - the credentials of the client.
+///
+/// # Example
+/// ```js
 /// #{
-///     mail: [
-///         // if this check succeed, it wil return `next`.
-///         // if it fails, it might return `deny` with a custom code
-///         // (X.7.24 or X.7.25 for exemple)
-///         //
-///         // if you want to use the return status, just put the check_spf
-///         // function on the last line of your rule.
-///         rule "check spf 1" || {
-///             log("debug", `running sender policy framework on ${ctx().mail_from} identity ...`);
-///             check_spf("spf", "soft")
-///         },
-///
-///         // policy is set to "strict" by default.
-///         rule "check spf 2" || check_spf("both"),
-///
-///         // you can also use the low level system api.
-///         rule "check spf 3" || {
-///             let query = sys::check_spf(ctx(), srv());
-///
-///             log("debug", `result: ${query.result}`);
-///
-///             // the 'result' parameter gives you the result of evaluation.
-///             // (see https://datatracker.ietf.org/doc/html/rfc7208#section-2.6)
-///             //
-///             // the 'cause' parameter gives you the cause of the result if there
-///             // was an error, and the mechanism of the result if it succeeded.
-///             switch query.result {
-///                 "pass" => next(),
-///                 "fail" => {
-///                     log("error", `check spf error: ${query.cause}`);
-///                     deny()
-///                 },
-///                 _ => next(),
-///             };
-///         },
-///     ],
+///     authenticate: [
+///        action "log info" || log("info", `${auth()}`),
+///     ]
 /// }
 /// ```
-/// # Module:Security
-fn check_spf(header) {
-    check_spf(header, "strict")
-}
+///
+/// # Module:Auth
+fn auth() { ctx().auth }
 
 /// Process the SASL authentication mechanism.
 ///
@@ -318,7 +90,7 @@ fn check_spf(header) {
 ///
 /// A native implementation will be provided in the future.
 ///
-/// # Module:Security
+/// # Module:Auth
 fn authenticate() {
     switch ctx().auth.type {
         "Verify" => {
@@ -345,89 +117,4 @@ fn authenticate() {
             deny()
         }
     }
-}
-
-private fn sys_verify_dkim(policy) {
-    log("warn", `verifying DKIM signature with policy=${policy}`);
-
-    let last_error = `dkim=none`;
-
-    for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
-        try {
-            let signature = sys::parse_signature(i);
-
-            if signature.has_expired(policy.expiration_epsilon) {
-                log("warn", `DKIM signature expired, continuing`);
-                continue;
-            }
-
-            // NOTE: for any reason, you can decide to ignore the signature
-            // if signature... {
-            //     continue;
-            // }
-
-            for key in sys::get_public_key(srv(), signature, policy.on_multiple_key_records) {
-                try {
-                    sys::verify_dkim(msg(), signature, key);
-                    log("warn", "DKIM signature successfully verified");
-
-                    if key.has_debug_flag {
-                        log("warn", "DKIM signature contains `debug_flag`, continuing");
-                        continue;
-                    }
-
-                    // header.b & header.a can be set optionally
-                    return `dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
-                } catch (e) {
-                    log("warn", `DKIM signature verification failed: ${e.to_debug()}`);
-                    let e = sys::handle_dkim_error(e);
-                    last_error = `dkim=${e}`;
-                }
-            }
-
-        } catch (e) {
-            log("warn", `DKIM signature invalid: ${e.to_debug()}`);
-            let e = sys::handle_dkim_error(e);
-            last_error = `dkim=${e}`;
-        }
-    }
-
-    log("warn", `no valid DKIM signature, returning: '${last_error}'`);
-    last_error
-}
-
-/// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
-/// see https://datatracker.ietf.org/doc/html/rfc6376
-///
-/// # Return
-/// * `accept()` - a signature was successfully verified.
-/// * `deny()` - no signature could be verified.
-///
-/// # Module:Security
-fn verify_dkim() {
-    let result = sys_verify_dkim(#{
-        // will process a limited amount of signature, avoid infinite loop and dos/DDoS attack
-        nbr_headers: 5,
-        // the dns query may result in multiple public key, the registry with invalid format are ignored.
-        // among ["first_one", "cycle"]
-        on_multiple_key_records: "cycle",
-        // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
-        expiration_epsilon: 100,
-    });
-
-    let header = `${get_root_domain(ctx().server_name)};
-  ${result}`;
-
-    prepend_header("Authentication-Results", header);
-    result
-}
-
-/// Produce a `DKIM-Signature` header.
-fn sign_dkim(selector, headers_field, canonicalization) {
-    let signature = sys::generate_signature_dkim(msg(), ctx(), srv(), selector, headers_field, canonicalization);
-    prepend_header("DKIM-Signature", signature);
-}
-
-fn sign_dkim(selector) {
-    sign_dkim(msg(), ctx(), srv(), selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
 }

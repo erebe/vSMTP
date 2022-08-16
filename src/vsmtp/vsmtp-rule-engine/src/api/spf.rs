@@ -33,6 +33,7 @@ mod security {
 
     /// evaluate a sender identity.
     /// the identity parameter can be 'helo', 'mail_from' or 'both'.
+    ///
     /// # Results
     /// a rhai Map with:
     //    * result (String) : the result of an SPF evaluation.
