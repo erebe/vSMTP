@@ -9,15 +9,17 @@ Depending on versions fixes and user feedbacks, the production version is expect
 ## Current version : 1.2
 
 - Performance improvement : connection caches.
-- [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
+- `lookup` & `rlookup` vsl functions.
+- [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) support.
+- Syslog support.
+- Stabilization of vsl's api.
 
 ## Planned features and releases
 
 ### Release 1.3.x
 
-- SQL, Redis, Memcached & LDAP databases support.
-- Security shield : DDoS, zombies and SPAM bots countermeasures.
-- Performance improvement : content caches.
+- MySQL databases support.
+- [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
 
 ## Unplanned features
 
