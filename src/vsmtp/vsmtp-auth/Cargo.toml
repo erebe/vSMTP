@@ -27,7 +27,7 @@ pre-release-replacements = [
 vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.2.0" }
 
 thiserror = "1.0.32"
-anyhow = "1.0.61"
+anyhow = "1.0.62"
 
 strum = { version = "0.24.1", features = ["derive"] }
 tokio = { version = "1.20.1", default-features = false, features = [
