@@ -36,11 +36,10 @@ import "services" as services;
             && result1.code == 0
             && !result1.has_signal
             {
-                try {
-                    result1.signal;
-                    return deny();
-                } catch {
+                if result1.signal == () {
                     return next();
+                } else {
+                    return deny();
                 }
             } else {
                 deny()

@@ -15,10 +15,10 @@
  *
 */
 use crate::api::{EngineResult, SharedObject};
-use crate::dsl::{object::Object, service::cmd::CmdResult};
+use crate::dsl::object::Object;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_common::status::Status;
 
@@ -50,47 +50,6 @@ mod types_rhai {
     #[rhai_fn(global, pure)]
     pub fn to_debug(status: &mut Status) -> String {
         status.as_ref().to_string()
-    }
-
-    /// Convert a `CmdResult` to a debug string
-    #[rhai_fn(global, name = "to_debug")]
-    pub fn cmd_result_to_debug(this: &mut CmdResult) -> String {
-        format!("{:?}", this)
-    }
-
-    /// Convert a `CmdResult` to a `String`
-    #[rhai_fn(global, name = "to_string")]
-    pub fn cmd_result_to_string(this: &mut CmdResult) -> String {
-        format!("{}", this)
-    }
-
-    /// Has the `CmdResult` a value?
-    #[rhai_fn(global, get = "has_code")]
-    pub fn cmd_result_has_code(this: &mut CmdResult) -> bool {
-        this.has_code()
-    }
-
-    /// Get the `CmdResult` value
-    #[rhai_fn(global, get = "code", return_raw)]
-    pub fn cmd_result_get_code(this: &mut CmdResult) -> EngineResult<i64> {
-        this.get_code().ok_or_else(|| {
-            "service result has been terminated by a signal"
-                .to_string()
-                .into()
-        })
-    }
-
-    /// Has the `CmdResult` been stopped by a signal?
-    #[rhai_fn(global, get = "has_signal")]
-    pub fn cmd_result_has_signal(this: &mut CmdResult) -> bool {
-        this.has_signal()
-    }
-
-    /// Get the `CmdResult` signal value
-    #[rhai_fn(global, get = "signal", return_raw)]
-    pub fn cmd_result_get_signal(this: &mut CmdResult) -> EngineResult<i64> {
-        this.get_signal()
-            .ok_or_else(|| "service result has status code".to_string().into())
     }
 
     // std::time::SystemTime

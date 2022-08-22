@@ -375,6 +375,7 @@ impl RuleEngine {
                     include_str!("../api/connection.rhai"),
                     include_str!("../api/delivery.rhai"),
                     include_str!("../api/envelop.rhai"),
+                    include_str!("../api/getters.rhai"),
                     include_str!("../api/internal.rhai"),
                     include_str!("../api/message.rhai"),
                     include_str!("../api/security.rhai"),
