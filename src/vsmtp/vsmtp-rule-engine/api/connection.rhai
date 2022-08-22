@@ -15,6 +15,10 @@
  *
 */
 
+//! # Connection
+//!
+//! Metadata is available for each client, this module lets you query those metadata.
+
 /// Get the address of the client.
 ///
 /// # Effective smtp stage

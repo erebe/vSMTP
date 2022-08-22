@@ -15,6 +15,10 @@
  *
 */
 
+//! # Message
+//!
+//! Those methods are used to query data from the email and/or mutate it.
+
 /// Checks if the message contains a specific header.
 ///
 /// # Args

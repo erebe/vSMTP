@@ -15,6 +15,10 @@
  *
 */
 
+//! # Auth
+//!
+//! This module contains authentication mechanisms to secure your server.
+
 /// Check if the client's connexion was secure.
 ///
 /// # Effective smtp stage

@@ -15,6 +15,10 @@
  *
 */
 
+//! # Status
+//!
+//! The state of an SMTP transaction can be changed through specific functions from this module.
+
 /// Tell the rule engine to force accept the incoming transaction.
 /// This means that all rules following the one `faccept` is called
 /// will be ignored.

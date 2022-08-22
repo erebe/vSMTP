@@ -15,6 +15,10 @@
  *
 */
 
+//! # Envelop
+//!
+//! The SMTP envelop can be mutated by several function from this module.
+
 /// Rewrite the sender received from the `MAIL FROM` command.
 ///
 /// # Args

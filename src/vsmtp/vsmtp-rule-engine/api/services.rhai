@@ -15,6 +15,10 @@
  *
 */
 
+//! # Services
+//!
+//! Services are external programs that can be used via the functions available in this module.
+
 /// Get the value of a key in a database.
 ///
 /// # Args

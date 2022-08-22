@@ -37,27 +37,6 @@ use vsmtp_rule_engine::{api::SharedObject, api::StandardVSLPackage, RuleEngine};
 
 const MODULE_SYNTAX: &str = "# Module:";
 
-/// Generate a markdown table for each variables found in a module.
-fn generate_variable_documentation_from_module(module: &rhai::Module) -> String {
-    let (var_count, _, _) = module.count();
-
-    let mut variables_doc = Vec::with_capacity(var_count);
-
-    for (name, value) in module.iter_var() {
-        variables_doc.push(format!(
-            "|`{}`|{}|",
-            name,
-            if value.is::<SharedObject>() {
-                format!("{:?}", *value.clone_cast::<SharedObject>())
-            } else {
-                format!("{:?}", value)
-            }
-        ));
-    }
-
-    format!("|name|value|\n| - | - |\n{}\n", variables_doc.join("\n"))
-}
-
 #[derive(Clone, Eq)]
 struct Module {
     name: String,
@@ -86,6 +65,27 @@ impl Module {
             description: description.to_string(),
         }
     }
+}
+
+/// Generate a markdown table for each variables found in a module.
+fn generate_variable_documentation_from_module(module: &rhai::Module) -> String {
+    let (var_count, _, _) = module.count();
+
+    let mut variables_doc = Vec::with_capacity(var_count);
+
+    for (name, value) in module.iter_var() {
+        variables_doc.push(format!(
+            "|`{}`|{}|",
+            name,
+            if value.is::<SharedObject>() {
+                format!("{:?}", *value.clone_cast::<SharedObject>())
+            } else {
+                format!("{:?}", value)
+            }
+        ));
+    }
+
+    format!("|name|value|\n| - | - |\n{}\n", variables_doc.join("\n"))
 }
 
 /// Generate markdown documentation for each functions in a module.
@@ -171,7 +171,7 @@ fn generate_function_documentation_from_module(
 //         - wrap 'sys' api into rhai functions ?       => might be cumbersome.
 
 fn main() {
-    let mut engine = RuleEngine::new_compiler();
+    let mut engine = RuleEngine::new_compiler(&vsmtp_config::Config::default());
     let vsl_native_module = StandardVSLPackage::new().as_shared_module();
 
     engine.register_static_module("sys", vsl_native_module);
@@ -196,13 +196,14 @@ fn main() {
     let variables = generate_variable_documentation_from_module(&vsl_rhai_module);
 
     let mut args = std::env::args();
-    args.next().unwrap();
+
+    args.next();
 
     let mut path: std::path::PathBuf = args
         .next()
-        .expect("please specify a path to the generated Markdown documentation")
+        .expect("The first argument must be the folder where the documentation will be dumped.")
         .parse()
-        .unwrap();
+        .expect("The documentation generation path is not valid");
 
     path.push("any.md");
 

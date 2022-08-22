@@ -15,6 +15,9 @@
  *
 */
 
+//! # Security
+//!
+//! This module contains multiple security functions that you can use to protect your server.
 
 /// Do not accept a message from a known internal domain if the client is unknown.
 ///

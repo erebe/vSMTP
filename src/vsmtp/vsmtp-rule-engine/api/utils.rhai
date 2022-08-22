@@ -15,6 +15,11 @@
  *
 */
 
+//! # Utils
+//!
+//! Those miscellaneous functions lets you query data from your system,
+//! log stuff, perform dns lookups etc ...
+
 /// get the domain used to identify a recipient.
 /// check if the recipient passed as argument is part of the
 /// domains (root & sni) of the server.

@@ -15,6 +15,11 @@
  *
 */
 
+//! # Transaction
+//!
+//! At each SMTP stage, data from the client is received via 'SMTP commands'.
+//! This module lets you query the content of the commands.
+
 /// Get the value of the `HELO/EHLO` command sent by the client.
 ///
 /// # Effective smtp stage

@@ -15,6 +15,10 @@
  *
 */
 
+//! # Delivery
+//!
+//! Those methods are used to setup the method of delivery for one / every recipient.
+
 /// Set the delivery method to forwarding for a single recipient.
 /// After all rules are evaluated, forwarding will be used to deliver
 /// the email to the recipient.

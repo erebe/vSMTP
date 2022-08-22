@@ -15,6 +15,10 @@
  *
 */
 
+//! # Internal
+//!
+//! A low level api to get access to internal functions of vsl.
+
 /// WARNING: This is a low level function.
 /// Get access to the email context.
 ///
