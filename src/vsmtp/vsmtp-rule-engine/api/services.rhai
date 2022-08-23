@@ -79,7 +79,9 @@ fn get(key) { this.db_query(key.to_string()) }
 /// ```
 ///
 /// # Module:Services
-fn set(record) { this.db_add(record) }
+fn set(record) {
+    this.db_add(record.map("to_string"))
+}
 
 /// Remove a record from a database.
 ///
