@@ -50,7 +50,7 @@ import "codes" as codes;
 
         // if the `mail::info_header` already exists, it will be replaced using `set_header`.
         action "update info header" || set_header(mail::info_header, mail::info_value),
-        action "display the email" || log("trace", `${msg().mail}`),
+        action "display the email" || log("trace", `${mail()}`),
     ],
 
     delivery: [

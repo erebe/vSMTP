@@ -249,3 +249,21 @@ fn rewrite_rcpt_message(old_addr, new_addr) {
 ///
 /// # Module:Message
 fn rewrite_mail_from_message(new_addr) { sys::rewrite_mail_from_message(msg(), new_addr) }
+
+/// Get a copy of the whole email as a string.
+///
+/// # Effective smtp stage
+///
+/// `preq` and onwards.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///        action "display email content" || log("trace", `email content: ${mail()}`),
+///     ]
+/// }
+/// ```
+///
+/// # Module:Message
+fn mail() { msg().mail }
