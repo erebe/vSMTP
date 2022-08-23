@@ -27,7 +27,8 @@
 ///
 /// # Return
 ///
-/// * `Array of records` - an array containing the results.
+/// * `Array of records` - an array containing the results. If no record is found,
+///                        an empty array is returned.
 ///
 /// # Effective smtp stage
 ///
@@ -42,10 +43,10 @@
 ///        action "fetch database" || {
 ///             let records = svc::my_database.get(mail_from());
 ///
-///             if records.len() == 0 {
+///             if records == [] {
 ///                 log("debug", `${mail_from()} is not in my database`);
 ///             } else {
-///                 log("debug", `${mail_from()} found in my database`);
+///                 log("debug", `${mail_from()} found in my database: ${records}`);
 ///             }
 ///        }
 ///     ]
@@ -72,7 +73,7 @@ fn get(key) { this.db_query(key.to_string()) }
 /// #{
 ///     mail: [
 ///        action "set sender in database" || {
-///             svc::my_database.set(mail_from());
+///             svc::my_database.set([ mail_from() ]);
 ///        }
 ///     ]
 /// }
