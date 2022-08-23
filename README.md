@@ -120,21 +120,20 @@ service greylist db:csv = #{
 import "database" as db;
 
 #{
-  // hook on the 'mail from' stage.
+  // hook on the 'mail from' stage. (when the server receives the `MAIL FROM:` command)
   mail: [
-    // you can decide to accept or deny an email with a "rule".
     rule "greylist" || {
 
-      let sender = ctx().mail_from;
+      let sender = mail_from();
 
       // is the user in our greylist ?
-      if db::greylist.get(sender).len() != 0 {
-        // it is, we accept the email.
-        accept()
-      } else {
+      if db::greylist.get(sender) == [] {
         // it does not, we add the address to the database, then deny the email.
         db::greylist.set([ sender ]);
         deny()
+      } else {
+        // it is, we accept the email.
+        accept()
       }
     }
   ],

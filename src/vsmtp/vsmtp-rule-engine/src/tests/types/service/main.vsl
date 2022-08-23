@@ -15,16 +15,16 @@
  *
 */
 
-import "services" as services;
+import "services" as svc;
 
 #{
     connect: [
         rule "test cmd service" || {
-            print(services::echo.to_string());
-            print(services::echo.to_debug());
+            print(svc::echo.to_string());
+            print(svc::echo.to_debug());
 
-            let result1 = services::echo.cmd_run();
-            let result2 = services::echo.cmd_run(["-e", "with custom arguments\r\n"]);
+            let result1 = svc::echo.cmd_run();
+            let result2 = svc::echo.cmd_run(["-e", "with custom arguments\r\n"]);
 
             print(`string: ${result1.to_string()}`);
             print(`debug: ${result1.to_debug()}`);
