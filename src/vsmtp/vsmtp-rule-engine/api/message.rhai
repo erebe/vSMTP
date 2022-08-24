@@ -73,7 +73,7 @@ fn has_header(header) { sys::has_header(msg(), header) }
 /// # Module:Message
 fn get_header(header) { sys::get_header(msg(), header) }
 
-/// Append a new header to the message.
+/// Add a new header at the end of the header list in the message.
 ///
 /// # Args
 ///
@@ -83,7 +83,7 @@ fn get_header(header) { sys::get_header(msg(), header) }
 /// # Effective smtp stage
 ///
 /// All of them. Even though the email is not received at the current stage,
-/// vsmtp stores new headers and will prepend them to the ones received once
+/// vsmtp stores new headers and will add them on top of the ones received once
 /// the `preq` stage is reached.
 ///
 /// # Example
@@ -100,7 +100,7 @@ fn get_header(header) { sys::get_header(msg(), header) }
 /// # Module:Message
 fn append_header(header, value) { sys::append_header(msg(), header, value) }
 
-/// Prepend a new header to the message.
+/// Add a new header on top all other headers in the message.
 ///
 /// # Args
 ///
@@ -110,7 +110,7 @@ fn append_header(header, value) { sys::append_header(msg(), header, value) }
 /// # Effective smtp stage
 ///
 /// All of them. Even though the email is not received at the current stage,
-/// vsmtp stores new headers and will prepend them to the ones received once
+/// vsmtp stores new headers and will add them on top of the ones received once
 /// the `preq` stage is reached.
 ///
 /// # Example
@@ -138,7 +138,7 @@ fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 /// # Effective smtp stage
 ///
 /// All of them. Even though the email is not received at the current stage,
-/// vsmtp stores new headers and will prepend them to the ones received once
+/// vsmtp stores new headers and will add them on top to the ones received once
 /// the `preq` stage is reached.
 ///
 /// Be aware that if you want to set a header value from the original message,
