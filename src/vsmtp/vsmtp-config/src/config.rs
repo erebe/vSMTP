@@ -49,7 +49,8 @@ pub struct Config {
 /// The inner field of the `vSMTP`'s configuration.
 #[allow(clippy::module_name_repetitions)]
 pub mod field {
-    pub use super::*;
+    use super::{serde_as, CodeID, Mechanism, Reply};
+    use vsmtp_common::re::{log, strum};
 
     /// This structure contains all the field to configure the server at the startup.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -78,6 +79,8 @@ pub mod field {
         /// see [`FieldServerLogs`]
         #[serde(default)]
         pub logs: FieldServerLogs,
+        /// see [`FieldServerSyslog`]
+        pub syslog: Option<FieldServerSyslog>,
         /// see [`FieldServerQueues`]
         #[serde(default)]
         pub queues: FieldServerQueues,
@@ -211,6 +214,66 @@ pub mod field {
             deserialize_with = "crate::parser::tracing_directive::deserialize"
         )]
         pub level: Vec<tracing_subscriber::filter::Directive>,
+    }
+
+    ///
+    #[derive(
+        Debug,
+        Copy,
+        Clone,
+        PartialEq,
+        Eq,
+        strum::Display,
+        strum::EnumString,
+        serde_with::DeserializeFromStr,
+        serde_with::SerializeDisplay,
+    )]
+    pub enum SyslogFormat {
+        ///
+        #[strum(serialize = "3164")]
+        Rfc3164,
+        ///
+        #[strum(serialize = "5424")]
+        Rfc5424,
+    }
+
+    ///
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
+    pub enum SyslogSocket {
+        ///
+        Udp {
+            ///
+            #[serde(default = "SyslogSocket::default_udp_local")]
+            local: std::net::SocketAddr,
+            ///
+            #[serde(default = "SyslogSocket::default_udp_server")]
+            server: std::net::SocketAddr,
+        },
+        ///
+        Tcp {
+            ///
+            #[serde(default = "SyslogSocket::default_tcp_server")]
+            server: std::net::SocketAddr,
+        },
+        ///
+        Unix {
+            ///
+            #[serde(default = "SyslogSocket::default_unix_path")]
+            path: std::path::PathBuf,
+        },
+    }
+
+    /// The configuration of the [`syslog`]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct FieldServerSyslog {
+        ///
+        pub min_level: log::LevelFilter,
+        ///
+        pub format: SyslogFormat,
+        ///
+        pub socket: SyslogSocket,
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]

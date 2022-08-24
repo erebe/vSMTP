@@ -32,7 +32,6 @@ mod dmarc_rhai {
     use crate::api::SharedObject;
 
     /// Get the address of the sender in the message body, also known as RFC5322.From
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
     pub fn parse_rfc5322_from(message: &mut Message) -> EngineResult<SharedObject> {
         let guard = vsl_guard_ok!(message.read());

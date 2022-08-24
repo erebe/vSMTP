@@ -17,48 +17,124 @@
 use crate::Args;
 use tracing_subscriber::fmt::writer::{MakeWriterExt, OptionalWriter};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use vsmtp_common::collection;
 use vsmtp_common::re::anyhow::{self, Context};
+use vsmtp_common::re::{either, log};
+use vsmtp_config::field::{FieldServerSyslog, SyslogFormat, SyslogSocket};
 use vsmtp_config::Config;
 
-struct SyslogWriter(syslog::Logger<syslog::LoggerBackend, syslog::Formatter3164>);
+struct SyslogWriter {
+    logger: either::Either<
+        syslog::Logger<syslog::LoggerBackend, syslog::Formatter3164>,
+        syslog::Logger<syslog::LoggerBackend, syslog::Formatter5424>,
+    >,
+}
 
 impl std::io::Write for SyslogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        syslog::LogFormat::format(
-            &self.0.formatter,
-            &mut self.0.backend,
-            // TODO: handle severity
-            syslog::Severity::LOG_WARNING,
-            std::str::from_utf8(buf).unwrap_or("utf-8 error"),
-        )
+        match self.logger {
+            either::Either::Left(ref mut logger) => syslog::LogFormat::format(
+                &logger.formatter,
+                &mut logger.backend,
+                syslog::Severity::LOG_WARNING,
+                std::str::from_utf8(buf).unwrap_or("utf-8 error").to_owned(),
+            ),
+            either::Either::Right(ref mut logger) => syslog::LogFormat::format(
+                &logger.formatter,
+                &mut logger.backend,
+                syslog::Severity::LOG_WARNING,
+                (
+                    0,
+                    collection! {},
+                    std::str::from_utf8(buf).unwrap_or("utf-8 error").to_owned(),
+                ),
+            ),
+        }
         .map(|_| buf.len())
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.description()))
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.0.backend.flush()
+        either::for_both!(&mut self.logger, logger => logger.backend.flush())
     }
 }
 
-struct MakeSyslogWriter;
+struct MakeSyslogWriter {
+    config: FieldServerSyslog,
+}
 
 impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
     // NOTE: if the syslog failed to initialize, is it written to stdout ?
     type Writer = fmt::writer::OptionalWriter<SyslogWriter>;
 
     fn make_writer(&self) -> Self::Writer {
-        let formatter = syslog::Formatter3164 {
-            facility: syslog::Facility::LOG_MAIL,
-            hostname: None,
-            ..Default::default()
+        fn get_3164() -> syslog::Formatter3164 {
+            syslog::Formatter3164 {
+                facility: syslog::Facility::LOG_MAIL,
+                hostname: None,
+                ..Default::default()
+            }
+        }
+
+        fn get_5424() -> syslog::Formatter5424 {
+            syslog::Formatter5424 {
+                facility: syslog::Facility::LOG_MAIL,
+                hostname: None,
+                ..Default::default()
+            }
+        }
+
+        let result = match (self.config.format, &self.config.socket) {
+            (SyslogFormat::Rfc3164, SyslogSocket::Udp { local, server }) => {
+                syslog::udp(get_3164(), local, server).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Left(logger),
+                    })
+                })
+            }
+            (SyslogFormat::Rfc3164, SyslogSocket::Tcp { server }) => {
+                syslog::tcp(get_3164(), server).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Left(logger),
+                    })
+                })
+            }
+            (SyslogFormat::Rfc3164, SyslogSocket::Unix { path }) => {
+                syslog::unix_custom(get_3164(), path).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Left(logger),
+                    })
+                })
+            }
+            (SyslogFormat::Rfc5424, SyslogSocket::Udp { local, server }) => {
+                syslog::udp(get_5424(), local, server).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Right(logger),
+                    })
+                })
+            }
+            (SyslogFormat::Rfc5424, SyslogSocket::Tcp { server }) => {
+                syslog::tcp(get_5424(), server).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Right(logger),
+                    })
+                })
+            }
+            (SyslogFormat::Rfc5424, SyslogSocket::Unix { path }) => {
+                syslog::unix_custom(get_5424(), path).map(|logger| {
+                    OptionalWriter::some(SyslogWriter {
+                        logger: either::Right(logger),
+                    })
+                })
+            }
         };
 
-        match syslog::unix(formatter) {
+        match result {
+            Ok(logger) => logger,
             Err(e) => {
-                eprintln!("Cannot initialize syslog: {e}");
+                eprintln!("{}", e);
                 OptionalWriter::none()
             }
-            Ok(logger) => OptionalWriter::some(SyslogWriter(logger)),
         }
     }
 }
@@ -127,14 +203,38 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         .with(get_fmt!().with_writer(writer_backend))
         .with(get_fmt!().with_writer(writer_app));
 
-    if args.no_daemon {
+    if let Some(syslog_config) = &config.server.syslog {
+        let subscriber = subscriber.with(
+            get_fmt!()
+                .with_writer(
+                    MakeSyslogWriter {
+                        config: syslog_config.clone(),
+                    }
+                    .with_min_level(match syslog_config.min_level {
+                        log::LevelFilter::Off => unimplemented!(),
+                        log::LevelFilter::Error => tracing::Level::ERROR,
+                        log::LevelFilter::Warn => tracing::Level::WARN,
+                        log::LevelFilter::Info => tracing::Level::INFO,
+                        log::LevelFilter::Debug => tracing::Level::DEBUG,
+                        log::LevelFilter::Trace => tracing::Level::TRACE,
+                    }),
+                )
+                .without_time(),
+        );
+
+        if args.no_daemon {
+            subscriber
+                .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
+                .try_init()
+        } else {
+            subscriber.try_init()
+        }
+    } else if args.no_daemon {
         subscriber
             .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
             .try_init()
     } else {
-        subscriber
-            .with(get_fmt!().with_writer(MakeSyslogWriter).without_time())
-            .try_init()
+        subscriber.try_init()
     }
     .map_err(|e| anyhow::anyhow!("{e}"))
 }

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -207,7 +205,8 @@ pub fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
 pub fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
     let ip = vsl_conversion_ok!(
         "ip address",
-        std::net::IpAddr::from_str(ip).context("fail to parse ip address in rlookup")
+        <std::net::IpAddr as std::str::FromStr>::from_str(ip)
+            .context("fail to parse ip address in rlookup")
     );
     let resolver = server
         .resolvers

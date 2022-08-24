@@ -15,12 +15,16 @@
  *
 */
 
-use crate::config::field::{
-    Config, FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking,
-    FieldServer, FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues,
-    FieldServerSMTP, FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient,
-    FieldServerSystem, FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls,
-    ResolverOptsWrapper, TlsSecurityLevel,
+use crate::{
+    config::field::{
+        FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking, FieldServer,
+        FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
+        FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
+        TlsSecurityLevel,
+    },
+    field::SyslogSocket,
+    Config,
 };
 use vsmtp_common::{auth::Mechanism, collection, re::strum, CodeID, Reply, ReplyCode};
 
@@ -49,6 +53,7 @@ impl Default for FieldServer {
             dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
             dkim: None,
+            syslog: None,
         }
     }
 }
@@ -153,6 +158,24 @@ impl FieldServerLogs {
 
     pub(crate) fn default_level() -> Vec<tracing_subscriber::filter::Directive> {
         vec!["warn".parse().expect("hardcoded value is valid")]
+    }
+}
+
+impl SyslogSocket {
+    pub(crate) fn default_udp_local() -> std::net::SocketAddr {
+        "127.0.0.1:0".parse().expect("valid")
+    }
+
+    pub(crate) fn default_udp_server() -> std::net::SocketAddr {
+        "127.0.0.1:514".parse().expect("valid")
+    }
+
+    pub(crate) fn default_tcp_server() -> std::net::SocketAddr {
+        "127.0.0.1:601".parse().expect("valid")
+    }
+
+    pub(crate) fn default_unix_path() -> std::path::PathBuf {
+        "/var/run/syslog".into()
     }
 }
 
