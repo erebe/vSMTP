@@ -18,7 +18,7 @@
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::{serde_json, tokio};
-use vsmtp_common::{MessageBody, RawBody};
+use vsmtp_mail_parser::{MessageBody, RawBody};
 use vsmtp_server::ProcessMessage;
 
 #[tokio::test]
@@ -77,7 +77,7 @@ async fn test_quarantine() {
     assert_eq!(
         *MessageBody::read_mail_message(
             &config.server.queues.dirpath,
-            &ctx.metadata.as_ref().unwrap().message_id
+            &ctx.metadata.message_id.unwrap()
         )
         .await
         .unwrap()

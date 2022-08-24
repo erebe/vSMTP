@@ -15,8 +15,9 @@
  *
 */
 
+use vsmtp_mail_parser::RawBody;
+
 use super::{HashAlgorithm, PublicKey, Signature, SigningAlgorithm};
-use vsmtp_common::{re::log, RawBody};
 
 /// Possible error produced by [`Signature::verify`]
 #[derive(Debug, thiserror::Error)]
@@ -110,7 +111,7 @@ impl Signature {
         }
 
         let headers_hash = self.get_header_hash(message);
-        log::debug!("headers_hash={}", base64::encode(&headers_hash));
+        tracing::debug!("headers_hash={}", base64::encode(&headers_hash));
 
         // the type of public_key is not precised in the DNS record,
         // so we try each format..

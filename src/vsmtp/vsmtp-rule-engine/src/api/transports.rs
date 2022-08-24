@@ -38,7 +38,6 @@ mod transports_rhai {
             rcpt,
             &vsmtp_common::transfer::Transfer::Forward(forward),
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Forward" for a single recipient.
@@ -56,7 +55,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Forward(forward),
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Forward" for a single recipient.
@@ -74,7 +72,6 @@ mod transports_rhai {
             rcpt,
             &vsmtp_common::transfer::Transfer::Forward(forward),
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Forward" for a single recipient.
@@ -92,7 +89,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Forward(forward),
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Forward" for all recipients.
@@ -117,7 +113,6 @@ mod transports_rhai {
     #[rhai_fn(global, name = "deliver", return_raw, pure)]
     pub fn deliver_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Deliver)
-            .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Deliver" for a single recipient.
@@ -128,7 +123,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Deliver,
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Deliver" for all recipients.
@@ -141,7 +135,6 @@ mod transports_rhai {
     #[rhai_fn(global, name = "mbox", return_raw, pure)]
     pub fn mbox_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Mbox)
-            .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Mbox" for a single recipient.
@@ -152,7 +145,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Mbox,
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Mbox" for all recipients.
@@ -165,7 +157,6 @@ mod transports_rhai {
     #[rhai_fn(global, name = "maildir", return_raw, pure)]
     pub fn maildir_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Maildir)
-            .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Maildir" for a single recipient.
@@ -176,7 +167,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Maildir,
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Maildir" for all recipients.
@@ -189,7 +179,6 @@ mod transports_rhai {
     #[rhai_fn(global, name = "disable_delivery", return_raw, pure)]
     pub fn disable_delivery_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::None)
-            .map_err(|err| err.to_string().into())
     }
 
     /// remove the delivery method for a specific recipient.
@@ -200,7 +189,6 @@ mod transports_rhai {
             &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::None,
         )
-        .map_err(|err| err.to_string().into())
     }
 
     /// remove the delivery method for all recipient.

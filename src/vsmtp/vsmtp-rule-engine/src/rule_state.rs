@@ -24,14 +24,15 @@ use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
+use vsmtp_common::mail_context::MessageMetadata;
 use vsmtp_common::re::anyhow;
 use vsmtp_common::status::Status;
 use vsmtp_common::{
-    envelop::Envelop,
     mail_context::{ConnectionContext, MailContext},
-    MessageBody,
+    Envelop,
 };
 use vsmtp_config::{Config, Resolvers};
+use vsmtp_mail_parser::MessageBody;
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
@@ -79,7 +80,7 @@ impl RuleState {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: config.server.domain.clone(),
-                server_address: config
+                server_addr: config
                     .server
                     .interfaces
                     .addr
@@ -90,12 +91,20 @@ impl RuleState {
                             .parse()
                             .expect("default server address should be parsable")
                     }),
+                client_addr: "0.0.0.0:0"
+                    .parse()
+                    .expect("default client address should be parsable"),
+                error_count: 0,
+                authentication_attempt: 0,
             },
-            client_addr: "0.0.0.0:0"
-                .parse()
-                .expect("default client address should be parsable"),
             envelop: Envelop::default(),
-            metadata: None,
+            metadata: MessageMetadata {
+                timestamp: None,
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            },
         }));
         let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
@@ -133,7 +142,7 @@ impl RuleState {
             .flat_map(|(_, d)| d)
             .any(|d| match d {
                 Directive::Delegation { service, .. } => match &**service {
-                    Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                    Service::Smtp { receiver, .. } => *receiver == conn.server_addr,
                     _ => false,
                 },
                 _ => false,
@@ -167,10 +176,7 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        let skip = mail_context
-            .metadata
-            .as_ref()
-            .and_then(|metadata| metadata.skipped.clone());
+        let skip = mail_context.metadata.skipped.clone();
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));

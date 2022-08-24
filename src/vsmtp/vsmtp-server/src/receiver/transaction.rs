@@ -18,16 +18,16 @@ use super::connection::Connection;
 use vsmtp_common::{
     addr,
     auth::Mechanism,
-    envelop::Envelop,
     event::Event,
-    mail_context::{ConnectionContext, MessageMetadata},
+    mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, either, log, tokio},
     state::StateSMTP,
     status::Status,
-    Address, CodeID, MessageBody, ReplyOrCodeID,
+    Address, CodeID, Envelop, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 enum ProcessedEvent {
@@ -104,7 +104,13 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.metadata = None;
+                    ctx.metadata = MessageMetadata {
+                        timestamp: None,
+                        message_id: None,
+                        skipped: None,
+                        spf: None,
+                        dkim: None,
+                    };
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
                 }
@@ -162,7 +168,7 @@ impl Transaction {
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
                     _ => either::Left(ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        ReplyOrCodeID::Left(if connection.is_secured {
+                        ReplyOrCodeID::Left(if connection.context.is_secured {
                             CodeID::EhloSecured
                         } else {
                             CodeID::EhloPain
@@ -186,7 +192,7 @@ impl Transaction {
             }
 
             (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
-                if !connection.is_authenticated =>
+                if !connection.context.is_authenticated =>
             {
                 either::Right(TransactionResult::HandshakeSASL(
                     self.rule_state
@@ -202,7 +208,7 @@ impl Transaction {
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
-                if !connection.is_secured
+                if !connection.context.is_secured
                     && connection
                         .config
                         .server
@@ -217,7 +223,7 @@ impl Transaction {
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
-                if !connection.is_authenticated
+                if !connection.context.is_authenticated
                     && connection
                         .config
                         .server
@@ -303,8 +309,8 @@ impl Transaction {
         let state = self.rule_state.context();
         let ctx = &mut state.write().unwrap();
 
-        ctx.client_addr = connection.client_addr;
-        ctx.connection.timestamp = connection.timestamp;
+        ctx.connection.client_addr = connection.context.client_addr;
+        ctx.connection.timestamp = connection.context.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
@@ -312,7 +318,13 @@ impl Transaction {
             let state = self.rule_state.context();
             let mut ctx = state.write().unwrap();
 
-            ctx.metadata = None;
+            ctx.metadata = MessageMetadata {
+                timestamp: None,
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            };
             ctx.envelop = Envelop {
                 helo,
                 mail_from: addr!("no@address.net"),
@@ -335,14 +347,15 @@ impl Transaction {
             let mut ctx = state.write().unwrap();
             ctx.envelop.rcpt.clear();
             ctx.envelop.mail_from = mail_from;
-            ctx.metadata = Some(MessageMetadata {
-                timestamp: now,
-                message_id: format!(
+            ctx.metadata = MessageMetadata {
+                timestamp: Some(now),
+                message_id: Some(format!(
                     "{}{}{}{}",
                     now.duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .expect("did went back in time")
                         .as_micros(),
                     connection
+                        .context
                         .timestamp
                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .expect("did went back in time")
@@ -351,10 +364,11 @@ impl Transaction {
                         .take(36)
                         .collect::<String>(),
                     std::process::id()
-                ),
+                )),
                 skipped: self.rule_state.skipped().cloned(),
-            });
-            log::trace!("envelop=\"{:?}\"", ctx.envelop);
+                spf: None,
+                dkim: None,
+            };
         }
     }
 
@@ -374,9 +388,7 @@ impl Transaction {
         *state.write().unwrap() = MessageBody::default();
     }
 
-    pub async fn new<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    pub fn new<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug>(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<RuleEngine>,
@@ -385,15 +397,8 @@ impl Transaction {
         let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
             resolvers,
-            &*rule_engine,
-            ConnectionContext {
-                timestamp: conn.timestamp,
-                credentials: None,
-                server_name: conn.server_name.clone(),
-                server_address: conn.server_addr,
-                is_authenticated: conn.is_authenticated,
-                is_secured: conn.is_secured,
-            },
+            &rule_engine,
+            conn.context.clone(),
         );
 
         Self {
@@ -460,7 +465,7 @@ impl Transaction {
 
                     anyhow::bail!(
                         "connection at '{}' has been denied when connecting.",
-                        connection.client_addr
+                        connection.context.client_addr
                     )
                 }
                 _ => {}

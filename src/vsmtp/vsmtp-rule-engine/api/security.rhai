@@ -195,7 +195,7 @@ fn sys_check_spf() { sys::check_spf(ctx(), srv()) }
 ///     mail: [
 ///         // if this check succeed, it wil return `next`.
 ///         // if it fails, it might return `deny` with a custom code
-///         // (X.7.24 or X.7.25 for exemple)
+///         // (X.7.24 or X.7.25 for example)
 ///         //
 ///         // if you want to use the return status, just put the check_spf
 ///         // function on the last line of your rule.
@@ -292,7 +292,7 @@ fn check_spf(header, policy) {
 ///     mail: [
 ///         // if this check succeed, it wil return `next`.
 ///         // if it fails, it might return `deny` with a custom code
-///         // (X.7.24 or X.7.25 for exemple)
+///         // (X.7.24 or X.7.25 for example)
 ///         //
 ///         // if you want to use the return status, just put the check_spf
 ///         // function on the last line of your rule.
@@ -311,10 +311,10 @@ fn check_spf(header) {
     check_spf(header, "strict")
 }
 
-private fn sys_verify_dkim(policy) {
+private fn dkim_verify_first_signature_or_error(policy) {
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
-    let last_error = `dkim=none`;
+    let last_error = #{ status: "none" };
 
     for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
         try {
@@ -341,23 +341,35 @@ private fn sys_verify_dkim(policy) {
                     }
 
                     // header.b & header.a can be set optionally
-                    return `dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
+                    return #{
+                        status: "pass",
+                        sdid: signature.sdid,
+                        auid: signature.auid,
+                    };
                 } catch (e) {
                     log("warn", `DKIM signature verification failed: ${e.to_debug()}`);
-                    let e = sys::handle_dkim_error(e);
-                    last_error = `dkim=${e}`;
+                    last_error =  #{ status: sys::handle_dkim_error(e) };
                 }
             }
 
         } catch (e) {
             log("warn", `DKIM signature invalid: ${e.to_debug()}`);
-            let e = sys::handle_dkim_error(e);
-            last_error = `dkim=${e}`;
+            last_error =  #{ status: sys::handle_dkim_error(e) };
         }
     }
 
     log("warn", `no valid DKIM signature, returning: '${last_error}'`);
     last_error
+}
+
+private fn verify_dkim_inner(policy) {
+    if ctx().has_dkim_result {
+        ctx().dkim_result
+    } else {
+        let result = dkim_verify_first_signature_or_error(policy);
+        ctx().store_dkim(result);
+        result
+    }
 }
 
 /// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
@@ -369,7 +381,7 @@ private fn sys_verify_dkim(policy) {
 ///
 /// # Module:Security
 fn verify_dkim() {
-    let result = sys_verify_dkim(#{
+    let result = verify_dkim_inner(#{
         // will process a limited amount of signature, avoid infinite loop and dos/DDoS attack
         nbr_headers: 5,
         // the dns query may result in multiple public key, the registry with invalid format are ignored.
@@ -380,7 +392,7 @@ fn verify_dkim() {
     });
 
     let header = `${get_root_domain(ctx().server_name)};
-  ${result}`;
+  dkim=${result.status}`;
 
     prepend_header("Authentication-Results", header);
     result
@@ -394,4 +406,49 @@ fn sign_dkim(selector, headers_field, canonicalization) {
 
 fn sign_dkim(selector) {
     sign_dkim(msg(), ctx(), srv(), selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
+}
+
+fn check_dmarc() {
+    let rfc5322_from = parse_rfc5322_from(msg()).domain;
+
+    // TODO: could produce a temperror
+    let record = get_dmarc_record(srv(), rfc5322_from);
+
+    let dkim_result = verify_dkim_inner(#{
+        // TODO: only take `d == rfc5322_from`
+        nbr_headers: 5,
+        on_multiple_key_records: "cycle",
+        expiration_epsilon: 1000,
+    });
+    let spf_result = sys::check_spf(ctx(), srv());
+
+    let header = `${get_root_domain(ctx().server_name)};
+  dkim=${dkim_result.status}
+  spf=${spf_result.result}
+  reason="${spf_key_value_list(spf_result)}"
+  smtp.mailfrom=${ctx().mail_from}`;
+
+    let dmarc_pass = dmarc_check(record, rfc5322_from, dkim_result, ctx().mail_from.domain, spf_result.result);
+
+    prepend_header("Authentication-Results", `${header}
+  dmarc=${if dmarc_pass { "pass" } else { "fail" }}`);
+
+    if dmarc_pass {
+        return next();
+    } else {
+        let receiver_policy = record.receiver_policy;
+        log("warn", `dmarc check failed, handling 'receiver_policy=${receiver_policy}'`);
+
+        switch receiver_policy {
+            "none" => {
+                return next();
+            },
+            "quarantine" => {
+                return quarantine("dmarc");
+            },
+            "reject" => {
+                return deny(/*code_...*/);
+            }
+        }
+    }
 }

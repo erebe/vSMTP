@@ -14,13 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{
-    addr,
-    mail_context::MailContext,
-    re::tokio,
-    CodeID, MailHeaders, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vsmtp_mail_parser::BodyType;
+use vsmtp_mail_parser::Mail;
+use vsmtp_mail_parser::MailHeaders;
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 

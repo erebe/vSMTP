@@ -50,7 +50,13 @@ fn test_context() {
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
-    state.context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.context().write().unwrap().metadata = MessageMetadata {
+        timestamp: None,
+        message_id: None,
+        skipped: None,
+        spf: None,
+        dkim: None,
+    };
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),

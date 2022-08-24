@@ -30,6 +30,20 @@
 //
 #![allow(clippy::use_self)] // false positive with enums
 
+/// The implementation follow the RFC 7208
+///
+/// ```txt
+/// Email on the Internet can be forged in a number of ways.  In
+/// particular, existing protocols place no restriction on what a sending
+/// host can use as the "MAIL FROM" of a message or the domain given on
+/// the SMTP HELO/EHLO commands.  This document describes version 1 of
+/// the Sender Policy Framework (SPF) protocol, whereby ADministrative
+/// Management Domains (ADMDs) can explicitly authorize the hosts that
+/// are allowed to use their domain names, and a receiving host can check
+/// such authorization.
+/// ```
+pub mod spf;
+
 /// The implementation follow the RFC 6376
 ///
 /// ```txt
@@ -57,3 +71,20 @@ pub mod dkim;
 /// organization can use to improve mail handling.
 /// ```
 pub mod dmarc;
+
+/// Return the root of a domain
+///
+/// # Errors
+///
+/// * could not parse the `domain`
+/// * could not retrieve the root of the domain
+pub fn get_root_domain(domain: &str) -> anyhow::Result<String> {
+    if let Ok(domain) = addr::parse_domain_name(domain) {
+        Ok(domain
+            .root()
+            .ok_or_else(|| anyhow::anyhow!("could not retrieve root of domain `{domain}`"))?
+            .to_string())
+    } else {
+        anyhow::bail!("failed to parse as domain `{domain}`")
+    }
+}

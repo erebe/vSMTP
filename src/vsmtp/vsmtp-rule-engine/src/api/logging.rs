@@ -19,7 +19,6 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
-use vsmtp_common::re::log;
 
 pub use logging_rhai::*;
 
@@ -108,15 +107,34 @@ mod logging_rhai {
     /// ```
     #[rhai_fn(global, name = "log")]
     #[doc = "overloaded as `log(level, message)`"]
+    #[allow(clippy::cognitive_complexity)]
     pub fn log(level: &str, message: &str) {
-        const APP_TARGET: &str = "app";
-
-        match <log::Level as std::str::FromStr>::from_str(level) {
-            Ok(level) => log::log!(target: APP_TARGET, level, "{message}"),
-            Err(e) => log::warn!(
-                target: APP_TARGET,
-                "level `{level}` is invalid: `{e}`. Message was: '{message}'",
-            ),
+        match <tracing::Level as std::str::FromStr>::from_str(level) {
+            Ok(level) => match level {
+                tracing::Level::TRACE => {
+                    tracing::trace!(message);
+                }
+                tracing::Level::DEBUG => {
+                    tracing::debug!(message);
+                }
+                tracing::Level::INFO => {
+                    tracing::info!(message);
+                }
+                tracing::Level::WARN => {
+                    tracing::warn!(message);
+                }
+                tracing::Level::ERROR => {
+                    tracing::error!(message);
+                }
+            },
+            Err(e) => {
+                tracing::warn!(
+                    "level `{}` is invalid: `{}`. Message was: '{}'",
+                    level,
+                    e,
+                    message,
+                );
+            }
         }
     }
 }

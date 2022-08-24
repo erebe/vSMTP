@@ -407,7 +407,7 @@ mod tests {
         });
 
         let client = tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
             let mail = lettre::Message::builder()
                 .from("NoBody <nobody@domain.tld>".parse().unwrap())
                 .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())

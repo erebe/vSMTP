@@ -42,13 +42,14 @@ impl Transport for Maildir {
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
+        let msg_id = metadata.message_id.as_ref().unwrap();
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 Self::write_to_maildir(
                     rcpt,
                     &user,
                     config.server.system.group_local.as_ref(),
-                    metadata,
+                    msg_id,
                     content,
                 )
             }) {
@@ -113,14 +114,14 @@ impl Maildir {
     fn create_maildir(
         user: &users::User,
         group_local: Option<&users::Group>,
-        metadata: &MessageMetadata,
+        msg_id: &str,
     ) -> anyhow::Result<std::path::PathBuf> {
         let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
         Self::create_and_chown(&maildir, user, group_local)?;
         maildir.push("new");
 
         Self::create_and_chown(&maildir, user, group_local)?;
-        maildir.push(format!("{}.eml", metadata.message_id));
+        maildir.push(format!("{msg_id}.eml"));
 
         Ok(maildir)
     }
@@ -129,10 +130,10 @@ impl Maildir {
         rcpt: &Rcpt,
         user: &users::User,
         group_local: Option<&users::Group>,
-        metadata: &MessageMetadata,
+        msg_id: &str,
         content: &str,
     ) -> anyhow::Result<()> {
-        let file_in_maildir_inbox = Self::create_maildir(user, group_local, metadata)?;
+        let file_in_maildir_inbox = Self::create_maildir(user, group_local, msg_id)?;
 
         let mut email = std::fs::OpenOptions::new()
             .create(true)
@@ -188,10 +189,7 @@ mod test {
             &Rcpt::new(addr!("john.doe@example.com")),
             &current,
             None,
-            &MessageMetadata {
-                message_id: message_id.to_string(),
-                ..MessageMetadata::default()
-            },
+            message_id,
             "email content",
         )
         .expect("could not write email to maildir");

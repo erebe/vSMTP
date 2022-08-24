@@ -19,7 +19,7 @@ use vsmtp_common::addr;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::tokio;
 use vsmtp_common::CodeID;
-use vsmtp_common::MessageBody;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 

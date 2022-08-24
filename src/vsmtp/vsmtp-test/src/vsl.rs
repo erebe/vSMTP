@@ -16,15 +16,14 @@
 */
 
 use vsmtp_common::{
-    envelop::Envelop,
-    mail_context::{ConnectionContext, MailContext},
+    mail_context::{ConnectionContext, MailContext, MessageMetadata},
+    Envelop,
 };
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 
 ///
 pub fn run(vsl: &str) {
-    use vsmtp_common::MessageBody;
-
     let config = vsmtp_config::Config::default();
     let rule_engine = RuleEngine::from_script(&config, vsl).expect("Cannot create rule engine");
 
@@ -37,17 +36,25 @@ pub fn run(vsl: &str) {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
                 server_name: "testserver.com".to_string(),
-                server_address: "127.0.0.1:25".parse().expect(""),
+                server_addr: "127.0.0.1:25".parse().expect(""),
+                client_addr: "127.0.0.1:5977".parse().expect(""),
                 is_authenticated: false,
                 is_secured: false,
+                error_count: 0,
+                authentication_attempt: 0,
             },
-            client_addr: "127.0.0.1:5977".parse().expect(""),
             envelop: Envelop {
                 helo: "client.testserver.com".to_string(),
                 mail_from: "client@client.testserver.com".parse().expect(""),
                 rcpt: vec![],
             },
-            metadata: None,
+            metadata: MessageMetadata {
+                timestamp: None,
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            },
         },
         MessageBody::new(
             [

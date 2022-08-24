@@ -92,14 +92,14 @@ mod tests {
     use super::*;
     use vsmtp_common::{
         addr,
-        envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer, TransferErrors},
-        MessageBody, RawBody,
+        Envelop,
     };
     use vsmtp_config::build_resolvers;
+    use vsmtp_mail_parser::{MessageBody, RawBody};
     use vsmtp_test::config;
 
     #[allow(clippy::too_many_lines)]
@@ -121,9 +121,11 @@ mod tests {
                         is_authenticated: false,
                         is_secured: false,
                         server_name: "testserver.com".to_string(),
-                        server_address: "127.0.0.1:25".parse().unwrap(),
+                        server_addr: "127.0.0.1:25".parse().unwrap(),
+                        client_addr: "127.0.0.1:80".parse().unwrap(),
+                        error_count: 0,
+                        authentication_attempt: 0,
                     },
-                    client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
                         mail_from: addr!("from@testserver.com"),
@@ -144,11 +146,13 @@ mod tests {
                             },
                         ],
                     },
-                    metadata: Some(MessageMetadata {
-                        timestamp: now,
-                        message_id: "test_deferred".to_string(),
+                    metadata: MessageMetadata {
+                        timestamp: Some(now),
+                        message_id: Some("test_deferred".to_string()),
                         skipped: None,
-                    }),
+                        spf: None,
+                        dkim: None,
+                    },
                 },
             )
             .unwrap();
@@ -188,9 +192,11 @@ mod tests {
                     is_authenticated: false,
                     is_secured: false,
                     server_name: "testserver.com".to_string(),
-                    server_address: "127.0.0.1:25".parse().unwrap(),
+                    server_addr: "127.0.0.1:25".parse().unwrap(),
+                    client_addr: "127.0.0.1:80".parse().unwrap(),
+                    error_count: 0,
+                    authentication_attempt: 0,
                 },
-                client_addr: "127.0.0.1:80".parse().unwrap(),
                 envelop: Envelop {
                     helo: "client.com".to_string(),
                     mail_from: addr!("from@testserver.com"),
@@ -221,11 +227,13 @@ mod tests {
                         },
                     ],
                 },
-                metadata: Some(MessageMetadata {
-                    timestamp: now,
-                    message_id: "test_deferred".to_string(),
+                metadata: MessageMetadata {
+                    timestamp: Some(now),
+                    message_id: Some("test_deferred".to_string()),
                     skipped: None,
-                }),
+                    spf: None,
+                    dkim: None,
+                },
             }
         );
         pretty_assertions::assert_eq!(

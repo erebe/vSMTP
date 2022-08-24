@@ -21,13 +21,14 @@ use self::{
 use crate::{auth, receiver::auth_exchange::AuthExchangeError};
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::MAIL_CAPACITY,
+    mail_context::{ConnectionContext, MAIL_CAPACITY},
     re::{anyhow, either, log, tokio},
     state::StateSMTP,
     status::Status,
-    CodeID, ConnectionKind, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
+    CodeID, ConnectionKind,
 };
 use vsmtp_config::{re::rustls, Resolvers};
+use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
 use vsmtp_rule_engine::RuleEngine;
 
 mod auth_exchange;
@@ -106,7 +107,7 @@ where
 
         loop {
             let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
+                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
@@ -181,7 +182,7 @@ where
 
         loop {
             let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
+                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
@@ -234,7 +235,7 @@ where
     {
         let mut secured_conn = {
             if self.kind != ConnectionKind::Tunneled {
-                self.send_code(CodeID::Greetings).await?;
+                self.send_code(CodeID::TlsGoAhead).await?;
             }
 
             let smtps_config = self.config.server.tls.as_ref().ok_or_else(|| {
@@ -250,24 +251,21 @@ where
             )
             .await??;
 
-            Connection::new_with(
-                self.kind,
-                stream
-                    .get_ref()
-                    .1
-                    .sni_hostname()
-                    .unwrap_or(&self.server_name)
-                    .to_string(),
-                self.timestamp,
-                self.config.clone(),
-                self.client_addr,
-                self.server_addr,
-                self.error_count,
-                true,
-                self.is_authenticated,
-                self.authentication_attempt,
-                stream,
-            )
+            Connection {
+                kind: self.kind,
+                context: ConnectionContext {
+                    server_name: stream
+                        .get_ref()
+                        .1
+                        .sni_hostname()
+                        .unwrap_or(&self.context.server_name)
+                        .to_string(),
+                    is_secured: true,
+                    ..self.context.clone()
+                },
+                config: self.config.clone(),
+                inner: AbstractIO::new(stream),
+            }
         };
 
         secured_conn
@@ -332,9 +330,7 @@ where
         {
             let mail_context = transaction.rule_state.context();
             let mut state_writer = mail_context.write().unwrap();
-            if let Some(metadata) = &mut state_writer.metadata {
-                metadata.skipped = transaction.rule_state.skipped().cloned();
-            }
+            state_writer.metadata.skipped = transaction.rule_state.skipped().cloned();
         }
 
         let (mail_context, message, _) = transaction.rule_state.take().unwrap();
@@ -378,7 +374,7 @@ where
                     anyhow::bail!("{}", CodeID::AuthInvalidCredentials)
                 }
                 AuthExchangeError::Canceled => {
-                    self.authentication_attempt += 1;
+                    self.context.authentication_attempt += 1;
                     *helo_domain = Some(helo_pre_auth);
 
                     let retries_max = self
@@ -389,7 +385,7 @@ where
                         .as_ref()
                         .unwrap()
                         .attempt_count_max;
-                    if retries_max != -1 && self.authentication_attempt > retries_max {
+                    if retries_max != -1 && self.context.authentication_attempt > retries_max {
                         self.send_code(CodeID::AuthRequired).await?;
                         anyhow::bail!("Auth: Attempt max {retries_max} reached");
                     }
@@ -407,7 +403,7 @@ where
                 otherwise => anyhow::bail!("{otherwise}"),
             }
         } else {
-            self.is_authenticated = true;
+            self.context.is_authenticated = true;
 
             // TODO: When a security layer takes effect
             // helo_domain = None;

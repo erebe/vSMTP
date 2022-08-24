@@ -249,7 +249,7 @@ impl Mail {
 #[cfg(test)]
 mod test {
 
-    use crate::{MimeBodyType, MimeHeader};
+    use crate::message::mime_type::{MimeBodyType, MimeHeader};
 
     use super::*;
 

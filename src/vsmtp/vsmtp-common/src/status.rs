@@ -58,11 +58,9 @@ impl Status {
     /// the next rules.
     #[must_use]
     pub const fn stop(&self) -> bool {
-        match self {
-            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_) => {
-                true
-            }
-            _ => false,
-        }
+        matches!(
+            self,
+            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_)
+        )
     }
 }

@@ -14,7 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{Mail, RawBody};
+
+use crate::message::{mail::Mail, raw_body::RawBody};
 
 ///
 pub type ParserOutcome = anyhow::Result<either::Either<RawBody, Mail>>;

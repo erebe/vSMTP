@@ -49,7 +49,7 @@ impl Transport for MBox {
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let timestamp = get_mbox_timestamp_format(metadata);
+        let timestamp = get_mbox_timestamp_format(&metadata.timestamp.unwrap());
         let content = build_mbox_message(from, &timestamp, content);
 
         for rcpt in &mut to {
@@ -61,15 +61,11 @@ impl Transport for MBox {
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
                     config.server.system.group_local.as_ref(),
-                    metadata,
                     &content,
                 )
             }) {
                 Some(Ok(_)) => {
-                    log::info!(
-                        "(msg={}) successfully delivered to {rcpt} as mbox",
-                        metadata.message_id
-                    );
+                    log::info!("successfully delivered to {rcpt} as mbox");
 
                     rcpt.email_status = EmailTransferStatus::Sent {
                         timestamp: std::time::SystemTime::now(),
@@ -77,18 +73,15 @@ impl Transport for MBox {
                 }
                 Some(Err(e)) => {
                     log::error!(
-                        "failed to write email '{}' in {}'s mbox: {}",
-                        metadata.message_id,
+                        "failed to write email in {}'s mbox: {e}",
                         rcpt.address.local_part(),
-                        e
                     );
 
                     rcpt.email_status.held_back(e);
                 }
                 None => {
                     log::error!(
-                        "failed to write email '{}' in {}'s mbox: '{}' is not a user",
-                        metadata.message_id,
+                        "failed to write email in {}'s mbox: '{}' is not a user",
                         rcpt.address.local_part(),
                         rcpt.address.local_part(),
                     );
@@ -103,8 +96,8 @@ impl Transport for MBox {
     }
 }
 
-fn get_mbox_timestamp_format(metadata: &MessageMetadata) -> String {
-    let odt: time::OffsetDateTime = metadata.timestamp.into();
+fn get_mbox_timestamp_format(timestamp: &std::time::SystemTime) -> String {
+    let odt: time::OffsetDateTime = (*timestamp).into();
 
     odt.format(&CTIME_FORMAT)
         .unwrap_or_else(|_| String::default())
@@ -123,7 +116,6 @@ fn write_content_to_mbox(
     mbox: &std::path::Path,
     user: &users::User,
     group_local: Option<&users::Group>,
-    metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
     let mut file = std::fs::OpenOptions::new()
@@ -132,17 +124,12 @@ fn write_content_to_mbox(
         .open(&mbox)?;
 
     chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
-        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
+        .with_context(|| format!("could not set owner for '{mbox:?}' mbox"))?;
 
     std::io::Write::write_all(&mut file, format!("Delivered-To: {rcpt}\n").as_bytes())?;
     std::io::Write::write_all(&mut file, content.as_bytes())?;
 
-    log::debug!(
-        "(msg={}) {} bytes written to {:?}",
-        metadata.message_id,
-        content.len(),
-        mbox
-    );
+    log::debug!("{} bytes written to {mbox:?}", content.len());
 
     Ok(())
 }
@@ -156,14 +143,9 @@ mod test {
 
     #[test]
     fn test_mbox_time_format() {
-        let metadata = MessageMetadata {
-            timestamp: std::time::SystemTime::now(),
-            ..MessageMetadata::default()
-        };
-
         // FIXME: I did not find a proper way to compare timestamps because the system time
         //        cannot be zero.
-        get_mbox_timestamp_format(&metadata);
+        get_mbox_timestamp_format(&std::time::SystemTime::now());
     }
 
     #[test]
@@ -175,10 +157,7 @@ subject: test email
 
 This is a raw email."#;
 
-        let timestamp = get_mbox_timestamp_format(&MessageMetadata {
-            timestamp: std::time::SystemTime::UNIX_EPOCH,
-            ..MessageMetadata::default()
-        });
+        let timestamp = get_mbox_timestamp_format(&std::time::SystemTime::UNIX_EPOCH);
 
         let message = build_mbox_message(&from, &timestamp, content);
 
@@ -202,7 +181,6 @@ This is a raw email.
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
         let mbox =
             std::path::PathBuf::from_iter(["./tests/generated/", user.name().to_str().unwrap()]);
-        let metadata = MessageMetadata::default();
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
         write_content_to_mbox(
@@ -210,7 +188,6 @@ This is a raw email.
             &mbox,
             &user,
             None,
-            &metadata,
             content,
         )
         .expect("could not write to mbox");

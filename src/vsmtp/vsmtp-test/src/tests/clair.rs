@@ -15,13 +15,12 @@
  *
 */
 use crate::{config, test_receiver};
-use vsmtp_common::{
-    addr,
-    mail_context::MailContext,
-    re::tokio,
-    CodeID, MailHeaders, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vsmtp_mail_parser::BodyType;
+use vsmtp_mail_parser::Mail;
+use vsmtp_mail_parser::MailHeaders;
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
@@ -44,7 +43,6 @@ async fn test_receiver_1() {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
             assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
-            assert!(mail.metadata.is_some());
             CodeID::Ok
         }
     }

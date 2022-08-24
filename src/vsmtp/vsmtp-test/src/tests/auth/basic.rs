@@ -22,8 +22,9 @@ use vsmtp_common::{
     addr,
     mail_context::MailContext,
     re::{base64, tokio, vsmtp_rsasl},
-    CodeID, MessageBody,
+    CodeID,
 };
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::{auth, OnMail};
 

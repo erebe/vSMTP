@@ -2670,6 +2670,7 @@ dependencies = [
  "pretty_assertions",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-mail-parser",
 ]
 
 [[package]]
@@ -2692,19 +2693,22 @@ dependencies = [
 name = "vsmtp-auth"
 version = "1.2.0"
 dependencies = [
+ "addr",
  "anyhow",
  "base64",
  "convert_case",
  "pretty_assertions",
  "rand",
  "rsa",
+ "serde",
  "sha1",
  "sha2",
  "strum",
  "thiserror",
  "tokio",
+ "tracing",
  "trust-dns-resolver",
- "vsmtp-common",
+ "viaspf",
  "vsmtp-mail-parser",
 ]
 
@@ -2716,7 +2720,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64",
- "convert_case",
  "either",
  "lettre",
  "libc",
@@ -2727,8 +2730,8 @@ dependencies = [
  "serde_with",
  "strum",
  "tokio",
- "tokio-stream",
  "users",
+ "vsmtp-auth",
  "vsmtp-mail-parser",
  "vsmtp-rsasl",
 ]
@@ -2771,8 +2774,16 @@ dependencies = [
 name = "vsmtp-mail-parser"
 version = "1.2.0"
 dependencies = [
+ "anyhow",
+ "async-trait",
+ "convert_case",
+ "either",
  "pretty_assertions",
- "vsmtp-common",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -2802,7 +2813,6 @@ dependencies = [
  "time",
  "tracing",
  "trust-dns-resolver",
- "viaspf",
  "vsmtp-auth",
  "vsmtp-common",
  "vsmtp-config",

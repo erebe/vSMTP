@@ -24,7 +24,15 @@ struct SyslogWriter(syslog::Logger<syslog::LoggerBackend, syslog::Formatter3164>
 
 impl std::io::Write for SyslogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.backend.write(buf)
+        syslog::LogFormat::format(
+            &self.0.formatter,
+            &mut self.0.backend,
+            // TODO: handle severity
+            syslog::Severity::LOG_WARNING,
+            std::str::from_utf8(buf).unwrap_or("utf-8 error"),
+        )
+        .map(|_| buf.len())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.description()))
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -35,11 +43,13 @@ impl std::io::Write for SyslogWriter {
 struct MakeSyslogWriter;
 
 impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
+    // NOTE: if the syslog failed to initialize, is it written to stdout ?
     type Writer = fmt::writer::OptionalWriter<SyslogWriter>;
 
     fn make_writer(&self) -> Self::Writer {
         let formatter = syslog::Formatter3164 {
             facility: syslog::Facility::LOG_MAIL,
+            hostname: None,
             ..Default::default()
         };
 
@@ -53,6 +63,30 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
     }
 }
 
+#[cfg(debug_assertions)]
+macro_rules! get_fmt {
+    () => {
+        fmt::layer()
+            .pretty()
+            .with_file(true)
+            .with_line_number(true)
+            .with_thread_ids(true)
+            .with_target(true)
+            .with_ansi(false)
+    };
+}
+
+#[cfg(not(debug_assertions))]
+macro_rules! get_fmt {
+    () => {
+        fmt::layer()
+            .compact()
+            .with_thread_ids(false)
+            .with_target(false)
+            .with_ansi(false)
+    };
+}
+
 /// Initialize the tracing subsystem.
 ///
 /// # Errors
@@ -63,57 +97,43 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
     std::fs::create_dir_all(config.server.logs.filepath.clone())
         .context("Cannot create `server.logs` directory")?;
 
-    let writer_backend = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp")
-        .with_filter(|metadata| !metadata.target().starts_with("app"));
+    let writer_backend = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp");
+    let writer_backend = writer_backend.with_filter(|metadata| {
+        metadata.target() != "vsmtp_rule_engine::api::logging::logging_rhai"
+    });
 
     std::fs::create_dir_all(config.app.logs.filepath.clone())
         .context("Cannot create `app.logs` directory")?;
 
-    let writer_app = tracing_appender::rolling::daily(&config.app.logs.filepath, "app")
-        .with_filter(|metadata| metadata.target().starts_with("app"));
+    let writer_app = tracing_appender::rolling::daily(&config.app.logs.filepath, "app");
+    let writer_app = writer_app.with_filter(|metadata| {
+        metadata.target() == "vsmtp_rule_engine::api::logging::logging_rhai"
+    });
 
-    #[cfg(debug_assertions)]
-    let layer = fmt::layer()
-        .pretty()
-        .with_file(true)
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_target(true);
-
-    #[cfg(not(debug_assertions))]
-    let layer = fmt::layer()
-        .compact()
-        .with_thread_ids(false)
-        .with_target(false);
-
-    let subscriber = tracing_subscriber::registry()
-        .with(EnvFilter::builder().try_from_env().unwrap_or_else(|_| {
+    let subscriber = tracing_subscriber::registry().with(
+        EnvFilter::builder().try_from_env().unwrap_or_else(|_| {
             let mut e = EnvFilter::default();
             for i in &config.server.logs.level {
                 e = e.add_directive(i.clone());
             }
             e
-        }))
-        .with(layer);
+        }),
+    );
 
     #[cfg(feature = "tokio_console")]
     let subscriber = subscriber.with(console_subscriber::spawn());
 
+    let subscriber = subscriber
+        .with(get_fmt!().with_writer(writer_backend))
+        .with(get_fmt!().with_writer(writer_app));
+
     if args.no_daemon {
         subscriber
-            .with(fmt::layer().with_writer(writer_backend.and(writer_app).and(std::io::stdout)))
+            .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
             .try_init()
     } else {
         subscriber
-            .with(
-                fmt::layer()
-                    .with_writer(
-                        writer_backend
-                            .and(writer_app)
-                            .and(MakeSyslogWriter.with_max_level(tracing::Level::INFO)),
-                    )
-                    .with_ansi(false),
-            )
+            .with(get_fmt!().with_writer(MakeSyslogWriter).without_time())
             .try_init()
     }
     .map_err(|e| anyhow::anyhow!("{e}"))

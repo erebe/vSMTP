@@ -19,22 +19,24 @@
 //!
 //! This module contains authentication mechanisms to secure your server.
 
-/// Check if the client's connexion was secure.
+/// Has the connection been secured under the encryption protocol SSL/TLS
 ///
 /// # Effective smtp stage
 ///
-/// `authenticate` only.
+/// all
 ///
 /// # Return
 ///
-/// * `bool` - true if the client securely connected with the auth protocol, false otherwise.
+/// * boolean value (`true` if the connection is secured, `false` otherwise)
 ///
 /// # Example
 /// ```js
 /// #{
-///     authenticate: [
-///        action "log info" || log("info", `${is_secured()}`),
-///     ]
+///   mail: [
+///     action "log ssl/tls" || {
+///       log("info", `My client is ${if is_secured() { "secured" } else { "unsecured!!!" }}`)
+///     }
+///   ]
 /// }
 /// ```
 ///

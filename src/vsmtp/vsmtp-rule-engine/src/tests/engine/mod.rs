@@ -16,11 +16,12 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext},
+    mail_context::{ConnectionContext, MailContext, MessageMetadata},
     state::StateSMTP,
     status::Status,
-    CodeID, MessageBody, ReplyOrCodeID,
+    CodeID, Envelop, ReplyOrCodeID,
 };
+use vsmtp_mail_parser::MessageBody;
 
 #[test]
 fn test_engine_errors() {
@@ -105,21 +106,29 @@ fn test_rule_state() {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
-                server_address: "127.0.0.1:25".parse().unwrap(),
+                server_addr: "127.0.0.1:25".parse().unwrap(),
+                client_addr: "127.0.0.1:26".parse().unwrap(),
+                error_count: 0,
+                authentication_attempt: 0,
             },
-            client_addr: "127.0.0.1:26".parse().unwrap(),
-            envelop: vsmtp_common::envelop::Envelop {
+            envelop: Envelop {
                 helo: "test".to_string(),
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
-            metadata: None,
+            metadata: MessageMetadata {
+                timestamp: None,
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            },
         },
         MessageBody::default(),
     );
 
     assert_eq!(
-        state.context().read().unwrap().client_addr.ip(),
+        state.context().read().unwrap().connection.client_addr.ip(),
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
     );
     assert_eq!(
@@ -127,6 +136,7 @@ fn test_rule_state() {
             .context()
             .read()
             .unwrap()
+            .connection
             .client_addr
             .ip(),
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))

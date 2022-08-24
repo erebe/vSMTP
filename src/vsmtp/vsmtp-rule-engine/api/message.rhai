@@ -82,7 +82,7 @@ fn get_header(header) { sys::get_header(msg(), header) }
 ///
 /// # Effective smtp stage
 ///
-/// All of them. Even tought the email is not received at the current stage,
+/// All of them. Even though the email is not received at the current stage,
 /// vsmtp stores new headers and will prepend them to the ones received once
 /// the `preq` stage is reached.
 ///
@@ -109,7 +109,7 @@ fn append_header(header, value) { sys::append_header(msg(), header, value) }
 ///
 /// # Effective smtp stage
 ///
-/// All of them. Even tought the email is not received at the current stage,
+/// All of them. Even though the email is not received at the current stage,
 /// vsmtp stores new headers and will prepend them to the ones received once
 /// the `preq` stage is reached.
 ///
@@ -137,7 +137,7 @@ fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 ///
 /// # Effective smtp stage
 ///
-/// All of them. Even tought the email is not received at the current stage,
+/// All of them. Even though the email is not received at the current stage,
 /// vsmtp stores new headers and will prepend them to the ones received once
 /// the `preq` stage is reached.
 ///
@@ -150,7 +150,7 @@ fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 ///     postq: [
 ///         action "update subject" || {
 ///             let subject = get_header("Subject");
-///             set_header("Subject", `${subject} (analysed by vsmtp)`);
+///             set_header("Subject", `${subject} (analyzed by vsmtp)`);
 ///         }
 ///     ],
 /// }

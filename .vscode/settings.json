@@ -2,6 +2,7 @@
   "cSpell.words": [
     "adkim",
     "afrf",
+    "alloc",
     "alpn",
     "appender",
     "ascii",
@@ -49,8 +50,10 @@
     "libc",
     "libmilter",
     "maildir",
+    "mbox",
     "msrv",
     "nametoindex",
+    "nodaemon",
     "nonblocking",
     "ocsp",
     "opentelemetry",
@@ -71,12 +74,14 @@
     "rhai",
     "rlookup",
     "roadmap",
+    "routable",
     "rsasl",
     "Rset",
     "Rustc",
     "rustls",
     "sasl",
     "SASL",
+    "saslauthd",
     "satan",
     "sdid",
     "setgid",
@@ -90,6 +95,7 @@
     "STARTTLS",
     "tabis",
     "temperror",
+    "testsaslauthd",
     "testserver",
     "thiserror",
     "tlsa",
@@ -157,5 +163,7 @@
   "lldb.showDisassembly": "auto",
   "lldb.dereferencePointers": true,
   "lldb.consoleMode": "commands",
-  "cSpell.enableFiletypes": ["rhai"]
+  "cSpell.enableFiletypes": [
+    "rhai"
+  ]
 }

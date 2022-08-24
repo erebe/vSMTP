@@ -14,8 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{mail_context::MailContext, MessageBody};
+use crate::mail_context::MailContext;
 use anyhow::Context;
+use vsmtp_mail_parser::MessageBody;
 
 /// identifiers for all mail queues.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
@@ -105,9 +106,9 @@ impl Queue {
     ) -> anyhow::Result<()> {
         let message_id = &ctx
             .metadata
+            .message_id
             .as_ref()
-            .expect("not ill-formed mail context")
-            .message_id;
+            .expect("not ill-formed mail context");
 
         let to_deliver = queue_path!(create_if_missing => queues_dirpath, self, message_id)?;
 
@@ -235,10 +236,10 @@ impl Queue {
         if self != other {
             self.remove(
                 queues_dirpath,
-                &ctx.metadata
+                ctx.metadata
+                    .message_id
                     .as_ref()
-                    .expect("message is ill-formed")
-                    .message_id,
+                    .expect("message is ill-formed"),
             )?;
         }
 

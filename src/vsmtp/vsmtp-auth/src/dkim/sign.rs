@@ -16,7 +16,7 @@
 */
 
 use super::{signature::QueryMethod, Canonicalization, Signature, SigningAlgorithm};
-use vsmtp_common::RawBody;
+use vsmtp_mail_parser::RawBody;
 
 impl Signature {
     /// # Errors
@@ -113,11 +113,12 @@ impl std::fmt::Display for Signature {
 
 #[cfg(test)]
 mod tests {
+    use vsmtp_mail_parser::MessageBody;
+
     use crate::dkim::{
         public_key::{Type, Version},
         Canonicalization, CanonicalizationAlgorithm, HashAlgorithm, PublicKey, Signature,
     };
-    use vsmtp_common::MessageBody;
 
     #[test]
     fn sign_and_verify() {

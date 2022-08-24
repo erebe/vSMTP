@@ -14,8 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::error::{ParserError, ParserResult};
-use vsmtp_common::MimeHeader;
+use crate::{
+    error::{ParserError, ParserResult},
+    message::mime_type::MimeHeader,
+};
 
 #[inline]
 pub fn start_with_fws(input: &str) -> bool {

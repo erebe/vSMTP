@@ -61,7 +61,8 @@ mod tests;
 /// Module containing the backend for the vsl's Rust API.
 pub mod api {
     use crate::server_api::ServerAPI;
-    use vsmtp_common::{mail_context::MailContext, MessageBody};
+    use vsmtp_common::mail_context::MailContext;
+    use vsmtp_mail_parser::MessageBody;
 
     /// Error produced by the vsl's Rust API function calls.
     pub type EngineResult<T> = Result<T, Box<rhai::EvalAltResult>>;
@@ -79,6 +80,8 @@ pub mod api {
 
     /// backend for DKIM functionality.
     pub mod dkim;
+    /// backend for DMARC functionality.
+    pub mod dmarc;
     /// Log a message of `level` in the `app` target, which will be written to the
     /// the fie you specified in the field `app.logs.filepath` form the [`vsmtp_config::Config`].
     pub mod logging;
@@ -111,6 +114,7 @@ pub mod api {
             module
                 .combine(rhai::exported_module!(logging))
                 .combine(rhai::exported_module!(dkim))
+                .combine(rhai::exported_module!(dmarc))
                 .combine(rhai::exported_module!(rule_state))
                 .combine(rhai::exported_module!(spf))
                 .combine(rhai::exported_module!(services))
@@ -126,7 +130,10 @@ pub mod api {
 
     #[cfg(test)]
     mod test {
-        use vsmtp_common::mail_context::{ConnectionContext, MailContext};
+        use vsmtp_common::{
+            mail_context::{ConnectionContext, MailContext, MessageMetadata},
+            Envelop,
+        };
 
         pub fn get_default_context() -> MailContext {
             MailContext {
@@ -136,14 +143,19 @@ pub mod api {
                     is_authenticated: false,
                     is_secured: false,
                     server_name: "testserver.com".to_string(),
-                    server_address: "127.0.0.1:25".parse().unwrap(),
+                    server_addr: "127.0.0.1:25".parse().unwrap(),
+                    client_addr: "0.0.0.0:0".parse().unwrap(),
+                    error_count: 0,
+                    authentication_attempt: 0,
                 },
-                client_addr: "0.0.0.0:0".parse().unwrap(),
-                envelop: vsmtp_common::envelop::Envelop::default(),
-                metadata: Some(vsmtp_common::mail_context::MessageMetadata {
-                    timestamp: std::time::SystemTime::now(),
-                    ..vsmtp_common::mail_context::MessageMetadata::default()
-                }),
+                envelop: Envelop::default(),
+                metadata: MessageMetadata {
+                    timestamp: Some(std::time::SystemTime::now()),
+                    message_id: None,
+                    skipped: None,
+                    spf: None,
+                    dkim: None,
+                },
             }
         }
     }

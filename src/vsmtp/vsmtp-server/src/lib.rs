@@ -65,8 +65,8 @@ use vsmtp_common::{
         lettre,
     },
     transfer::SmtpConnection,
-    MessageBody,
 };
+use vsmtp_mail_parser::MessageBody;
 
 /// delegate a message to another service.
 pub(crate) fn delegate(

@@ -120,14 +120,14 @@ impl<'r> Transport for Forward<'r> {
     async fn deliver(
         mut self,
         config: &Config,
-        metadata: &MessageMetadata,
+        _: &MessageMetadata,
         from: &vsmtp_common::Address,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        match self.deliver_inner(config, from, &*to, content).await {
+        match self.deliver_inner(config, from, &to, content).await {
             Ok(_) => {
-                log::info!("(msg={}) email successfully forwarded", metadata.message_id);
+                log::info!("email successfully forwarded");
 
                 for i in &mut to {
                     i.email_status = EmailTransferStatus::Sent {
@@ -136,11 +136,7 @@ impl<'r> Transport for Forward<'r> {
                 }
             }
             Err(error) => {
-                log::error!(
-                    "(msg={}) failed to forward email: {error}",
-                    metadata.message_id,
-                    error = error
-                );
+                log::error!("failed to forward email: {error}");
                 for i in &mut to {
                     i.email_status.held_back(error.to_string());
                 }

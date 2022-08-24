@@ -114,7 +114,7 @@ fn deliver_all() { sys::deliver_all(ctx()) }
 
 /// Set the delivery method to mbox for a recipient.
 /// After all rules are evaluated, the email will be stored
-/// localy in the mail box of the recipient if it exists on the server.
+/// locally in the mail box of the recipient if it exists on the server.
 ///
 /// # Args
 ///
@@ -138,7 +138,7 @@ fn mbox(rcpt) { sys::mbox(ctx(), rcpt) }
 
 /// Set the delivery method to mbox for all recipients.
 /// After all rules are evaluated, the email will be stored
-/// localy in the mail box of all recipients if they exists on the server.
+/// locally in the mail box of all recipients if they exists on the server.
 ///
 /// # Effective smtp stage
 ///
@@ -158,7 +158,7 @@ fn mbox_all() { sys::mbox_all(ctx()) }
 
 /// Set the delivery method to maildir for a recipient.
 /// After all rules are evaluated, the email will be stored
-/// localy in the `~/Maildir/new/` folder of the recipient's user if it exists on the server.
+/// locally in the `~/Maildir/new/` folder of the recipient's user if it exists on the server.
 ///
 /// # Args
 ///
@@ -182,7 +182,7 @@ fn maildir(rcpt) { sys::maildir(ctx(), rcpt) }
 
 /// Set the delivery method to maildir for all recipients.
 /// After all rules are evaluated, the email will be stored
-/// localy in each `~/Maildir/new` folder of they respective recipient
+/// locally in each `~/Maildir/new` folder of they respective recipient
 /// if they exists on the server.
 ///
 /// # Effective smtp stage

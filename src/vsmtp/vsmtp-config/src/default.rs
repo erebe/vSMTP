@@ -348,6 +348,9 @@ impl FieldServerSMTP {
             CodeID::BadSequence => Reply::new(
                 ReplyCode::Code{ code: 503 }, "Bad sequence of commands"
             ),
+            CodeID::TlsGoAhead => Reply::new(
+                ReplyCode::Code{ code: 220 }, "TLS go ahead"
+            ),
             CodeID::TlsNotAvailable => Reply::new(
                 ReplyCode::Code{ code: 454 }, "TLS not available due to temporary reason"
             ),

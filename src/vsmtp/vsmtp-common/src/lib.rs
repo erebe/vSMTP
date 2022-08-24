@@ -62,22 +62,13 @@ mod types {
     pub mod reply_code;
 }
 
-mod message {
-    pub mod mail;
-    #[allow(clippy::module_name_repetitions)]
-    pub mod message_body;
-    pub mod mime_type;
-    pub mod raw_body;
-}
-
-pub use message::{mail::*, message_body::MessageBody, mime_type::*, raw_body::RawBody};
 pub use types::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
 pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
 
-/// envelop of a transaction
-pub mod envelop;
+mod envelop;
+pub use envelop::Envelop;
 
 /// parsed command of the client
 pub mod event;
@@ -114,12 +105,6 @@ pub mod auth {
     pub use credentials::Credentials;
     pub use mechanism::Mechanism;
 }
-
-mod traits {
-    pub mod mail_parser;
-}
-
-pub use traits::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
 
 #[cfg(test)]
 mod tests {

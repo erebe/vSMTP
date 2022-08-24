@@ -24,8 +24,10 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.2.0" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.2.0" }
 
+serde = { version = "1.0.144", features = ["derive"] }
+tracing = "0.1.36"
 thiserror = "1.0.32"
 anyhow = "1.0.62"
 
@@ -41,6 +43,7 @@ tokio = { version = "1.20.1", default-features = false, features = [
 ] }
 
 base64 = "0.13.0"
+viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 
 sha2 = "0.10.2"
 rsa = "0.6.1"
@@ -49,6 +52,7 @@ rsa = "0.6.1"
 sha1 = "0.10.1"
 
 convert_case = "0.5.0"
+addr = "0.15.4"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
@@ -59,12 +63,3 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
     "tokio-runtime",
 ] }
 rand = "0.8.5"
-
-[features]
-default = ["vsmtp-common/gsasl_bindgen"]
-
-# TODO: improve that
-[package.metadata.docs.rs]
-features = []
-all-features = false
-no-default-features = true

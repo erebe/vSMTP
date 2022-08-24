@@ -63,13 +63,13 @@ mod tests {
     use super::queue_show;
     use vsmtp_common::{
         addr,
-        envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
         re::strum,
         transfer::{EmailTransferStatus, Transfer},
+        Envelop,
     };
 
     #[test]
@@ -161,9 +161,11 @@ mod tests {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
-                server_address: "0.0.0.0:25".parse().unwrap(),
+                server_addr: "0.0.0.0:25".parse().unwrap(),
+                error_count: 0,
+                client_addr: "0.0.0.0:26".parse().unwrap(),
+                authentication_attempt: 0,
             },
-            client_addr: "0.0.0.0:26".parse().unwrap(),
             envelop: Envelop {
                 helo: "toto".to_string(),
                 mail_from: addr!("foo@domain.com"),
@@ -175,11 +177,13 @@ mod tests {
                     },
                 }],
             },
-            metadata: Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                message_id: msg_id.to_string(),
+            metadata: MessageMetadata {
+                timestamp: Some(std::time::SystemTime::now()),
+                message_id: Some(msg_id.to_string()),
                 skipped: None,
-            }),
+                spf: None,
+                dkim: None,
+            },
         }
     }
 
