@@ -168,7 +168,7 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 ## Roadmap
 
-> vSMTP is currently under development.
+> vSMTP is currently under development and not yet ready for production use.
 
 The next releases "1.3.x" will focus on SQL databases support & DMARC. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
 
