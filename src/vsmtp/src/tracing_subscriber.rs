@@ -20,7 +20,7 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use vsmtp_common::collection;
 use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_common::re::{either, log};
-use vsmtp_config::field::{FieldServerSyslog, SyslogFormat, SyslogSocket};
+use vsmtp_config::field::{FieldServerLogSystem, SyslogFormat, SyslogSocket};
 use vsmtp_config::Config;
 
 struct SyslogWriter {
@@ -60,7 +60,7 @@ impl std::io::Write for SyslogWriter {
 }
 
 struct MakeSyslogWriter {
-    config: FieldServerSyslog,
+    config: (SyslogFormat, SyslogSocket),
 }
 
 impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
@@ -84,7 +84,7 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
             }
         }
 
-        let result = match (self.config.format, &self.config.socket) {
+        let result = match (self.config.0, &self.config.1) {
             (SyslogFormat::Rfc3164, SyslogSocket::Udp { local, server }) => {
                 syslog::udp(get_3164(), local, server).map(|logger| {
                     OptionalWriter::some(SyslogWriter {
@@ -203,31 +203,60 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         .with(get_fmt!().with_writer(writer_backend))
         .with(get_fmt!().with_writer(writer_app));
 
-    if let Some(syslog_config) = &config.server.syslog {
-        let subscriber = subscriber.with(
-            get_fmt!()
-                .with_writer(
-                    MakeSyslogWriter {
-                        config: syslog_config.clone(),
-                    }
-                    .with_min_level(match syslog_config.min_level {
-                        log::LevelFilter::Off => unimplemented!(),
-                        log::LevelFilter::Error => tracing::Level::ERROR,
-                        log::LevelFilter::Warn => tracing::Level::WARN,
-                        log::LevelFilter::Info => tracing::Level::INFO,
-                        log::LevelFilter::Debug => tracing::Level::DEBUG,
-                        log::LevelFilter::Trace => tracing::Level::TRACE,
-                    }),
-                )
-                .without_time(),
-        );
+    if let Some(system_log_config) = &config.server.logs.system {
+        match &system_log_config {
+            FieldServerLogSystem::Syslogd {
+                min_level,
+                format,
+                socket,
+            } => {
+                let subscriber = subscriber.with(
+                    get_fmt!()
+                        .with_writer(
+                            MakeSyslogWriter {
+                                config: (*format, socket.clone()),
+                            }
+                            .with_min_level(match min_level {
+                                log::LevelFilter::Off => unimplemented!(),
+                                log::LevelFilter::Error => tracing::Level::ERROR,
+                                log::LevelFilter::Warn => tracing::Level::WARN,
+                                log::LevelFilter::Info => tracing::Level::INFO,
+                                log::LevelFilter::Debug => tracing::Level::DEBUG,
+                                log::LevelFilter::Trace => tracing::Level::TRACE,
+                            }),
+                        )
+                        .without_time(),
+                );
 
-        if args.no_daemon {
-            subscriber
-                .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
-                .try_init()
-        } else {
-            subscriber.try_init()
+                if args.no_daemon {
+                    subscriber
+                        .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
+                        .try_init()
+                } else {
+                    subscriber.try_init()
+                }
+            }
+            FieldServerLogSystem::Journald { .. } => {
+                let subscriber =
+                    subscriber.with(tracing_journald::layer().map_err(|e| anyhow::anyhow!("{e}"))?);
+                /*
+                .with_min_level(match min_level {
+                    log::LevelFilter::Off => unimplemented!(),
+                    log::LevelFilter::Error => tracing::Level::ERROR,
+                    log::LevelFilter::Warn => tracing::Level::WARN,
+                    log::LevelFilter::Info => tracing::Level::INFO,
+                    log::LevelFilter::Debug => tracing::Level::DEBUG,
+                    log::LevelFilter::Trace => tracing::Level::TRACE,
+                }),*/
+
+                if args.no_daemon {
+                    subscriber
+                        .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
+                        .try_init()
+                } else {
+                    subscriber.try_init()
+                }
+            }
         }
     } else if args.no_daemon {
         subscriber

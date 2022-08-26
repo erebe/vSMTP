@@ -79,8 +79,6 @@ pub mod field {
         /// see [`FieldServerLogs`]
         #[serde(default)]
         pub logs: FieldServerLogs,
-        /// see [`FieldServerSyslog`]
-        pub syslog: Option<FieldServerSyslog>,
         /// see [`FieldServerQueues`]
         #[serde(default)]
         pub queues: FieldServerQueues,
@@ -214,6 +212,8 @@ pub mod field {
             deserialize_with = "crate::parser::tracing_directive::deserialize"
         )]
         pub level: Vec<tracing_subscriber::filter::Directive>,
+        /// see [`FieldServerLogSystem`]
+        pub system: Option<FieldServerLogSystem>,
     }
 
     ///
@@ -237,16 +237,16 @@ pub mod field {
         Rfc5424,
     }
 
-    ///
+    /// Configure how the logs are sent to the system log.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
     pub enum SyslogSocket {
         ///
         Udp {
-            ///
+            /// Local address for the UDP stream.
             #[serde(default = "SyslogSocket::default_udp_local")]
             local: std::net::SocketAddr,
-            ///
+            /// Remote address for the UDP stream.
             #[serde(default = "SyslogSocket::default_udp_server")]
             server: std::net::SocketAddr,
         },
@@ -264,16 +264,26 @@ pub mod field {
         },
     }
 
-    /// The configuration of the [`syslog`]
+    /// The configuration of the `system logging module`.
+    ///
+    /// The implementation is backended for `syslogd` or `journald`.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-    #[serde(deny_unknown_fields)]
-    pub struct FieldServerSyslog {
+    #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
+    pub enum FieldServerLogSystem {
+        /// Parameters for the `syslogd` backend.
+        Syslogd {
+            ///
+            min_level: log::LevelFilter,
+            ///
+            format: SyslogFormat,
+            ///
+            socket: SyslogSocket,
+        },
         ///
-        pub min_level: log::LevelFilter,
-        ///
-        pub format: SyslogFormat,
-        ///
-        pub socket: SyslogSocket,
+        Journald {
+            ///
+            min_level: log::LevelFilter,
+        },
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]

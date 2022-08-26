@@ -45,6 +45,7 @@ impl vsmtp_rsasl::Callback<std::sync::Arc<Config>, SessionState> for Callback {
     ) -> Result<(), vsmtp_rsasl::ReturnCode> {
         #[allow(unsafe_code)]
         let config =
+        // SAFETY: we are sure that the session is valid
             unsafe { sasl.retrieve() }.ok_or(vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
         sasl.store(config.clone());
 

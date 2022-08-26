@@ -53,7 +53,6 @@ impl Default for FieldServer {
             dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
             dkim: None,
-            syslog: None,
         }
     }
 }
@@ -143,6 +142,7 @@ impl Default for FieldServerLogs {
             filepath: Self::default_filepath(),
             format: Self::default_format(),
             level: Self::default_level(),
+            system: None,
         }
     }
 }
