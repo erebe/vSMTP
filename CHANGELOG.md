@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [1.2.1] - 2022-08-26
+
 ### Added
 
 * `check_dmarc` vsl function. (#506)
