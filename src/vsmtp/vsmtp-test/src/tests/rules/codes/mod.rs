@@ -39,7 +39,8 @@ async fn info_message() {
             "MAIL FROM:<a@ok.org>\r\n",
             "RCPT TO:<b@ok.org>\r\n",
             "DATA\r\n",
-            ".\r\n"
+            ".\r\n",
+            "QUIT\r\n",
         ]
         .concat(),
         [
@@ -53,6 +54,7 @@ async fn info_message() {
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             "500 I decided that you cannot send data.\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -140,13 +142,15 @@ async fn accept_message() {
             "HELO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "admin", "password"))),
             "MAIL FROM:<admin@company.com>\r\n",
+            "QUIT\r\n",
         ]
         .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "235 2.7.0 Authentication succeeded\r\n",
-            "250 welcome aboard chief\r\n"
+            "250 welcome aboard chief\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }

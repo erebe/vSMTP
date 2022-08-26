@@ -20,13 +20,9 @@ use crate::{
     tests::helpers::{get_default_config, get_default_state},
 };
 use vsmtp_common::{
-    addr,
-    mail_context::MessageMetadata,
-    state::StateSMTP,
-    status::Status,
-    CodeID, MailHeaders, MessageBody, ReplyOrCodeID, {BodyType, Mail},
+    addr, mail_context::MessageMetadata, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
 };
-use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_mail_parser::{BodyType, Mail, MailHeaders, MailMimeParser, MessageBody};
 
 #[test]
 fn test_email_context_empty() {
@@ -100,7 +96,13 @@ fn test_email_context_mail() {
             addr!("rcpt@toremove.org").into(),
             addr!("rcpt@torewrite.net").into(),
         ];
-        state.context().write().unwrap().metadata = Some(MessageMetadata::default());
+        state.context().write().unwrap().metadata = MessageMetadata {
+            timestamp: Some(std::time::SystemTime::now()),
+            message_id: Some("<message-id>".to_string()),
+            skipped: None,
+            spf: None,
+            dkim: None,
+        };
     }
 
     assert_eq!(
@@ -145,7 +147,13 @@ fn test_email_add_get_set_header() {
 
     *state.message().write().unwrap() = MessageBody::default();
 
-    state.context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.context().write().unwrap().metadata = MessageMetadata {
+        timestamp: None,
+        message_id: None,
+        skipped: None,
+        spf: None,
+        dkim: None,
+    };
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),

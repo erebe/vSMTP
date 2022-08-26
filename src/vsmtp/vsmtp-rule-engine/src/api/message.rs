@@ -196,9 +196,10 @@ where
 
 #[cfg(test)]
 mod test {
+    use vsmtp_mail_parser::MessageBody;
+
     use super::*;
     use crate::dsl::object::Object;
-    use vsmtp_common::MessageBody;
 
     #[test]
     fn test_has_header_success() {

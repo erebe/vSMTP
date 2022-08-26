@@ -19,7 +19,6 @@ use crate::auth::{self, Session};
 use super::Connection;
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::ConnectionContext,
     re::{anyhow, base64, log, tokio, vsmtp_rsasl},
     CodeID,
 };
@@ -69,7 +68,7 @@ where
             if !buffer.is_empty() {
                 todo!(
                     "Authentication successful, bytes to return to client: {:?}",
-                    std::str::from_utf8(&*buffer)
+                    std::str::from_utf8(&buffer)
                 );
             }
 
@@ -81,7 +80,7 @@ where
         Ok(vsmtp_rsasl::Step::NeedsMore(buffer)) => {
             let reply = format!(
                 "334 {}\r\n",
-                base64::encode(std::str::from_utf8(&*buffer).unwrap())
+                base64::encode(std::str::from_utf8(&buffer).unwrap())
             );
 
             conn.send(&reply)
@@ -111,7 +110,7 @@ where
 {
     // TODO: if initial data == "=" ; it mean empty ""
 
-    if mechanism.must_be_under_tls() && !conn.is_secured {
+    if mechanism.must_be_under_tls() && !conn.context.is_secured {
         if conn
             .config
             .server
@@ -142,18 +141,7 @@ where
 
     let mut guard = rsasl.lock().await;
     let mut session = guard.server_start(&format!("{mechanism}")).unwrap();
-    session.store(Box::new((
-        rule_engine,
-        resolvers,
-        ConnectionContext {
-            timestamp: conn.timestamp,
-            credentials: None,
-            is_authenticated: conn.is_authenticated,
-            is_secured: conn.is_secured,
-            server_name: conn.server_name.clone(),
-            server_address: conn.server_addr,
-        },
-    )));
+    session.store(Box::new((rule_engine, resolvers, conn.context.clone())));
 
     let mut succeeded =
         auth_step(conn, &mut session, &initial_response.unwrap_or_default()).await?;

@@ -16,7 +16,7 @@
 */
 
 use crate::dkim::Signature;
-use vsmtp_common::MessageBody;
+use vsmtp_mail_parser::MessageBody;
 
 #[test]
 fn mail_5() {

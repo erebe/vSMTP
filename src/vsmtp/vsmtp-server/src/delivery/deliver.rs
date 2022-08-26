@@ -138,7 +138,7 @@ async fn handle_one_in_delivery_queue_inner(
             return Ok(());
         }
         Some(Status::Delegated(delegator)) => {
-            mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
+            mail_context.metadata.skipped = Some(Status::DelegationResult);
 
             queue.move_to(
                 &Queue::Delegated,
@@ -229,14 +229,14 @@ mod tests {
     use super::*;
     use vsmtp_common::{
         addr,
-        envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer},
-        MessageBody,
+        Envelop,
     };
     use vsmtp_config::build_resolvers;
+    use vsmtp_mail_parser::MessageBody;
     use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
@@ -257,9 +257,11 @@ mod tests {
                         is_authenticated: false,
                         is_secured: false,
                         server_name: "testserver.com".to_string(),
-                        server_address: "127.0.0.1:25".parse().unwrap(),
+                        server_addr: "127.0.0.1:25".parse().unwrap(),
+                        client_addr: "127.0.0.1:80".parse().unwrap(),
+                        error_count: 0,
+                        authentication_attempt: 0,
                     },
-                    client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
                         mail_from: addr!("from@testserver.com"),
@@ -280,11 +282,13 @@ mod tests {
                             },
                         ],
                     },
-                    metadata: Some(MessageMetadata {
-                        timestamp: now,
-                        message_id: "message_from_deliver_to_deferred".to_string(),
+                    metadata: MessageMetadata {
+                        timestamp: Some(now),
+                        message_id: Some("message_from_deliver_to_deferred".to_string()),
                         skipped: None,
-                    }),
+                        spf: None,
+                        dkim: None,
+                    },
                 },
             )
             .unwrap();

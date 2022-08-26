@@ -15,6 +15,8 @@
  *
 */
 
+use crate::get_root_domain;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("missing required field: `{field}`")]
@@ -31,7 +33,7 @@ pub enum Version {
     Dmarc1,
 }
 
-#[derive(Debug, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, strum::EnumString, strum::Display)]
 enum AlignmentMode {
     #[strum(serialize = "r")]
     Relaxed,
@@ -39,7 +41,7 @@ enum AlignmentMode {
     Strict,
 }
 
-#[derive(Debug, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, strum::EnumString, strum::Display)]
 enum FailureReportOption {
     #[strum(serialize = "0")]
     All,
@@ -51,7 +53,7 @@ enum FailureReportOption {
     Spf,
 }
 
-#[derive(Debug, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 enum ReceiverPolicy {
     None,
@@ -59,14 +61,14 @@ enum ReceiverPolicy {
     Reject,
 }
 
-#[derive(Debug, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, strum::EnumString, strum::Display)]
 enum ReportFailure {
     #[strum(serialize = "afrf")]
     AuthReportFailureFormat,
 }
 
 /// DNS record `_dmarc.{domain}`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Record {
     version: Version,
@@ -82,6 +84,75 @@ pub struct Record {
     report_aggregate_feedback: Vec<String>,
     // TODO: parse dmarc uri
     report_specific_message: Vec<String>,
+}
+
+impl Record {
+    ///
+    #[must_use]
+    pub fn get_policy(&self) -> String {
+        // TODO: handle subdomain ?
+        self.receiver_policy.to_string()
+    }
+
+    ///
+    #[must_use]
+    pub fn dkim_is_aligned(&self, rfc5322_from: &str, dkim_domain: &str) -> bool {
+        match self.adkim {
+            AlignmentMode::Relaxed => {
+                let (root_rfc5322_from, root_domain_used) =
+                    (get_root_domain(rfc5322_from), get_root_domain(dkim_domain));
+
+                let root_rfc5322_from = match root_rfc5322_from {
+                    Ok(root_rfc5322_from) => root_rfc5322_from,
+                    Err(e) => {
+                        tracing::info!("{}", e);
+                        return false;
+                    }
+                };
+
+                let root_domain_used = match root_domain_used {
+                    Ok(root_domain_used) => root_domain_used,
+                    Err(e) => {
+                        tracing::info!("{}", e);
+                        return false;
+                    }
+                };
+
+                root_rfc5322_from == root_domain_used
+            }
+            AlignmentMode::Strict => rfc5322_from == dkim_domain,
+        }
+    }
+
+    ///
+    #[must_use]
+    pub fn spf_is_aligned(&self, rfc5322_from: &str, spf_domain: &str) -> bool {
+        match self.aspf {
+            AlignmentMode::Relaxed => {
+                let (root_rfc5322_from, root_spf_domain) =
+                    (get_root_domain(rfc5322_from), get_root_domain(spf_domain));
+
+                let root_rfc5322_from = match root_rfc5322_from {
+                    Ok(root_rfc5322_from) => root_rfc5322_from,
+                    Err(e) => {
+                        tracing::info!("{}", e);
+                        return false;
+                    }
+                };
+
+                let root_spf_domain = match root_spf_domain {
+                    Ok(root_spf_domain) => root_spf_domain,
+                    Err(e) => {
+                        tracing::info!("{}", e);
+                        return false;
+                    }
+                };
+
+                root_rfc5322_from == root_spf_domain
+            }
+            AlignmentMode::Strict => rfc5322_from == spf_domain,
+        }
+    }
 }
 
 impl std::str::FromStr for Record {

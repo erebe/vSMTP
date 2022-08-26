@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::MessageBody;
 
-use crate::MailMimeParser;
+use crate::{message::message_body::MessageBody, MailMimeParser};
 
 fn generate_test_bodies() -> (MessageBody, MessageBody) {
     let headers = [

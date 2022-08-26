@@ -441,9 +441,7 @@ impl Builder<WantsServerSMTPConfig2> {
                     rcpt_to: *timeout_client
                         .get(&StateSMTP::RcptTo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
-                    data: *timeout_client
-                        .get(&StateSMTP::Data)
-                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                    data: std::time::Duration::from_millis(1000),
                 },
             },
         }

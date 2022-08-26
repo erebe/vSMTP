@@ -23,12 +23,55 @@ use rhai::plugin::{
 use vsmtp_auth::dkim::{
     Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature, VerifierError,
 };
-use vsmtp_common::{mail_context::MailContext, re::tokio, MessageBody};
+use vsmtp_common::{mail_context::MailContext, re::tokio};
 
 pub use dkim_rhai::*;
+use vsmtp_mail_parser::MessageBody;
 
 #[rhai::plugin::export_module]
 mod dkim_rhai {
+
+    /// Has the `ctx()` a DKIM signature verification result ?
+    #[rhai_fn(global, get = "has_dkim_result", pure, return_raw)]
+    pub fn has_dkim_result(ctx: &mut Context) -> EngineResult<bool> {
+        let guard = vsl_guard_ok!(ctx.read());
+        Ok(guard.metadata.dkim.is_some())
+    }
+
+    /// Return the DKIM signature verification result in the `ctx()` or
+    /// an error if no result is found.
+    #[rhai_fn(global, get = "dkim_result", pure, return_raw)]
+    pub fn dkim_result(ctx: &mut Context) -> EngineResult<rhai::Map> {
+        let guard = vsl_guard_ok!(ctx.read());
+
+        guard.metadata.dkim.as_ref().map_or_else(
+            || Err("no `dkim_result` available".into()),
+            |dkim_result| {
+                Ok(rhai::Map::from_iter([(
+                    "status".into(),
+                    dkim_result.status.clone().into(),
+                )]))
+            },
+        )
+    }
+
+    /// Store the result produced by the DKIM signature verification in the `ctx()`.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, pure, return_raw)]
+    pub fn store_dkim(ctx: &mut Context, result: rhai::Map) -> EngineResult<()> {
+        let mut guard = vsl_guard_ok!(ctx.write());
+        let result = vsmtp_auth::dkim::Result {
+            status: result
+                .get("status")
+                .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+                    "`status` is missing in DKIM verification result".into()
+                })?
+                .to_string(),
+        };
+
+        guard.metadata.dkim = Some(result);
+        Ok(())
+    }
 
     /// get the dkim status from an error produced by this module
     #[rhai_fn(global, return_raw)]

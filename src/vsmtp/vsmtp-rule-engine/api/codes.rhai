@@ -15,7 +15,9 @@
  *
 */
 
-// standard library for SMTP codes
+//! # Codes
+//!
+//! This module contains predefined codes for SMTP responses.
 
 // Relay
 object code554_7_1 code = #{ code: 554, enhanced: "5.7.1", text: "Relay access denied" };
@@ -23,7 +25,6 @@ object code554_7_1 code = #{ code: 554, enhanced: "5.7.1", text: "Relay access d
 // Email authentication status codes
 //
 // See. RFC 7372 for updated codes RFC
-//
 
 // DKIM Failure codes (RFC 6376)
 object code550_7_20 code = #{ code: 550, enhanced: "5.7.20", text: "No passing DKIM signature found" };

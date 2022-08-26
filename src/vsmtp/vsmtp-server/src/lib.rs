@@ -25,6 +25,7 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+#![warn(clippy::undocumented_unsafe_blocks)]
 //
 #![allow(clippy::use_self)]
 
@@ -65,8 +66,8 @@ use vsmtp_common::{
         lettre,
     },
     transfer::SmtpConnection,
-    MessageBody,
 };
+use vsmtp_mail_parser::MessageBody;
 
 /// delegate a message to another service.
 pub(crate) fn delegate(

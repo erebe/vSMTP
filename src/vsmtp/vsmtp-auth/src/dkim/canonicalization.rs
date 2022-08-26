@@ -171,8 +171,9 @@ impl std::str::FromStr for Canonicalization {
 
 #[cfg(test)]
 mod tests {
+    use vsmtp_mail_parser::RawBody;
+
     use crate::dkim::{CanonicalizationAlgorithm, SigningAlgorithm};
-    use vsmtp_common::RawBody;
 
     macro_rules! test_canonicalization {
         ($name:ident, $canon:expr, $algo:expr, $expected:expr) => {

@@ -79,6 +79,8 @@ pub enum CodeID {
     //
     // TLS extension
     //
+    /// The tls handshake can start (STARTTLS)
+    TlsGoAhead,
     ///
     TlsNotAvailable,
     ///

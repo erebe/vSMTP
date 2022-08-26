@@ -30,11 +30,11 @@ use vsmtp_common::{
     re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
-    MessageBody,
 };
 use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 
 mod deferred;
@@ -117,7 +117,6 @@ pub async fn send_mail(
         .get(&config.server.domain)
         .expect("root server's resolver is missing");
 
-    let metadata = &message_ctx.metadata.as_ref().unwrap();
     let from = &message_ctx.envelop.mail_from;
 
     let futures = acc
@@ -133,7 +132,7 @@ pub async fn send_mail(
 
                 Forward::new(forward_target.clone(), resolver).deliver(
                     config,
-                    metadata,
+                    &message_ctx.metadata,
                     from,
                     to,
                     &message_content,
@@ -149,9 +148,13 @@ pub async fn send_mail(
                     )
                     .unwrap_or(root_server_resolver)
             })
-            .deliver(config, metadata, from, to, &message_content),
-            Transfer::Mbox => MBox.deliver(config, metadata, from, to, &message_content),
-            Transfer::Maildir => Maildir.deliver(config, metadata, from, to, &message_content),
+            .deliver(config, &message_ctx.metadata, from, to, &message_content),
+            Transfer::Mbox => {
+                MBox.deliver(config, &message_ctx.metadata, from, to, &message_content)
+            }
+            Transfer::Maildir => {
+                Maildir.deliver(config, &message_ctx.metadata, from, to, &message_content)
+            }
             Transfer::None => unreachable!(),
         })
         .collect::<Vec<_>>();
@@ -228,26 +231,22 @@ fn add_trace_information(
     message: &mut MessageBody,
     rule_engine_result: &Status,
 ) -> anyhow::Result<()> {
-    let metadata = ctx
-        .metadata
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
-
     message.prepend_header(
         "X-VSMTP",
         &create_vsmtp_status_stamp(
-            &metadata.message_id,
+            ctx.metadata.message_id.as_ref().unwrap(),
             env!("CARGO_PKG_VERSION"),
             rule_engine_result,
         ),
     );
+
     message.prepend_header(
         "Received",
         &create_received_stamp(
             &ctx.envelop.helo,
             &config.server.domain,
-            &metadata.message_id,
-            &metadata.timestamp,
+            ctx.metadata.message_id.as_ref().unwrap(),
+            &ctx.metadata.timestamp.unwrap(),
         )
         .context("failed to create Receive header timestamp")?,
     );
@@ -280,7 +279,12 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody, RawBody};
+    use vsmtp_common::{
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
+        status::Status,
+        Envelop,
+    };
+    use vsmtp_mail_parser::{MessageBody, RawBody};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -314,34 +318,36 @@ mod test {
 
     #[test]
     fn test_add_trace_information() {
-        let mut ctx = vsmtp_common::mail_context::MailContext {
+        let mut ctx = MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::UNIX_EPOCH,
                 credentials: None,
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
-                server_address: "127.0.0.1:25".parse().unwrap(),
+                server_addr: "127.0.0.1:25".parse().unwrap(),
+                client_addr: "127.0.0.1:0".parse().unwrap(),
+                error_count: 0,
+                authentication_attempt: 0,
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: vsmtp_common::envelop::Envelop {
+            envelop: Envelop {
                 helo: "localhost".to_string(),
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
-            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
-                timestamp: std::time::SystemTime::UNIX_EPOCH,
-                ..vsmtp_common::mail_context::MessageMetadata::default()
-            }),
+            metadata: MessageMetadata {
+                timestamp: Some(std::time::SystemTime::UNIX_EPOCH),
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            },
         };
 
         let config = vsmtp_config::Config::default();
 
         let mut message = MessageBody::default();
-        ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
+        ctx.metadata.message_id = Some("test_message_id".to_string());
         add_trace_information(&config, &ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
@@ -351,10 +357,9 @@ mod test {
                     "Received: from localhost".to_string(),
                     format!(" by {domain}", domain = config.server.domain),
                     " with SMTP".to_string(),
-                    format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
+                    format!(" id {id}; ", id = ctx.metadata.message_id.as_ref().unwrap()),
                     {
-                        let odt: time::OffsetDateTime =
-                            ctx.metadata.as_ref().unwrap().timestamp.into();
+                        let odt: time::OffsetDateTime = ctx.metadata.timestamp.unwrap().into();
                         odt.format(&time::format_description::well_known::Rfc2822)
                             .unwrap()
                     }
@@ -362,7 +367,7 @@ mod test {
                 .concat(),
                 format!(
                     "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
-                    id = ctx.metadata.as_ref().unwrap().message_id,
+                    id = ctx.metadata.message_id.as_ref().unwrap(),
                     ver = env!("CARGO_PKG_VERSION"),
                 ),
             ])

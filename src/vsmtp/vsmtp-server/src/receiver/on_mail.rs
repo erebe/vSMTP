@@ -22,9 +22,10 @@ use vsmtp_common::{
     re::{anyhow, log, tokio},
     status::Status,
     transfer::EmailTransferStatus,
-    CodeID, MessageBody,
+    CodeID,
 };
 use vsmtp_config::create_app_folder;
+use vsmtp_mail_parser::MessageBody;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
@@ -84,10 +85,10 @@ impl MailHandler {
         mut mail_context: Box<MailContext>,
         mail_message: MessageBody,
     ) -> Result<(), MailHandlerError> {
-        let (mut message_id, skipped) = {
-            let metadata = mail_context.metadata.as_ref().unwrap();
-            (metadata.message_id.clone(), metadata.skipped.clone())
-        };
+        let (mut message_id, skipped) = (
+            mail_context.metadata.message_id.clone().unwrap(),
+            mail_context.metadata.skipped.clone(),
+        );
 
         let mut write_to_queue = Option::<Queue>::None;
         let mut send_to_next_process = Option::<Process>::None;
@@ -97,8 +98,7 @@ impl MailHandler {
             Some(Status::Quarantine(path)) => {
                 let mut path = create_app_folder(&conn.config, Some(path))
                     .map_err(MailHandlerError::CreateAppFolder)?;
-
-                path.push(format!("{}.json", message_id));
+                path.push(format!("{message_id}.json"));
 
                 Queue::write_to_quarantine(&path, &mail_context)
                     .await

@@ -17,8 +17,9 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID, MessageBody};
+use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
 use vsmtp_config::Config;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::{Connection, OnMail};
 
 #[derive(Clone)]

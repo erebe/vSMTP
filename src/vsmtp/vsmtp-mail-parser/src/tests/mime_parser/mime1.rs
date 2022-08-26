@@ -14,10 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::parser::MailMimeParser;
-use vsmtp_common::{
-    collection, BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader,
-    MimeMultipart,
+use crate::{
+    collection,
+    message::{
+        mail::{BodyType, Mail, MailHeaders},
+        mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
+    },
+    parser::MailMimeParser,
+    MailParser,
 };
 
 const MAIL: &str = include_str!("../mail/mime1.eml");

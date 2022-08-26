@@ -15,10 +15,7 @@
  *
 */
 use crate::api::{EngineResult, SharedObject};
-use crate::dsl::service::{
-    cmd::{run, CmdResult},
-    Service,
-};
+use crate::dsl::service::{cmd::run, Service};
 use rhai::{
     plugin::{mem, FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
     Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
@@ -43,7 +40,7 @@ mod services {
 
     /// execute the given cmd service.
     #[rhai_fn(global, name = "cmd_run", return_raw, pure)]
-    pub fn cmd_run(service: &mut std::sync::Arc<Service>) -> EngineResult<CmdResult> {
+    pub fn cmd_run(service: &mut std::sync::Arc<Service>) -> EngineResult<rhai::Map> {
         if let Service::Cmd {
             timeout,
             user,
@@ -64,7 +61,7 @@ mod services {
     pub fn run_cmd_with_args(
         service: &mut std::sync::Arc<Service>,
         args: rhai::Array,
-    ) -> EngineResult<CmdResult> {
+    ) -> EngineResult<rhai::Map> {
         if let Service::Cmd {
             timeout,
             user,

@@ -49,7 +49,8 @@ pub struct Config {
 /// The inner field of the `vSMTP`'s configuration.
 #[allow(clippy::module_name_repetitions)]
 pub mod field {
-    pub use super::*;
+    use super::{serde_as, CodeID, Mechanism, Reply};
+    use vsmtp_common::re::{log, strum};
 
     /// This structure contains all the field to configure the server at the startup.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -211,6 +212,78 @@ pub mod field {
             deserialize_with = "crate::parser::tracing_directive::deserialize"
         )]
         pub level: Vec<tracing_subscriber::filter::Directive>,
+        /// see [`FieldServerLogSystem`]
+        pub system: Option<FieldServerLogSystem>,
+    }
+
+    ///
+    #[derive(
+        Debug,
+        Copy,
+        Clone,
+        PartialEq,
+        Eq,
+        strum::Display,
+        strum::EnumString,
+        serde_with::DeserializeFromStr,
+        serde_with::SerializeDisplay,
+    )]
+    pub enum SyslogFormat {
+        ///
+        #[strum(serialize = "3164")]
+        Rfc3164,
+        ///
+        #[strum(serialize = "5424")]
+        Rfc5424,
+    }
+
+    /// Configure how the logs are sent to the system log.
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
+    pub enum SyslogSocket {
+        ///
+        Udp {
+            /// Local address for the UDP stream.
+            #[serde(default = "SyslogSocket::default_udp_local")]
+            local: std::net::SocketAddr,
+            /// Remote address for the UDP stream.
+            #[serde(default = "SyslogSocket::default_udp_server")]
+            server: std::net::SocketAddr,
+        },
+        ///
+        Tcp {
+            ///
+            #[serde(default = "SyslogSocket::default_tcp_server")]
+            server: std::net::SocketAddr,
+        },
+        ///
+        Unix {
+            ///
+            #[serde(default = "SyslogSocket::default_unix_path")]
+            path: std::path::PathBuf,
+        },
+    }
+
+    /// The configuration of the `system logging module`.
+    ///
+    /// The implementation is backended for `syslogd` or `journald`.
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
+    pub enum FieldServerLogSystem {
+        /// Parameters for the `syslogd` backend.
+        Syslogd {
+            ///
+            min_level: log::LevelFilter,
+            ///
+            format: SyslogFormat,
+            ///
+            socket: SyslogSocket,
+        },
+        ///
+        Journald {
+            ///
+            min_level: log::LevelFilter,
+        },
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]
@@ -313,6 +386,12 @@ pub mod field {
         },
     }
 
+    impl Default for TlsSecurityLevel {
+        fn default() -> Self {
+            TlsSecurityLevel::Encrypt
+        }
+    }
+
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
@@ -328,6 +407,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
         /// Policy of security for the TLS connection.
+        #[serde(default)]
         pub security_level: TlsSecurityLevel,
         /// Ignore the client’s ciphersuite order.
         /// Instead, choose the top ciphersuite in the server list which is supported by the client.

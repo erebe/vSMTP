@@ -18,7 +18,7 @@ use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::tokio;
 use vsmtp_common::CodeID;
-use vsmtp_common::MessageBody;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
@@ -81,7 +81,8 @@ async fn test_family_setup() {
             "Subject: Hi from France!\r\n",
             "\r\n",
             "Hey Jenny ! It's been a while since ....\r\n",
-            ".\r\n"
+            ".\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -92,6 +93,7 @@ async fn test_family_setup() {
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }

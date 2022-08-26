@@ -5,8 +5,8 @@ use vsmtp_common::{
         anyhow::{self, Context},
         serde_json,
     },
-    MessageBody,
 };
+use vsmtp_mail_parser::MessageBody;
 
 pub fn show<OUT: std::io::Write>(
     msg_id: &str,
@@ -47,12 +47,13 @@ mod tests {
     use super::*;
     use vsmtp_common::{
         addr,
-        envelop::Envelop,
         mail_context::{ConnectionContext, MessageMetadata},
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
+        Envelop,
     };
+    use vsmtp_mail_parser::MessageBody;
 
     fn get_mail(msg_id: &str) -> (MailContext, MessageBody) {
         (
@@ -63,9 +64,11 @@ mod tests {
                     is_authenticated: false,
                     is_secured: false,
                     server_name: "testserver.com".to_string(),
-                    server_address: "0.0.0.0:25".parse().unwrap(),
+                    server_addr: "0.0.0.0:25".parse().unwrap(),
+                    error_count: 0,
+                    client_addr: "0.0.0.0:26".parse().unwrap(),
+                    authentication_attempt: 0,
                 },
-                client_addr: "0.0.0.0:26".parse().unwrap(),
                 envelop: Envelop {
                     helo: "toto".to_string(),
                     mail_from: addr!("foo@domain.com"),
@@ -77,11 +80,13 @@ mod tests {
                         },
                     }],
                 },
-                metadata: Some(MessageMetadata {
-                    timestamp: std::time::SystemTime::now(),
-                    message_id: msg_id.to_string(),
+                metadata: MessageMetadata {
+                    timestamp: Some(std::time::SystemTime::now()),
+                    message_id: Some(msg_id.to_string()),
                     skipped: None,
-                }),
+                    spf: None,
+                    dkim: None,
+                },
             },
             MessageBody::try_from(concat!(
                 "From: foo2 foo <foo2@foo>\r\n",

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -33,6 +31,7 @@ pub use utils_rhai::*;
 
 #[rhai::plugin::export_module]
 mod utils_rhai {
+    use crate::dsl::object::Object;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
@@ -108,14 +107,21 @@ mod utils_rhai {
     /// # Examples
     ///
     /// `foo.bar.example.com` => `example.com`
-    #[rhai_fn(global, return_raw)]
-    pub fn get_root_domain(domain: &str) -> EngineResult<String> {
-        if let Ok(domain) = addr::parse_domain_name(domain) {
-            Ok(domain
-                .root()
-                .map_or_else(|| domain.to_string(), ToString::to_string))
-        } else {
-            Err(format!("failed to parse as domain: `{domain}`").into())
+    #[rhai_fn(global)]
+    #[must_use]
+    pub fn get_root_domain(domain: &str) -> String {
+        match vsmtp_auth::get_root_domain(domain) {
+            Ok(root) => root,
+            Err(_) => domain.to_string(),
+        }
+    }
+
+    /// Get the root domain (the registrable part)
+    #[rhai_fn(global, name = "get_root_domain", pure, return_raw)]
+    pub fn get_root_domain_obj(domain: &mut SharedObject) -> EngineResult<String> {
+        match domain.as_ref() {
+            Object::Fqdn(domain) | Object::Str(domain) => Ok(get_root_domain(domain)),
+            _ => Err(format!("type `{}` is not a domain", domain.as_ref()).into()),
         }
     }
 
@@ -199,7 +205,8 @@ pub fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
 pub fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
     let ip = vsl_conversion_ok!(
         "ip address",
-        std::net::IpAddr::from_str(ip).context("fail to parse ip address in rlookup")
+        <std::net::IpAddr as std::str::FromStr>::from_str(ip)
+            .context("fail to parse ip address in rlookup")
     );
     let resolver = server
         .resolvers

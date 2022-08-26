@@ -73,6 +73,7 @@ impl Builder<WantsValidate> {
                     filepath: srv_logs.filepath,
                     format: srv_logs.format,
                     level: srv_logs.level,
+                    system: None,
                 },
                 queues: FieldServerQueues {
                     dirpath: srv_delivery.dirpath,

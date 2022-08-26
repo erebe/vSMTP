@@ -14,10 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{Either, Mail, RawBody};
+
+use crate::message::{mail::Mail, raw_body::RawBody};
 
 ///
-pub type ParserOutcome = anyhow::Result<Either<RawBody, Mail>>;
+pub type ParserOutcome = anyhow::Result<either::Either<RawBody, Mail>>;
 
 /// An abstract mail parser
 pub trait MailParser: Default {

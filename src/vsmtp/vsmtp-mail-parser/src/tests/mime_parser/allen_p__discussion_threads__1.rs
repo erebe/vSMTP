@@ -15,8 +15,13 @@
  *
 */
 use crate::parser::MailMimeParser;
-use vsmtp_common::{
-    collection, BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader,
+use crate::{
+    collection,
+    message::{
+        mail::{BodyType, Mail, MailHeaders},
+        mime_type::{Mime, MimeBodyType, MimeHeader},
+    },
+    MailParser,
 };
 
 const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");

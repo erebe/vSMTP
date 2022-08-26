@@ -22,12 +22,11 @@ use vsmtp_common::re::{addr, serde_json, tokio};
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
     mail_context::MessageMetadata, state::StateSMTP, status::Status, transfer::Transfer,
-    MessageBody,
 };
 use vsmtp_common::{CodeID, ReplyOrCodeID};
 use vsmtp_config::build_resolvers;
 use vsmtp_config::field::FieldServerVirtual;
-use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_mail_parser::{MailMimeParser, MessageBody};
 
 #[test]
 fn test_logs() {
@@ -67,11 +66,13 @@ fn test_context_write() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.context().write().unwrap().metadata = Some(MessageMetadata {
-        message_id: "test_message_id".to_string(),
-        timestamp: std::time::SystemTime::now(),
+    state.context().write().unwrap().metadata = MessageMetadata {
+        message_id: Some("test_message_id".to_string()),
+        timestamp: Some(std::time::SystemTime::now()),
         skipped: None,
-    });
+        spf: None,
+        dkim: None,
+    };
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
@@ -120,11 +121,13 @@ fn test_context_dump() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.context().write().unwrap().metadata = Some(MessageMetadata {
-        message_id: "test_message_id".to_string(),
-        timestamp: std::time::SystemTime::now(),
+    state.context().write().unwrap().metadata = MessageMetadata {
+        message_id: Some("test_message_id".to_string()),
+        timestamp: Some(std::time::SystemTime::now()),
         skipped: None,
-    });
+        spf: None,
+        dkim: None,
+    };
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
@@ -172,11 +175,13 @@ fn test_quarantine() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.context().write().unwrap().metadata = Some(MessageMetadata {
-        message_id: "test_message_id".to_string(),
-        timestamp: std::time::SystemTime::now(),
+    state.context().write().unwrap().metadata = MessageMetadata {
+        message_id: Some("test_message_id".to_string()),
+        timestamp: Some(std::time::SystemTime::now()),
         skipped: None,
-    });
+        spf: None,
+        dkim: None,
+    };
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),

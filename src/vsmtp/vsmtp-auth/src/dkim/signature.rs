@@ -15,8 +15,9 @@
  *
 */
 
+use vsmtp_mail_parser::RawBody;
+
 use super::{Canonicalization, SigningAlgorithm};
-use vsmtp_common::{re::log, RawBody};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -197,7 +198,7 @@ impl Signature {
     pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
         let header = self.get_header_for_hash(message);
 
-        log::debug!("header before hash={:?}", header);
+        tracing::debug!("header before hash={:?}", header);
 
         self.signing_algorithm.hash(header)
     }

@@ -30,7 +30,6 @@ use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
 use vsmtp_common::re::serde_json;
-use vsmtp_common::MessageBody;
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
@@ -40,6 +39,7 @@ use vsmtp_common::{
     status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
+use vsmtp_mail_parser::MessageBody;
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
@@ -227,12 +227,12 @@ impl RuleEngine {
                             // FIXME: this is only useful for preq, the other processes
                             //        already fetch the old context.
                             match MailContext::from_file_path_sync(&path_to_context) {
-                                    Ok(mut context) => {
-                                        context.metadata.as_mut().unwrap().skipped = None;
-                                        *rule_state.context().write().unwrap() = context;
-                                    },
-                                    Err(err) => log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}")
-                                };
+                                Ok(mut context) => {
+                                    context.metadata.skipped = None;
+                                    *rule_state.context().write().unwrap() = context;
+                                },
+                                Err(err) => log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}")
+                            };
 
                             rule_state.resume();
                             &directive_set[d..]
@@ -367,12 +367,22 @@ impl RuleEngine {
             .compile_scripts_with_scope(
                 &rhai::Scope::new(),
                 [
+                    // objects.
                     include_str!("../api/codes.rhai"),
                     include_str!("../api/networks.rhai"),
+                    // functions.
                     include_str!("../api/auth.rhai"),
+                    include_str!("../api/connection.rhai"),
+                    include_str!("../api/delivery.rhai"),
+                    include_str!("../api/envelop.rhai"),
+                    include_str!("../api/getters.rhai"),
+                    include_str!("../api/internal.rhai"),
+                    include_str!("../api/message.rhai"),
+                    include_str!("../api/security.rhai"),
+                    include_str!("../api/services.rhai"),
+                    include_str!("../api/status.rhai"),
+                    include_str!("../api/transaction.rhai"),
                     include_str!("../api/utils.rhai"),
-                    include_str!("../api/sys-api.rhai"),
-                    include_str!("../api/rhai-api.rhai"),
                 ],
             )
             .context("failed to compile vsl's api")?;

@@ -2,16 +2,16 @@ import "rcpt_identifiers" as ident;
 
 #{
   rcpt: [
-    rule "test_ident" || if ident::john in ctx().rcpt_list.local_parts { next() } else { deny() },
-    rule "test_fqdn" || if ident::bar in ctx().rcpt_list.domains { next() } else { deny() },
-    rule "test_addr" || if ident::customer in ctx().rcpt_list { accept() } else { deny() },
+    rule "test_ident" || if ident::john in rcpt_list().local_parts { next() } else { deny() },
+    rule "test_fqdn" || if ident::bar in rcpt_list().domains { next() } else { deny() },
+    rule "test_addr" || if ident::customer in rcpt_list() { accept() } else { deny() },
   ],
 
   postq: [
     action "test_rewrite" || {
-      ctx().rewrite_rcpt_envelop("johndoe@compagny.com", "johndoe@example.com");
-      ctx().remove_rcpt_envelop("customer@company.com");
-      ctx().add_rcpt_envelop("no-reply@example.com");
+      rewrite_rcpt_envelop("johndoe@compagny.com", "johndoe@example.com");
+      remove_rcpt_envelop("customer@company.com");
+      add_rcpt_envelop("no-reply@example.com");
     },
   ]
 }

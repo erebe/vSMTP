@@ -15,8 +15,8 @@
  *
 */
 use vsmtp_common::{
-    auth::Credentials, auth::Mechanism, mail_context::ConnectionContext, re::vsmtp_rsasl,
-    state::StateSMTP, status::Status,
+    auth::Credentials, mail_context::ConnectionContext, re::vsmtp_rsasl, state::StateSMTP,
+    status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{RuleEngine, RuleState};
@@ -45,6 +45,7 @@ impl vsmtp_rsasl::Callback<std::sync::Arc<Config>, SessionState> for Callback {
     ) -> Result<(), vsmtp_rsasl::ReturnCode> {
         #[allow(unsafe_code)]
         let config =
+        // SAFETY: we are sure that the session is valid
             unsafe { sasl.retrieve() }.ok_or(vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
         sasl.store(config.clone());
 
@@ -93,10 +94,7 @@ impl vsmtp_rsasl::Callback<std::sync::Arc<Config>, SessionState> for Callback {
             let mut rule_state =
                 RuleState::with_connection(&config, resolvers.clone(), rule_engine, conn);
 
-            rule_engine.run_when(
-                &mut rule_state,
-                &StateSMTP::Authenticate(Mechanism::default(), None),
-            )
+            rule_engine.run_when(&mut rule_state, &StateSMTP::Authenticate)
         };
 
         match prop {

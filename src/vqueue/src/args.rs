@@ -2,7 +2,7 @@ use vsmtp_common::queue::Queue;
 
 ///
 #[derive(clap::Parser)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[clap(about, version, author)]
 pub struct Args {
     /// Path of the vSMTP configuration file (toml format)
@@ -16,7 +16,7 @@ pub struct Args {
 
 ///
 #[derive(clap::Subcommand)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum Commands {
     /// Show the content of the given queue(s)
     Show {
@@ -40,7 +40,7 @@ pub enum Commands {
 
 ///
 #[derive(Clone, clap::Subcommand)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageCommand {
     /// Print the content of the message
     Show {
@@ -66,7 +66,7 @@ pub enum MessageCommand {
 
 ///
 #[derive(Clone, clap::ArgEnum)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageShowFormat {
     /// Message's body as .eml (bytes between DATA and \r\n.\r\n)
     Eml,

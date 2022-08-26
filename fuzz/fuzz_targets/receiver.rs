@@ -1,7 +1,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind, MessageBody};
+use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind};
 use vsmtp_config::Config;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
 use vsmtp_test::receiver::Mock;

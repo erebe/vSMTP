@@ -16,39 +16,23 @@
 */
 use crate::AbstractIO;
 use vsmtp_common::{
+    mail_context::ConnectionContext,
     re::{anyhow, log, tokio},
     CodeID, ConnectionKind, Reply, ReplyOrCodeID,
 };
 use vsmtp_config::Config;
 
-// TODO:? merge with [`ConnectionContext`]
 /// Instance containing connection to the server's information
 pub struct Connection<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
-    /// server's port
+    /// Kind of connection
     pub kind: ConnectionKind,
-    /// server's domain of the connection, (from config.server.domain or sni)
-    pub server_name: String,
-    /// connection timestamp
-    pub timestamp: std::time::SystemTime,
-    /// is still alive
-    pub is_alive: bool,
+    /// Data related to this connection
+    pub context: ConnectionContext,
     /// server's configuration
     pub config: std::sync::Arc<Config>,
-    /// peer socket address
-    pub client_addr: std::net::SocketAddr,
-    /// address used for this connection
-    pub server_addr: std::net::SocketAddr,
-    /// number of error the client made so far
-    pub error_count: i64,
-    /// is under tls (tunneled or opportunistic)
-    pub is_secured: bool,
-    /// has completed SASL challenge (AUTH)
-    pub is_authenticated: bool,
-    /// number of time the AUTH command has been received (and failed)
-    pub authentication_attempt: i64,
     /// inner stream
     pub inner: AbstractIO<S>,
 }
@@ -59,17 +43,8 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Connection")
+            .field("context", &self.context)
             .field("kind", &self.kind)
-            .field("server_name", &self.server_name)
-            .field("timestamp", &self.timestamp)
-            .field("is_alive", &self.is_alive)
-            .field("client_addr", &self.client_addr)
-            .field("server_addr", &self.server_addr)
-            .field("error_count", &self.error_count)
-            .field("is_secured", &self.is_secured)
-            .field("is_authenticated", &self.is_authenticated)
-            .field("authentication_attempt", &self.authentication_attempt)
-            // .field("inner", &self.inner)
             .finish()
     }
 }
@@ -87,49 +62,20 @@ where
         inner: S,
     ) -> Self {
         Self {
-            kind,
-            server_name: config.server.domain.clone(),
-            timestamp: std::time::SystemTime::now(),
-            is_alive: true,
+            context: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                client_addr,
+                credentials: None,
+                server_name: config.server.domain.clone(),
+                server_addr,
+                is_authenticated: false,
+                is_secured: false,
+                error_count: 0,
+                authentication_attempt: 0,
+            },
             config,
-            client_addr,
-            server_addr,
-            error_count: 0,
-            is_secured: false,
             inner: AbstractIO::new(inner),
-            is_authenticated: false,
-            authentication_attempt: 0,
-        }
-    }
-
-    ///
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_with(
-        kind: ConnectionKind,
-        server_name: String,
-        timestamp: std::time::SystemTime,
-        config: std::sync::Arc<Config>,
-        client_addr: std::net::SocketAddr,
-        server_addr: std::net::SocketAddr,
-        error_count: i64,
-        is_secured: bool,
-        is_authenticated: bool,
-        authentication_attempt: i64,
-        inner: S,
-    ) -> Self {
-        Self {
             kind,
-            server_name,
-            timestamp,
-            is_alive: true,
-            config,
-            client_addr,
-            server_addr,
-            error_count,
-            is_secured,
-            is_authenticated,
-            authentication_attempt,
-            inner: AbstractIO::new(inner),
         }
     }
 }
@@ -172,12 +118,12 @@ where
             self.send(&reply.fold()).await?;
             return Ok(());
         }
-        self.error_count += 1;
+        self.context.error_count += 1;
 
         let hard_error = self.config.server.smtp.error.hard_count;
         let soft_error = self.config.server.smtp.error.soft_count;
 
-        if hard_error != -1 && self.error_count >= hard_error {
+        if hard_error != -1 && self.context.error_count >= hard_error {
             log::warn!("hard error count max reached `{hard_error}`, closing connection");
             self.send(
                 &Reply::combine(
@@ -199,7 +145,7 @@ where
 
         self.send(&reply.fold()).await?;
 
-        if soft_error != -1 && self.error_count >= soft_error {
+        if soft_error != -1 && self.context.error_count >= soft_error {
             log::info!("soft error reached `{soft_error}`, delaying connection");
             tokio::time::sleep(self.config.server.smtp.error.delay).await;
         }

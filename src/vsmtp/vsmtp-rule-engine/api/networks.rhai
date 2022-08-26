@@ -15,7 +15,9 @@
  *
 */
 
-// standard library for network objects
+//! # Networks
+//!
+//! Standard objects for networking.
 
 object net_192 rg4 = "192.168.0.0/16";
 object net_172 rg4 = "172.16.0.0/12";

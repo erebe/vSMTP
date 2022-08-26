@@ -83,6 +83,8 @@ fn try_main() -> anyhow::Result<()> {
         bind_sockets(&config.server.interfaces.addr_submissions)?,
     );
 
+    vsmtp::tracing_subscriber::initialize(&args, &config)?;
+
     if !args.no_daemon {
         daemon(false, false)?;
         initgroups(
@@ -99,8 +101,6 @@ fn try_main() -> anyhow::Result<()> {
         // setresuid ?
         // setuid(config.server.system.user.uid())?;
     }
-
-    vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
     start_runtime(config, sockets, args.timeout.map(|t| t.0))
 }

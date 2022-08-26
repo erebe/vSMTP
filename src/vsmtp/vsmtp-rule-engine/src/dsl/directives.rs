@@ -111,9 +111,9 @@ impl Directive {
                                     "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
                                     vsl_guard_ok!(state.context().read())
                                         .metadata
+                                        .message_id
                                         .as_ref()
                                         .unwrap()
-                                        .message_id
                                 ),
                             );
 

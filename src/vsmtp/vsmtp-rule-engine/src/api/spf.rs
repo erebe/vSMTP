@@ -17,13 +17,11 @@
 use crate::api::{
     EngineResult, {Context, Server},
 };
-use rhai::{
-    plugin::{
-        mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
-        TypeId,
-    },
-    EvalAltResult,
+use rhai::plugin::{
+    mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
+    TypeId,
 };
+use vsmtp_auth::spf;
 use vsmtp_common::re::tokio;
 
 pub use security::*;
@@ -33,6 +31,7 @@ mod security {
 
     /// evaluate a sender identity.
     /// the identity parameter can be 'helo', 'mail_from' or 'both'.
+    ///
     /// # Results
     /// a rhai Map with:
     //    * result (String) : the result of an SPF evaluation.
@@ -40,58 +39,46 @@ mod security {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
     pub fn check_spf(ctx: &mut Context, srv: Server) -> EngineResult<rhai::Map> {
-        fn query_spf(
-            resolver: &impl viaspf::lookup::Lookup,
-            ip: std::net::IpAddr,
-            sender: &viaspf::Sender,
-        ) -> rhai::Map {
-            let result = tokio::task::block_in_place(move || {
-                tokio::runtime::Handle::current().block_on(async move {
-                    viaspf::evaluate_sender(resolver, &viaspf::Config::default(), ip, sender, None)
-                        .await
-                })
-            });
-
-            map_from_query_result(&result)
+        {
+            let guard = vsl_guard_ok!(ctx.read());
+            if let Some(previous_spf) = &guard.metadata.spf {
+                return Ok(result_to_map(previous_spf.clone()));
+            }
         }
 
         let (mail_from, ip) = {
-            let ctx = &ctx
-                .read()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?;
-            (ctx.envelop.mail_from.clone(), ctx.client_addr.ip())
+            let ctx = vsl_guard_ok!(ctx.read());
+            (
+                ctx.envelop.mail_from.clone(),
+                ctx.connection.client_addr.ip(),
+            )
         };
 
         let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
-        Ok(match mail_from.full().parse() {
-            Ok(sender) => query_spf(resolver, ip, &sender),
-            _ => rhai::Map::from_iter([("result".into(), "none".into())]),
-        })
+        match mail_from.full().parse() {
+            Err(..) => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
+            Ok(sender) => {
+                let spf_result = tokio::task::block_in_place(move || {
+                    tokio::runtime::Handle::current()
+                        .block_on(vsmtp_auth::spf::evaluate(resolver, ip, &sender))
+                });
+
+                let mut guard = vsl_guard_ok!(ctx.write());
+                guard.metadata.spf = Some(spf_result.clone());
+
+                Ok(result_to_map(spf_result))
+            }
+        }
     }
 }
 
-/// create a instance from viaspf query result struct.
-#[must_use]
-fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
+fn result_to_map(spf_result: spf::Result) -> rhai::Map {
     rhai::Map::from_iter([
-        (
-            "result".into(),
-            rhai::Dynamic::from(q_result.spf_result.to_string()),
-        ),
-        {
-            q_result.cause.as_ref().map_or(
-                ("mechanism".into(), rhai::Dynamic::from("default")),
-                |cause| match cause {
-                    viaspf::SpfResultCause::Match(mechanism) => (
-                        "mechanism".into(),
-                        rhai::Dynamic::from(mechanism.to_string()),
-                    ),
-                    viaspf::SpfResultCause::Error(error) => {
-                        ("problem".into(), rhai::Dynamic::from(error.to_string()))
-                    }
-                },
-            )
+        ("result".into(), rhai::Dynamic::from(spf_result.result)),
+        match spf_result.details {
+            spf::Details::Mechanism(mechanism) => ("mechanism".into(), mechanism.into()),
+            spf::Details::Problem(error) => ("problem".into(), error.into()),
         },
     ])
 }

@@ -8,6 +8,8 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)] // false positive with enums
 
 /*
  * vSMTP mail transfer agent
@@ -32,10 +34,39 @@ mod parser;
 pub use parser::get_mime_header;
 pub use parser::MailMimeParser;
 
-mod log_channels {
-    /// mail parser.
-    pub const PARSER: &str = "server::parser";
+mod message {
+    pub mod mail;
+    #[allow(clippy::module_name_repetitions)]
+    pub mod message_body;
+    pub mod mime_type;
+    pub mod raw_body;
 }
+
+pub use message::mail::*;
+pub use message::message_body::*;
+pub use message::mime_type::*;
+pub use message::raw_body::*;
+
+mod traits {
+    pub mod mail_parser;
+}
+
+pub use traits::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
 
 #[cfg(test)]
 pub mod tests;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! collection {
+    // map-like
+    ($($k:expr => $v:expr),* $(,)?) => {{
+        use std::iter::{Iterator, IntoIterator};
+        Iterator::collect(IntoIterator::into_iter([$(($k, $v),)*]))
+    }};
+    // set-like
+    ($($v:expr),* $(,)?) => {{
+        use std::iter::{Iterator, IntoIterator};
+        Iterator::collect(IntoIterator::into_iter([$($v,)*]))
+    }};
+}

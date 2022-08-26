@@ -25,6 +25,7 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+#![warn(clippy::undocumented_unsafe_blocks)]
 //
 #![allow(clippy::use_self)] // false positive with enums
 
@@ -54,7 +55,7 @@ pub enum ConnectionKind {
 }
 
 #[macro_use]
-mod r#type {
+mod types {
     #[macro_use]
     pub mod address;
     pub mod code_id;
@@ -62,25 +63,13 @@ mod r#type {
     pub mod reply_code;
 }
 
-mod either;
-pub use either::Either;
-
-mod message {
-    pub mod mail;
-    #[allow(clippy::module_name_repetitions)]
-    pub mod message_body;
-    pub mod mime_type;
-    pub mod raw_body;
-}
-
-pub use message::{mail::*, message_body::MessageBody, mime_type::*, raw_body::RawBody};
-pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
+pub use types::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
-pub type ReplyOrCodeID = Either<CodeID, Reply>;
+pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
 
-/// envelop of a transaction
-pub mod envelop;
+mod envelop;
+pub use envelop::Envelop;
 
 /// parsed command of the client
 pub mod event;
@@ -118,12 +107,6 @@ pub mod auth {
     pub use mechanism::Mechanism;
 }
 
-mod r#trait {
-    pub mod mail_parser;
-}
-
-pub use r#trait::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
-
 #[cfg(test)]
 mod tests {
     mod event;
@@ -136,6 +119,7 @@ pub mod re {
     pub use addr;
     pub use anyhow;
     pub use base64;
+    pub use either;
     pub use lettre;
     pub use libc;
     pub use log;

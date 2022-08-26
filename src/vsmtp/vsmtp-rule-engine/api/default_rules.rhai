@@ -14,6 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+//! # Default Rules
+//!
+//! This is the rule that is loaded by default if no configuration as been found.
+
 #{
     connect: [
         rule "reject by default" || deny(),

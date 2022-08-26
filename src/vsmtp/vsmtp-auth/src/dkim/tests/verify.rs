@@ -17,7 +17,7 @@
 
 use crate::dkim::{PublicKey, Signature};
 use trust_dns_resolver::config::ResolverOpts;
-use vsmtp_common::MessageBody;
+use vsmtp_mail_parser::MessageBody;
 
 async fn verify(mail: &str) {
     let body = MessageBody::try_from(mail).unwrap();

@@ -42,6 +42,7 @@ pub enum ForkResult {
 #[inline]
 pub fn fork() -> anyhow::Result<ForkResult> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::fork() } {
         // [coverage] hard to test (other than bomb fork)
         -1 => Err(anyhow::anyhow!(
@@ -71,6 +72,7 @@ pub fn fork() -> anyhow::Result<ForkResult> {
 
 pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::daemon(i32::from(nochdir), i32::from(noclose)) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
@@ -90,6 +92,7 @@ pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
 /// Thus, in particular, setsid() fails if the calling process is already a process group leader.
 pub fn setsid() -> anyhow::Result<libc::pid_t> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::setsid() } {
         -1 => Err(anyhow::anyhow!(
             "setsid: '{}'",
@@ -107,6 +110,7 @@ pub fn setsid() -> anyhow::Result<libc::pid_t> {
 #[inline]
 pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::setuid(uid) } {
         -1 => Err(anyhow::anyhow!(
             "setuid: '{}'",
@@ -124,6 +128,7 @@ pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
 #[inline]
 pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::setgid(gid) } {
         -1 => Err(anyhow::anyhow!(
             "setgid: '{}'",
@@ -141,6 +146,7 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
     let user = std::ffi::CString::new(user)?;
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::initgroups(user.as_ptr(), gid) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
@@ -159,6 +165,7 @@ pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
 pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> anyhow::Result<()> {
     let path = std::ffi::CString::new(path.to_string_lossy().as_bytes())?;
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe {
         libc::chown(
             path.as_ptr(),
@@ -186,6 +193,7 @@ pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> a
 pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
     let ifname = std::ffi::CString::new(name)?;
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::if_nametoindex(ifname.as_ptr()) } {
         0 => Err(anyhow::anyhow!(
             "if_nametoindex: '{}'",
@@ -205,19 +213,16 @@ pub fn if_indextoname(index: u32) -> anyhow::Result<String> {
     let mut buf = [0; libc::IF_NAMESIZE];
 
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     match unsafe { libc::if_indextoname(index, buf.as_mut_ptr()) } {
         null if null.is_null() => Err(anyhow::anyhow!(
             "if_indextoname: '{}'",
             std::io::Error::last_os_error()
         )),
-        _ => Ok(String::from_utf8(
-            buf.into_iter()
-                .map_while(|c| match c {
-                    0 => None,
-                    otherwise => Some(u8::try_from(otherwise).ok()?),
-                })
-                .collect::<Vec<_>>(),
-        )?),
+        // SAFETY: the foreign allocated is used correctly as specified in `CStr::from_ptr`
+        _ => Ok(unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
+            .to_str()?
+            .to_string()),
     }
 }
 
@@ -229,12 +234,15 @@ pub fn if_indextoname(index: u32) -> anyhow::Result<String> {
 /// * the filepath does not contain valid utf8 data
 pub fn getpwuid(uid: libc::uid_t) -> anyhow::Result<std::path::PathBuf> {
     #[allow(unsafe_code)]
+    // SAFETY: ffi call
     let passwd = unsafe { libc::getpwuid(uid) };
     #[allow(unsafe_code)]
+    // SAFETY: `passwd` is a valid pointer
     if passwd.is_null() || unsafe { *passwd }.pw_dir.is_null() {
         anyhow::bail!("getpwuid: '{}'", std::io::Error::last_os_error());
     }
     #[allow(unsafe_code)]
+    // SAFETY: the foreign allocated is used correctly as specified in `CStr::from_ptr`
     Ok(unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
         .to_str()?
         .into())

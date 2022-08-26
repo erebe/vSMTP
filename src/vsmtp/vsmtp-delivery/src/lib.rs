@@ -141,28 +141,34 @@ pub mod transport {
 
 #[cfg(test)]
 pub mod test {
-    use vsmtp_common::mail_context::ConnectionContext;
+    use vsmtp_common::{
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
+        Envelop,
+    };
 
     /// create an empty email context for testing purposes.
-    ///
-    /// # Panics
     #[must_use]
-    pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
-        vsmtp_common::mail_context::MailContext {
+    pub fn get_default_context() -> MailContext {
+        MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
-                server_address: "127.0.0.1:25".parse().unwrap(),
+                server_addr: "127.0.0.1:25".parse().expect("valid"),
+                client_addr: "127.0.0.1:26".parse().expect("valid"),
+                error_count: 0,
+                authentication_attempt: 0,
             },
-            client_addr: "127.0.0.1:26".parse().unwrap(),
-            envelop: vsmtp_common::envelop::Envelop::default(),
-            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..vsmtp_common::mail_context::MessageMetadata::default()
-            }),
+            envelop: Envelop::default(),
+            metadata: MessageMetadata {
+                timestamp: Some(std::time::SystemTime::now()),
+                message_id: None,
+                skipped: None,
+                spf: None,
+                dkim: None,
+            },
         }
     }
 }

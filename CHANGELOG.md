@@ -4,6 +4,19 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* `check_dmarc` vsl function. (#506)
+* Syslog configuration. (#509)
+* journald support (#482)
+
+### Fixed
+
+* Missing documentation for vsl api. (#503, #513, #518)
+* Don't send greeting code right after receiving STARTTLS. (#504)
+* Initialize logs before privilege drop. (#506)
+* Documentation errors in Readme and other files.
+
 ## [1.2.0] - 2022-08-12
 
 ### Added

@@ -77,13 +77,6 @@ impl<'de> serde::Deserialize<'de> for Mechanism {
     }
 }
 
-impl Default for Mechanism {
-    fn default() -> Self {
-        // TODO: should it be ?
-        Self::Plain
-    }
-}
-
 impl Mechanism {
     /// Does the client must send data first with initial response
     #[must_use]

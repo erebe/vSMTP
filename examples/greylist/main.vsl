@@ -7,11 +7,13 @@ import "db" as db;
     mail: [
         rule "greylist" || {
 
+            let sender = mail_from();
+
             // if the sender is not recognized in our database,
             // we deny the transaction and write the sender into
             // the database.
-            if db::greylist.get(ctx().mail_from).len() == 0 {
-                db::greylist.set([ctx().mail_from.to_string()]);
+            if db::greylist.get(sender) == [] {
+                db::greylist.set([ sender ]);
                 deny()
             } else {
                 // the user is known by the server, the transaction

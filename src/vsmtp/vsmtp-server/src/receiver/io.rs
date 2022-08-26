@@ -59,7 +59,7 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     ///
-    #[allow(clippy::missing_const_for_fn)] // unstable for msrv
+    #[allow(clippy::missing_const_for_fn)] // not supported by clippy msrv 1.60
     pub fn new(stream: S) -> Self {
         Self {
             inner: stream,

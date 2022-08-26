@@ -14,13 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{
-    addr,
-    mail_context::MailContext,
-    re::tokio,
-    CodeID, MailHeaders, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vsmtp_mail_parser::BodyType;
+use vsmtp_mail_parser::Mail;
+use vsmtp_mail_parser::MailHeaders;
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
@@ -75,7 +74,8 @@ async fn reset_helo() {
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "\r\n",
             "mail content wow\r\n",
-            ".\r\n"
+            ".\r\n",
+            "QUIT\r\n",
         ]
         .concat(),
         [
@@ -85,7 +85,8 @@ async fn reset_helo() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n"
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -100,6 +101,7 @@ async fn reset_mail_from_error() {
             "MAIL FROM:<a@b>\r\n",
             "RSET\r\n",
             "RCPT TO:<b@c>\r\n",
+            "QUIT\r\n",
         ]
         .concat(),
         [
@@ -108,6 +110,7 @@ async fn reset_mail_from_error() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -123,6 +126,7 @@ async fn reset_mail_ok() {
             "RSET\r\n",
             "HELO foo2\r\n",
             "RCPT TO:<b@c>\r\n",
+            "QUIT\r\n",
         ]
         .concat(),
         [
@@ -132,6 +136,7 @@ async fn reset_mail_ok() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -177,6 +182,7 @@ async fn reset_rcpt_to_ok() {
             "RCPT TO:<b@c>\r\n",
             "DATA\r\n",
             ".\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -188,7 +194,8 @@ async fn reset_rcpt_to_ok() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n"
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -204,6 +211,7 @@ async fn reset_rcpt_to_error() {
             "RCPT TO:<toto@bar>\r\n",
             "RSET\r\n",
             "RCPT TO:<toto2@bar>\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -213,6 +221,7 @@ async fn reset_rcpt_to_error() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }
@@ -271,7 +280,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             "DATA\r\n",
             "from: foo2 foo <foo2@foo>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            ".\r\n"
+            ".\r\n",
+            "QUIT\r\n"
         ]
         .concat(),
         [
@@ -284,7 +294,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n"
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }

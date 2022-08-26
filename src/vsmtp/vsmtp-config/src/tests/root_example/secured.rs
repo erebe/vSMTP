@@ -52,7 +52,6 @@ fn parse() {
                     StateSMTP::Helo => std::time::Duration::from_millis(100),
                     StateSMTP::MailFrom => std::time::Duration::from_millis(200),
                     StateSMTP::RcptTo => std::time::Duration::from_millis(400),
-                    StateSMTP::Data => std::time::Duration::from_millis(800),
                 }
             )
             .with_default_smtp_codes()

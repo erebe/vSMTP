@@ -33,7 +33,6 @@ impl std::fmt::Display for MailHeaders {
 
 /// see rfc5322 (section 2.1 and 2.3)
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[allow(clippy::use_self)]
 pub enum BodyType {
     /// Text message body
     Regular(Vec<String>),
@@ -250,7 +249,7 @@ impl Mail {
 #[cfg(test)]
 mod test {
 
-    use crate::{MimeBodyType, MimeHeader};
+    use crate::message::mime_type::{MimeBodyType, MimeHeader};
 
     use super::*;
 

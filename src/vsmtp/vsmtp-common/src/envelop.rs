@@ -37,30 +37,3 @@ impl Default for Envelop {
         }
     }
 }
-
-#[cfg(test)]
-pub mod test {
-    use crate::mail_context::ConnectionContext;
-
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    /// create an empty email context for testing purposes.
-    pub fn get_default_context() -> crate::mail_context::MailContext {
-        crate::mail_context::MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-                server_address: "0.0.0.0:25".parse().unwrap(),
-            },
-            client_addr: "0.0.0.0:0".parse().unwrap(),
-            envelop: crate::envelop::Envelop::default(),
-            metadata: Some(crate::mail_context::MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..crate::mail_context::MessageMetadata::default()
-            }),
-        }
-    }
-}

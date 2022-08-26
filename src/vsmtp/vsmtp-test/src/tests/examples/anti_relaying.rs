@@ -45,12 +45,14 @@ async fn test_check_relay() {
             "HELO foo\r\n",
             "MAIL FROM: <john.doe@mta-internal.foobar.com>\r\n",
             "RCPT TO: <satan@example.com>\r\n",
+            "QUIT\r\n"
         ].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "554 5.7.1 Relay access denied\r\n",
+            "221 Service closing transmission channel\r\n"
         ]
         .concat()
     }

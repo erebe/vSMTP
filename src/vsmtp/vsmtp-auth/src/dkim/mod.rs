@@ -22,6 +22,13 @@ mod sign;
 mod signature;
 mod verify;
 
+/// The result of the verification of a DKIM signature.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct Result {
+    /// TODO: should be an enum
+    pub status: String,
+}
+
 #[cfg(test)]
 mod tests {
     mod hash_header;

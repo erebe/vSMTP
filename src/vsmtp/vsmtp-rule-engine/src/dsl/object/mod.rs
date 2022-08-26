@@ -27,43 +27,32 @@ const FILE_CAPACITY: usize = 20;
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
 #[derive(Debug, Clone, strum::AsRefStr)]
-#[strum(serialize_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
 pub enum Object {
     /// ip v4 address. (a.b.c.d)
-    #[strum(serialize = "ip4")]
     Ip4(std::net::Ipv4Addr),
     /// ip v6 address. (x:x:x:x:x:x:x:x)
-    #[strum(serialize = "ip6")]
     Ip6(std::net::Ipv6Addr),
     /// an ip v4 range. (a.b.c.d/range)
-    #[strum(serialize = "rg4")]
     Rg4(iprange::IpRange<ipnet::Ipv4Net>),
     /// an ip v6 range. (x:x:x:x:x:x:x:x/range)
-    #[strum(serialize = "rg6")]
     Rg6(iprange::IpRange<ipnet::Ipv6Net>),
     /// an email address (jones@foo.com)
-    #[strum(serialize = "address")]
     Address(Address),
     /// a valid fully qualified domain name (foo.com)
-    #[strum(serialize = "fqdn")]
     Fqdn(String),
     /// a regex (^[a-z0-9.]+@foo.com$)
-    #[strum(serialize = "regex")]
     Regex(regex::Regex),
     /// the content of a file.
-    #[strum(serialize = "file")]
     File(Vec<Object>),
     /// a group of objects declared inline.
-    #[strum(serialize = "group")]
     Group(Vec<SharedObject>),
     /// a user.
-    #[strum(serialize = "identifier")]
     Identifier(String),
     /// a simple string.
     #[strum(serialize = "string")]
     Str(String),
     /// a custom smtp reply code.
-    #[strum(serialize = "code")]
     Code(Reply),
 }
 
@@ -246,8 +235,7 @@ impl Object {
             (Object::File(file), other) => Ok(file.iter().any(|element| *other == *element)),
             (Object::Rg4(rg4), Object::Ip4(ip4)) => Ok(rg4.contains(ip4)),
             (Object::Rg6(rg6), Object::Ip6(ip6)) => Ok(rg6.contains(ip6)),
-            #[allow(clippy::unnecessary_to_owned)]
-            (Object::Regex(regex), other) => Ok(regex.find(&other.to_string()).is_some()),
+            (Object::Regex(regex), other) => Ok(regex.find(other.as_ref()).is_some()),
             (Object::Address(addr), Object::Identifier(identifier)) => {
                 Ok(addr.local_part() == identifier.as_str())
             }

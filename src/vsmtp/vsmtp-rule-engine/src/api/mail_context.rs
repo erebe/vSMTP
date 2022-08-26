@@ -25,7 +25,7 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address};
+use vsmtp_common::{auth::Credentials, state::StateSMTP, Address};
 
 pub use mail_context_rhai::*;
 
@@ -35,19 +35,28 @@ mod mail_context_rhai {
     /// Get the peer address of the client.
     #[rhai_fn(global, get = "client_address", return_raw, pure)]
     pub fn client_address(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).client_addr.to_string())
+        Ok(vsl_guard_ok!(context.read())
+            .connection
+            .client_addr
+            .to_string())
     }
 
     /// Get the peer ip address of the client.
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
     pub fn client_ip(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).client_addr.ip().to_string())
+        Ok(vsl_guard_ok!(context.read())
+            .connection
+            .client_addr
+            .ip()
+            .to_string())
     }
 
     /// Get the peer port of the client.
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
     pub fn client_port(context: &mut Context) -> EngineResult<i64> {
-        Ok(i64::from(vsl_guard_ok!(context.read()).client_addr.port()))
+        Ok(i64::from(
+            vsl_guard_ok!(context.read()).connection.client_addr.port(),
+        ))
     }
 
     /// Get the server address which served this connection.
@@ -55,14 +64,14 @@ mod mail_context_rhai {
     pub fn server_address(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_guard_ok!(context.read())
             .connection
-            .server_address
+            .server_addr
             .to_string())
     }
 
     /// Get the server ip address which served this connection.
     #[rhai_fn(global, get = "server_ip", return_raw, pure)]
     pub fn server_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(vsl_guard_ok!(context.read()).connection.server_address.ip())
+        Ok(vsl_guard_ok!(context.read()).connection.server_addr.ip())
     }
 
     /// Get the server port which served this connection.
@@ -73,7 +82,7 @@ mod mail_context_rhai {
                 .read()
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                 .connection
-                .server_address
+                .server_addr
                 .port(),
         ))
     }
@@ -108,7 +117,7 @@ mod mail_context_rhai {
         Ok(vsl_missing_ok!(
             vsl_guard_ok!(context.read()).connection.credentials,
             "auth",
-            StateSMTP::Authenticate(Mechanism::Anonymous, None)
+            StateSMTP::Authenticate
         )
         .clone())
     }
@@ -197,23 +206,21 @@ mod mail_context_rhai {
     /// Get the timestamp when the client started to send the message.
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).metadata,
+        Ok(*vsl_missing_ok!(
+            vsl_guard_ok!(context.read()).metadata.timestamp,
             "mail_timestamp",
             StateSMTP::PreQ
-        )
-        .timestamp)
+        ))
     }
 
     /// Get the `message_id`
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).metadata,
+            vsl_guard_ok!(context.read()).metadata.message_id,
             "message_id",
             StateSMTP::PreQ
         )
-        .message_id
         .clone())
     }
 
