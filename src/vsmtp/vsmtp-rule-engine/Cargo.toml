@@ -61,7 +61,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 wait-timeout = "0.2.0"
 
 hostname = "0.3.1"
-time = { version = "0.3.13", default-features = false, features = [
+time = { version = "0.3.14", default-features = false, features = [
   "std",
   "formatting",
   "macros",

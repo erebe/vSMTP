@@ -47,7 +47,7 @@ futures = "0.3.23"
 signal-hook = "0.3.14"
 
 trust-dns-resolver = { version = "0.21.2", default-features = false }
-time = { version = "0.3.13", default-features = false, features = [
+time = { version = "0.3.14", default-features = false, features = [
   "std",
   "formatting",
   "macros",
