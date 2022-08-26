@@ -1,3 +1,18 @@
+vsmtp (1.2.1) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * Added
+    - `check_dmarc` vsl function. (#506)
+    - Syslog configuration. (#509)
+    - journald support (#482)
+  * Fixed
+    - Missing documentation for vsl api. (#503, #513, #518)
+    - Don't send greeting code right after receiving STARTTLS. (#504)
+    - Initialize logs before privilege drop. (#506)
+    - Documentation errors in Readme and other files.
+
+ -- ltabis <l.tabis@viridit.com>  Fri, 26 Aug 2022 20:17:16 +0200
+
 vsmtp (1.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
