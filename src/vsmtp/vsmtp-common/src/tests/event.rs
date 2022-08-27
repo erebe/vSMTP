@@ -142,6 +142,18 @@ fn ehlo_command() {
             "11:2233:4455:6677:8899:aabb:ccdd:eeff".to_string()
         ))
     );
+    assert_eq!(
+        Event::parse_cmd("ehlo   [IPV6:0011:2233:4455:6677:8899:aabb:ccdd:eeff]  "),
+        Ok(Event::EhloCmd(
+            "11:2233:4455:6677:8899:aabb:ccdd:eeff".to_string()
+        ))
+    );
+    assert_eq!(
+        Event::parse_cmd("ehlo   [ipv6:0011:2233:4455:6677:8899:aabb:ccdd:eeff]  "),
+        Ok(Event::EhloCmd(
+            "11:2233:4455:6677:8899:aabb:ccdd:eeff".to_string()
+        ))
+    );
     assert_eq!(Event::parse_cmd("EHLO  "), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("   EHLO  valid_domain"),

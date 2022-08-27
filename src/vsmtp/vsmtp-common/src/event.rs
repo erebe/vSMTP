@@ -184,7 +184,7 @@ impl Event {
 
     fn parse_domain_or_address_literal(args: &[&str]) -> anyhow::Result<String> {
         match args {
-            [ip] if ip.starts_with("[IPv6:") && ip.ends_with(']') => Ok(ip
+            [ip] if ip.to_lowercase().starts_with("[ipv6:") && ip.ends_with(']') => Ok(ip
                 ["[IPv6:".len()..ip.len() - 1]
                 .parse::<std::net::Ipv6Addr>()
                 .map_err(|e| anyhow::anyhow!(e))?
