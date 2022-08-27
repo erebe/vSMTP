@@ -20,6 +20,7 @@ rust-version = "1.60"
 default-run = "vsmtp"
 
 [package.metadata.release]
+tag = true
 pre-release-replacements = [
   { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
   { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
