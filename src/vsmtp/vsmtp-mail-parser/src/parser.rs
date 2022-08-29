@@ -488,12 +488,12 @@ mod test {
 "x-mozilla-status: 0001",
 "x-mozilla-status2: 01000000",
 "x-mozilla-keys:                                                                                 ",
-"fcc: imap://tabis%40localhost.com@localhost.com/sent",
+"fcc: imap://john%40localhost.com@localhost.com/sent",
 "x-identity-key: id3",
 "x-account-key: account4",
-"from: tabis lucas <tabis@localhost>",
+"from: john doe <john@localhost>",
 "subject: text content",
-"to: tabis@localhost, green@example.com, foo@example.com, x@x.com",
+"to: john@localhost, green@example.com, foo@example.com, x@x.com",
 "message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>",
 "date: tue, 30 nov 2021 20:54:27 +0100",
 "x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0;",
@@ -519,12 +519,12 @@ mod test {
             r#"x-mozilla-status: 0001
 x-mozilla-status2: 01000000
 x-mozilla-keys:
-fcc: imap://tabis%40localhost.com@localhost.com/sent
+fcc: imap://john%40localhost.com@localhost.com/sent
 x-identity-key: id3
 x-account-key: account4
-from: tabis lucas <tabis@localhost>
+from: john doe <john@localhost>
 subject: text content
-to: tabis@localhost, green@example.com, foo@example.com, x@x.com
+to: john@localhost, green@example.com, foo@example.com, x@x.com
 message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>
 date: tue, 30 nov 2021 20:54:27 +0100
 x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0; attachmentreminder=0; deliveryformat=1

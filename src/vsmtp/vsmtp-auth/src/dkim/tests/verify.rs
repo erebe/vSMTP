@@ -66,11 +66,13 @@ fn verify_3rd_party(filepath: &str) {
 }
 
 #[tokio::test]
+#[ignore = "need to regenerate the email because the signature is not valid anymore"]
 async fn mail_1() {
     verify(include_str!("mail_1.eml")).await;
 }
 
 #[tokio::test]
+#[ignore = "need to regenerate the email because the signature is not valid anymore"]
 async fn mail_2() {
     verify(include_str!("mail_2.eml")).await;
 }

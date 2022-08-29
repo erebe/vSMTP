@@ -6,7 +6,7 @@ systemctl stop vsmtp
 systemctl disable vsmtp
 systemctl enable postfix
 
-/home/lala/.cargo/bin/hyperfine \
+/home/doe/.cargo/bin/hyperfine \
     -L mail 1,10 \
     -L session 1,10 \
     --prepare 'systemctl restart postfix; sleep 1' \
@@ -19,7 +19,7 @@ systemctl stop postfix
 systemctl disable postfix
 systemctl enable vsmtp
 
-/home/lala/.cargo/bin/hyperfine \
+/home/doe/.cargo/bin/hyperfine \
     -L mail 1,10 \
     -L session 1,10 \
     --prepare 'systemctl restart vsmtp; sleep 1' \

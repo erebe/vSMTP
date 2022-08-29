@@ -162,8 +162,8 @@ async fn test_receiver_11() {
     assert!(test_receiver! {
         [
             "HELO postmaster\r\n",
-            "MAIL FROM: <lala@foo>\r\n",
-            "RCPT TO: <lala@foo>\r\n",
+            "MAIL FROM: <doe@foo>\r\n",
+            "RCPT TO: <doe@foo>\r\n",
             "DATA\r\n",
             ".\r\n",
             "DATA\r\n",
@@ -192,8 +192,8 @@ async fn test_receiver_11_bis() {
     assert!(test_receiver! {
         [
             "HELO postmaster\r\n",
-            "MAIL FROM: <lala@foo>\r\n",
-            "RCPT TO: <lala@foo>\r\n",
+            "MAIL FROM: <doe@foo>\r\n",
+            "RCPT TO: <doe@foo>\r\n",
             "DATA\r\n",
             ".\r\n",
             "DATA\r\n",

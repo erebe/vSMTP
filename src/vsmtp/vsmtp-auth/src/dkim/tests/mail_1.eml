@@ -1,22 +1,22 @@
-Return-Path: <mathieu.lala@epitech.eu>
-Delivered-To: m.lala@viridit.com
+Return-Path: <john.doe@example.eu>
+Delivered-To: j.doe@viridit.com
 Received: from localhost (HELO queue) (127.0.0.1)
 	by localhost with SMTP; 25 Jun 2022 11:21:03 +0200
 Received: from unknown (HELO output36.mail.ovh.net) (192.168.13.103)
   by 192.168.9.34 with AES256-GCM-SHA384 encrypted SMTP; 25 Jun 2022 11:21:03 +0200
 Received: from vr43.mail.ovh.net (unknown [10.101.8.43])
 	by out36.mail.ovh.net (Postfix) with ESMTP id 4LVT4b30DwzNxhvsc
-	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
+	for <j.doe@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
 Received: from in47.mail.ovh.net (unknown [10.101.4.47])
 	by vr43.mail.ovh.net (Postfix) with ESMTP id 4LVT4b18PWz2cGjjq
-	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
-Received-SPF: Pass (mailfrom) identity=mailfrom; client-ip=40.107.21.103; helo=eur05-vi1-obe.outbound.protection.outlook.com; envelope-from=mathieu.lala@epitech.eu; receiver=m.lala@viridit.com 
+	for <j.doe@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
+Received-SPF: Pass (mailfrom) identity=mailfrom; client-ip=40.107.21.103; helo=eur05-vi1-obe.outbound.protection.outlook.com; envelope-from=john.doe@example.eu; receiver=j.doe@viridit.com 
 Authentication-Results: in47.mail.ovh.net;
-	dkim=pass (1024-bit key; unprotected) header.d=epitechfr.onmicrosoft.com header.i=@epitechfr.onmicrosoft.com header.b="Ucs4om63";
+	dkim=pass (1024-bit key; unprotected) header.d=examplefr.onmicrosoft.com header.i=@examplefr.onmicrosoft.com header.b="Ucs4om63";
 	dkim-atps=neutral
 Received: from EUR05-VI1-obe.outbound.protection.outlook.com (mail-vi1eur05on2103.outbound.protection.outlook.com [40.107.21.103])
 	by in47.mail.ovh.net (Postfix) with ESMTPS id 4LVT4Z6mphz1kGF2W
-	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:02 +0000 (UTC)
+	for <j.doe@viridit.com>; Sat, 25 Jun 2022 09:21:02 +0000 (UTC)
 ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
  b=miqzVtyAfuITbBafK5OK6QxER2IGpFP1MC83TUX1Nu8wv+mcARGp+gUKFtk6zTLq22AzXVGz/fH8t+0qRRvsnyawwlGgL+M0hq/XRv4SpNf4miqJSn3Lsph5E6nyNdbJSwscBiLyjNRYacXaygCFz3YDtdg+3c8tNI2KAftczY3qOb3aWUKx1AWIDeYQcMCSsce7WwsddRSYkEDGo+QAB37Rb2Q8HX6zNqp3Nz2Ka0GpTyh+0Y42k9fVjC5sQqZzFmh5Q3YYN/TwXCXV3+Z1WrbJ20zZuuDeUo2xpwhCaojpxwwFWjMRquNyzrIeHcrEPE3sWkYeT/5S2qFWJJsh2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
@@ -25,10 +25,10 @@ ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
  bh=rtTGBOOAnprlA4aIQC8PvKyqp82URQPSnYcl/gjOxGk=;
  b=QLDX4VsyAZDH5SNL23z6lE+MFOHl6CQWbPCefOSCwzJaKul3aeovbCo/2iR+902dUgakvx3ILZ80cmOjnXPl9Q6iXOhiV506odEOUWx5BojXVkS3zgA+58mzXPl5109XwByBDsLVnjcEuiW8/lYzqwGbe6AvRSEYJmWFi5o2wLzXfC7CgEoHr8DQqtX39MbgsWQ0hHJJlXjNEmeQTr1hT+DzctBQNaK+pq9ZCP339NOBgW1VjMNinoHo2qY69n0t8iLb6VdNTMAuxYwuLmfEn9ZSO+Mi0uNPLjQ8SYwibgu8rGxBS84ghU5+OySwaW0boSobXtiIR4ue9V39WFzuEg==
 ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=epitech.eu; dmarc=pass action=none header.from=epitech.eu;
- dkim=pass header.d=epitech.eu; arc=none
+ smtp.mailfrom=example.eu; dmarc=pass action=none header.from=example.eu;
+ dkim=pass header.d=example.eu; arc=none
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=epitechfr.onmicrosoft.com; s=selector2-epitechfr-onmicrosoft-com;
+ d=examplefr.onmicrosoft.com; s=selector2-examplefr-onmicrosoft-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
  bh=rtTGBOOAnprlA4aIQC8PvKyqp82URQPSnYcl/gjOxGk=;
  b=Ucs4om63ogXgJNlwU2a/D4pANfDisgO72p9tEFI4smwNnK7IK8S61zCey9pKXob+CtxXhSvUZXE9lLE9Ta/0YdZ7ZsmExdzlzuV3hBtCnJPsSw0GVeHDLVSQx02YfZddfVOPTDn57T7CtnkiortgcPtOk0oeMn3Wv3JksDeQyOE=
@@ -41,8 +41,8 @@ Received: from VI1PR02MB6368.eurprd02.prod.outlook.com
  ([fe80::942:42f5:f5ca:9caa]) by VI1PR02MB6368.eurprd02.prod.outlook.com
  ([fe80::942:42f5:f5ca:9caa%8]) with mapi id 15.20.5373.017; Sat, 25 Jun 2022
  09:20:54 +0000
-From: Mathieu Lala <mathieu.lala@epitech.eu>
-To: "m.lala@viridit.com" <m.lala@viridit.com>
+From: John Doe <john.doe@example.eu>
+To: "j.doe@viridit.com" <j.doe@viridit.com>
 Subject: Simple Subject
 Thread-Topic: Simple Subject
 Thread-Index: AQHYiHTea/SrCWkzbEWvMaCwWjhrJw==
@@ -55,7 +55,7 @@ X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
 msip_labels:
 authentication-results: dkim=none (message not signed)
- header.d=none;dmarc=none action=none header.from=epitech.eu;
+ header.d=none;dmarc=none action=none header.from=example.eu;
 x-ms-publictraffictype: Email
 x-ms-office365-filtering-correlation-id: 4bfe5ad2-bafa-4231-1269-08da568c0140
 x-ms-traffictypediagnostic: AM9PR02MB6755:EE_
@@ -99,7 +99,7 @@ x-ms-exchange-antispam-messagedata-0:
 Content-Type: multipart/alternative;
 	boundary="_000_VI1PR02MB6368356B133A6B8F63EB6FFFE5B79VI1PR02MB6368eurp_"
 MIME-Version: 1.0
-X-OriginatorOrg: epitech.eu
+X-OriginatorOrg: example.eu
 X-MS-Exchange-CrossTenant-AuthAs: Internal
 X-MS-Exchange-CrossTenant-AuthSource: VI1PR02MB6368.eurprd02.prod.outlook.com
 X-MS-Exchange-CrossTenant-Network-Message-Id: 4bfe5ad2-bafa-4231-1269-08da568c0140
