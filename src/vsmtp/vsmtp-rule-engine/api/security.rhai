@@ -316,7 +316,7 @@ private fn dkim_verify_first_signature_or_error(policy) {
 
     let last_error = #{ status: "none" };
 
-    for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
+    for i in get_all_headers("DKIM-Signature").retain(0..=policy.nbr_headers) {
         try {
             let signature = sys::parse_signature(i);
 

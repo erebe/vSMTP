@@ -212,6 +212,19 @@ impl Mail {
         }
     }
 
+    // TODO: should this rename all headers with the same name ?
+    /// Rename a header.
+    pub fn rename_header(&mut self, old: &str, new: &str) {
+        if let Some((old_name, _)) = self
+            .headers
+            .0
+            .iter_mut()
+            .find(|(header, _)| header.to_lowercase() == old.to_lowercase())
+        {
+            *old_name = new.to_string();
+        }
+    }
+
     /// get the value of an header, return None if it does not exists.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
@@ -234,6 +247,16 @@ impl Mail {
             .map(|(_, value)| value.as_str())
     }
 
+    /// Count the number of time a header is present.
+    #[must_use]
+    pub fn count_header(&self, name: &str) -> usize {
+        self.headers
+            .0
+            .iter()
+            .filter(|(header, _)| header.to_lowercase() == name.to_lowercase())
+            .count()
+    }
+
     // NOTE: would a double ended queue / linked list interesting in this case ?
     /// prepend new headers to the email.
     pub fn prepend_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
@@ -243,6 +266,21 @@ impl Mail {
     /// push new headers to the email.
     pub fn push_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
         self.headers.0.extend(headers);
+    }
+
+    /// Remove a header from the list.
+    pub fn remove_header(&mut self, name: &str) -> bool {
+        if let Some(index) = self
+            .headers
+            .0
+            .iter()
+            .position(|header| header.0.to_lowercase() == name.to_lowercase())
+        {
+            self.headers.0.remove(index);
+            true
+        } else {
+            false
+        }
     }
 }
 

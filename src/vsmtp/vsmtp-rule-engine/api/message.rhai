@@ -27,7 +27,8 @@
 ///
 /// # Effective smtp stage
 ///
-/// `preq` and onwards.
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
 ///
 /// # Example
 /// ```js
@@ -57,7 +58,8 @@ fn has_header(header) { sys::has_header(msg(), header) }
 ///
 /// # Effective smtp stage
 ///
-/// `preq` and onwards.
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
 ///
 /// # Example
 /// ```js
@@ -72,6 +74,89 @@ fn has_header(header) { sys::has_header(msg(), header) }
 ///
 /// # Module:Message
 fn get_header(header) { sys::get_header(msg(), header) }
+
+/// Get a list of all headers.
+///
+/// # Return
+///
+/// * `array` - all of the headers found in the message.
+///
+/// # Effective smtp stage
+///
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///         action "log display headers" || {
+///             log("trace", `${get_all_headers()}`);
+///         }
+///     ],
+/// }
+/// ```
+///
+/// # Module:Message
+fn get_all_headers() { sys::get_all_headers(msg()) }
+
+/// Get a list of all values of a specific header from the incoming message.
+///
+/// # Args
+///
+/// * `header` - the name of the header to search.
+///
+/// # Return
+///
+/// * `array` - all header values, or an empty array if the header was not found.
+///
+/// # Effective smtp stage
+///
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///         action "display return path" || {
+///             print(get_all_headers("Return-Path"));
+///         }
+///     ],
+/// }
+/// ```
+///
+/// # Module:Message
+fn get_all_headers(header) { sys::get_all_headers(msg(), header) }
+
+/// Count the number of headers with the given name.
+///
+/// # Args
+///
+/// * `header` - the name of the header to count.
+///
+/// # Return
+///
+/// * `number` - the number headers with the same name.
+///
+/// # Effective smtp stage
+///
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///         action "display VSMTP header" || {
+///             print(get_header("X-VSMTP"));
+///         }
+///     ],
+/// }
+/// ```
+///
+/// # Module:Message
+fn count_header(header) { sys::count_header(msg(), header) }
 
 /// Add a new header at the end of the header list in the message.
 ///
@@ -158,6 +243,69 @@ fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 ///
 /// # Module:Message
 fn set_header(header, value) { sys::set_header(msg(), header, value) }
+
+/// Replace an existing header name by a new value.
+///
+/// # Args
+///
+/// * `old` - the name of the header to rename.
+/// * `new` - the new new of the header.
+///
+/// # Effective smtp stage
+///
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///         action "rename header" || {
+///             rename_header("X-To-Rename", "X-Renamed");
+///         }
+///     ],
+/// }
+/// ```
+///
+/// # Module:Message
+fn rename_header(o, n) { sys::rename_header(msg(), o, n) }
+
+/// Remove an existing header from the message.
+///
+/// # Args
+///
+/// * `header` - the name of the header to remove.
+///
+/// # Return
+///
+/// * a boolean value, true if a header has been removed, false otherwise.
+///
+/// # Effective smtp stage
+///
+/// All of them, although it is most useful in the `preq` stage because this
+/// is when the email body is received.
+///
+/// # Example
+/// ```js
+/// #{
+///     postq: [
+///         action "remove one X-VSMTP header" || {
+///             remove_header("X-VSMTP");
+///         },
+///
+///         // There can be multiple headers with the same name.
+///         // Since `remove_header` return `true` when it removes an
+///         // header, you can use a `while` loop to remove all headers
+///         // that bear the same name.
+///         action "remove all X-VSMTP headers" || {
+///             while remove_header("X-VSMTP") is true {}
+///         },
+///     ],
+/// }
+/// ```
+///
+/// # Module:Message
+fn remove_header(header) { sys::remove_header(msg(), header) }
 
 /// Add a recipient to the `To` header of the message.
 ///

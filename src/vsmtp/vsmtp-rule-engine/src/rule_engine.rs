@@ -382,6 +382,7 @@ impl RuleEngine {
                     include_str!("../api/services.rhai"),
                     include_str!("../api/status.rhai"),
                     include_str!("../api/transaction.rhai"),
+                    include_str!("../api/types.rhai"),
                     include_str!("../api/utils.rhai"),
                 ],
             )

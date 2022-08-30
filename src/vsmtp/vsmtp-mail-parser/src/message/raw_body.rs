@@ -88,7 +88,13 @@ impl RawBody {
         out
     }
 
-    ///
+    /// Get all headers without parsing.
+    #[must_use]
+    pub const fn raw_headers(&self) -> &Vec<String> {
+        &self.headers
+    }
+
+    /// Search for a header (using lowercase) and return its value.
     #[must_use]
     pub fn get_header(&self, name: &str, with_key: bool, with_multiline: bool) -> Option<String> {
         for (idx, header) in self.headers.iter().enumerate() {
@@ -122,12 +128,24 @@ impl RawBody {
         None
     }
 
-    ///
+    /// Count the number of time a header is present. (using lowercase)
+    #[must_use]
+    pub fn count_header(&self, name: &str) -> usize {
+        self.headers
+            .iter()
+            .filter(|h| {
+                h.to_lowercase()
+                    .starts_with(&format!("{name}:").to_lowercase())
+            })
+            .count()
+    }
+
+    /// Set the value of a header or add it if it does not already exist.
     pub fn set_header(&mut self, name: &str, value: &str) {
         for header in &mut self.headers {
             let mut split = header.splitn(2, ": ");
             match (split.next(), split.next()) {
-                (Some(key), Some(_)) if key == name => {
+                (Some(key), Some(_)) if key.to_lowercase() == name.to_lowercase() => {
                     // TODO: handle folding ?
                     *header = format!("{key}: {value}");
                     return;
@@ -138,16 +156,44 @@ impl RawBody {
         self.add_header(name, value);
     }
 
-    ///
+    /// Rename a header.
+    pub fn rename_header(&mut self, old: &str, new: &str) {
+        for header in &mut self.headers {
+            let mut split = header.splitn(2, ": ");
+            match (split.next(), split.next()) {
+                (Some(key), Some(value)) if key.to_lowercase() == old.to_lowercase() => {
+                    *header = format!("{new}: {value}");
+                    return;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Append a header to the list.
     pub fn add_header(&mut self, name: &str, value: &str) {
         // TODO: handle folding ?
         self.headers.push(format!("{name}: {value}"));
     }
 
-    ///
+    /// Prepend a header to the list.
     pub fn prepend_header(&mut self, headers: impl IntoIterator<Item = String>) {
         // TODO: handle folding ?
         self.headers.splice(..0, headers);
+    }
+
+    /// Remove a header from the list.
+    pub fn remove_header(&mut self, name: &str) -> bool {
+        if let Some(index) = self.headers.iter().position(|header| {
+            header
+                .to_lowercase()
+                .starts_with(&format!("{}:", name.to_lowercase()))
+        }) {
+            self.headers.remove(index);
+            true
+        } else {
+            false
+        }
     }
 }
 

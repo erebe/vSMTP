@@ -222,6 +222,14 @@ mod types_rhai {
             })
             .collect::<EngineResult<Vec<SharedObject>>>()
     }
+
+    /// Create a new address from a string.
+    #[rhai_fn(global, name = "new_address", return_raw)]
+    pub fn new_address(address: &str) -> EngineResult<SharedObject> {
+        Object::new_address(address)
+            .map_err(|err| format!("failed to parse {address}: {err}").into())
+            .map(std::convert::Into::into)
+    }
 }
 
 pub use types_rhai::*;
