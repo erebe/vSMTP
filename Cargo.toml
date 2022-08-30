@@ -57,7 +57,7 @@ vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, ve
 vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.2.1" }
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.2.1" }
 
-clap = { version = "3.2.17", features = ["derive"] }
+clap = { version = "3.2.18", features = ["derive"] }
 diff = "0.1.13"
 
 tracing = "0.1.36"
