@@ -45,7 +45,7 @@ tokio = { version = "1.20.1", default-features = false, features = [
 base64 = "0.13.0"
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 
-sha2 = "0.10.2"
+sha2 = "0.10.3"
 rsa = "0.6.1"
 
 # should be optional and under a legacy flag
