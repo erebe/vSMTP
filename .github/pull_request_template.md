@@ -29,4 +29,20 @@ use case that feature fulfills.
 <!--
 Summarize the solution and provide any necessary context needed to understand
 the code change.
+
+You can class you changes with the following sub-titles (using ###):
+- Fixed   (You fixed a bug)
+- Changed (You changed something existing, possibly making breaking changes)
+- Added   (You added something new)
+- Other   (You did something else)
+
+Example:
+```markdown
+### Changed
+- Changed the way the server handles connections.
+
+### Added
+- Added a new command to the server.
+- Added stuff to the documentation.
+```
 -->
