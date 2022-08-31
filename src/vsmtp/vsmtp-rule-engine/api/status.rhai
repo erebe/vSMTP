@@ -15,7 +15,7 @@
  *
 */
 
-//! # Status
+//! ### Status
 //!
 //! The state of an SMTP transaction can be changed through specific functions from this module.
 
@@ -26,11 +26,11 @@
 /// Use this return status when you are sure that
 /// the incoming client can be trusted.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -47,7 +47,7 @@
 ///     ],
 /// }
 ///
-/// # Module:Status
+/// ### Module:Status
 /// ```
 fn faccept() { sys::faccept() }
 
@@ -55,11 +55,11 @@ fn faccept() { sys::faccept() }
 /// This means that all rules following the one `accept` is called in the current stage
 /// will be ignored.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -75,16 +75,16 @@ fn faccept() { sys::faccept() }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn accept() { sys::accept() }
 
 /// Tell the rule engine that a rule succeeded.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -95,24 +95,24 @@ fn accept() { sys::accept() }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn next() { sys::next() }
 
 /// Stop rules evaluation and/or send an error code to the client.
 /// The code sent is `554 - permanent problems with the remote server`.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
 ///         rule "check for satan" || {
 ///            // The client is denied if a recipient's domain matches satan.org,
 ///            // this is a blacklist, sort-of.
-///            if ctx().rcpt.domain == "satan.org" {
+///            if rcpt().domain == "satan.org" {
 ///                deny()
 ///            } else {
 ///                next()
@@ -122,16 +122,16 @@ fn next() { sys::next() }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn deny() { sys::deny() }
 
 /// Stop rules evaluation and/or send a custom code to the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
@@ -141,7 +141,7 @@ fn deny() { sys::deny() }
 ///
 ///            // The client is denied if a recipient's domain matches satan.org,
 ///            // this is a blacklist, sort-of.
-///            if ctx().rcpt.domain == "satan.org" {
+///            if rcpt().domain == "satan.org" {
 ///                deny(error_code)
 ///            } else {
 ///                next()
@@ -151,16 +151,16 @@ fn deny() { sys::deny() }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn deny(code) { sys::deny(code) }
 
 /// Ask the client to retry to send the current command by sending an information code.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -172,21 +172,21 @@ fn deny(code) { sys::deny(code) }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn info(code) { sys::info(code) }
 
 /// Skip all rules until the email is received and place the email in a
 /// quarantine queue.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `queue` - the relative path to the queue where the email will be quarantined. This path will be concatenated to the [app.dirpath] field in your `vsmtp.toml`.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -205,5 +205,5 @@ fn info(code) { sys::info(code) }
 /// }
 /// ```
 ///
-/// # Module:Status
+/// ### Module:Status
 fn quarantine(queue) { sys::quarantine(ctx(), queue) }

@@ -15,29 +15,29 @@
  *
 */
 
-//! # Internal
+//! ### Internal
 //!
 //! A low level api to get access to internal functions of vsl.
 
 /// WARNING: This is a low level function.
 /// Get access to the email context.
 ///
-/// # Note
+/// ### Note
 /// This is used internally to provide encapsulation of vsl's features.
 /// You should not use this function.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `the context`
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
-///        action "client ip" || log("info", `client: {ctx().client_ip}`),
+///        action "client ip" || log("info", `client: {client_ip()}`),
 ///     ]
 /// }
 /// ```
@@ -46,18 +46,18 @@ fn ctx() { CTX }
 /// WARNING: This is a low level function.
 /// Get access to the server context.
 ///
-/// # Note
+/// ### Note
 /// This is used internally to provide encapsulation of vsl's features.
 /// You should not use this function.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `the server api`
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -70,18 +70,18 @@ fn srv() { SRV }
 /// WARNING: This is a low level function.
 /// Get access to the message.
 ///
-/// # Note
+/// ### Note
 /// This is used internally to provide encapsulation of vsl's features.
 /// You should not use this function.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `the message`
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 /// all of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [

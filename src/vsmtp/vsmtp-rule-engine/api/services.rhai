@@ -15,26 +15,26 @@
  *
 */
 
-//! # Services
+//! ### Services
 //!
 //! Services are external programs that can be used via the functions available in this module.
 
 /// Get the value of a key in a database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `key` - the key to query.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `Array of records` - an array containing the results. If no record is found,
 ///                        an empty array is returned.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -53,20 +53,20 @@
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn get(key) { this.db_query(key.to_string()) }
 
 /// Set a record into a database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `record` - the record to set.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -79,22 +79,22 @@ fn get(key) { this.db_query(key.to_string()) }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn set(record) {
     this.db_add(record.map("to_string"))
 }
 
 /// Remove a record from a database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `key` - the key to remove.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -107,16 +107,16 @@ fn set(record) {
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn rm(key) { this.db_rm(key.to_string()) }
 
 /// Run a command from a `cmd` service.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 ///
 /// ```js
 /// // services.vsl
@@ -141,22 +141,22 @@ fn rm(key) { this.db_rm(key.to_string()) }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn run() { this.cmd_run() }
 
 /// Run a command from a `cmd` service with arguments.
 /// This allows you to run a command with dynamic arguments.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `args` - an array of strings that will replace current command
 ///            arguments defined in the `args` field of a `cmd` service.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 ///
 /// ```js
 /// // services.vsl
@@ -181,5 +181,5 @@ fn run() { this.cmd_run() }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn run(args) { this.cmd_run(args) }

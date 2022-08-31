@@ -2,16 +2,16 @@
     authenticate: [
         rule "auth hardcoded" || {
             let db = #{ "admin": "password" };
-            switch ctx().auth.type {
+            switch auth().type {
                 "Verify" => {
-                    if db[ctx().auth.authid] == ctx().auth.authpass { accept() } else { deny() }
+                    if db[auth().authid] == auth().authpass { accept() } else { deny() }
                 }
             }
         }
     ],
     mail: [
         rule "admin" || {
-            if ctx().is_authenticated && ctx().mail_from == "admin@company.com" {
+            if is_authenticated() && mail_from() == "admin@company.com" {
                 print("here");
                 faccept("250 welcome aboard chief")
             }

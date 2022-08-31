@@ -6,7 +6,7 @@ fn retry_helo(helo) {
 #{
     helo: [
         rule "helo must be foo.bar" || {
-            if ctx().helo == "foo" {
+            if helo() == "foo" {
                 // using a code object to send an informative message.
                 object foo_invalid code = #{
                     code: 250,
@@ -15,14 +15,14 @@ fn retry_helo(helo) {
                 };
 
                 info(foo_invalid);
-            } else if ctx().helo == "bar" {
+            } else if helo() == "bar" {
                 object bar_invalid code = "250 I do not accept this email, sorry";
 
                 info(bar_invalid);
-            } else if ctx().helo == "example.com" {
+            } else if helo() == "example.com" {
                 next()
             } else {
-                info(retry_helo(ctx().helo));
+                info(retry_helo(helo()));
             }
         },
 
@@ -31,7 +31,7 @@ fn retry_helo(helo) {
 
     mail: [
         rule "retry mail" || {
-            if ctx().mail_from.domain == "satan.org" {
+            if mail_from().domain == "satan.org" {
                 info("250 satan.org is not valid, please try again.");
             } else {
                 accept()

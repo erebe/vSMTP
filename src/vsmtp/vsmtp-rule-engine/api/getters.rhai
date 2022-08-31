@@ -17,15 +17,15 @@
 
 /// Get the local part of an email address.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `address` - the address to extract the local part from.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     mail: [
@@ -37,20 +37,20 @@
 /// }
 /// ```
 ///
-/// # Module:Message
+/// ### Module:Message
 fn get_local_part() { this.local_part }
 
 /// Get all local parts of the recipient list.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt_list` - the recipient list.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `mail` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     mail: [
@@ -66,20 +66,20 @@ fn get_local_part() { this.local_part }
 /// }
 /// ```
 ///
-/// # Module:Message
+/// ### Module:Message
 fn get_local_parts() { this.local_parts }
 
 /// Get the domain of an email address.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `address` - the address to extract the domain from.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     mail: [
@@ -91,20 +91,20 @@ fn get_local_parts() { this.local_parts }
 /// }
 /// ```
 ///
-/// # Module:Message
+/// ### Module:Message
 fn get_domain() { this.domain }
 
 /// Get all domains of the recipient list.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt_list` - the recipient list.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `mail` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     mail: [
@@ -120,5 +120,5 @@ fn get_domain() { this.domain }
 /// }
 /// ```
 ///
-/// # Module:Message
+/// ### Module:Message
 fn get_domains() { this.domains }

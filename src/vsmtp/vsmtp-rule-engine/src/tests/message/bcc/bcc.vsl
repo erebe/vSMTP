@@ -25,11 +25,11 @@ fn invalid_object(obj) {
 }
 
 fn add_bcc(bcc) {
-    if bcc in ctx().rcpt_list {
+    if bcc in rcpt_list() {
         return deny();
     }
 
     bcc(bcc);
 
-    if bcc in ctx().rcpt_list { next() } else { deny() }
+    if bcc in rcpt_list() { next() } else { deny() }
 }

@@ -972,9 +972,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07b85aefd80c317c18dc1bad3e6293602da1f8958dea2017f0d793dddfe69590"
+checksum = "3819cc705765a6def80466451e5e20053a536f940fa8c7ea3688a7e554a7dc89"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1325,9 +1325,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.13"
+version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db76ff9fa4b1458b3c7f077f3ff9887394058460d21e634355b273aaf11eea45"
+checksum = "3c3f9a28b618c3a6b9251b6908e9c99e04b9e5c02e6581ccbb67d59c34ef7f9b"
 dependencies = [
  "itoa 1.0.2",
  "libc",
@@ -1617,29 +1617,32 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vsmtp-auth"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
+ "addr",
  "anyhow",
  "base64",
  "convert_case",
  "rsa",
+ "serde",
  "sha1",
  "sha2",
  "strum",
  "thiserror",
  "tokio",
- "vsmtp-common",
+ "tracing",
+ "viaspf",
+ "vsmtp-mail-parser",
 ]
 
 [[package]]
 name = "vsmtp-common"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "addr",
  "anyhow",
  "async-trait",
  "base64",
- "convert_case",
  "either",
  "lettre",
  "libc",
@@ -1649,13 +1652,14 @@ dependencies = [
  "serde_with",
  "strum",
  "tokio",
- "tokio-stream",
+ "vsmtp-auth",
+ "vsmtp-mail-parser",
  "vsmtp-rsasl",
 ]
 
 [[package]]
 name = "vsmtp-config"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "hostname",
  "humantime-serde",
@@ -1665,7 +1669,9 @@ dependencies = [
  "semver",
  "serde",
  "serde_with",
+ "strum",
  "toml",
+ "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
  "users",
@@ -1683,9 +1689,17 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
- "vsmtp-common",
+ "anyhow",
+ "async-trait",
+ "convert_case",
+ "either",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -1701,7 +1715,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "addr",
  "csv",
@@ -1715,7 +1729,6 @@ dependencies = [
  "time",
  "tracing",
  "trust-dns-resolver",
- "viaspf",
  "vsmtp-auth",
  "vsmtp-common",
  "vsmtp-config",

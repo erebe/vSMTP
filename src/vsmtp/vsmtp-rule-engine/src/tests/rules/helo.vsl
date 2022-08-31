@@ -5,7 +5,7 @@
       // object are best defined in your own modules !
       object bar fqdn = "example.com";
 
-      if ctx().helo is bar && bar is ctx().helo {
+      if helo() is bar && bar is helo() {
         next()
       } else {
         deny()
@@ -15,7 +15,7 @@
     rule "test helo using a regex object" || {
       object com regex = "^[a-z0-9.]+.com$";
 
-      if ctx().helo is com {
+      if helo() is com {
         next()
       } else {
         deny()

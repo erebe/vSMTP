@@ -2,7 +2,7 @@ import "service" as svc;
 
 fn has_virus() {
     // running the service with the email's content as an argument.
-    let result = svc::antivirus.cmd_run([`${ctx().mail}`]);
+    let result = svc::antivirus.cmd_run([`${mail()}`]);
 
     // The command could timeout.
     // You could use a `throw` statement here.

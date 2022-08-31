@@ -15,7 +15,7 @@
  *
 */
 
-//! # Utils
+//! ### Utils
 //!
 //! Those miscellaneous functions lets you query data from your system,
 //! log stuff, perform dns lookups etc ...
@@ -24,18 +24,18 @@
 /// check if the recipient passed as argument is part of the
 /// domains (root & sni) of the server.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt` - the recipient to check, of type string | `object address` | rcpt.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `bool` - true of the recipient's domain is part of the server's root or sni domains, false otherwise.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 /// all of them, but should be use in the rcpt stage.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
@@ -43,7 +43,7 @@
 ///     ]
 /// }
 ///
-/// # Module:Utils
+/// ### Module:Utils
 /// ```
 fn in_domain(rcpt) {
     switch rcpt.type_of() {
@@ -59,16 +59,16 @@ fn in_domain(rcpt) {
 
 /// Log information to stdout in `nodaemon` mode or to a file.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `level` - the level of the message, can be "trace", "debug", "info", "warn" or "error".
 /// * `message` - the message to log.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -77,22 +77,22 @@ fn in_domain(rcpt) {
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn log(level, message) { sys::log(level, message) }
 
 /// Export the current raw message to a file as an `eml` file.
 /// The message id of the email is used to name the file.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `dir` - the directory where to store the email. Relative to the
 /// application path.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `preq` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -101,22 +101,22 @@ fn log(level, message) { sys::log(level, message) }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn write(dir) { sys::write(srv(), ctx(), msg(), dir) }
 
 /// Export the current message and the envelop to a file as a `json` file.
 /// The message id of the email is used to name the file.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `dir` - the directory where to store the data. Relative to the
 /// application path.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `preq` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -125,24 +125,24 @@ fn write(dir) { sys::write(srv(), ctx(), msg(), dir) }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 
 /// Check if a user exists on this server.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `name` - the name of the user.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `bool` - true if the user exists, false otherwise.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
@@ -155,20 +155,20 @@ fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn user_exist(name) { sys::user_exist(name) }
 
 /// Get the hostname of this machine.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the host name of the machine.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -179,20 +179,20 @@ fn user_exist(name) { sys::user_exist(name) }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn hostname() { sys::hostname() }
 
 /// Get the current date.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the current date.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -203,20 +203,20 @@ fn hostname() { sys::hostname() }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn date() { sys::date() }
 
 /// Get the current time.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the current time.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -227,24 +227,24 @@ fn date() { sys::date() }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn time() { sys::time() }
 
 /// Performs a dual-stack DNS lookup for the given hostname.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `host` - A valid hostname to search.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `array` - an array of IPs. The array is empty if no IPs were found for the host.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
@@ -261,24 +261,24 @@ fn time() { sys::time() }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn lookup(host) { sys::lookup(srv(), host) }
 
 /// Performs a reverse lookup for the given IP.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `ip` - The IP to query.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `array` - an array of FQDNs. The array is empty if nothing was found.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -294,5 +294,5 @@ fn lookup(host) { sys::lookup(srv(), host) }
 /// }
 /// ```
 ///
-/// # Module:Utils
+/// ### Module:Utils
 fn rlookup(ip) { sys::rlookup(srv(), ip) }

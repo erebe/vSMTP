@@ -3,7 +3,7 @@
         rule "check root domain" || {
             if in_domain(object rcpt1 address = "rcpt@testserver.com")
             && in_domain("testserver.com")
-            && ctx().server_name == "testserver.com" {
+            && server_name() == "testserver.com" {
                 accept()
             } else {
                 deny()

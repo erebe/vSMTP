@@ -17,7 +17,7 @@
 #{
     rcpt: [
         rule "check server_name with sni" || {
-            if ctx().server_name == "second.testserver.com" {
+            if server_name() == "second.testserver.com" {
                 accept()
             } else {
                 deny()

@@ -15,22 +15,22 @@
  *
 */
 
-//! # Transaction
+//! ### Transaction
 //!
 //! At each SMTP stage, data from the client is received via 'SMTP commands'.
 //! This module lets you query the content of the commands.
 
 /// Get the value of the `HELO/EHLO` command sent by the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `helo` and onwards.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the value of the `HELO/EHLO` command.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     helo: [
@@ -39,20 +39,20 @@
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn helo() { ctx().helo }
 
 /// Get the value of the `MAIL FROM` command sent by the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `mail` and onwards.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `address` - the sender address.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     helo: [
@@ -61,22 +61,22 @@ fn helo() { ctx().helo }
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn mail_from() { ctx().mail_from }
 
 /// Get the value of the current `RCPT TO` command sent by the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `rcpt` and onwards. Please note that `rcpt()` will always return
 /// the last recipient received in stages after the `rcpt` stage. Therefore,
 /// this functions is best used in the `rcpt` stage.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `address` - the address of the received recipient.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     rcpt: [
@@ -85,22 +85,22 @@ fn mail_from() { ctx().mail_from }
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn rcpt() { ctx().rcpt }
 
 /// Get the list of recipients received by the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `rcpt` and onwards. Note that you will not have all recipients received
 /// all at once in the `rcpt` stage. It is better to use this function
 /// in the later stages.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `Array of addresses` - the list containing all recipients.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -109,20 +109,20 @@ fn rcpt() { ctx().rcpt }
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn rcpt_list() { ctx().rcpt_list }
 
 /// Get the time of reception of the email.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `preq` and onwards.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the timestamp.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -131,20 +131,20 @@ fn rcpt_list() { ctx().rcpt_list }
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn mail_timestamp() { ctx().mail_timestamp }
 
 /// Get the unique id of the received message.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `preq` and onwards.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the message id.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -153,5 +153,5 @@ fn mail_timestamp() { ctx().mail_timestamp }
 /// }
 /// ```
 ///
-/// # Module:Transaction
+/// ### Module:Transaction
 fn message_id() { ctx().message_id }
