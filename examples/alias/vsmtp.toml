@@ -1,0 +1,19 @@
+# Version requirement. Do not remove or modify it.
+version_requirement = ">=1.0.0"
+
+# Global configuration
+[server]
+domain = "mydomain.com"
+
+[server.interfaces]
+addr = ["192.168.1.254:25", "192.168.1.254:10025"]
+addr_submission = ["192.168.1.254:587"]
+addr_submissions = ["192.168.1.254:465"]
+
+# NOTE: `filepath` key use relative paths to automaticaly test our examples.
+#        Use absolute or relative paths relative to your own system instead of those.
+#
+#        (for example: app.vsl.filepath = "/etc/vsmtp/main.vsl")
+
+[app.vsl]
+filepath = "../../../examples/alias/main.vsl"

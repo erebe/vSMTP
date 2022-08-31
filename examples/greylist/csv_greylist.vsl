@@ -1,7 +1,6 @@
-/// This is type of service that lets you interact
-/// with a csv database.
+/// Here are examples of a csv database service setup.
 
-service greylist db:csv = #{
+service csv_greylist db:csv = #{
     // the location of the database on disk.
     connector: "../../../examples/greylist/greylist.csv",
     // the access flags used to query the database.

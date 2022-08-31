@@ -56,6 +56,7 @@ path = "./src/vsmtp/src/lib.rs"
 vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, version = "1.2.1" }
 vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.2.1" }
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.2.1" }
+vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine", default-features = false, version = "1.2.1" }
 
 clap = { version = "3.2.18", features = ["derive"] }
 diff = "0.1.13"
@@ -72,6 +73,7 @@ syslog = "6.0.1"
 [features]
 default = ["vsmtp-common/gsasl_bindgen"]
 tokio_console = ["console-subscriber"]
+mysql = ["vsmtp-rule-engine/mysql"]
 
 # TODO: improve that
 [package.metadata.docs.rs]

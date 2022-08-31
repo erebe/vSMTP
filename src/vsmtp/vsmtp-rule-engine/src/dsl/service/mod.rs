@@ -17,6 +17,8 @@
 
 use vsmtp_common::transfer::SmtpConnection;
 
+use crate::api::EngineResult;
+
 pub mod cmd;
 pub mod databases;
 pub mod parsing;
@@ -54,6 +56,15 @@ pub enum Service {
         fd: std::fs::File,
     },
 
+    #[cfg(feature = "mysql")]
+    /// A database connector based on MySQL.
+    MySQLDatabase {
+        /// The url to the database.
+        url: String,
+        /// connection pool for the database.
+        pool: r2d2::Pool<self::databases::mysql::MySQLConnectionManager>,
+    },
+
     /// A service that handles smtp transactions.
     Smtp {
         /// A transport to handle transactions to the delegate.
@@ -70,9 +81,43 @@ impl std::fmt::Display for Service {
             "{}",
             match self {
                 Service::Cmd { .. } => "cmd",
-                Self::CSVDatabase { .. } => "csv-database",
                 Self::Smtp { .. } => "smtp",
+                Self::CSVDatabase { .. } => "csv-database",
+                #[cfg(feature = "mysql")]
+                Self::MySQLDatabase { .. } => "mysql-database",
             }
         )
+    }
+}
+
+/// extract a value from a `rhai::Map`, optionally inserting a default value.
+pub fn get_or_default<T: Clone + Send + Sync + 'static>(
+    map_name: &str,
+    map: &rhai::Map,
+    key: &str,
+    default: Option<T>,
+) -> EngineResult<T> {
+    fn try_cast<T: Clone + Send + Sync + 'static>(
+        name: &str,
+        value: &rhai::Dynamic,
+    ) -> EngineResult<T> {
+        value
+            .clone()
+            .try_cast::<T>()
+            .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+                format!(
+                    "the {name} parameter for a smtp service must be a {}",
+                    std::any::type_name::<T>()
+                )
+                .into()
+            })
+    }
+
+    match (map.get(key), default) {
+        (Some(value), _) => try_cast(key, value),
+        (mut value, Some(default)) => {
+            try_cast(key, value.get_or_insert(&rhai::Dynamic::from(default)))
+        }
+        _ => Err(format!("key {key} was not found in {map_name}").into()),
     }
 }

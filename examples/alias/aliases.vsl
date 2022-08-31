@@ -1,0 +1,9 @@
+// You could use a database instead of a group object.
+object my_aliases group = [
+    object alias1 identifier = "john",
+    object alias2 identifier = "joe",
+    object alias3 identifier = "jenny",
+];
+
+object my_domain fqdn = "mydomain.com";
+object my_address address = "john.doe@mydomain.com";

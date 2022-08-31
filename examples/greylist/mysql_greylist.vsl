@@ -1,0 +1,38 @@
+/// Here is an example of a mysql database service setup.
+
+service mysql_greylist db:mysql = #{
+    // the url to connect to your database.
+    url: "mysql://localhost/",
+    // the user to use when connecting. (optional)
+    user: "guest",
+    // the password for the user. (optional)
+    password: "1234",
+    // the number of connections to open on your database. (optional, 4 by default)
+    connections: 4,
+    // the time allowed to the database to send a
+    // response to your query. (optional, 30s by default)
+    timeout: "3s",
+};
+
+// A function that reproduce a greylist behavior using mysql.
+fn greylist(greylist) {
+    let sender = mail_from();
+
+    // if the sender is not recognized in our database,
+    // we deny the transaction and write the sender into
+    // the database.
+    //
+    // In this example, we use a mysql table called "sender" in a "greylist" database.
+    if greylist.query(`SELECT * FROM greylist.sender WHERE address = '${sender}';`) == [] {
+        greylist.query(`
+            INSERT INTO greylist.sender (user, domain, address)
+            values ("${sender.local_part}", "${sender.domain}", "${sender}");
+        `);
+
+        deny()
+    } else {
+        // the user is known by the server, the transaction
+        // can proceed.
+        accept()
+    }
+}

@@ -21,7 +21,7 @@ use std::{io::Write, str::FromStr};
 use vsmtp_common::re::anyhow::{self, Context};
 
 /// query a record matching the first element.
-pub fn query_key(
+pub fn query(
     path: &std::path::PathBuf,
     delimiter: u8,
     _: &Refresh,

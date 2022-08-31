@@ -19,7 +19,7 @@
 //!
 //! Services are external programs that can be used via the functions available in this module.
 
-/// Get the value of a key in a database.
+/// Get the value of a key in a csv database.
 ///
 /// ### Args
 ///
@@ -56,7 +56,7 @@
 /// ### Module:Services
 fn get(key) { this.db_query(key.to_string()) }
 
-/// Set a record into a database.
+/// Set a record into a csv database.
 ///
 /// ### Args
 ///
@@ -84,7 +84,7 @@ fn set(record) {
     this.db_add(record.map("to_string"))
 }
 
-/// Remove a record from a database.
+/// Remove a record from a csv database.
 ///
 /// ### Args
 ///
@@ -110,7 +110,11 @@ fn set(record) {
 /// ### Module:Services
 fn rm(key) { this.db_rm(key.to_string()) }
 
-/// Run a command from a `cmd` service.
+/// Query a database.
+///
+/// # Args
+///
+/// * `q` - the query to execute.
 ///
 /// ### Effective smtp stage
 ///
@@ -119,30 +123,27 @@ fn rm(key) { this.db_rm(key.to_string()) }
 /// ### Example
 ///
 /// ```js
-/// // services.vsl
-/// service echo cmd = #{
-///     timeout: "2s",
-///     command: "echo",
-///     args: ["-e", "using cmd to print to stdout\r\n"],
+/// service my_db db:mysql = #{
+///     url: "mysql://localhost/",
+///     user: "guest",
 /// };
 /// ```
 ///
 /// ```js
-/// // main.vsl
 /// import "services" as svc;
 ///
 /// #{
 ///     connect: [
-///        action "execute command" || {
-///             // prints 'using cmd to print to stdout\r\n' on the screen.
-///             svc::echo.cmd_run();
+///        action "log database version" || {
+///             let version = svc::my_db.query("SELECT version();");
+///             log("trace", `Database version is ${version}`);
 ///        }
 ///     ]
 /// }
 /// ```
 ///
-/// ### Module:Services
-fn run() { this.cmd_run() }
+/// # Module:Services
+fn query(q) { this.db_query(q) }
 
 /// Run a command from a `cmd` service with arguments.
 /// This allows you to run a command with dynamic arguments.

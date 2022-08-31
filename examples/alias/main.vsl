@@ -1,0 +1,38 @@
+// `add_rcpt_envelop` add an address to the smtp envelop, effectively
+// adding the address to the list of recipients to deliver.
+//
+// In the case our server receive the list of recipients:
+// "jenny@mydomain.com", "joe@mydomain.com", "john@gmail.com" and "oliver@mydomain.com"
+// the list will be replaced by:
+// "john.doe@mydomain.com", "john@gmail.com", "oliver@mydomain.com".
+
+import "aliases" as al;
+
+#{
+    preq: [
+        action "forward aliases to my address" || {
+
+            let need_to_forward = false;
+
+            // iterate trough all recipients to check for aliases.
+            for rcpt in rcpt_list() {
+                let domain = rcpt.domain;
+                let user = rcpt.local_part;
+
+                // if the domain matches our domain and that
+                // the user is within our alias list, then
+                // we can safely remove the recipient that
+                // we will replace by our forwarding address.
+                if domain == al::my_domain
+                && user in al::my_aliases {
+                    remove_rcpt_envelop(rcpt);
+                    need_to_forward = true;
+                }
+            }
+
+            if need_to_forward == true {
+                add_rcpt_envelop(al::my_address);
+            }
+        }
+    ]
+}
