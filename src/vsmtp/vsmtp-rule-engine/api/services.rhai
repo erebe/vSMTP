@@ -112,7 +112,7 @@ fn rm(key) { this.db_rm(key.to_string()) }
 
 /// Query a database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `q` - the query to execute.
 ///
@@ -155,7 +155,7 @@ fn rm(key) { this.db_rm(key.to_string()) }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn query(q) { this.db_query(q) }
 
 /// Run a command from a `cmd` service with arguments.
