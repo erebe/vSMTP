@@ -134,9 +134,22 @@ fn rm(key) { this.db_rm(key.to_string()) }
 ///
 /// #{
 ///     connect: [
-///        action "log database version" || {
-///             let version = svc::my_db.query("SELECT version();");
-///             log("trace", `Database version is ${version}`);
+///        action "log database" || {
+///             let version_record = svc::my_db.query("SELECT version();");
+///             // Result is a array of maps: [ #{"version()": "'version-of-mysql'"} ]
+///             log("trace", `Database version is ${version_record[0]["version()"]}`);
+///
+///             // Fetching a 'greylist' database with a 'sender' table containing the (user, domain, address) fields.
+///             let senders = svc::my_db.query("SELECT * FROM greylist.sender");
+///
+///             // Iterate over rows.
+///             for sender in senders {
+///                 // You can access the columns values using Rhai's Map syntax:
+///                 print(`name: ${sender.user}, domain: ${sender.domain}, address: ${sender.address}`);
+///             }
+///
+///             // Populate the database with a new record.
+///             svc::my_db.query(`INSERT INTO greylist.sender (user, domain, address) values ("john.doe", "example.com", "john.doe@example.com");`);
 ///        }
 ///     ]
 /// }
