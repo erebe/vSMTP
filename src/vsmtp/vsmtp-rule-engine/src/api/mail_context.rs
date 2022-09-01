@@ -132,9 +132,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "authid", return_raw, pure)]
     pub fn get_authid(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
-            Credentials::Query { authid } | Credentials::Verify { authid, .. } => {
-                Ok(authid.clone())
-            }
+            Credentials::Verify { authid, .. } => Ok(authid.clone()),
             Credentials::AnonymousToken { .. } => {
                 Err(format!("no `authid` available in credentials of type `{credentials}`").into())
             }
@@ -146,9 +144,10 @@ mod mail_context_rhai {
     pub fn get_authpass(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
             Credentials::Verify { authpass, .. } => Ok(authpass.clone()),
-            _ => Err(
-                format!("no `authpass` available in credentials of type `{credentials}`").into(),
-            ),
+            Credentials::AnonymousToken { .. } => Err(format!(
+                "no `authpass` available in credentials of type `{credentials}`"
+            )
+            .into()),
         }
     }
 
@@ -157,7 +156,7 @@ mod mail_context_rhai {
     pub fn get_anonymous_token(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
             Credentials::AnonymousToken { token } => Ok(token.clone()),
-            _ => Err(format!(
+            Credentials::Verify { .. } => Err(format!(
                 "no `anonymous_token` available in credentials of type `{credentials}`"
             )
             .into()),

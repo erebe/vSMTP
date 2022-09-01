@@ -316,7 +316,10 @@ private fn dkim_verify_first_signature_or_error(policy) {
 
     let last_error = #{ status: "none" };
 
-    for i in get_all_headers("DKIM-Signature").retain(0..=policy.nbr_headers) {
+    let header = get_header_untouched(msg(), "DKIM-Signature");
+    header.truncate(policy.nbr_headers);
+
+    for i in header {
         try {
             let signature = sys::parse_signature(i);
 

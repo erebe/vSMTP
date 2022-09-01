@@ -33,15 +33,15 @@ fn test_engine_errors() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, StateSMTP::Connect),
         Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Helo),
+        re.run_when(&mut state, StateSMTP::Helo),
         Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
+        re.run_when(&mut state, StateSMTP::MailFrom),
         Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
 }
@@ -58,14 +58,14 @@ fn test_engine_rules_syntax() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
+    assert_eq!(re.run_when(&mut state, StateSMTP::Helo), Status::Next);
+    assert_eq!(re.run_when(&mut state, StateSMTP::MailFrom), Status::Next);
+    assert_eq!(re.run_when(&mut state, StateSMTP::RcptTo), Status::Next);
+    assert_eq!(re.run_when(&mut state, StateSMTP::PreQ), Status::Next);
+    assert_eq!(re.run_when(&mut state, StateSMTP::PostQ), Status::Next);
 }
 
 #[test]

@@ -126,7 +126,6 @@ pub mod re {
     pub use serde_json;
     pub use strum;
     pub use tokio;
-    pub use vsmtp_rsasl;
 }
 
 #[doc(hidden)]

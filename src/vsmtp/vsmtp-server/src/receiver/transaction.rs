@@ -138,7 +138,7 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
+                    .run_when(&mut self.rule_state, StateSMTP::Helo)
                 {
                     Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
@@ -162,7 +162,7 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
+                    .run_when(&mut self.rule_state, StateSMTP::Helo)
                 {
                     Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
@@ -244,7 +244,7 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
+                    .run_when(&mut self.rule_state, StateSMTP::MailFrom)
                 {
                     Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
@@ -267,7 +267,7 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
+                    .run_when(&mut self.rule_state, StateSMTP::RcptTo)
                 {
                     Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
@@ -456,7 +456,7 @@ impl Transaction {
 
             let status = self
                 .rule_engine
-                .run_when(&mut self.rule_state, &StateSMTP::Connect);
+                .run_when(&mut self.rule_state, StateSMTP::Connect);
 
             match status {
                 Status::Info(packet) => connection.send_reply_or_code(packet).await?,
@@ -472,7 +472,7 @@ impl Transaction {
             }
         }
 
-        let mut read_timeout = get_timeout_for_state(&connection.config, &self.state);
+        let mut read_timeout = get_timeout_for_state(&connection.config, self.state);
 
         loop {
             match connection.read(read_timeout).await {
@@ -492,7 +492,7 @@ impl Transaction {
                                 );
                                 self.state = new_state;
                                 read_timeout =
-                                    get_timeout_for_state(&connection.config, &self.state);
+                                    get_timeout_for_state(&connection.config, self.state);
                                 connection.send_reply_or_code(reply_to_send).await?;
                             }
                         },
@@ -518,10 +518,7 @@ impl Transaction {
 
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
-fn get_timeout_for_state(
-    config: &std::sync::Arc<Config>,
-    state: &StateSMTP,
-) -> std::time::Duration {
+fn get_timeout_for_state(config: &std::sync::Arc<Config>, state: StateSMTP) -> std::time::Duration {
     match state {
         StateSMTP::Connect => config.server.smtp.timeout_client.connect,
         StateSMTP::Helo => config.server.smtp.timeout_client.helo,

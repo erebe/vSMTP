@@ -33,7 +33,7 @@ fn test_context() {
     });
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Authenticate),
+        re.run_when(&mut state, StateSMTP::Authenticate),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -46,7 +46,7 @@ fn test_context() {
         .push(Rcpt::new(addr!("test@example.com")));
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
+        re.run_when(&mut state, StateSMTP::RcptTo),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -59,7 +59,7 @@ fn test_context() {
     };
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 

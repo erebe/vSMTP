@@ -32,9 +32,6 @@
                     } else {
                         vsl::deny()
                     }
-                },
-                "Query" => {
-                    vsl::info(db[auth().authid])
                 }
             }
         }

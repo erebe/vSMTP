@@ -87,7 +87,7 @@ async fn handle_one_in_working_queue_inner(
         .await?;
 
     let (mut mail_context, mail_message, _, skipped) = rule_engine.just_run_when(
-        &StateSMTP::PostQ,
+        StateSMTP::PostQ,
         config.as_ref(),
         resolvers,
         mail_context,

@@ -63,7 +63,7 @@ impl Directive {
         &self,
         state: &mut RuleState,
         ast: &rhai::AST,
-        stage: &StateSMTP,
+        stage: StateSMTP,
     ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {

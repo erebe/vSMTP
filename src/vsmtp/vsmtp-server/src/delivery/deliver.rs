@@ -108,7 +108,7 @@ async fn handle_one_in_delivery_queue_inner(
         .await?;
 
     let (mut mail_context, mut mail_message, result, skipped) = rule_engine.just_run_when(
-        &StateSMTP::Delivery,
+        StateSMTP::Delivery,
         config.as_ref(),
         resolvers.clone(),
         mail_context,

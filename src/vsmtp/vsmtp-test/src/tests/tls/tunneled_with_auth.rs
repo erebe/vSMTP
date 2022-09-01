@@ -14,11 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::{TEST_SERVER_CERT, TEST_SERVER_KEY};
-use crate::tests::tls::test_tls_tunneled;
-use vsmtp_common::re::{base64, tokio, vsmtp_rsasl};
+use super::{test_tls_tunneled_with_auth, TEST_SERVER_CERT, TEST_SERVER_KEY};
+use vsmtp_common::re::{base64, tokio};
 use vsmtp_config::{get_rustls_config, Config};
-use vsmtp_server::auth;
 
 fn get_tls_auth_config() -> Config {
     Config::builder()
@@ -50,7 +48,7 @@ async fn simple() {
     let mut config = get_tls_auth_config();
     config.app.vsl.filepath = Some("./src/tests/auth.vsl".into());
 
-    let (client, server) = test_tls_tunneled(
+    let (client, server) = test_tls_tunneled_with_auth(
         "testserver.com",
         std::sync::Arc::new(config),
         [
@@ -92,14 +90,6 @@ async fn simple() {
                 )
                 .unwrap(),
             ))
-        },
-        |config| {
-            Some({
-                let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
-                rsasl.install_callback::<auth::Callback>();
-                rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
-                std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
-            })
         },
         |_| (),
     )

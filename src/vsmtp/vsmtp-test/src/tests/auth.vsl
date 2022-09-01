@@ -30,9 +30,6 @@
                         deny()
                     }
                 },
-                "Query" => {
-                    packet(db[auth().authid])
-                },
                 "AnonymousToken" => {
                     print(auth().anonymous_token);
                     accept()

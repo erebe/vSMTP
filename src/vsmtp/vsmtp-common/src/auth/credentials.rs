@@ -25,11 +25,6 @@ pub enum Credentials {
         ///
         authpass: String,
     },
-    /// the server will query a third party and make internal verification
-    Query {
-        ///
-        authid: String,
-    },
     /// verify the token send by anonymous mechanism
     AnonymousToken {
         /// [ email / 1*255TCHAR ]

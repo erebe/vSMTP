@@ -14,156 +14,261 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::auth::{self, Session};
 
 use super::Connection;
+use crate::{rsasl_callback::ValidationVSL, Callback};
 use vsmtp_common::{
     auth::Mechanism,
-    re::{anyhow, base64, log, tokio, vsmtp_rsasl},
+    mail_context::ConnectionContext,
+    re::{anyhow, base64, log, tokio},
     CodeID,
 };
-use vsmtp_config::Resolvers;
+use vsmtp_config::{field::FieldServerSMTPAuth, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
 #[must_use]
 #[derive(thiserror::Error, Debug)]
-pub enum AuthExchangeError {
-    #[error("authentication invalid")]
-    Failed,
+enum Error {
+    #[error("authentication failed: {0}")]
+    Failed(rsasl::prelude::SessionError),
     #[error("authentication cancelled")]
     Canceled,
     #[error("authentication timeout")]
     Timeout(std::io::Error),
     #[error("base64 decoding error")]
-    InvalidBase64,
+    InvalidBase64(base64::DecodeError),
     #[error("error while sending a response: `{0}`")]
     SendingResponse(anyhow::Error),
     #[error("error while reading message: `{0}`")]
     ReadingMessage(std::io::Error),
-    #[error("internal error while processing the SASL exchange: `{0}`")]
-    StepError(vsmtp_rsasl::SaslError),
+    #[error("SASL error: `{0}`")]
+    BackendError(rsasl::prelude::SASLError),
     #[error("mechanism `{0}` must be used in encrypted connection")]
     AuthMechanismMustBeEncrypted(Mechanism),
     #[error("client started the authentication but server did not send any challenge: `{0}`")]
     AuthClientMustNotStart(Mechanism),
 }
 
-async fn auth_step<S>(
-    conn: &mut Connection<S>,
-    session: &mut vsmtp_rsasl::DiscardOnDrop<Session>,
-    buffer: &[u8],
-) -> Result<bool, AuthExchangeError>
+const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+struct Writer<'a, S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
-    if buffer == [b'*'] {
-        return Err(AuthExchangeError::Canceled);
+    conn: &'a mut Connection<S>,
+}
+
+macro_rules! await_ {
+    ($future:expr) => {
+        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
+    };
+}
+
+impl<'a, S> std::io::Write for Writer<'a, S>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        use tokio::io::AsyncWriteExt;
+        await_! { async move {
+            self.conn.inner.inner.write_all(b"334 ").await?;
+            self.conn
+                .inner
+                .inner
+                .write_all(base64::encode(buf).as_bytes())
+                .await?;
+            self.conn.inner.inner.write_all(b"\r\n").await?;
+            std::io::Result::Ok(())
+        }}
+        .map(|_| buf.len())
     }
 
-    let bytes64decoded = base64::decode(buffer).map_err(|_| AuthExchangeError::InvalidBase64)?;
-
-    match session.step(&bytes64decoded) {
-        Ok(vsmtp_rsasl::Step::Done(buffer)) => {
-            if !buffer.is_empty() {
-                todo!(
-                    "Authentication successful, bytes to return to client: {:?}",
-                    std::str::from_utf8(&buffer)
-                );
-            }
-
-            conn.send_code(CodeID::AuthSucceeded)
-                .await
-                .map_err(AuthExchangeError::SendingResponse)?;
-            Ok(true)
+    fn flush(&mut self) -> std::io::Result<()> {
+        await_! {
+            tokio::io::AsyncWriteExt::flush(&mut self.conn.inner.inner)
         }
-        Ok(vsmtp_rsasl::Step::NeedsMore(buffer)) => {
-            let reply = format!(
-                "334 {}\r\n",
-                base64::encode(std::str::from_utf8(&buffer).unwrap())
-            );
-
-            conn.send(&reply)
-                .await
-                .map_err(AuthExchangeError::SendingResponse)?;
-            Ok(false)
-        }
-        Err(e) if e.matches(vsmtp_rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
-            Err(AuthExchangeError::Failed)
-        }
-        Err(e) => Err(AuthExchangeError::StepError(e)),
     }
 }
 
-const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-
-pub async fn on_authentication<S>(
-    conn: &mut Connection<S>,
-    rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
-    rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
-    mechanism: Mechanism,
-    initial_response: Option<Vec<u8>>,
-) -> Result<(), AuthExchangeError>
+impl<S> Connection<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
-    // TODO: if initial data == "=" ; it mean empty ""
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn handle_auth(
+        &mut self,
+        _auth_config: FieldServerSMTPAuth,
+        rule_engine: std::sync::Arc<RuleEngine>,
+        resolvers: std::sync::Arc<Resolvers>,
+        helo_domain: &mut Option<String>,
+        args: (Mechanism, Option<Vec<u8>>),
+        helo_pre_auth: String,
+    ) -> anyhow::Result<()> {
+        let rsasl_config = rsasl::config::SASLConfig::builder()
+            .with_default_mechanisms()
+            .with_defaults()
+            .with_callback(Callback {
+                rule_engine,
+                resolvers,
+                config: self.config.clone(),
+                conn_ctx: self.context.clone(),
+            })
+            .map_err(|e| anyhow::anyhow!("Failed to initialize SASL config: {e}"))?;
 
-    if mechanism.must_be_under_tls() && !conn.context.is_secured {
-        if conn
-            .config
-            .server
-            .smtp
-            .auth
-            .as_ref()
-            .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
-        {
-            log::warn!(
-                "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted connection!"
-            );
+        if let Err(e) = self.on_authentication(rsasl_config, args).await {
+            log::warn!("SASL exchange produced an error: {e}");
+
+            match e {
+                Error::Failed(e) => {
+                    self.send_code(CodeID::AuthInvalidCredentials).await?;
+                    anyhow::bail!("{e} - {}", CodeID::AuthInvalidCredentials)
+                }
+                Error::Canceled => {
+                    self.context.authentication_attempt += 1;
+                    *helo_domain = Some(helo_pre_auth);
+
+                    let retries_max = self
+                        .config
+                        .server
+                        .smtp
+                        .auth
+                        .as_ref()
+                        .unwrap()
+                        .attempt_count_max;
+                    if retries_max != -1 && self.context.authentication_attempt > retries_max {
+                        self.send_code(CodeID::AuthRequired).await?;
+                        anyhow::bail!("Auth: Attempt max {retries_max} reached");
+                    }
+                    self.send_code(CodeID::AuthClientCanceled).await?;
+                    Ok(())
+                }
+                Error::Timeout(_) => {
+                    self.send_code(CodeID::Timeout).await?;
+                    anyhow::bail!("{}", CodeID::Timeout)
+                }
+                Error::InvalidBase64(_) => {
+                    self.send_code(CodeID::AuthErrorDecode64).await?;
+                    Ok(())
+                }
+                otherwise => anyhow::bail!("{otherwise}"),
+            }
         } else {
-            conn.send_code(CodeID::AuthMechanismMustBeEncrypted)
-                .await
-                .map_err(AuthExchangeError::SendingResponse)?;
+            // TODO: When a security layer takes effect
+            // helo_domain = None;
 
-            return Err(AuthExchangeError::AuthMechanismMustBeEncrypted(mechanism));
+            *helo_domain = Some(helo_pre_auth);
+            Ok(())
         }
     }
 
-    if !mechanism.client_first() && initial_response.is_some() {
-        conn.send_code(CodeID::AuthClientMustNotStart)
-            .await
-            .map_err(AuthExchangeError::SendingResponse)?;
+    async fn on_authentication(
+        &mut self,
+        rsasl_config: std::sync::Arc<rsasl::config::SASLConfig>,
+        args: (Mechanism, Option<Vec<u8>>),
+    ) -> Result<(), Error> {
+        // TODO: if initial data == "=" ; it mean empty ""
 
-        return Err(AuthExchangeError::AuthClientMustNotStart(mechanism));
-    }
+        let (mechanism, initial_response) = args;
 
-    let mut guard = rsasl.lock().await;
-    let mut session = guard.server_start(&format!("{mechanism}")).unwrap();
-    session.store(Box::new((rule_engine, resolvers, conn.context.clone())));
+        if mechanism.must_be_under_tls() && !self.context.is_secured {
+            if self
+                .config
+                .server
+                .smtp
+                .auth
+                .as_ref()
+                .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
+            {
+                log::warn!(
+                "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted selfection!"
+            );
+            } else {
+                self.send_code(CodeID::AuthMechanismMustBeEncrypted)
+                    .await
+                    .map_err(Error::SendingResponse)?;
 
-    let mut succeeded =
-        auth_step(conn, &mut session, &initial_response.unwrap_or_default()).await?;
-
-    while !succeeded {
-        succeeded = match conn.read(READ_TIMEOUT).await {
-            Ok(Some(buffer)) => {
-                log::trace!("{buffer}");
-                auth_step(conn, &mut session, buffer.as_bytes()).await
+                return Err(Error::AuthMechanismMustBeEncrypted(mechanism));
             }
-            Ok(None) => Err(AuthExchangeError::ReadingMessage(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "unexpected EOF during SASL exchange",
-            ))),
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                Err(AuthExchangeError::Timeout(e))
+        }
+
+        let sasl_server = rsasl::prelude::SASLServer::<ValidationVSL>::new(rsasl_config);
+
+        let temp = mechanism.to_string();
+        let selected = rsasl::prelude::Mechname::parse(temp.as_bytes()).unwrap();
+        let mut session = sasl_server
+            .start_suggested(selected)
+            .map_err(Error::BackendError)?;
+
+        let mut writer = Writer { conn: self };
+
+        let data = match initial_response {
+            Some(_) if !mechanism.client_first() => {
+                self.send_code(CodeID::AuthClientMustNotStart)
+                    .await
+                    .map_err(Error::SendingResponse)?;
+
+                return Err(Error::AuthClientMustNotStart(mechanism));
             }
-            Err(e) => Err(AuthExchangeError::ReadingMessage(e)),
-        }?;
+            Some(buffer) => Some(buffer),
+            None => None,
+        };
+
+        let mut data = if session.are_we_first() {
+            None
+        } else {
+            match data {
+                Some(data) => Some(base64::decode(data).map_err(Error::InvalidBase64)?),
+                None => {
+                    writer.conn.send("334 \r\n").await.unwrap();
+
+                    match writer.conn.read(READ_TIMEOUT).await {
+                        Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
+                        Ok(Some(buffer)) => {
+                            Some(base64::decode(buffer).map_err(Error::InvalidBase64)?)
+                        }
+                        Err(timeout) if timeout.kind() == std::io::ErrorKind::TimedOut => {
+                            return Err(Error::Timeout(timeout));
+                        }
+                        Ok(None) => {
+                            return Err(Error::ReadingMessage(std::io::Error::new(
+                                std::io::ErrorKind::UnexpectedEof,
+                                "connection closed",
+                            )))
+                        }
+                        Err(e) => return Err(Error::ReadingMessage(e)),
+                    }
+                }
+            }
+        };
+
+        while {
+            let (state, _) = session
+                .step(data.as_deref(), &mut writer)
+                .map_err(Error::Failed)?;
+            state.is_running()
+        } {
+            data = match writer.conn.read(READ_TIMEOUT).await {
+                Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
+                Ok(Some(buffer)) => Some(base64::decode(buffer).map_err(Error::InvalidBase64)?),
+                Ok(None) | Err(_) => todo!(),
+            };
+        }
+
+        match session.validation() {
+            Some((conn_ctx, _skipped)) => {
+                self.context = ConnectionContext {
+                    is_authenticated: true,
+                    ..conn_ctx
+                };
+
+                self.send_code(CodeID::AuthSucceeded)
+                    .await
+                    .map_err(Error::SendingResponse)?;
+
+                Ok(())
+            }
+            None => todo!(),
+        }
     }
-
-    // TODO: if success get session property
-
-    Ok(())
 }

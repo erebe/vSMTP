@@ -25,9 +25,9 @@ pre-release-replacements = [
   { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
   { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
   { file = "CHANGELOG.md", search = "<!-- next-header -->", replace = "<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly = 1, prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"./src/vsmtp/vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"./src/vsmtp/vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-server = \\{ path = \"./src/vsmtp/vsmtp-server\", default-features = false, version = .*", replace = "vsmtp-server = { path = \"./src/vsmtp/vsmtp-server\", default-features = false, version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"./src/vsmtp/vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"./src/vsmtp/vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"./src/vsmtp/vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"./src/vsmtp/vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-server = \\{ path = \"./src/vsmtp/vsmtp-server\", version = .*", replace = "vsmtp-server = { path = \"./src/vsmtp/vsmtp-server\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"./src/vsmtp/vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"./src/vsmtp/vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
 ]
 
 [workspace]
@@ -53,10 +53,10 @@ path = "./src/vsmtp/src/main.rs"
 path = "./src/vsmtp/src/lib.rs"
 
 [dependencies]
-vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, version = "1.2.1" }
-vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.2.1" }
-vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.2.1" }
-vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine", default-features = false, version = "1.2.1" }
+vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.2.1" }
+vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.2.1" }
+vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.2.1" }
+vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine", version = "1.2.1" }
 
 clap = { version = "3.2.18", features = ["derive"] }
 diff = "0.1.13"
@@ -71,15 +71,8 @@ tracing-journald = "0.3.0"
 syslog = "6.0.1"
 
 [features]
-default = ["vsmtp-common/gsasl_bindgen"]
 tokio_console = ["console-subscriber"]
 mysql = ["vsmtp-rule-engine/mysql"]
-
-# TODO: improve that
-[package.metadata.docs.rs]
-features = []
-all-features = false
-no-default-features = true
 
 #
 # DEBIAN PACKAGING

@@ -222,6 +222,21 @@ mod message_rhai {
     pub fn remove_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
         super::remove_header(message, &header.to_string())
     }
+
+    ///
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn get_header_untouched(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
+        let guard = vsl_guard_ok!(this.read());
+        let name_lowercase = name.to_lowercase();
+
+        Ok(guard
+            .inner()
+            .headers(true)
+            .iter()
+            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
+            .map(|(key, value)| rhai::Dynamic::from(format!("{key}:{value}")))
+            .collect::<Vec<_>>())
+    }
 }
 
 /// Return a list of headers bearing the `name` given as argument.

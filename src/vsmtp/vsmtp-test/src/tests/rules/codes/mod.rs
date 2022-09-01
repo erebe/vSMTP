@@ -15,8 +15,7 @@
  *
 */
 use crate::{config, test_receiver, tests::auth::unsafe_auth_config};
-use vsmtp_common::re::{base64, tokio, vsmtp_rsasl};
-use vsmtp_server::auth;
+use vsmtp_common::re::{base64, tokio};
 
 #[tokio::test]
 async fn info_message() {
@@ -131,12 +130,7 @@ async fn accept_message() {
     );
 
     assert!(test_receiver! {
-        with_auth => {
-            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
-            rsasl.install_callback::<auth::Callback>();
-            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
-            rsasl
-        },
+        with_auth,
         with_config => config.clone(),
         [
             "HELO client.com\r\n",

@@ -175,7 +175,7 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
-    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
+    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: StateSMTP) -> Status {
         let directive_set =
             if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
                 directive_set
@@ -185,7 +185,7 @@ impl RuleEngine {
 
         // check if we need to skip directive execution or resume because of a delegation.
         let directive_set = match rule_state.skipped() {
-            Some(Status::DelegationResult) if smtp_state.email_received() => {
+            Some(Status::DelegationResult) if smtp_state.is_email_received() => {
                 if let Some(header) = rule_state
                     .message()
                     .read()
@@ -281,7 +281,7 @@ impl RuleEngine {
     #[must_use]
     pub fn just_run_when(
         &self,
-        state: &StateSMTP,
+        state: StateSMTP,
         config: &Config,
         resolvers: std::sync::Arc<Resolvers>,
         mail_context: MailContext,
@@ -304,7 +304,7 @@ impl RuleEngine {
         &self,
         state: &mut RuleState,
         directives: &[Directive],
-        stage: &StateSMTP,
+        stage: StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
 
@@ -446,7 +446,7 @@ impl RuleEngine {
                             "action" => Directive::Action { name, pointer },
                             "delegate" => {
 
-                                if !stage.email_received() {
+                                if !stage.is_email_received() {
                                     anyhow::bail!("invalid delegation '{name}' in stage '{stage}': delegation directives are available from the 'postq' stage and onwards.");
                                 }
 

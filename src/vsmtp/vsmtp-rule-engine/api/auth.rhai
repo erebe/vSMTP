@@ -118,9 +118,6 @@ fn authenticate() {
                 deny()
             }
 
-        },
-        "Query" => {
-            deny()
         }
     }
 }

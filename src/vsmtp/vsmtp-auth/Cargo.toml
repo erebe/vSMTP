@@ -20,11 +20,11 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", default-features = false, version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.2.1" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.2.1" }
 
 serde = { version = "1.0.144", features = ["derive"] }
 tracing = "0.1.36"

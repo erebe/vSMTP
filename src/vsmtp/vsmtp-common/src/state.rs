@@ -21,6 +21,7 @@
     Eq,
     PartialEq,
     Hash,
+    Copy,
     Clone,
     Ord,
     PartialOrd,
@@ -57,7 +58,7 @@ pub enum StateSMTP {
 impl StateSMTP {
     /// As the email been received at the current stage ?
     #[must_use]
-    pub const fn email_received(&self) -> bool {
+    pub const fn is_email_received(&self) -> bool {
         matches!(self, Self::PostQ | Self::Delivery)
     }
 }
