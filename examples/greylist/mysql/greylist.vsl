@@ -4,9 +4,9 @@ service mysql_greylist db:mysql = #{
     // the url to connect to your database.
     url: "mysql://localhost/",
     // the user to use when connecting. (optional)
-    user: "guest",
+    user: "greylist-manager",
     // the password for the user. (optional)
-    password: "1234",
+    password: "your-password",
     // the number of connections to open on your database. (optional, 4 by default)
     connections: 4,
     // the time allowed to the database to send a
