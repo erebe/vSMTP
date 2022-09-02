@@ -57,7 +57,6 @@
 mod tests;
 
 mod parser {
-    pub mod semver;
     pub mod socket_addr;
     pub mod syst_group;
     pub mod syst_user;
@@ -130,21 +129,15 @@ impl Config {
     pub fn from_toml(input: &str) -> anyhow::Result<Self> {
         #[derive(serde::Serialize, serde::Deserialize)]
         struct VersionRequirement {
-            #[serde(
-                serialize_with = "crate::parser::semver::serialize",
-                deserialize_with = "crate::parser::semver::deserialize"
-            )]
             version_requirement: semver::VersionReq,
         }
 
-        let req = toml::from_str::<VersionRequirement>(input)?;
+        let version_requirement = toml::from_str::<VersionRequirement>(input)?.version_requirement;
         let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
 
-        if !req.version_requirement.matches(&pkg_version) {
+        if !version_requirement.matches(&pkg_version) {
             anyhow::bail!(
-                "Version requirement not fulfilled: expected '{}' but got '{}'",
-                req.version_requirement,
-                env!("CARGO_PKG_VERSION")
+                "Version requirement not fulfilled: expected '{version_requirement}' but got '{pkg_version}'"
             );
         }
 
