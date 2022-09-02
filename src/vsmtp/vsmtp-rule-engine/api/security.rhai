@@ -137,7 +137,7 @@ private fn auth_header(query) {
 /// #{
 ///     mail: [
 ///         rule "raw check spf" || {
-///             let query = sys_check_spf();
+///             let query = check_spf_inner();
 ///
 ///             log("debug", `result: ${query.result}`);
 ///
@@ -159,7 +159,7 @@ private fn auth_header(query) {
 /// ```
 ///
 /// ### Module:Security
-fn sys_check_spf() { sys::check_spf(ctx(), srv()) }
+fn check_spf_inner() { sys::check_spf(ctx(), srv()) }
 
 /// Check spf record following the Sender Policy Framework (RFC 7208).
 /// see https://datatracker.ietf.org/doc/html/rfc7208
@@ -365,7 +365,7 @@ private fn dkim_verify_first_signature_or_error(policy) {
     last_error
 }
 
-private fn verify_dkim_inner(policy) {
+fn verify_dkim_inner(policy) {
     if ctx().has_dkim_result {
         ctx().dkim_result
     } else {
@@ -376,16 +376,30 @@ private fn verify_dkim_inner(policy) {
 }
 
 /// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
+/// If this function has already been called once, it will return the result of the previous call.
 /// see https://datatracker.ietf.org/doc/html/rfc6376
 ///
 /// ### Return
-/// * `accept()` - a signature was successfully verified.
-/// * `deny()` - no signature could be verified.
+///
+/// * a DkimResult object
+///
+/// ### Effective smtp stage
+///
+/// `preq` and onwards.
+///
+/// ### Example
+///
+/// ```js
+/// #{
+///   preq: [
+///     action "check dkim" || { verify_dkim(); },
+///   ]
+/// }
+/// ````
 ///
 /// ### Module:Security
 fn verify_dkim() {
     let result = verify_dkim_inner(#{
-        // will process a limited amount of signature, avoid infinite loop and dos/DDoS attack
         nbr_headers: 5,
         // the dns query may result in multiple public key, the registry with invalid format are ignored.
         // among ["first_one", "cycle"]
@@ -402,20 +416,69 @@ fn verify_dkim() {
 }
 
 /// Produce a `DKIM-Signature` header.
+///
+/// ### Args
+///
+/// * `selector` - the DNS selector to expose the public key & for the verifier
+/// * `headers_field` - list of headers to sign
+/// * `canonicalization` - the canonicalization algorithm to use (ex: "simple/relaxed")
+///
+/// ### Effective smtp stage
+///
+/// `preq` and onwards.
+///
+/// ### Example
+///
+/// ```js
+/// #{
+///   preq: [
+///     action "sign dkim" || {
+///       sign_dkim("2022-09", ["From", "To", "Date", "Subject", "From"], "simple/relaxed");
+///     },
+///   ]
+/// }
+/// ```
+///
+/// ### Module:Security
 fn sign_dkim(selector, headers_field, canonicalization) {
     let signature = sys::generate_signature_dkim(msg(), ctx(), srv(), selector, headers_field, canonicalization);
     prepend_header("DKIM-Signature", signature);
 }
 
+/// Alias for `sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")`
+///
+/// ### Module:Security
 fn sign_dkim(selector) {
-    sign_dkim(msg(), ctx(), srv(), selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
+    sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
 }
 
+/// Apply the DMARC policy to the mail.
+///
+/// ### Effective smtp stage
+///
+/// `preq` and onwards.
+///
+/// ### Example
+///
+/// ```js
+/// #{
+///   preq: [
+///     rule "check dmarc" || { check_dmarc() },
+///   ]
+/// }
+/// ```
+///
+/// ### Module:Security
 fn check_dmarc() {
-    let rfc5322_from = parse_rfc5322_from(msg()).domain;
-
-    // TODO: could produce a temperror
-    let record = get_dmarc_record(srv(), rfc5322_from);
+    let rfc5322_from;
+    let record;
+    try {
+        rfc5322_from = parse_rfc5322_from(msg()).domain;
+        record = get_dmarc_record(srv(), rfc5322_from);
+    } catch (e) {
+        log("warn", `DMARC record not found: ${e.to_debug()}`);
+        return next();
+    }
 
     let dkim_result = verify_dkim_inner(#{
         // TODO: only take `d == rfc5322_from`

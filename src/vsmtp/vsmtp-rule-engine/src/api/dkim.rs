@@ -21,7 +21,8 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_auth::dkim::{
-    Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature, VerifierError,
+    Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature, SigningAlgorithm,
+    VerifierError,
 };
 use vsmtp_common::{mail_context::MailContext, re::tokio};
 
@@ -380,13 +381,14 @@ impl Impl {
                 inner: format!("dkim params are empty for this `{sdid}`"),
             }),
             Some(dkim_params) => {
-                let signature = Signature::sign(
+                let signature = Signature::new(
                     message.inner(),
-                    selector,
-                    sdid,
-                    headers_field.iter().map(ToString::to_string).collect(),
                     &dkim_params.private_key.inner,
+                    SigningAlgorithm::RsaSha256,
+                    sdid.to_string(),
+                    selector.to_string(),
                     Canonicalization { header, body },
+                    headers_field.iter().map(ToString::to_string).collect(),
                 )
                 .map_err(|e| DkimErrors::InvalidArgument {
                     inner: format!("the signature failed: `{e}`"),

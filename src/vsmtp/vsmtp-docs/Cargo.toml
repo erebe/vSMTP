@@ -8,29 +8,17 @@ license = "GPL-3.0-only"
 rust-version = "1.60"
 
 authors = ["Team viridIT <https://viridit.com/>"]
-description = "Documentation generator for vSMTP's vsl api"
-
+description = "Next-gen MTA. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
-documentation = "https://docs.rs/crate/vsmtp-docs/"
 
-readme = "../../../README.md"
-keywords = ["vsmtp", "documentation"]
-
-categories = ["command-line-utilities"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[package.metadata.release]
-pre-release-replacements = [
-    { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", version = \"{{version}}\" }", prerelease = true },
-    { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-rule-engine\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
-]
+publish = false
 
 [dependencies]
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.2" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.2" }
-rhai = { version = "1.9.0", features = [
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
+vsmtp-config = { path = "../vsmtp-config" }
+
+rhai = { version = "1.9.1", features = [
     "unchecked",
     "sync",
     "internals",

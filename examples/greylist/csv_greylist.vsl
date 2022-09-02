@@ -1,4 +1,4 @@
-/// Here are examples of a csv database service setup.
+// Here are examples of a csv database service setup.
 
 service csv_greylist db:csv = #{
     // the location of the database on disk.

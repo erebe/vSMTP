@@ -7,5 +7,5 @@ This crate is a binary to auto-generate documentation for vsmtp, extracting vsl 
 Replace `path-to-docs` with the path where documentation will be generated.
 
 ```sh
-$ cargo run -- <path-to-docs>
+cargo run -- <path-to-docs>
 ```

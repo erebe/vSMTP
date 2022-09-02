@@ -15,11 +15,11 @@
  *
 */
 
+use super::{HashAlgorithm, PublicKey, Signature, SigningAlgorithm};
 use vsmtp_mail_parser::RawBody;
 
-use super::{HashAlgorithm, PublicKey, Signature, SigningAlgorithm};
-
-/// Possible error produced by [`Signature::verify`]
+/// Possible error produced by [`crate::dkim::Signature::verify`]
+#[must_use]
 #[derive(Debug, thiserror::Error)]
 pub enum VerifierError {
     /// The algorithm used in the signature is not supported by the public key
@@ -135,6 +135,7 @@ impl Signature {
                 }
             }
         };
+
         rsa::PublicKey::verify(
             key.as_ref(),
             rsa::PaddingScheme::PKCS1v15Sign {
@@ -148,5 +149,302 @@ impl Signature {
                 .map_err(|e| VerifierError::Base64Error { error: e })?,
         )
         .map_err(|e| VerifierError::HeaderHashMismatch { error: e })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::dkim::{
+        public_key::{Type, Version},
+        Canonicalization, CanonicalizationAlgorithm, HashAlgorithm, PublicKey, Signature,
+        SigningAlgorithm,
+    };
+    use vsmtp_mail_parser::MessageBody;
+
+    #[test]
+    fn sign_and_verify() {
+        let mut rng = rand::thread_rng();
+
+        let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
+        let public_key = rsa::RsaPublicKey::from(&private_key);
+
+        let mut message = MessageBody::try_from(concat!(
+            "From: toto@com\r\n",
+            "To: tata@com\r\n",
+            "Subject: test\r\n",
+            "Date: Mon, 1 Jan 2020 00:00:00 +0000\r\n",
+            "\r\n",
+            "test\r\n",
+        ))
+        .unwrap();
+
+        let signature = Signature::new(
+            message.inner(),
+            &private_key,
+            SigningAlgorithm::RsaSha256,
+            "localhost".to_string(),
+            "foobar".to_string(),
+            Canonicalization {
+                header: CanonicalizationAlgorithm::Relaxed,
+                body: CanonicalizationAlgorithm::Relaxed,
+            },
+            vec![
+                "From".to_string(),
+                "To".to_string(),
+                "Subject".to_string(),
+                "Date".to_string(),
+                "From".to_string(),
+            ],
+        )
+        .unwrap();
+
+        message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+
+        let key = PublicKey {
+            version: Version::Dkim1,
+            acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+            r#type: Type::Rsa,
+            notes: None,
+            public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+                .unwrap()
+                .as_ref()
+                .to_vec(),
+            service_type: vec![],
+            flags: vec![],
+        };
+
+        signature.verify(message.inner(), &key).unwrap();
+    }
+
+    mod error {
+        use super::*;
+
+        #[test]
+        fn incompatible_key() {
+            let mut rng = rand::thread_rng();
+
+            let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
+            let public_key = rsa::RsaPublicKey::from(&private_key);
+
+            let mut message = MessageBody::try_from(concat!(
+                "From: toto@com\r\n",
+                "To: tata@com\r\n",
+                "Subject: test\r\n",
+                "Date: Mon, 1 Jan 2020 00:00:00 +0000\r\n",
+                "\r\n",
+                "test\r\n",
+            ))
+            .unwrap();
+
+            let signature = Signature::new(
+                message.inner(),
+                &private_key,
+                SigningAlgorithm::RsaSha256,
+                "localhost".to_string(),
+                "foobar".to_string(),
+                Canonicalization {
+                    header: CanonicalizationAlgorithm::Relaxed,
+                    body: CanonicalizationAlgorithm::Relaxed,
+                },
+                vec![
+                    "From".to_string(),
+                    "To".to_string(),
+                    "Subject".to_string(),
+                    "Date".to_string(),
+                    "From".to_string(),
+                ],
+            )
+            .unwrap();
+
+            message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+
+            let key = PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha1],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+                    .unwrap()
+                    .as_ref()
+                    .to_vec(),
+                service_type: vec![],
+                flags: vec![],
+            };
+
+            let err = signature.verify(message.inner(), &key).unwrap_err();
+            println!("{err}");
+        }
+
+        #[test]
+        fn empty_key() {
+            let mut rng = rand::thread_rng();
+
+            let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
+
+            let mut message = MessageBody::try_from(concat!(
+                "From: toto@com\r\n",
+                "To: tata@com\r\n",
+                "Subject: test\r\n",
+                "Date: Mon, 1 Jan 2020 00:00:00 +0000\r\n",
+                "\r\n",
+                "test\r\n",
+            ))
+            .unwrap();
+
+            let signature = Signature::new(
+                message.inner(),
+                &private_key,
+                SigningAlgorithm::RsaSha256,
+                "localhost".to_string(),
+                "foobar".to_string(),
+                Canonicalization {
+                    header: CanonicalizationAlgorithm::Relaxed,
+                    body: CanonicalizationAlgorithm::Relaxed,
+                },
+                vec![
+                    "From".to_string(),
+                    "To".to_string(),
+                    "Subject".to_string(),
+                    "Date".to_string(),
+                    "From".to_string(),
+                ],
+            )
+            .unwrap();
+
+            message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+
+            let key = PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: vec![],
+                service_type: vec![],
+                flags: vec![],
+            };
+
+            let err = signature.verify(message.inner(), &key).unwrap_err();
+            println!("{err}");
+        }
+
+        #[test]
+        fn body_mismatch() {
+            let mut rng = rand::thread_rng();
+
+            let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
+            let public_key = rsa::RsaPublicKey::from(&private_key);
+
+            let mut message = MessageBody::try_from(concat!(
+                "From: toto@com\r\n",
+                "To: tata@com\r\n",
+                "Subject: test\r\n",
+                "Date: Mon, 1 Jan 2020 00:00:00 +0000\r\n",
+                "\r\n",
+                "test\r\n",
+            ))
+            .unwrap();
+
+            let mut signature = Signature::new(
+                message.inner(),
+                &private_key,
+                SigningAlgorithm::RsaSha256,
+                "localhost".to_string(),
+                "foobar".to_string(),
+                Canonicalization {
+                    header: CanonicalizationAlgorithm::Relaxed,
+                    body: CanonicalizationAlgorithm::Relaxed,
+                },
+                vec![
+                    "From".to_string(),
+                    "To".to_string(),
+                    "Subject".to_string(),
+                    "Date".to_string(),
+                    "From".to_string(),
+                ],
+            )
+            .unwrap();
+
+            signature.body_hash = base64::encode("foobar");
+
+            message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+
+            let key = PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+                    .unwrap()
+                    .as_ref()
+                    .to_vec(),
+                service_type: vec![],
+                flags: vec![],
+            };
+
+            let err = signature.verify(message.inner(), &key).unwrap_err();
+            println!("{err}");
+        }
+
+        #[test]
+        fn signature_mismatch() {
+            let mut rng = rand::thread_rng();
+
+            let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
+            let public_key = rsa::RsaPublicKey::from(&private_key);
+
+            let mut message = MessageBody::try_from(concat!(
+                "From: toto@com\r\n",
+                "To: tata@com\r\n",
+                "Subject: test\r\n",
+                "Date: Mon, 1 Jan 2020 00:00:00 +0000\r\n",
+                "\r\n",
+                "test\r\n",
+            ))
+            .unwrap();
+
+            let signature = Signature::new(
+                message.inner(),
+                &private_key,
+                SigningAlgorithm::RsaSha256,
+                "localhost".to_string(),
+                "foobar".to_string(),
+                Canonicalization {
+                    header: CanonicalizationAlgorithm::Relaxed,
+                    body: CanonicalizationAlgorithm::Relaxed,
+                },
+                vec![
+                    "From".to_string(),
+                    "To".to_string(),
+                    "Subject".to_string(),
+                    "Date".to_string(),
+                    "From".to_string(),
+                ],
+            )
+            .unwrap();
+
+            message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
+
+            message.set_header(
+                "From",
+                "this header changed, so the dkim signature is invalid",
+            );
+
+            let key = PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+                    .unwrap()
+                    .as_ref()
+                    .to_vec(),
+                service_type: vec![],
+                flags: vec![],
+            };
+
+            let err = signature.verify(message.inner(), &key).unwrap_err();
+            println!("{err}");
+        }
     }
 }

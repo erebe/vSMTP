@@ -18,7 +18,6 @@
 mod algorithm;
 mod canonicalization;
 mod public_key;
-mod sign;
 mod signature;
 mod verify;
 
@@ -32,7 +31,6 @@ pub struct Result {
 #[cfg(test)]
 mod tests {
     mod hash_header;
-    mod verify;
 }
 
 pub use algorithm::{HashAlgorithm, SigningAlgorithm};

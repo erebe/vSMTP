@@ -212,8 +212,9 @@ fn main() {
     for (module, description, functions) in functions {
         path.set_file_name(format!("{}.md", module));
         let mut file = std::fs::OpenOptions::new()
-            .append(true)
+            .truncate(true)
             .create(true)
+            .write(true)
             .open(&path)
             .unwrap();
 

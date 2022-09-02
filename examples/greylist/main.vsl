@@ -1,6 +1,6 @@
-/// Here is a really simple greylist implementation.
-/// The goal of a greylist is to temporarily reject a transaction from a new sender.
-/// If the mail is legitimate, the originating server will (most of the time) try again after a delay.
+// Here is a really simple greylist implementation.
+// The goal of a greylist is to temporarily reject a transaction from a new sender.
+// If the mail is legitimate, the originating server will (most of the time) try again after a delay.
 import "csv_greylist" as csv;
 
 // You could also use the mysql service defined in 'mysql_greylist.vsl'.

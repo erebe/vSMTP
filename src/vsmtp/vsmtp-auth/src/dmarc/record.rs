@@ -15,17 +15,7 @@
  *
 */
 
-use crate::get_root_domain;
-
-#[derive(Debug, thiserror::Error)]
-pub enum ParseError {
-    #[error("missing required field: `{field}`")]
-    MissingRequiredField { field: String },
-    #[error("syntax error: `{reason}`")]
-    SyntaxError { reason: String },
-    #[error("invalid argument: `{reason}`")]
-    InvalidArgument { reason: String },
-}
+use crate::{get_root_domain, ParseError};
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "UPPERCASE")]

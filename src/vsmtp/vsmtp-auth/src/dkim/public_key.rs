@@ -15,7 +15,8 @@
  *
 */
 
-use super::{signature::ParseError, HashAlgorithm};
+use super::HashAlgorithm;
+use crate::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "UPPERCASE")]
@@ -35,7 +36,7 @@ impl Default for Type {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum ServiceType {
     #[strum(serialize = "*")]
@@ -43,7 +44,7 @@ pub enum ServiceType {
     Email,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 pub enum Flags {
     /// Verifiers MUST treat messages from Signers as unsigned email
     #[strum(serialize = "y")]
@@ -187,12 +188,13 @@ mod tests {
         HashAlgorithm, PublicKey,
     };
 
+    const TXT: &str = "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5FLLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnOIRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB";
+
     #[test]
     fn parse() {
-        let txt= "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5FLLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnOIRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB";
-
+        let key = <PublicKey as std::str::FromStr>::from_str(TXT).unwrap();
         assert_eq!(
-            <PublicKey as std::str::FromStr>::from_str(txt).unwrap(),
+            key,
             PublicKey {
                 version: Version::Dkim1,
                 acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
@@ -206,6 +208,39 @@ mod tests {
                     "IRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB"
                 )).unwrap(),
                 service_type: vec![ServiceType::Wildcard],
+                flags: vec![]
+            }
+        );
+
+        println!("{key:?}");
+        assert!(!key.has_debug_flag());
+
+        let debug_key = PublicKey {
+            flags: vec![Flags::Testing],
+            ..key
+        };
+
+        assert!(debug_key.has_debug_flag());
+    }
+
+    #[test]
+    fn parse_service_email() {
+        let key = <PublicKey as std::str::FromStr>::from_str(&format!("{TXT}; s=email")).unwrap();
+        assert_eq!(
+            key,
+            PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: base64::decode(concat!(
+                    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2",
+                    "j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3",
+                    "hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5F",
+                    "LLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnO",
+                    "IRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB"
+                )).unwrap(),
+                service_type: vec![ServiceType::Email],
                 flags: vec![]
             }
         );
@@ -229,5 +264,29 @@ mod tests {
                 flags: vec![Flags::SameDomain]
             }
         );
+    }
+
+    mod error {
+        use super::*;
+
+        #[test]
+        fn not_tag_based_syntax() {
+            let _err = <PublicKey as std::str::FromStr>::from_str("foobar").unwrap_err();
+        }
+
+        #[test]
+        fn not_right_version() {
+            let _err = <PublicKey as std::str::FromStr>::from_str("v=DKIM2").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_key() {
+            let _err = <PublicKey as std::str::FromStr>::from_str("p=foobar").unwrap_err();
+        }
+
+        #[test]
+        fn missing_key() {
+            let _err = <PublicKey as std::str::FromStr>::from_str("s=*").unwrap_err();
+        }
     }
 }
