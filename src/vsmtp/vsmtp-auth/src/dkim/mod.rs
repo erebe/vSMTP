@@ -18,7 +18,6 @@
 mod algorithm;
 mod canonicalization;
 mod public_key;
-mod sign;
 mod signature;
 mod verify;
 
@@ -32,8 +31,9 @@ pub struct Result {
 #[cfg(test)]
 mod tests {
     mod hash_header;
-    mod verify;
 }
+
+const MINIMUM_ACCEPTABLE_KEY_SIZE: usize = 1024;
 
 pub use algorithm::{HashAlgorithm, SigningAlgorithm};
 pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};

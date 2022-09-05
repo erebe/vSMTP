@@ -108,7 +108,7 @@ mod services {
                 crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            _ => Err("'db_add' can only be used on a database service.".into()),
+            _ => Err("'db_add' can only be used on a csv database service.".into()),
         }
     }
 
@@ -133,21 +133,21 @@ mod services {
 
     /// a generic query by key implementation for all databases.
     #[rhai_fn(global, name = "db_query", return_raw, pure)]
-    pub fn database_query_key_str(
+    pub fn database_query_str(
         service: &mut std::sync::Arc<Service>,
         key: &str,
     ) -> EngineResult<rhai::Array> {
-        super::database_query_key(service, key)
+        super::database_query(service, key)
     }
 
     /// a generic query by key implementation for all databases.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "db_query", return_raw, pure)]
-    pub fn database_query_key_obj(
+    pub fn database_query_obj(
         service: &mut std::sync::Arc<Service>,
         key: SharedObject,
     ) -> EngineResult<rhai::Array> {
-        super::database_query_key(service, &key.to_string())
+        super::database_query(service, &key.to_string())
     }
 
     /// get the receiver address from a smtp service.
@@ -168,14 +168,11 @@ fn database_remove(service: &mut std::sync::Arc<Service>, key: &str) -> EngineRe
             crate::dsl::service::databases::csv::remove_record(path, key)
                 .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
         }
-        _ => Err("'db_add' can only be used on a database service.".into()),
+        _ => Err("'db_add' can only be used on a csv database service.".into()),
     }
 }
 
-fn database_query_key(
-    service: &mut std::sync::Arc<Service>,
-    key: &str,
-) -> EngineResult<rhai::Array> {
+fn database_query(service: &mut std::sync::Arc<Service>, query: &str) -> EngineResult<rhai::Array> {
     match &**service {
         Service::CSVDatabase {
             path,
@@ -183,7 +180,7 @@ fn database_query_key(
             refresh,
             fd,
             ..
-        } => crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
+        } => crate::dsl::service::databases::csv::query(path, *delimiter, refresh, fd, query)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
             .map_or_else(
                 || Ok(rhai::Array::default()),
@@ -194,6 +191,13 @@ fn database_query_key(
                         .collect())
                 },
             ),
-        _ => Err(format!("{service} cannot be run as a cmd script.").into()),
+        #[cfg(feature = "mysql")]
+        Service::MySQLDatabase { pool, .. } => {
+            crate::dsl::service::databases::mysql::query(pool, query).map_or_else(
+                |_| Ok(rhai::Array::default()),
+                |record| Ok(record.into_iter().map(rhai::Dynamic::from).collect()),
+            )
+        }
+        _ => Err(format!("{service} cannot be used to perform a database query.").into()),
     }
 }

@@ -19,6 +19,8 @@
  *
 */
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+//
 #![doc(html_no_source)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
@@ -30,7 +32,7 @@
 //
 #![allow(clippy::use_self)] // false positive with enums
 
-/// The implementation follow the RFC 7208
+/// The implementation follow the RFC 7208 & 8301
 ///
 /// ```txt
 /// Email on the Internet can be forged in a number of ways.  In
@@ -71,6 +73,38 @@ pub mod dkim;
 /// organization can use to improve mail handling.
 /// ```
 pub mod dmarc;
+
+///
+#[must_use]
+#[derive(Debug, thiserror::Error)]
+pub enum ParseError {
+    ///
+    #[error("missing required field: `{field}`")]
+    MissingRequiredField {
+        ///
+        field: String,
+    },
+    ///
+    #[error("syntax error: `{reason}`")]
+    SyntaxError {
+        ///
+        reason: String,
+    },
+    ///
+    #[error("invalid argument: `{reason}`")]
+    InvalidArgument {
+        ///
+        reason: String,
+    },
+}
+
+impl Default for ParseError {
+    fn default() -> Self {
+        ParseError::InvalidArgument {
+            reason: "`default` invoked".to_string(),
+        }
+    }
+}
 
 /// Return the root of a domain
 ///

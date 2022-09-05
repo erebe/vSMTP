@@ -21,6 +21,7 @@ use vsmtp_config::{
     field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel},
     get_rustls_config,
 };
+use vsmtp_rule_engine::RuleEngine;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
@@ -28,6 +29,7 @@ async fn simple() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let (client, server) = test_tls_tunneled(
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         std::sync::Arc::new(config),
         [
@@ -65,7 +67,6 @@ async fn simple() {
                 .unwrap(),
             ))
         },
-        |_| None,
         |_| (),
     )
     .await
@@ -81,6 +82,7 @@ async fn starttls_under_tunnel() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let (client, server) = test_tls_tunneled(
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         std::sync::Arc::new(config),
         ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
@@ -106,7 +108,6 @@ async fn starttls_under_tunnel() {
                 .unwrap(),
             ))
         },
-        |_| None,
         |_| (),
     )
     .await
@@ -122,12 +123,12 @@ async fn config_ill_formed() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let (client, server) = test_tls_tunneled(
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         std::sync::Arc::new(config),
         vec!["NOOP\r\n".to_string()],
         vec![],
         20461,
-        |_| None,
         |_| None,
         |_| (),
     )
@@ -159,6 +160,7 @@ async fn sni() {
     );
 
     let (client, server) = test_tls_tunneled(
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
         "second.testserver.com",
         std::sync::Arc::new(config),
         ["NOOP\r\n", "QUIT\r\n"]
@@ -183,7 +185,6 @@ async fn sni() {
                 .unwrap(),
             ))
         },
-        |_| None,
         |_| (),
     )
     .await

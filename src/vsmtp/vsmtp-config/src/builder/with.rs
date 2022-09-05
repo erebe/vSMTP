@@ -33,7 +33,7 @@ use crate::{
 use vsmtp_common::{
     auth::Mechanism,
     re::anyhow::{self, Context},
-    state::StateSMTP,
+    state::State,
     CodeID, Reply,
 };
 
@@ -418,7 +418,7 @@ impl Builder<WantsServerSMTPConfig2> {
         soft_count: i64,
         hard_count: i64,
         delay: std::time::Duration,
-        timeout_client: &std::collections::BTreeMap<StateSMTP, std::time::Duration>,
+        timeout_client: &std::collections::BTreeMap<State, std::time::Duration>,
     ) -> Builder<WantsServerSMTPConfig3> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
@@ -430,16 +430,16 @@ impl Builder<WantsServerSMTPConfig2> {
                 },
                 timeout_client: FieldServerSMTPTimeoutClient {
                     connect: *timeout_client
-                        .get(&StateSMTP::Connect)
+                        .get(&State::Connect)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     helo: *timeout_client
-                        .get(&StateSMTP::Helo)
+                        .get(&State::Helo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     mail_from: *timeout_client
-                        .get(&StateSMTP::MailFrom)
+                        .get(&State::MailFrom)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     rcpt_to: *timeout_client
-                        .get(&StateSMTP::RcptTo)
+                        .get(&State::RcptTo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     data: std::time::Duration::from_millis(1000),
                 },

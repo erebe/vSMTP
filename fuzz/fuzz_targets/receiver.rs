@@ -66,7 +66,6 @@ fuzz_target!(|data: &[u8]| {
         .unwrap()
         .block_on(conn.receive(
             None,
-            None,
             re,
             std::sync::Arc::new(std::collections::HashMap::new()),
             &mut FuzzOnMail,

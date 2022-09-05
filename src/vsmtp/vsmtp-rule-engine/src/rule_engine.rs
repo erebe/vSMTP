@@ -35,7 +35,7 @@ use vsmtp_common::{
     queue::Queue,
     queue_path,
     re::{anyhow, log},
-    state::StateSMTP,
+    state::State,
     status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
@@ -175,7 +175,7 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
-    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
+    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: State) -> Status {
         let directive_set =
             if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
                 directive_set
@@ -185,7 +185,7 @@ impl RuleEngine {
 
         // check if we need to skip directive execution or resume because of a delegation.
         let directive_set = match rule_state.skipped() {
-            Some(Status::DelegationResult) if smtp_state.email_received() => {
+            Some(Status::DelegationResult) if smtp_state.is_email_received() => {
                 if let Some(header) = rule_state
                     .message()
                     .read()
@@ -253,7 +253,7 @@ impl RuleEngine {
         #[allow(clippy::single_match_else)]
         match self.execute_directives(rule_state, directive_set, smtp_state) {
             Ok(status) => {
-                if status.stop() {
+                if status.is_finished() {
                     log::debug!(
                         "[{smtp_state}] the rule engine will skip all rules because of the previous result."
                     );
@@ -281,7 +281,7 @@ impl RuleEngine {
     #[must_use]
     pub fn just_run_when(
         &self,
-        state: &StateSMTP,
+        state: State,
         config: &Config,
         resolvers: std::sync::Arc<Resolvers>,
         mail_context: MailContext,
@@ -304,7 +304,7 @@ impl RuleEngine {
         &self,
         state: &mut RuleState,
         directives: &[Directive],
-        stage: &StateSMTP,
+        stage: State,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
 
@@ -382,6 +382,7 @@ impl RuleEngine {
                     include_str!("../api/services.rhai"),
                     include_str!("../api/status.rhai"),
                     include_str!("../api/transaction.rhai"),
+                    include_str!("../api/types.rhai"),
                     include_str!("../api/utils.rhai"),
                 ],
             )
@@ -409,7 +410,7 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
-            let stage = match StateSMTP::try_from(stage.as_str()) {
+            let stage = match State::try_from(stage.as_str()) {
                 Ok(stage) => stage,
                 Err(_) => anyhow::bail!("the '{stage}' smtp stage does not exist."),
             };
@@ -445,7 +446,7 @@ impl RuleEngine {
                             "action" => Directive::Action { name, pointer },
                             "delegate" => {
 
-                                if !stage.email_received() {
+                                if !stage.is_email_received() {
                                     anyhow::bail!("invalid delegation '{name}' in stage '{stage}': delegation directives are available from the 'postq' stage and onwards.");
                                 }
 

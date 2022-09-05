@@ -25,16 +25,13 @@
                 "stress5": "fhi",
             };
 
-            switch ctx().auth.type {
+            switch auth().type {
                 "Verify" => {
-                    if db[ctx().auth.authid] == ctx().auth.authpass {
+                    if db[auth().authid] == auth().authpass {
                         vsl::accept()
                     } else {
                         vsl::deny()
                     }
-                },
-                "Query" => {
-                    vsl::info(db[ctx().auth.authid])
                 }
             }
         }

@@ -22,7 +22,7 @@ use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, either, log, tokio},
-    state::StateSMTP,
+    state::State,
     status::Status,
     Address, CodeID, Envelop, ReplyOrCodeID,
 };
@@ -30,13 +30,10 @@ use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
-enum ProcessedEvent {
-    Reply(ReplyOrCodeID),
-    ReplyChangeState(StateSMTP, ReplyOrCodeID),
-}
+type ProcessedEvent = (ReplyOrCodeID, Option<State>);
 
 pub struct Transaction {
-    state: StateSMTP,
+    state: State,
     pub rule_state: RuleState,
     pub rule_engine: std::sync::Arc<RuleEngine>,
 }
@@ -78,7 +75,7 @@ impl Transaction {
         log::trace!("received={client_message:?}; parsed=`{command_or_code:?}`");
 
         command_or_code.map_or_else(
-            |c| either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(c))),
+            |c| either::Left((ReplyOrCodeID::Left(c), None)),
             |command| self.process_event(command, connection),
         )
     }
@@ -92,13 +89,9 @@ impl Transaction {
         connection: &Connection<S>,
     ) -> either::Either<ProcessedEvent, TransactionResult> {
         match (&self.state, event) {
-            (_, Event::NoopCmd) => {
-                either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Ok)))
-            }
+            (_, Event::NoopCmd) => either::Left((ReplyOrCodeID::Left(CodeID::Ok), None)),
 
-            (_, Event::HelpCmd(_)) => {
-                either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Help)))
-            }
+            (_, Event::HelpCmd(_)) => either::Left((ReplyOrCodeID::Left(CodeID::Help), None)),
 
             (_, Event::RsetCmd) => {
                 {
@@ -115,83 +108,69 @@ impl Transaction {
                     ctx.envelop.mail_from = addr!("default@domain.com");
                 }
                 self.reset_message();
-                either::Left(ProcessedEvent::ReplyChangeState(
-                    StateSMTP::Helo,
-                    ReplyOrCodeID::Left(CodeID::Ok),
-                ))
+                either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::Helo)))
             }
 
-            (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => either::Left(
-                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Unimplemented)),
-            ),
+            (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => {
+                either::Left((ReplyOrCodeID::Left(CodeID::Unimplemented), None))
+            }
 
             (_, Event::QuitCmd) => either::Right(TransactionResult::SessionEnded(
                 ReplyOrCodeID::Left(CodeID::Closing),
             )),
 
             (state, Event::HeloCmd(helo)) => {
-                if !matches!(state, StateSMTP::Connect) {
+                if !matches!(state, State::Connect) {
                     self.reset_message();
                 }
 
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
-                {
-                    Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
+                match self.rule_engine.run_when(&mut self.rule_state, State::Helo) {
+                    Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
-                    _ => either::Left(ProcessedEvent::ReplyChangeState(
-                        StateSMTP::Helo,
-                        ReplyOrCodeID::Left(CodeID::Helo),
-                    )),
+                    _ => either::Left((ReplyOrCodeID::Left(CodeID::Helo), Some(State::Helo))),
                 }
             }
 
-            (_, Event::EhloCmd(_)) if connection.config.server.smtp.disable_ehlo => either::Left(
-                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Unimplemented)),
-            ),
+            (_, Event::EhloCmd(_)) if connection.config.server.smtp.disable_ehlo => {
+                either::Left((ReplyOrCodeID::Left(CodeID::Unimplemented), None))
+            }
 
             (state, Event::EhloCmd(helo)) => {
-                if !matches!(state, StateSMTP::Connect) {
+                if !matches!(state, State::Connect) {
                     self.reset_message();
                 }
 
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
-                {
-                    Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
+                match self.rule_engine.run_when(&mut self.rule_state, State::Helo) {
+                    Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
-                    _ => either::Left(ProcessedEvent::ReplyChangeState(
-                        StateSMTP::Helo,
+                    _ => either::Left((
                         ReplyOrCodeID::Left(if connection.context.is_secured {
                             CodeID::EhloSecured
                         } else {
                             CodeID::EhloPain
                         }),
+                        Some(State::Helo),
                     )),
                 }
             }
 
-            (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
+            (State::Helo | State::Connect, Event::StartTls)
                 if connection.config.server.tls.is_none() =>
             {
-                either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(
-                    CodeID::TlsNotAvailable,
-                )))
+                either::Left((ReplyOrCodeID::Left(CodeID::TlsNotAvailable), None))
             }
 
-            (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
+            (State::Helo | State::Connect, Event::StartTls)
                 if connection.config.server.tls.is_some() =>
             {
                 either::Right(TransactionResult::HandshakeTLS)
             }
 
-            (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
+            (State::Helo, Event::Auth(mechanism, initial_response))
                 if !connection.context.is_authenticated =>
             {
                 either::Right(TransactionResult::HandshakeSASL(
@@ -207,7 +186,7 @@ impl Transaction {
                 ))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(..))
+            (State::Helo, Event::MailCmd(..))
                 if !connection.context.is_secured
                     && connection
                         .config
@@ -217,12 +196,10 @@ impl Transaction {
                         .map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
-                either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(
-                    CodeID::TlsRequired,
-                )))
+                either::Left((ReplyOrCodeID::Left(CodeID::TlsRequired), None))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(..))
+            (State::Helo, Event::MailCmd(..))
                 if !connection.context.is_authenticated
                     && connection
                         .config
@@ -232,71 +209,63 @@ impl Transaction {
                         .as_ref()
                         .map_or(false, |auth| auth.must_be_authenticated) =>
             {
-                either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(
-                    CodeID::AuthRequired,
-                )))
+                either::Left((ReplyOrCodeID::Left(CodeID::AuthRequired), None))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
+            (State::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 // TODO: handle : mail_from can be "<>"
                 self.set_mail_from(mail_from.unwrap(), connection);
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
+                    .run_when(&mut self.rule_state, State::MailFrom)
                 {
-                    Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
+                    Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
-                    Status::Accept(packet) | Status::Faccept(packet) => either::Left(
-                        ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, packet),
-                    ),
+                    Status::Accept(packet) | Status::Faccept(packet) => {
+                        either::Left((packet, Some(State::MailFrom)))
+                    }
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
                     | Status::Quarantine(_)
-                    | Status::Packet(_) => either::Left(ProcessedEvent::ReplyChangeState(
-                        StateSMTP::MailFrom,
-                        ReplyOrCodeID::Left(CodeID::Ok),
-                    )),
+                    | Status::Packet(_) => {
+                        either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::MailFrom)))
+                    }
                 }
             }
 
-            (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
+            (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.set_rcpt_to(rcpt_to);
 
                 match self
                     .rule_engine
-                    .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
+                    .run_when(&mut self.rule_state, State::RcptTo)
                 {
-                    Status::Info(packet) => either::Left(ProcessedEvent::Reply(packet)),
+                    Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
                     _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
                         >= connection.config.server.smtp.rcpt_count_max =>
                     {
-                        either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(
-                            CodeID::TooManyRecipients,
-                        )))
+                        either::Left((ReplyOrCodeID::Left(CodeID::TooManyRecipients), None))
                     }
                     Status::Accept(packet) | Status::Faccept(packet) => {
-                        either::Left(ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, packet))
+                        either::Left((packet, Some(State::RcptTo)))
                     }
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
                     | Status::Quarantine(_)
-                    | Status::Packet(_) => either::Left(ProcessedEvent::ReplyChangeState(
-                        StateSMTP::RcptTo,
-                        ReplyOrCodeID::Left(CodeID::Ok),
-                    )),
+                    | Status::Packet(_) => {
+                        either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::RcptTo)))
+                    }
                 }
             }
 
-            (StateSMTP::RcptTo, Event::DataCmd) => either::Right(TransactionResult::HandshakeSMTP),
+            (State::RcptTo, Event::DataCmd) => either::Right(TransactionResult::HandshakeSMTP),
 
-            _ => either::Left(ProcessedEvent::Reply(ReplyOrCodeID::Left(
-                CodeID::BadSequence,
-            ))),
+            _ => either::Left((ReplyOrCodeID::Left(CodeID::BadSequence), None)),
         }
     }
 
@@ -403,9 +372,9 @@ impl Transaction {
 
         Self {
             state: if helo_domain.is_none() {
-                StateSMTP::Connect
+                State::Connect
             } else {
-                StateSMTP::Helo
+                State::Helo
             },
             rule_state,
             rule_engine,
@@ -456,7 +425,7 @@ impl Transaction {
 
             let status = self
                 .rule_engine
-                .run_when(&mut self.rule_state, &StateSMTP::Connect);
+                .run_when(&mut self.rule_state, State::Connect);
 
             match status {
                 Status::Info(packet) => connection.send_reply_or_code(packet).await?,
@@ -472,7 +441,7 @@ impl Transaction {
             }
         }
 
-        let mut read_timeout = get_timeout_for_state(&connection.config, &self.state);
+        let mut read_timeout = get_timeout_for_state(&connection.config, self.state);
 
         loop {
             match connection.read(read_timeout).await {
@@ -481,21 +450,19 @@ impl Transaction {
                         self.parse_and_apply_and_get_reply(&client_message, connection);
 
                     match parsed_message {
-                        either::Left(x) => match x {
-                            ProcessedEvent::Reply(reply_to_send) => {
-                                connection.send_reply_or_code(reply_to_send).await?;
-                            }
-                            ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
+                        either::Left((reply_to_send, new_state)) => {
+                            if let Some(new_state) = new_state {
                                 log::info!(
-                                    "STATE: {old_state:?} => {new_state:?}",
+                                    "STATE: {old_state} => {new_state}",
                                     old_state = self.state,
                                 );
                                 self.state = new_state;
+
                                 read_timeout =
-                                    get_timeout_for_state(&connection.config, &self.state);
-                                connection.send_reply_or_code(reply_to_send).await?;
+                                    get_timeout_for_state(&connection.config, self.state);
                             }
-                        },
+                            connection.send_reply_or_code(reply_to_send).await?;
+                        }
                         either::Right(transaction_result) => {
                             return Ok(transaction_result);
                         }
@@ -518,16 +485,13 @@ impl Transaction {
 
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
-fn get_timeout_for_state(
-    config: &std::sync::Arc<Config>,
-    state: &StateSMTP,
-) -> std::time::Duration {
+fn get_timeout_for_state(config: &std::sync::Arc<Config>, state: State) -> std::time::Duration {
     match state {
-        StateSMTP::Connect => config.server.smtp.timeout_client.connect,
-        StateSMTP::Helo => config.server.smtp.timeout_client.helo,
-        StateSMTP::MailFrom => config.server.smtp.timeout_client.mail_from,
-        StateSMTP::RcptTo => config.server.smtp.timeout_client.rcpt_to,
-        StateSMTP::Authenticate | StateSMTP::PreQ | StateSMTP::PostQ | StateSMTP::Delivery => {
+        State::Connect => config.server.smtp.timeout_client.connect,
+        State::Helo => config.server.smtp.timeout_client.helo,
+        State::MailFrom => config.server.smtp.timeout_client.mail_from,
+        State::RcptTo => config.server.smtp.timeout_client.rcpt_to,
+        State::Authenticate | State::PreQ | State::PostQ | State::Delivery => {
             std::time::Duration::from_millis(TIMEOUT_DEFAULT)
         }
     }

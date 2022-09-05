@@ -15,7 +15,7 @@
  *
 */
 
-//! # Codes
+//! ### Codes
 //!
 //! This module contains predefined codes for SMTP responses.
 

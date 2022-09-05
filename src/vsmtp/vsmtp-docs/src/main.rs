@@ -35,7 +35,7 @@ use std::io::Write;
 use rhai::packages::Package;
 use vsmtp_rule_engine::{api::SharedObject, api::StandardVSLPackage, RuleEngine};
 
-const MODULE_SYNTAX: &str = "# Module:";
+const MODULE_SYNTAX: &str = "### Module:";
 
 #[derive(Clone, Eq)]
 struct Module {
@@ -126,20 +126,22 @@ fn generate_function_documentation_from_module(
             .entry(Module::new(module, ""))
             .or_default()
             .push(format!(
-                r"<details>
-<summary>
-<code>
-{}({})
-</code>
-</summary>
-<br/>
-<div style='padding: 10px; border-radius: 5px; border-style: solid; border-color: white'>
+                r"
+<div style='box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2); padding: 20px; border-radius: 5px;'>
+<h2> fn <em style='color: var(--inline-code-color);'>{}</em>({}) </h2>
 {}
 </div>
 <br/>
-</details>",
+<br/>",
                 metadata.name,
-                metadata.params.join(", "),
+                metadata
+                    .params
+                    .iter()
+                    .map(|param| format!(
+                        "<em style='color: var(--inline-code-color)'>{param}</em>"
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 &comments
             ));
     }
@@ -210,12 +212,13 @@ fn main() {
     for (module, description, functions) in functions {
         path.set_file_name(format!("{}.md", module));
         let mut file = std::fs::OpenOptions::new()
-            .append(true)
+            .truncate(true)
             .create(true)
+            .write(true)
             .open(&path)
             .unwrap();
 
-        file.write_all(format!("# {}\n## {}\n", module, description).as_bytes())
+        file.write_all(format!("# {}\n{}\n", module, description).as_bytes())
             .expect("failed to write function docs");
         file.write_all(functions.as_bytes())
             .expect("failed to write function docs");

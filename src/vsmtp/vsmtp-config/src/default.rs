@@ -30,8 +30,25 @@ use vsmtp_common::{auth::Mechanism, collection, re::strum, CodeID, Reply, ReplyC
 
 impl Default for Config {
     fn default() -> Self {
+        let current_version =
+            semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("valid semver");
         Self::ensure(Self {
-            version_requirement: semver::VersionReq::parse(">=1.0.0, <2.0.0").unwrap(),
+            version_requirement: semver::VersionReq::from_iter([
+                semver::Comparator {
+                    op: semver::Op::GreaterEq,
+                    major: current_version.major,
+                    minor: Some(current_version.minor),
+                    patch: Some(current_version.patch),
+                    pre: current_version.pre,
+                },
+                semver::Comparator {
+                    op: semver::Op::Less,
+                    major: current_version.major + 1,
+                    minor: Some(0),
+                    patch: Some(0),
+                    pre: semver::Prerelease::EMPTY,
+                },
+            ]),
             server: FieldServer::default(),
             app: FieldApp::default(),
         })

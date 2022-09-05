@@ -67,15 +67,63 @@ fn mutate_headers() {
         return deny();
     }
 
-    if get_header("X-New-Header") == "new value!"
-    && get_header("X-Another-Header") == "value of another"
-    && get_header("From") == "<john@doe.com>"
-    && get_header("To") == "green@foo.net"
-    && get_header("X-Yet-Another-Header") == "blah blah blah"
-    && get_header("X-VSMTP-STATUS") == "delivered"
-    && get_header("X-VSMTP-TRACING") == "empty"
-    && get_header("X-VSMTP-SENDER") == "example.com"
+    if !(get_header("X-New-Header") == "new value!")
+    && !(get_header("X-Another-Header") == "value of another")
+    && !(get_header("From") == "<john@doe.com>")
+    && !(get_header("To") == "green@foo.net")
+    && !(get_header("X-Yet-Another-Header") == "blah blah blah")
+    && !(get_header("X-VSMTP-STATUS") == "delivered")
+    && !(get_header("X-VSMTP-TRACING") == "empty")
+    && !(get_header("X-VSMTP-SENDER") == "example.com")
     {
+        return deny();
+    }
+
+print("passed");
+    prepend_header("X-To-Rename", "Value should not change");
+print("passed");
+
+    if get_header("X-To-Rename") != "Value should not change"
+    {
+        print(`to rename: ${get_header("X-To-Rename")}`);
+        return deny();
+    }
+print("passed");
+
+    rename_header("X-To-Rename", "X-Renamed");
+
+print("passed");
+    if has_header("X-To-Rename")
+    || get_header("X-Renamed") != "Value should not change"
+    {
+        print(`to rename: ${get_header("X-To-Rename")}`);
+        print(`renamed: ${get_header("X-Renamed")}`);
+        return deny();
+    }
+
+    print(get_all_headers());
+
+    prepend_header("X-Multi-Header", "1");
+    prepend_header("X-Multi-Header", "2");
+    prepend_header("X-Multi-Header", "3");
+    prepend_header("X-Multi-Header", "4");
+    prepend_header("X-Multi-Header", "5");
+
+    if has_header("X-Multi-Header") == false
+    || count_header("X-Multi-Header") != 5
+    || get_all_headers("X-Multi-Header") != [" 5", " 4", " 3", " 2", " 1"] {
+        return deny();
+    }
+
+    while remove_header("X-Multi-Header") {}
+    remove_header("X-Another-Header");
+    remove_header(status);
+
+    print(get_all_headers());
+
+    if !has_header("X-Another-Header")
+    && !has_header("X-Multi-Header")
+    && !has_header(status) {
         next()
     } else {
         deny()

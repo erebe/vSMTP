@@ -15,21 +15,21 @@
  *
 */
 
-//! # Auth
+//! ### Auth
 //!
 //! This module contains authentication mechanisms to secure your server.
 
 /// Has the connection been secured under the encryption protocol SSL/TLS
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// all
 ///
-/// # Return
+/// ### Return
 ///
 /// * boolean value (`true` if the connection is secured, `false` otherwise)
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///   mail: [
@@ -40,20 +40,20 @@
 /// }
 /// ```
 ///
-/// # Module:Auth
+/// ### Module:Auth
 fn is_secured() { ctx().is_secured }
 
 /// Check if the client is authenticated.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `authenticate` only.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `bool` - true if the client succeeded to authenticate itself, false otherwise.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     authenticate: [
@@ -62,20 +62,20 @@ fn is_secured() { ctx().is_secured }
 /// }
 /// ```
 ///
-/// # Module:Auth
+/// ### Module:Auth
 fn is_authenticated() { ctx().is_authenticated }
 
 /// Get authentication credentials from the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `authenticate` only.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `Credentials` - the credentials of the client.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     authenticate: [
@@ -84,7 +84,7 @@ fn is_authenticated() { ctx().is_authenticated }
 /// }
 /// ```
 ///
-/// # Module:Auth
+/// ### Module:Auth
 fn auth() { ctx().auth }
 
 /// Process the SASL authentication mechanism.
@@ -96,7 +96,7 @@ fn auth() { ctx().auth }
 ///
 /// A native implementation will be provided in the future.
 ///
-/// # Module:Auth
+/// ### Module:Auth
 fn authenticate() {
     switch ctx().auth.type {
         "Verify" => {
@@ -118,9 +118,6 @@ fn authenticate() {
                 deny()
             }
 
-        },
-        "Query" => {
-            deny()
         }
     }
 }

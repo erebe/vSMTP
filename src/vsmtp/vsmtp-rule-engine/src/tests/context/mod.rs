@@ -16,7 +16,7 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_config};
 use vsmtp_common::{
-    addr, auth::Credentials, mail_context::MessageMetadata, rcpt::Rcpt, state::StateSMTP,
+    addr, auth::Credentials, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
     status::Status, CodeID, ReplyOrCodeID,
 };
 
@@ -33,7 +33,7 @@ fn test_context() {
     });
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Authenticate),
+        re.run_when(&mut state, State::Authenticate),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -46,7 +46,7 @@ fn test_context() {
         .push(Rcpt::new(addr!("test@example.com")));
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
+        re.run_when(&mut state, State::RcptTo),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -59,7 +59,7 @@ fn test_context() {
     };
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 

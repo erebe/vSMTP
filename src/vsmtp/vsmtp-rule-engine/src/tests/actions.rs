@@ -21,7 +21,7 @@ use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::re::{addr, serde_json, tokio};
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
-    mail_context::MessageMetadata, state::StateSMTP, status::Status, transfer::Transfer,
+    mail_context::MessageMetadata, state::State, status::Status, transfer::Transfer,
 };
 use vsmtp_common::{CodeID, ReplyOrCodeID};
 use vsmtp_config::build_resolvers;
@@ -37,7 +37,7 @@ fn test_logs() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
     );
 }
@@ -52,7 +52,7 @@ fn test_users() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Delivery),
+        re.run_when(&mut state, State::Delivery),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -74,7 +74,7 @@ fn test_context_write() {
         dkim: None,
     };
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
+        re.run_when(&mut state, State::MailFrom),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
@@ -86,11 +86,11 @@ fn test_context_write() {
     ))
     .unwrap();
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -130,7 +130,7 @@ fn test_context_dump() {
     };
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -151,7 +151,7 @@ fn test_context_dump() {
         .unwrap();
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -184,7 +184,7 @@ fn test_quarantine() {
     };
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
@@ -214,7 +214,7 @@ fn test_quarantine() {
         .unwrap();
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Quarantine("tests/generated/quarantine2".to_string())
     );
 }
@@ -243,8 +243,8 @@ fn test_transports() {
         .parse::<MailMimeParser>()
         .unwrap();
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
+    assert_eq!(re.run_when(&mut state, State::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, State::Delivery), Status::Next);
 
     let rcpt = state.context().read().unwrap().envelop.rcpt.clone();
 
@@ -298,8 +298,8 @@ fn test_transports_all() {
         .parse::<MailMimeParser>()
         .unwrap();
 
-    re.run_when(&mut state, &StateSMTP::Connect);
-    re.run_when(&mut state, &StateSMTP::Delivery);
+    re.run_when(&mut state, State::Connect);
+    re.run_when(&mut state, State::Delivery);
 
     state
         .context()
@@ -323,7 +323,7 @@ fn test_hostname() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -340,7 +340,7 @@ async fn test_lookup() {
     ];
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
+        re.run_when(&mut state, State::RcptTo),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -351,7 +351,7 @@ fn test_in_domain_and_server_name() {
     let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -370,7 +370,7 @@ fn test_in_domain_and_server_name_sni() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

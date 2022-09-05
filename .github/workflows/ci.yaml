@@ -16,7 +16,6 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - run: rm -rf ~/.cargo/registry
       - name: Install gsasl
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
@@ -148,7 +147,7 @@ jobs:
           key: "${{ runner.os }}-cargo-build-nightly-test-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-08-08
           override: true
       - uses: actions-rs/cargo@v1
         with:

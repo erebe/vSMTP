@@ -57,6 +57,17 @@ pub enum Object {
 }
 
 impl Object {
+    /// Create a new address.
+    ///
+    /// # Errors
+    ///
+    /// * Failed to parse the email address.
+    pub fn new_address(addr: &str) -> anyhow::Result<Self> {
+        Ok(Self::Address(<Address as std::str::FromStr>::from_str(
+            addr,
+        )?))
+    }
+
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
     pub(crate) fn value<S, T>(
@@ -125,9 +136,7 @@ impl Object {
 
             "address" => {
                 let value = Self::value::<S, String>(map, "value")?;
-                Ok(Self::Address(<Address as std::str::FromStr>::from_str(
-                    &value,
-                )?))
+                Self::new_address(&value)
             }
 
             "identifier" => Ok(Self::Identifier(Self::value::<S, String>(map, "value")?)),

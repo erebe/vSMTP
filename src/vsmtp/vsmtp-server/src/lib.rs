@@ -19,13 +19,12 @@
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-#![warn(clippy::undocumented_unsafe_blocks)]
 //
 #![allow(clippy::use_self)]
 
@@ -41,15 +40,23 @@ mod server;
 
 pub use receiver::MailHandler;
 
-/// SMTP auth extension implementation
-pub mod auth;
 pub use channel_message::ProcessMessage;
 pub use receiver::{AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
+use vsmtp_common::{
+    mail_context::MailContext,
+    re::{
+        anyhow::{self, Context},
+        lettre, strum,
+    },
+    transfer::SmtpConnection,
+};
+use vsmtp_mail_parser::MessageBody;
+
 /// tag for a specific email process.
-#[derive(Debug, vsmtp_common::re::strum::Display)]
+#[derive(Debug, strum::Display)]
 pub enum Process {
     /// The server handle clients, parse commands & store emails at this stage.
     Receiver,
@@ -58,16 +65,6 @@ pub enum Process {
     /// The server is going to deliver the email locally or to another server.
     Delivery,
 }
-
-use vsmtp_common::{
-    mail_context::MailContext,
-    re::{
-        anyhow::{self, Context},
-        lettre,
-    },
-    transfer::SmtpConnection,
-};
-use vsmtp_mail_parser::MessageBody;
 
 /// delegate a message to another service.
 pub(crate) fn delegate(

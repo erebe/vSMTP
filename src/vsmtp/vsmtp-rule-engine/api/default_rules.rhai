@@ -15,7 +15,7 @@
  *
 */
 
-//! # Default Rules
+//! ### Default Rules
 //!
 //! This is the rule that is loaded by default if no configuration as been found.
 

@@ -15,14 +15,13 @@
  *
 */
 use crate::{
-    auth,
     channel_message::ProcessMessage,
     receiver::{Connection, MailHandler},
 };
 use vsmtp_common::{
     re::{
         anyhow::{self, Context},
-        log, tokio, vsmtp_rsasl,
+        log, tokio,
     },
     CodeID, ConnectionKind,
 };
@@ -33,7 +32,6 @@ use vsmtp_rule_engine::RuleEngine;
 pub struct Server {
     config: std::sync::Arc<Config>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -102,17 +100,6 @@ impl Server {
             } else {
                 None
             },
-            rsasl: if config.server.smtp.auth.is_some() {
-                Some(std::sync::Arc::new(tokio::sync::Mutex::new({
-                    let mut rsasl =
-                        vsmtp_rsasl::SASL::new().map_err(|e| anyhow::anyhow!("{}", e))?;
-                    rsasl.install_callback::<auth::Callback>();
-                    rsasl.store(Box::new(config.clone()));
-                    rsasl
-                })))
-            } else {
-                None
-            },
             rule_engine,
             resolvers,
             config,
@@ -174,7 +161,6 @@ impl Server {
                 stream,
             ),
             self.tls_config.clone(),
-            self.rsasl.clone(),
             self.rule_engine.clone(),
             self.resolvers.clone(),
             self.working_sender.clone(),
@@ -270,7 +256,6 @@ impl Server {
     #[tracing::instrument(skip(
         conn,
         tls_config,
-        rsasl,
         rule_engine,
         resolvers,
         working_sender,
@@ -279,7 +264,6 @@ impl Server {
     pub async fn run_session(
         mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -288,7 +272,6 @@ impl Server {
         let connection_result = conn
             .receive(
                 tls_config,
-                rsasl,
                 rule_engine,
                 resolvers,
                 &mut MailHandler {

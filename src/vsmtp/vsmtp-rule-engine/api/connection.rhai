@@ -15,21 +15,21 @@
  *
 */
 
-//! # Connection
+//! ### Connection
 //!
 //! Metadata is available for each client, this module lets you query those metadata.
 
 /// Get the address of the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the client's address with the `ip:port` format.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -38,20 +38,20 @@
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn client_address() { ctx().client_address }
 
 /// Get the ip address of the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the client's ip address.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -60,20 +60,20 @@ fn client_address() { ctx().client_address }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn client_ip() { ctx().client_ip }
 
 /// Get the ip port of the client.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `int` - the client's port.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -82,20 +82,20 @@ fn client_ip() { ctx().client_ip }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn client_port() { ctx().client_port }
 
 /// Get the full server address.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the server's address with the `ip:port` format.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -104,20 +104,20 @@ fn client_port() { ctx().client_port }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn server_address() { ctx().server_address }
 
 /// Get the server's ip.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the server's ip.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -126,20 +126,20 @@ fn server_address() { ctx().server_address }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn server_ip() { ctx().server_ip }
 
 /// Get the server's port.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the server's port.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -148,20 +148,20 @@ fn server_ip() { ctx().server_ip }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn server_port() { ctx().server_port }
 
 /// Get a the timestamp of the client's connection time.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `timestamp` - the connexion timestamp of the client.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -170,20 +170,20 @@ fn server_port() { ctx().server_port }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn connection_timestamp() { ctx().connection_timestamp }
 
 /// Get the name of the server.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `string` - the name of the server.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -192,5 +192,5 @@ fn connection_timestamp() { ctx().connection_timestamp }
 /// }
 /// ```
 ///
-/// # Module:Connection
+/// ### Module:Connection
 fn server_name() { ctx().server_name }

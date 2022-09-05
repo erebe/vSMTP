@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+mod aliases;
 mod anti_relaying;
 mod dnsbl;
 mod family;

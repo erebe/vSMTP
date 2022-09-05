@@ -39,16 +39,15 @@ mod dmarc_rhai {
             .get_header("From")
             .ok_or_else::<Box<EvalAltResult>, _>(|| "only one `From` header is allowed".into())?;
 
-        let (begin, end) = (
-            from.find('<').ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!("format of From is unsupported `{from}`").into()
-            })?,
-            from.find('>').ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!("format of From is unsupported `{from}`").into()
-            })?,
-        );
+        let from_parsed = match from
+            .find('<')
+            .and_then(|begin| from.find('>').map(|end| (begin, end)))
+        {
+            Some((start, end)) => &from[start..end],
+            None => &from,
+        };
 
-        <Address as std::str::FromStr>::from_str(&from[begin..end])
+        <Address as std::str::FromStr>::from_str(from_parsed)
             .map(|addr| SharedObject::new(Object::Address(addr)))
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }

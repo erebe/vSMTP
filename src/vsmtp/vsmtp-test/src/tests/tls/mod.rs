@@ -32,7 +32,6 @@ use vsmtp_config::{
     Config,
 };
 use vsmtp_rule_engine::RuleEngine;
-use vsmtp_server::auth;
 use vsmtp_server::Connection;
 use vsmtp_server::{ProcessMessage, Server};
 
@@ -101,7 +100,6 @@ async fn test_starttls(
             } else {
                 None
             },
-            None,
             std::sync::Arc::new(
                 RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
             ),
@@ -204,16 +202,42 @@ async fn test_starttls(
     Ok((client.unwrap(), server.unwrap()))
 }
 
-// using sockets on 2 thread to make the handshake concurrently
-#[allow(clippy::too_many_arguments)]
-async fn test_tls_tunneled(
+async fn test_tls_tunneled_with_auth(
     server_name: &'static str,
     server_config: std::sync::Arc<Config>,
     smtp_input: Vec<String>,
     expected_output: Vec<String>,
     port: u32,
     get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
-    get_auth_config: fn(&Config) -> Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
+    after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
+) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
+    let rule_engine = std::sync::Arc::new(
+        RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
+    );
+
+    test_tls_tunneled(
+        rule_engine,
+        server_name,
+        server_config,
+        smtp_input,
+        expected_output,
+        port,
+        get_tls_config,
+        after_handshake,
+    )
+    .await
+}
+
+// using sockets on 2 thread to make the handshake concurrently
+#[allow(clippy::too_many_arguments)]
+async fn test_tls_tunneled(
+    rule_engine: std::sync::Arc<RuleEngine>,
+    server_name: &'static str,
+    server_config: std::sync::Arc<Config>,
+    smtp_input: Vec<String>,
+    expected_output: Vec<String>,
+    port: u32,
+    get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
     after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
     let socket_server = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
@@ -235,10 +259,7 @@ async fn test_tls_tunneled(
                 client_stream,
             ),
             get_tls_config(&server_config),
-            get_auth_config(&server_config),
-            std::sync::Arc::new(
-                RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
-            ),
+            rule_engine.clone(),
             std::sync::Arc::new(std::collections::HashMap::new()),
             working_sender,
             delivery_sender,

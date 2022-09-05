@@ -18,7 +18,7 @@ use crate::{delegate, receiver::MailHandlerError, Process, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
     re::{anyhow, log, tokio},
-    state::StateSMTP,
+    state::State,
     status::Status,
     transfer::EmailTransferStatus,
 };
@@ -87,7 +87,7 @@ async fn handle_one_in_working_queue_inner(
         .await?;
 
     let (mut mail_context, mail_message, _, skipped) = rule_engine.just_run_when(
-        &StateSMTP::PostQ,
+        State::PostQ,
         config.as_ref(),
         resolvers,
         mail_context,
@@ -398,7 +398,7 @@ mod tests {
             std::sync::Arc::new(
                 RuleEngine::from_script(
                     &config,
-                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", StateSMTP::PostQ),
+                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::PostQ),
                 )
                 .unwrap(),
             ),

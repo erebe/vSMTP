@@ -15,21 +15,21 @@
  *
 */
 
-//! # Envelop
+//! ### Envelop
 //!
 //! The SMTP envelop can be mutated by several function from this module.
 
 /// Rewrite the sender received from the `MAIL FROM` command.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `new_addr` - the new sender address to set.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `mail` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -38,21 +38,21 @@
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn rewrite_mail_from_envelop(new_addr) { sys::rewrite_mail_from_envelop(ctx(), new_addr) }
 
 /// Replace a recipient received by a `RCPT TO` command.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `old_addr` - the recipient to replace.
 /// * `new_addr` - the new address to use when replacing `old_addr`.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `rcpt` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -61,21 +61,21 @@ fn rewrite_mail_from_envelop(new_addr) { sys::rewrite_mail_from_envelop(ctx(), n
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn rewrite_rcpt_envelop(old_addr, new_addr) { sys::rewrite_rcpt_envelop(ctx(), old_addr, new_addr) }
 
 /// Add a new recipient to the envelop. Note that this does not add
 /// the recipient to the `To` header. Use `add_rcpt_message` for that.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt` - the new recipient to add.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -85,21 +85,21 @@ fn rewrite_rcpt_envelop(old_addr, new_addr) { sys::rewrite_rcpt_envelop(ctx(), o
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn add_rcpt_envelop(rcpt) { sys::add_rcpt_envelop(ctx(), rcpt) }
 
 /// Remove a recipient from the envelop. Note that this does not remove
 /// the recipient from the `To` header. Use `remove_rcpt_message` for that.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt` - the recipient to remove.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -109,20 +109,20 @@ fn add_rcpt_envelop(rcpt) { sys::add_rcpt_envelop(ctx(), rcpt) }
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 
 /// Add a recipient as a blind carbon copy. The equivalent of `add_rcpt_envelop`.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `rcpt` - the recipient to add as a blind carbon copy.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     connect: [
@@ -132,21 +132,21 @@ fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn bcc(rcpt) { add_rcpt_envelop(rcpt) }
 
 /// Rewrite the value of the `MAIL FROM` command has well has
 /// the `From` header.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `new_addr` - the new sender address to set.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// `preq` and onwards.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// #{
 ///     preq: [
@@ -155,7 +155,7 @@ fn bcc(rcpt) { add_rcpt_envelop(rcpt) }
 /// }
 /// ```
 ///
-/// # Module:Envelop
+/// ### Module:Envelop
 fn rewrite_mail_from(new_addr) {
     sys::rewrite_mail_from_envelop(ctx(), new_addr);
     sys::rewrite_mail_from_message(msg(), new_addr)

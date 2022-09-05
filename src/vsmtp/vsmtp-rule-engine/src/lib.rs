@@ -87,9 +87,9 @@ pub mod api {
     pub mod logging;
     /// Extensions for the [`vsmtp_common::mail_context::MailContext`] type.
     pub mod mail_context;
-    /// Extensions for the [`vsmtp_common::MessageBody`] type.
+    /// Extensions for the [`vsmtp_mail_parser::MessageBody`] type.
     pub mod message;
-    /// Extensions for the [`vsmtp_common::MessageBody`] type.
+    /// Extensions for the [`vsmtp_mail_parser::MessageBody`] type.
     pub mod message_parsed;
     /// State Engine & filtering backend.
     pub mod rule_state;

@@ -14,26 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::libc_abstraction::{
-    chown, fork, if_indextoname, if_nametoindex, setgid, setsid, setuid, ForkResult,
-};
-
-#[test]
-fn test_fork() {
-    assert!(fork().is_ok());
-}
-
-#[test]
-fn test_setsid() {
-    match fork().unwrap() {
-        ForkResult::Parent(_) => (),
-        ForkResult::Child => {
-            // running the test in a subprocess to not pollute the other tests
-            assert!(setsid().is_ok());
-            assert!(setsid().is_err());
-        }
-    }
-}
+use crate::libc_abstraction::{chown, if_indextoname, if_nametoindex, setgid, setuid};
 
 #[test]
 fn test_setuid_current() {

@@ -21,6 +21,8 @@ use rhai::EvalAltResult;
 use vsmtp_common::re::lettre;
 use vsmtp_config::Config;
 
+use super::get_or_default;
+
 pub fn parse_smtp_service(
     context: &mut rhai::EvalContext,
     input: &[rhai::Expression],
@@ -32,38 +34,6 @@ pub fn parse_smtp_service(
     //       to remove if configured using vsl.
     _: &Config,
 ) -> EngineResult<Service> {
-    /// extract a value from a `rhai::Map`, optionally inserting a default value.
-    fn get_or_default<T: Clone + Send + Sync + 'static>(
-        map_name: &str,
-        map: &rhai::Map,
-        key: &str,
-        default: Option<T>,
-    ) -> EngineResult<T> {
-        fn try_cast<T: Clone + Send + Sync + 'static>(
-            name: &str,
-            value: &rhai::Dynamic,
-        ) -> EngineResult<T> {
-            value
-                .clone()
-                .try_cast::<T>()
-                .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                    format!(
-                        "the {name} parameter for a smtp service must be a {}",
-                        std::any::type_name::<T>()
-                    )
-                    .into()
-                })
-        }
-
-        match (map.get(key), default) {
-            (Some(value), _) => try_cast(key, value),
-            (mut value, Some(default)) => {
-                try_cast(key, value.get_or_insert(&rhai::Dynamic::from(default)))
-            }
-            _ => Err(format!("key {key} was not found in {map_name}").into()),
-        }
-    }
-
     let options: rhai::Map = context
         .eval_expression_tree(&input[3])?
         .try_cast()

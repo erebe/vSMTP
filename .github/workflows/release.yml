@@ -51,6 +51,6 @@ jobs:
           override: true
       - run: cargo install cargo-release
       - run: |
-          git config --global user.name 'Mathieu LALA [bot]'
-          git config --global user.email 'mathieu.lala@epitech.eu'
+          git config --global user.name 'CI [bot]'
+          git config --global user.email 'ci@negabit.com'
       - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --execute --no-confirm --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

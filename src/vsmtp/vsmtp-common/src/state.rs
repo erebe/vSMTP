@@ -21,19 +21,17 @@
     Eq,
     PartialEq,
     Hash,
+    Copy,
     Clone,
     Ord,
     PartialOrd,
-    serde::Deserialize,
-    serde::Serialize,
+    serde_with::DeserializeFromStr,
+    serde_with::SerializeDisplay,
     strum::EnumString,
     strum::Display,
 )]
-#[serde(untagged)]
-#[allow(clippy::module_name_repetitions)]
 #[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
-pub enum StateSMTP {
+pub enum State {
     /// After TCP/IP socket has been accepted
     Connect,
     /// After receiving HELO/EHLO command
@@ -48,16 +46,16 @@ pub enum StateSMTP {
     RcptTo,
     /// Before write on disk
     PreQ,
-    /// After connection closed
+    /// After write on disk & connection closed
     PostQ,
     /// Right before sending to recipient
     Delivery,
 }
 
-impl StateSMTP {
+impl State {
     /// As the email been received at the current stage ?
     #[must_use]
-    pub const fn email_received(&self) -> bool {
+    pub const fn is_email_received(&self) -> bool {
         matches!(self, Self::PostQ | Self::Delivery)
     }
 }

@@ -20,7 +20,7 @@ use crate::{
     tests::helpers::{get_default_config, get_default_state},
 };
 use vsmtp_common::{
-    addr, mail_context::MessageMetadata, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
+    addr, mail_context::MessageMetadata, state::State, status::Status, CodeID, ReplyOrCodeID,
 };
 use vsmtp_mail_parser::{BodyType, Mail, MailHeaders, MailMimeParser, MessageBody};
 
@@ -32,7 +32,7 @@ fn test_email_context_empty() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -51,7 +51,7 @@ fn test_email_context_raw() {
     ))
     .unwrap();
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
+        re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -106,7 +106,7 @@ fn test_email_context_mail() {
     }
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
@@ -123,7 +123,7 @@ fn test_email_bcc() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -136,13 +136,13 @@ fn test_email_add_get_set_header() {
 
     let mut state = RuleState::new(&config, resolvers, &re);
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
     );
 
     let (mut state, _) = get_default_state("./tmp/app");
     *state.message().write().unwrap() = MessageBody::default();
-    let status = re.run_when(&mut state, &StateSMTP::PreQ);
+    let status = re.run_when(&mut state, State::PreQ);
     assert_eq!(status, Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)));
 
     *state.message().write().unwrap() = MessageBody::default();
@@ -155,7 +155,7 @@ fn test_email_add_get_set_header() {
         dkim: None,
     };
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PostQ),
+        re.run_when(&mut state, State::PostQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

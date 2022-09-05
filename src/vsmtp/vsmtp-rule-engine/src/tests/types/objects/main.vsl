@@ -15,10 +15,11 @@
  *
 */
 import "vars" as vars;
+import "functions" as f;
 
 #{
     connect: [
-        action "test_print_objects" || {
+        action "test printing objects" || {
             print(ctx());
             print(srv());
             print(ctx().to_debug());
@@ -52,6 +53,14 @@ import "vars" as vars;
             print(vars::custom_code.to_debug());
             print(vars::complete_code.to_debug());
         },
+
+        rule "test creation functions" || {
+            if f::check_address() == next() {
+                next()
+            } else {
+                deny()
+            }
+        }
    ],
 
    helo: [

@@ -26,9 +26,11 @@
     Hash,
     PartialOrd,
     Ord,
-    strum::EnumIter,
     strum::Display,
+    strum::AsRefStr,
     strum::EnumString,
+    serde_with::SerializeDisplay,
+    serde_with::DeserializeFromStr,
 )]
 #[strum(serialize_all = "SCREAMING-KEBAB-CASE")]
 pub enum Mechanism {
@@ -55,26 +57,6 @@ pub enum Mechanism {
     - GS2-KRB5
     - XOAUTH-2
     */
-}
-
-impl serde::Serialize for Mechanism {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&format!("{self}"))
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Mechanism {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(serde::de::Error::custom)
-    }
 }
 
 impl Mechanism {
@@ -107,45 +89,6 @@ mod tests {
         assert_eq!(Mechanism::Login.to_string(), "LOGIN");
         assert_eq!(Mechanism::CramMd5.to_string(), "CRAM-MD5");
         assert_eq!(Mechanism::Anonymous.to_string(), "ANONYMOUS");
-    }
-
-    #[test]
-    fn serialize() {
-        #[derive(serde::Serialize, serde::Deserialize)]
-        struct S {
-            v: Mechanism,
-        }
-
-        for i in <Mechanism as strum::IntoEnumIterator>::iter() {
-            let s = serde_json::to_string(&S { v: i }).unwrap();
-            println!("{s}");
-            let s = serde_json::from_str::<S>(&s).unwrap();
-            assert_eq!(s.v, i);
-        }
-    }
-
-    #[test]
-    fn supported() {
-        let mut rsasl = vsmtp_rsasl::SASL::new_untyped().unwrap();
-
-        let mut supported_by_backend = std::collections::HashMap::new();
-        for m in rsasl.server_mech_list().unwrap().iter() {
-            println!("{}", m);
-            supported_by_backend.insert(
-                m.to_string(),
-                rsasl.server_supports(&std::ffi::CString::new(m).unwrap()),
-            );
-        }
-
-        for i in <Mechanism as strum::IntoEnumIterator>::iter() {
-            assert!(
-                supported_by_backend
-                    .get(&format!("{}", i))
-                    .unwrap_or(&false),
-                "{:?} is declared but not supported",
-                i
-            );
-        }
     }
 
     #[test]

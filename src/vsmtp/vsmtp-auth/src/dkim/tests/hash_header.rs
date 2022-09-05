@@ -36,8 +36,8 @@ fn mail_5() {
         header,
         concat!(
             "Date: Wed, 3 Aug 2022 17:48:03 +0200\r\n",
-            "To: mlala@negabit.com\r\nFrom: Pag <pag@virid-it.com>\r\n",
-            "Subject: after dns update\r\nDKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=virid-it.com; s=mail;\r\n",
+            "To: jdoe@negabit.com\r\nFrom: john <john.doe@example.com>\r\n",
+            "Subject: after dns update\r\nDKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=example.com; s=mail;\r\n",
             "\tt=1659541683; bh=Touenr7dUe0Mxv9r3OfnQ+GHpFRIdDa3Wa3TWnDOQKs=;\r\n",
             "\th=Date:To:From:Subject:From;\r\n",
             "\tb="

@@ -1,4 +1,4 @@
-version_requirement = ">=1.0.0, <2.0.0"
+version_requirement = ">=1.3.0-rc.0, <2.0.0"
 
 [server]
 domain = "domain.com"
@@ -89,7 +89,7 @@ data = "5m"
 
 
 [server.smtp.codes]
-Greetings = "220 lala-Nitro-AN515-54 Service ready\r\n"
+Greetings = "220 doe-Nitro-AN515-54 Service ready\r\n"
 Help = "214 joining us https://viridit.com/support\r\n"
 Closing = "221 Service closing transmission channel\r\n"
 Helo = "250 Ok\r\n"

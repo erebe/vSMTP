@@ -14,62 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-/// Return type of [fork]
-pub enum ForkResult {
-    /// to the parent, with the pid of the child process
-    Parent(libc::pid_t),
-    /// to the child
-    Child,
-}
-
-/// Create a child process
-///
-/// # Errors
-///
-/// see fork(2) ERRORS
-///
-/// * A system-imposed limit on the number of threads was encountered
-///   * the `RLIMIT_NPROC` soft resource limit was reached
-///   * the kernel's system-wide limit on the number of processes and threads was reached
-///   * the maximum number of PIDs was reached
-///   * the PID limit imposed by the cgroup "process number" controller was reached.
-/// * The caller is operating under the `SCHED_DEADLINE` scheduling policy
-///   and does not have the reset-on-fork flagset.
-/// * fork() is not supported on this platform
-/// * fork() failed to allocate the necessary kernel structures because memory is tight
-/// * An attempt was made to create a child process in a PID namespace whose "init" process has terminated
-/// * System call was interrupted by a signal and will be restarted (only during a trace)
-#[inline]
-pub fn fork() -> anyhow::Result<ForkResult> {
-    #[allow(unsafe_code)]
-    // SAFETY: ffi call
-    match unsafe { libc::fork() } {
-        // [coverage] hard to test (other than bomb fork)
-        -1 => Err(anyhow::anyhow!(
-            "fork: '{}'",
-            std::io::Error::last_os_error()
-        )),
-        0 => Ok(ForkResult::Child),
-        child_pid => Ok(ForkResult::Parent(child_pid)),
-    }
-}
 
 /// Run a program as a background process
 ///
 /// # Errors
 ///
-/// see daemon(2) ERRORS, see setsid(2) and [fork]
-// pub fn daemon() -> anyhow::Result<ForkResult> {
-//     match fork()? {
-//         // [coverage] exit make it annoying to test
-//         ForkResult::Parent(_) => std::process::exit(0),
-//         ForkResult::Child => {
-//             setsid()?;
-//             fork()
-//         }
-//     }
-// }
-
+/// see daemon(2) ERRORS
 pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
     #[allow(unsafe_code)]
     // SAFETY: ffi call
@@ -79,26 +29,6 @@ pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
             "daemon: '{}'",
             std::io::Error::last_os_error()
         )),
-    }
-}
-
-/// Run a program in a new session
-///
-/// # Errors
-///
-/// see setsid(2) ERRORS
-///
-/// EPERM: The process group ID of any process equals the PID of the calling process.
-/// Thus, in particular, setsid() fails if the calling process is already a process group leader.
-pub fn setsid() -> anyhow::Result<libc::pid_t> {
-    #[allow(unsafe_code)]
-    // SAFETY: ffi call
-    match unsafe { libc::setsid() } {
-        -1 => Err(anyhow::anyhow!(
-            "setsid: '{}'",
-            std::io::Error::last_os_error()
-        )),
-        res => Ok(res),
     }
 }
 

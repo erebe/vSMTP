@@ -128,7 +128,7 @@ impl CanonicalizationAlgorithm {
 }
 
 /// The algorithm used to canonicalize the message.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Canonicalization {
     /// The algorithm used to canonicalize the header.
     pub header: CanonicalizationAlgorithm,
@@ -175,7 +175,7 @@ mod tests {
 
     use crate::dkim::{CanonicalizationAlgorithm, SigningAlgorithm};
 
-    macro_rules! test_canonicalization {
+    macro_rules! canonicalization_empty_body {
         ($name:ident, $canon:expr, $algo:expr, $expected:expr) => {
             #[test]
             fn $name() {
@@ -187,28 +187,30 @@ mod tests {
         };
     }
 
-    test_canonicalization!(
+    #[cfg(feature = "historic")]
+    canonicalization_empty_body!(
         simple_empty_body_rsa_sha1,
         CanonicalizationAlgorithm::Simple,
         SigningAlgorithm::RsaSha1,
         "uoq1oCgLlTqpdDX/iUbLy7J1Wic="
     );
 
-    test_canonicalization!(
+    canonicalization_empty_body!(
         simple_empty_body_rsa_sha256,
         CanonicalizationAlgorithm::Simple,
         SigningAlgorithm::RsaSha256,
         "frcCV1k9oG9oKj3dpUqdJg1PxRT2RSN/XKdLCPjaYaY="
     );
 
-    test_canonicalization!(
+    #[cfg(feature = "historic")]
+    canonicalization_empty_body!(
         relaxed_empty_body_rsa_sha1,
         CanonicalizationAlgorithm::Relaxed,
         SigningAlgorithm::RsaSha1,
         "2jmj7l5rSw0yVb/vlWAYkK/YBwk="
     );
 
-    test_canonicalization!(
+    canonicalization_empty_body!(
         relaxed_empty_body_rsa_sha256,
         CanonicalizationAlgorithm::Relaxed,
         SigningAlgorithm::RsaSha256,
@@ -291,6 +293,23 @@ mod tests {
         assert_eq!(
             CanonicalizationAlgorithm::Simple.canonicalize_body(msg.body().as_ref().unwrap()),
             concat!(" C \r\n", "D \t E\r\n").to_string()
+        );
+    }
+
+    #[test]
+    fn canonicalize_trailing_newline() {
+        let msg = RawBody::new(
+            vec![
+                "A: X\r\n".to_string(),
+                "B : Y\t\r\n".to_string(),
+                "\tZ  \r\n".to_string(),
+            ],
+            concat!(" C \r\n", "D \t E\r\n", "\r\n", "\r\nok").to_string(),
+        );
+
+        assert_eq!(
+            CanonicalizationAlgorithm::Relaxed.canonicalize_body(msg.body().as_ref().unwrap()),
+            concat!(" C\r\n", "D E\r\n\r\n\r\nok\r\n")
         );
     }
 }

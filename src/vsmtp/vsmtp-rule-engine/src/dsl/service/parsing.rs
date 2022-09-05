@@ -59,8 +59,20 @@ pub fn parse_service(
         5 => match symbols[4].as_str() {
             // database formats
             "csv" => Ok(Some("=".into())),
+            #[cfg(feature = "mysql")]
+            "mysql" => Ok(Some("=".into())),
             // an expression, in the case of a regular service, whe are done parsing.
-            _ => Ok(None),
+            _ if symbols[3].as_str() == "=" => Ok(None),
+            r#type => Err(rhai::ParseError(
+                Box::new(rhai::ParseErrorType::BadInput(
+                    rhai::LexError::ImproperSymbol(
+                        "unknown database type (maybe you are missing a database feature ?)"
+                            .to_string(),
+                        r#type.to_string(),
+                    ),
+                )),
+                rhai::Position::NONE,
+            )),
         },
         6 => match symbols[5].as_str() {
             // the '=' token, next is the database options.
@@ -130,14 +142,9 @@ fn open_database(
 
         let service = match database_type {
             "csv" => super::databases::csv::parse_csv_database(service_name, &options)?,
-            t => {
-                return Err(rhai::EvalAltResult::ErrorMismatchDataType(
-                    "csv".to_string(),
-                    t.to_string(),
-                    rhai::Position::NONE,
-                )
-                .into())
-            }
+            #[cfg(feature = "mysql")]
+            "mysql" => super::databases::mysql::parse_mysql_database(service_name, &options)?,
+            _ => unreachable!("database type has already been parsed"),
         };
 
         Ok(service)

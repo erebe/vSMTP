@@ -33,10 +33,6 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 #[serde(deny_unknown_fields)]
 pub struct Config {
     /// vSMTP's version requirement to parse this configuration file.
-    #[serde(
-        serialize_with = "crate::parser::semver::serialize",
-        deserialize_with = "crate::parser::semver::deserialize"
-    )]
     pub version_requirement: semver::VersionReq,
     /// see [`field::FieldServer`]
     #[serde(default)]

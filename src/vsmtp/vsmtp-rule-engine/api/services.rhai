@@ -15,26 +15,26 @@
  *
 */
 
-//! # Services
+//! ### Services
 //!
 //! Services are external programs that can be used via the functions available in this module.
 
-/// Get the value of a key in a database.
+/// Get the value of a key in a csv database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `key` - the key to query.
 ///
-/// # Return
+/// ### Return
 ///
 /// * `Array of records` - an array containing the results. If no record is found,
 ///                        an empty array is returned.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -53,20 +53,20 @@
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn get(key) { this.db_query(key.to_string()) }
 
-/// Set a record into a database.
+/// Set a record into a csv database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `record` - the record to set.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -79,22 +79,22 @@ fn get(key) { this.db_query(key.to_string()) }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn set(record) {
     this.db_add(record.map("to_string"))
 }
 
-/// Remove a record from a database.
+/// Remove a record from a csv database.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `key` - the key to remove.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 /// ```js
 /// import "services" as svc;
 ///
@@ -107,56 +107,70 @@ fn set(record) {
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn rm(key) { this.db_rm(key.to_string()) }
 
-/// Run a command from a `cmd` service.
+/// Query a database.
 ///
-/// # Effective smtp stage
+/// ### Args
+///
+/// * `q` - the query to execute.
+///
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 ///
 /// ```js
-/// // services.vsl
-/// service echo cmd = #{
-///     timeout: "2s",
-///     command: "echo",
-///     args: ["-e", "using cmd to print to stdout\r\n"],
+/// service my_db db:mysql = #{
+///     url: "mysql://localhost/",
+///     user: "guest",
 /// };
 /// ```
 ///
 /// ```js
-/// // main.vsl
 /// import "services" as svc;
 ///
 /// #{
 ///     connect: [
-///        action "execute command" || {
-///             // prints 'using cmd to print to stdout\r\n' on the screen.
-///             svc::echo.cmd_run();
+///        action "log database" || {
+///             let version_record = svc::my_db.query("SELECT version();");
+///             // Result is a array of maps: [ #{"version()": "'version-of-mysql'"} ]
+///             log("trace", `Database version is ${version_record[0]["version()"]}`);
+///
+///             // Fetching a 'greylist' database with a 'sender' table containing the (user, domain, address) fields.
+///             let senders = svc::my_db.query("SELECT * FROM greylist.sender");
+///
+///             // Iterate over rows.
+///             for sender in senders {
+///                 // You can access the columns values using Rhai's Map syntax:
+///                 print(`name: ${sender.user}, domain: ${sender.domain}, address: ${sender.address}`);
+///             }
+///
+///             // Populate the database with a new record.
+///             svc::my_db.query(`INSERT INTO greylist.sender (user, domain, address) values ("john.doe", "example.com", "john.doe@example.com");`);
 ///        }
 ///     ]
 /// }
 /// ```
 ///
-/// # Module:Services
-fn run() { this.cmd_run() }
+/// ### Module:Services
+fn query(q) { this.db_query(q) }
 
 /// Run a command from a `cmd` service with arguments.
 /// This allows you to run a command with dynamic arguments.
 ///
-/// # Args
+/// ### Args
 ///
 /// * `args` - an array of strings that will replace current command
 ///            arguments defined in the `args` field of a `cmd` service.
 ///
-/// # Effective smtp stage
+/// ### Effective smtp stage
 ///
 /// All of them.
 ///
-/// # Example
+/// ### Example
 ///
 /// ```js
 /// // services.vsl
@@ -181,5 +195,5 @@ fn run() { this.cmd_run() }
 /// }
 /// ```
 ///
-/// # Module:Services
+/// ### Module:Services
 fn run(args) { this.cmd_run(args) }

@@ -54,10 +54,9 @@ pub enum Status {
 }
 
 impl Status {
-    /// Checks if current status stops evaluation of
-    /// the next rules.
+    /// Should the evaluation of the rules finish ?
     #[must_use]
-    pub const fn stop(&self) -> bool {
+    pub const fn is_finished(&self) -> bool {
         matches!(
             self,
             Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_)

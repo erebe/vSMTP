@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "1.2.1"
+version = "1.3.0-rc.0"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -20,13 +20,14 @@ rust-version = "1.60"
 default-run = "vsmtp"
 
 [package.metadata.release]
+tag = true
 pre-release-replacements = [
   { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
   { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
   { file = "CHANGELOG.md", search = "<!-- next-header -->", replace = "<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly = 1, prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"./src/vsmtp/vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"./src/vsmtp/vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-server = \\{ path = \"./src/vsmtp/vsmtp-server\", default-features = false, version = .*", replace = "vsmtp-server = { path = \"./src/vsmtp/vsmtp-server\", default-features = false, version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"./src/vsmtp/vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"./src/vsmtp/vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"./src/vsmtp/vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"./src/vsmtp/vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-server = \\{ path = \"./src/vsmtp/vsmtp-server\", version = .*", replace = "vsmtp-server = { path = \"./src/vsmtp/vsmtp-server\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"./src/vsmtp/vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"./src/vsmtp/vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
 ]
 
 [workspace]
@@ -36,6 +37,7 @@ members = [
   "src/vsmtp/vsmtp-common",
   "src/vsmtp/vsmtp-config",
   "src/vsmtp/vsmtp-delivery",
+  "src/vsmtp/vsmtp-docs",
   "src/vsmtp/vsmtp-mail-parser",
   "src/vsmtp/vsmtp-rule-engine",
   "src/vsmtp/vsmtp-server",
@@ -52,11 +54,12 @@ path = "./src/vsmtp/src/main.rs"
 path = "./src/vsmtp/src/lib.rs"
 
 [dependencies]
-vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, version = "1.2.1" }
-vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.2.1" }
-vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.2.1" }
+vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.3.0-rc.0" }
+vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.3.0-rc.0" }
+vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.3.0-rc.0" }
+vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine", version = "1.3.0-rc.0" }
 
-clap = { version = "3.2.17", features = ["derive"] }
+clap = { version = "3.2.20", features = ["derive"] }
 diff = "0.1.13"
 
 tracing = "0.1.36"
@@ -69,14 +72,8 @@ tracing-journald = "0.3.0"
 syslog = "6.0.1"
 
 [features]
-default = ["vsmtp-common/gsasl_bindgen"]
 tokio_console = ["console-subscriber"]
-
-# TODO: improve that
-[package.metadata.docs.rs]
-features = []
-all-features = false
-no-default-features = true
+mysql = ["vsmtp-rule-engine/mysql"]
 
 #
 # DEBIAN PACKAGING
@@ -90,7 +87,7 @@ maintainer = "Pag <pag@viridit.com>"
 copyright = "Copyright (c) 2022, viridIT SAS. All rights reserved."
 extended-description = "A high performance MTA written in RUST."
 changelog = "./tools/install/deb/changelog"
-depends = "$auto, adduser, pkg-config, build-essential, libssl-dev, libgsasl7-dev, libsasl2-2, sasl2-bin, libclang-dev"
+depends = "$auto, adduser"
 section = "mail"
 priority = "optional"
 assets = [
