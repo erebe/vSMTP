@@ -33,6 +33,8 @@ mod tests {
     mod hash_header;
 }
 
+const MINIMUM_ACCEPTABLE_KEY_SIZE: usize = 1024;
+
 pub use algorithm::{HashAlgorithm, SigningAlgorithm};
 pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};
 pub use public_key::PublicKey;

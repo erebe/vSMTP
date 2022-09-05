@@ -18,7 +18,7 @@ use crate::{
     config::field::{FieldQueueDelivery, FieldQueueWorking},
     Config,
 };
-use vsmtp_common::{collection, state::StateSMTP};
+use vsmtp_common::{collection, state::State};
 
 #[test]
 fn parse() {
@@ -48,10 +48,10 @@ fn parse() {
                 10,
                 std::time::Duration::from_millis(50_000),
                 &collection! {
-                    StateSMTP::Connect => std::time::Duration::from_millis(50),
-                    StateSMTP::Helo => std::time::Duration::from_millis(100),
-                    StateSMTP::MailFrom => std::time::Duration::from_millis(200),
-                    StateSMTP::RcptTo => std::time::Duration::from_millis(400),
+                    State::Connect => std::time::Duration::from_millis(50),
+                    State::Helo => std::time::Duration::from_millis(100),
+                    State::MailFrom => std::time::Duration::from_millis(200),
+                    State::RcptTo => std::time::Duration::from_millis(400),
                 }
             )
             .with_default_smtp_codes()

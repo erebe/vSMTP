@@ -16,7 +16,7 @@
 */
 
 use super::Connection;
-use crate::{rsasl_callback::ValidationVSL, Callback};
+use super::{rsasl_callback::ValidationVSL, Callback};
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::ConnectionContext,

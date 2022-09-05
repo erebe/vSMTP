@@ -15,7 +15,7 @@
  *
 */
 
-use super::HashAlgorithm;
+use super::{HashAlgorithm, MINIMUM_ACCEPTABLE_KEY_SIZE};
 use crate::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
@@ -24,7 +24,7 @@ pub enum Version {
     Dkim1,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum Type {
     Rsa,
@@ -60,7 +60,7 @@ pub enum Flags {
 pub struct PublicKey {
     /// tag "v="
     /// MUST be "DKIM1"
-    pub version: Version,
+    version: Version,
     /// tag "h="
     pub acceptable_hash_algorithms: Vec<HashAlgorithm>,
     /// tag "k="
@@ -94,11 +94,53 @@ impl std::fmt::Debug for PublicKey {
     }
 }
 
+///
+#[must_use]
+#[derive(Debug, thiserror::Error)]
+pub enum KeyError {
+    ///
+    #[error(
+        "invalid key size: {0} bits, was expecting at least {} bits",
+        MINIMUM_ACCEPTABLE_KEY_SIZE
+    )]
+    KeySizeInvalid,
+}
+
 impl PublicKey {
     /// Does the signature contains the tag: `t=y`
     #[must_use]
     pub fn has_debug_flag(&self) -> bool {
         self.flags.iter().any(|f| *f == Flags::Testing)
+    }
+
+    ///
+    /// # Errors
+    ///
+    /// * see [`KeyError`]
+    pub fn new(
+        r#type: Type,
+        public_key: Vec<u8>,
+        public_key_len_bit: usize,
+        flags: Vec<Flags>,
+    ) -> Result<Self, KeyError> {
+        if public_key_len_bit * 8 < MINIMUM_ACCEPTABLE_KEY_SIZE {
+            return Err(KeyError::KeySizeInvalid);
+        }
+        Ok(Self {
+            version: Version::Dkim1,
+            acceptable_hash_algorithms: match r#type {
+                Type::Rsa => vec![
+                    #[cfg(feature = "historic")]
+                    HashAlgorithm::Sha1,
+                    HashAlgorithm::Sha256,
+                ],
+            },
+            r#type: Type::Rsa,
+            notes: None,
+            public_key,
+            service_type: vec![ServiceType::Wildcard],
+            flags,
+        })
     }
 }
 
@@ -107,8 +149,12 @@ impl std::str::FromStr for PublicKey {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut version = Version::Dkim1;
-        let mut acceptable_hash_algorithms =
-            <HashAlgorithm as strum::IntoEnumIterator>::iter().collect::<Vec<_>>();
+        let mut acceptable_hash_algorithms = vec![
+            #[cfg(feature = "historic")]
+            HashAlgorithm::Sha1,
+            HashAlgorithm::Sha256,
+        ];
+
         let mut r#type = Type::default();
         let mut notes = None;
         let mut public_key = None;

@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::AbstractIO;
+use super::AbstractIO;
 use vsmtp_common::{
     mail_context::ConnectionContext,
     re::{anyhow, log, tokio},

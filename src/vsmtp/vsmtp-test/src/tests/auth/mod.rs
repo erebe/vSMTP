@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{auth::Mechanism, re::strum};
+use vsmtp_common::auth::Mechanism;
 use vsmtp_config::Config;
 
 pub fn safe_auth_config() -> Config {
@@ -58,7 +58,12 @@ pub fn unsafe_auth_config() -> Config {
         .with_auth(
             false,
             true,
-            <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            vec![
+                Mechanism::Plain,
+                Mechanism::Login,
+                Mechanism::CramMd5,
+                Mechanism::Anonymous,
+            ],
             -1,
         )
         .with_default_app()

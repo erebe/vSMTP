@@ -15,7 +15,7 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{state::StateSMTP, status::Status, CodeID, ReplyOrCodeID};
+use vsmtp_common::{state::State, status::Status, CodeID, ReplyOrCodeID};
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_test::root_example;
@@ -30,7 +30,7 @@ fn test_status() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -45,7 +45,7 @@ fn test_time_and_date() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -60,7 +60,7 @@ fn test_ip() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(&mut state, StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -74,7 +74,7 @@ fn test_objects() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, State::Connect), Status::Next);
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn test_services() {
     *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
-        re.run_when(&mut state, StateSMTP::Connect),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
@@ -158,7 +158,7 @@ fn test_config_display() {
     *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
-        re.run_when(&mut state, StateSMTP::Helo),
+        re.run_when(&mut state, State::Helo),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

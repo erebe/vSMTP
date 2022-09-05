@@ -17,7 +17,7 @@
 
 use vsmtp_common::{
     mail_context::{ConnectionContext, MailContext, MessageMetadata},
-    state::StateSMTP,
+    state::State,
     Envelop,
 };
 use vsmtp_mail_parser::MessageBody;
@@ -29,7 +29,7 @@ pub fn run(vsl: &str) {
     let rule_engine = RuleEngine::from_script(&config, vsl).expect("Cannot create rule engine");
 
     let _output = rule_engine.just_run_when(
-        StateSMTP::Connect,
+        State::Connect,
         &config,
         std::sync::Arc::new(vsmtp_common::collection! {}),
         MailContext {

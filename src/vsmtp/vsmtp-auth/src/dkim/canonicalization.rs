@@ -187,6 +187,7 @@ mod tests {
         };
     }
 
+    #[cfg(feature = "historic")]
     canonicalization_empty_body!(
         simple_empty_body_rsa_sha1,
         CanonicalizationAlgorithm::Simple,
@@ -201,6 +202,7 @@ mod tests {
         "frcCV1k9oG9oKj3dpUqdJg1PxRT2RSN/XKdLCPjaYaY="
     );
 
+    #[cfg(feature = "historic")]
     canonicalization_empty_body!(
         relaxed_empty_body_rsa_sha1,
         CanonicalizationAlgorithm::Relaxed,

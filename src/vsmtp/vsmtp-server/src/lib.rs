@@ -40,11 +40,8 @@ mod server;
 
 pub use receiver::MailHandler;
 
-/// SMTP auth extension implementation
-mod rsasl_callback;
 pub use channel_message::ProcessMessage;
 pub use receiver::{AbstractIO, Connection, OnMail};
-pub use rsasl_callback::Callback;
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 

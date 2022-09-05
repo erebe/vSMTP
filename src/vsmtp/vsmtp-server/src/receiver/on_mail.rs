@@ -49,17 +49,17 @@ pub struct MailHandler {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MailHandlerError {
-    #[error("Could not delegate message: `{0:#?}`")]
+    #[error("could not delegate message: `{0:#?}`")]
     DelegateMessage(anyhow::Error),
-    #[error("couldn't write to `mails` folder: `{0}`")]
+    #[error("could not write to `mails` folder: `{0}`")]
     WriteMessageBody(std::io::Error),
-    #[error("couldn't create app folder: `{0}`")]
+    #[error("could not create app folder: `{0}`")]
     CreateAppFolder(anyhow::Error),
-    #[error("couldn't write to quarantine file: `{0}`")]
+    #[error("could not write to quarantine file: `{0}`")]
     WriteQuarantineFile(std::io::Error),
-    #[error("couldn't write to queue `{0}` got: `{1}`")]
+    #[error("could not write to queue `{0}` got: `{1}`")]
     WriteToQueue(Queue, String),
-    #[error("couldn't send message to next process `{0}` got: `{1}`")]
+    #[error("could not send message to next process `{0}` got: `{1}`")]
     SendToNextProcess(Process, tokio::sync::mpsc::error::SendError<ProcessMessage>),
 }
 

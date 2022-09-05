@@ -48,11 +48,13 @@ viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 sha2 = "0.10.3"
 rsa = "0.6.1"
 
-# should be optional and under a legacy flag
-sha1 = "0.10.2"
+sha1 = { version = "0.10.2", optional = true }
 
 convert_case = "0.5.0"
 addr = "0.15.4"
+
+[features]
+historic = ["dep:sha1"]
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
@@ -63,3 +65,7 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
     "tokio-runtime",
 ] }
 rand = "0.8.5"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

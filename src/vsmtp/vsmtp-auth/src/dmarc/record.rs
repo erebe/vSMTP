@@ -89,24 +89,22 @@ impl Record {
     pub fn dkim_is_aligned(&self, rfc5322_from: &str, dkim_domain: &str) -> bool {
         match self.adkim {
             AlignmentMode::Relaxed => {
-                let (root_rfc5322_from, root_domain_used) =
-                    (get_root_domain(rfc5322_from), get_root_domain(dkim_domain));
-
-                let root_rfc5322_from = match root_rfc5322_from {
-                    Ok(root_rfc5322_from) => root_rfc5322_from,
-                    Err(e) => {
-                        tracing::info!("{}", e);
-                        return false;
-                    }
-                };
-
-                let root_domain_used = match root_domain_used {
-                    Ok(root_domain_used) => root_domain_used,
-                    Err(e) => {
-                        tracing::info!("{}", e);
-                        return false;
-                    }
-                };
+                let (root_rfc5322_from, root_domain_used) = (
+                    match get_root_domain(rfc5322_from) {
+                        Ok(root_rfc5322_from) => root_rfc5322_from,
+                        Err(e) => {
+                            tracing::info!("{}", e);
+                            return false;
+                        }
+                    },
+                    match get_root_domain(dkim_domain) {
+                        Ok(root_domain_used) => root_domain_used,
+                        Err(e) => {
+                            tracing::info!("{}", e);
+                            return false;
+                        }
+                    },
+                );
 
                 root_rfc5322_from == root_domain_used
             }
@@ -119,24 +117,22 @@ impl Record {
     pub fn spf_is_aligned(&self, rfc5322_from: &str, spf_domain: &str) -> bool {
         match self.aspf {
             AlignmentMode::Relaxed => {
-                let (root_rfc5322_from, root_spf_domain) =
-                    (get_root_domain(rfc5322_from), get_root_domain(spf_domain));
-
-                let root_rfc5322_from = match root_rfc5322_from {
-                    Ok(root_rfc5322_from) => root_rfc5322_from,
-                    Err(e) => {
-                        tracing::info!("{}", e);
-                        return false;
-                    }
-                };
-
-                let root_spf_domain = match root_spf_domain {
-                    Ok(root_spf_domain) => root_spf_domain,
-                    Err(e) => {
-                        tracing::info!("{}", e);
-                        return false;
-                    }
-                };
+                let (root_rfc5322_from, root_spf_domain) = (
+                    match get_root_domain(rfc5322_from) {
+                        Ok(root_rfc5322_from) => root_rfc5322_from,
+                        Err(e) => {
+                            tracing::info!("{}", e);
+                            return false;
+                        }
+                    },
+                    match get_root_domain(spf_domain) {
+                        Ok(root_spf_domain) => root_spf_domain,
+                        Err(e) => {
+                            tracing::info!("{}", e);
+                            return false;
+                        }
+                    },
+                );
 
                 root_rfc5322_from == root_spf_domain
             }
@@ -286,11 +282,123 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_outlook_fr() {
+    fn parse() {
         let record =
-            "v=DMARC1; p=none; rua=mailto:d@rua.agari.com;ruf=mailto:d@ruf.agari.com;fo=1:s:d";
+            "v=DMARC1; p=none; rua=mailto:d@rua.agari.com;ruf=mailto:d@ruf.agari.com;fo=1:s:d; adkim=s; aspf=r; sp=none; pct=50; rf=afrf; ri=86400";
 
         let record = Record::from_str(record).unwrap();
         println!("{record:#?}");
+
+        assert_eq!(record.get_policy(), ReceiverPolicy::None.to_string());
+    }
+
+    #[test]
+    fn alignment_strict() {
+        let record = Record {
+            version: Version::Dmarc1,
+            adkim: AlignmentMode::Strict,
+            aspf: AlignmentMode::Strict,
+            failure_report_options: vec![FailureReportOption::All],
+            receiver_policy: ReceiverPolicy::None,
+            receiver_policy_subdomain: None,
+            percentage: 100,
+            report_failure: ReportFailure::AuthReportFailureFormat,
+            report_interval: 0,
+            report_aggregate_feedback: vec![],
+            report_specific_message: vec![],
+        };
+
+        assert!(record.dkim_is_aligned("outlook.fr", "outlook.fr"));
+        assert!(record.spf_is_aligned("outlook.fr", "outlook.fr"));
+    }
+
+    #[test]
+    fn alignment_relaxed() {
+        let record = Record {
+            version: Version::Dmarc1,
+            adkim: AlignmentMode::Relaxed,
+            aspf: AlignmentMode::Relaxed,
+            failure_report_options: vec![FailureReportOption::All],
+            receiver_policy: ReceiverPolicy::None,
+            receiver_policy_subdomain: None,
+            percentage: 100,
+            report_failure: ReportFailure::AuthReportFailureFormat,
+            report_interval: 0,
+            report_aggregate_feedback: vec![],
+            report_specific_message: vec![],
+        };
+
+        assert!(record.dkim_is_aligned("subdomain.outlook.fr", "outlook.fr"));
+        assert!(record.spf_is_aligned("subdomain.outlook.fr", "outlook.fr"));
+
+        assert!(!record.dkim_is_aligned("toto", "outlook.fr"));
+        assert!(!record.dkim_is_aligned("outlook.fr", "toto"));
+
+        assert!(!record.spf_is_aligned("toto", "outlook.fr"));
+        assert!(!record.spf_is_aligned("outlook.fr", "toto"));
+    }
+
+    mod error {
+        use super::*;
+
+        #[test]
+        fn not_tag_based_syntax() {
+            let _err = <Record as std::str::FromStr>::from_str("foobar").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_version() {
+            let _err = <Record as std::str::FromStr>::from_str("v=DMARC2").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_adkim() {
+            let _err = <Record as std::str::FromStr>::from_str("adkim=foo").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_aspf() {
+            let _err = <Record as std::str::FromStr>::from_str("aspf=foo").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_policy() {
+            let _err = <Record as std::str::FromStr>::from_str("p=foo").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_subdomain_policy() {
+            let _err = <Record as std::str::FromStr>::from_str("sp=foo").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_pct() {
+            let _err = <Record as std::str::FromStr>::from_str("pct=foo").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_pct_to_high() {
+            let _err = <Record as std::str::FromStr>::from_str("pct=101").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_report_failure() {
+            let _err = <Record as std::str::FromStr>::from_str("rf=foobar").unwrap_err();
+        }
+
+        #[test]
+        fn invalid_report_interval() {
+            let _err = <Record as std::str::FromStr>::from_str("ri=foobar").unwrap_err();
+        }
+
+        #[test]
+        fn missing_version() {
+            let _err = <Record as std::str::FromStr>::from_str("").unwrap_err();
+        }
+
+        #[test]
+        fn missing_policy() {
+            let _err = <Record as std::str::FromStr>::from_str("v=DMARC1").unwrap_err();
+        }
     }
 }

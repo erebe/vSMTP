@@ -18,7 +18,7 @@ use self::transaction::{Transaction, TransactionResult};
 use vsmtp_common::{
     mail_context::{ConnectionContext, MAIL_CAPACITY},
     re::{anyhow, either, log, tokio},
-    state::StateSMTP,
+    state::State,
     status::Status,
     CodeID, ConnectionKind,
 };
@@ -26,15 +26,17 @@ use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
 use vsmtp_rule_engine::RuleEngine;
 
-mod auth_exchange;
 mod connection;
 mod io;
 mod on_mail;
-pub mod transaction;
+mod rsasl_callback;
+mod rsasl_exchange;
 
-pub use connection::Connection;
 pub use io::AbstractIO;
+pub mod transaction;
+pub use connection::Connection;
 pub use on_mail::{MailHandler, MailHandlerError, OnMail};
+pub use rsasl_callback::Callback;
 
 #[derive(Default)]
 struct NoParsing;
@@ -297,7 +299,7 @@ where
 
         let status = transaction
             .rule_engine
-            .run_when(&mut transaction.rule_state, StateSMTP::PreQ);
+            .run_when(&mut transaction.rule_state, State::PreQ);
 
         match status {
             Status::Info(packet) => {

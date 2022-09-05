@@ -15,7 +15,7 @@
  *
 */
 
-use super::{Canonicalization, SigningAlgorithm};
+use super::{Canonicalization, SigningAlgorithm, MINIMUM_ACCEPTABLE_KEY_SIZE};
 use crate::ParseError;
 use vsmtp_mail_parser::RawBody;
 
@@ -45,6 +45,18 @@ impl std::str::FromStr for QueryMethod {
             })
         }
     }
+}
+
+#[must_use]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(
+        "invalid key size: {0} bits, was expecting at least {} bits",
+        MINIMUM_ACCEPTABLE_KEY_SIZE
+    )]
+    InvalidSize(usize),
+    #[error("rsa error: {0}")]
+    Rsa(rsa::errors::Error),
 }
 
 /// Representation of the "DKIM-Signature" header
@@ -103,7 +115,12 @@ impl Signature {
         // expire_time: Option<std::time::Duration>,
         // body_length: Option<usize>,
         // copy_header_fields: Option<Vec<(String, String)>>,
-    ) -> Result<Self, rsa::errors::Error> {
+    ) -> Result<Self, Error> {
+        let size = rsa::PublicKeyParts::size(&private_key) * 8;
+        if size < MINIMUM_ACCEPTABLE_KEY_SIZE {
+            return Err(Error::InvalidSize(size));
+        }
+
         let mut signature = Self {
             version: 1,
             signing_algorithm,
@@ -133,15 +150,20 @@ impl Signature {
         };
         signature.raw = signature.to_string();
 
-        signature.signature = base64::encode(private_key.sign(
-            rsa::PaddingScheme::PKCS1v15Sign {
-                hash: Some(match signature.signing_algorithm {
-                    SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
-                    SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
-                }),
-            },
-            &signature.get_header_hash(message),
-        )?);
+        signature.signature = base64::encode(
+            private_key
+                .sign(
+                    rsa::PaddingScheme::PKCS1v15Sign {
+                        hash: Some(match signature.signing_algorithm {
+                            #[cfg(feature = "historic")]
+                            SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
+                            SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
+                        }),
+                    },
+                    &signature.get_header_hash(message),
+                )
+                .map_err(Error::Rsa)?,
+        );
 
         signature.raw.push_str(&signature.signature);
 

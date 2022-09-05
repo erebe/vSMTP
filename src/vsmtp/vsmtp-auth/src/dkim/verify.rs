@@ -37,9 +37,6 @@ pub enum VerifierError {
         /// The algorithms of the public key
         acceptable: Vec<HashAlgorithm>,
     },
-    /// The key is empty
-    #[error("the key has been revoked, or is empty")]
-    KeyMissingOrRevoked,
     /// The public key is invalid
     #[error("the key format could not be recognized: `{e_pkcs1}` and `{e_pkcs8}`")]
     KeyFormatInvalid {
@@ -67,7 +64,7 @@ pub enum VerifierError {
 
 impl Default for VerifierError {
     fn default() -> Self {
-        VerifierError::KeyMissingOrRevoked
+        VerifierError::BodyHashMismatch
     }
 }
 
@@ -86,10 +83,6 @@ impl Signature {
                 singing_algorithm: self.signing_algorithm,
                 acceptable: key.acceptable_hash_algorithms.clone(),
             });
-        }
-
-        if key.public_key.is_empty() {
-            return Err(VerifierError::KeyMissingOrRevoked);
         }
 
         let body = self.canonicalization.body.canonicalize_body(
@@ -140,6 +133,7 @@ impl Signature {
             key.as_ref(),
             rsa::PaddingScheme::PKCS1v15Sign {
                 hash: Some(match self.signing_algorithm {
+                    #[cfg(feature = "historic")]
                     SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
                     SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
                 }),
@@ -156,8 +150,7 @@ impl Signature {
 mod tests {
 
     use crate::dkim::{
-        public_key::{Type, Version},
-        Canonicalization, CanonicalizationAlgorithm, HashAlgorithm, PublicKey, Signature,
+        public_key::Type, Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature,
         SigningAlgorithm,
     };
     use vsmtp_mail_parser::MessageBody;
@@ -201,18 +194,16 @@ mod tests {
 
         message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
-        let key = PublicKey {
-            version: Version::Dkim1,
-            acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-            r#type: Type::Rsa,
-            notes: None,
-            public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+        let key = PublicKey::new(
+            Type::Rsa,
+            rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
                 .unwrap()
                 .as_ref()
                 .to_vec(),
-            service_type: vec![],
-            flags: vec![],
-        };
+            rsa::PublicKeyParts::size(&public_key),
+            vec![],
+        )
+        .unwrap();
 
         signature.verify(message.inner(), &key).unwrap();
     }
@@ -221,7 +212,10 @@ mod tests {
         use super::*;
 
         #[test]
+        #[cfg(feature = "historic")]
         fn incompatible_key() {
+            use crate::dkim::HashAlgorithm;
+
             let mut rng = rand::thread_rng();
 
             let private_key = rsa::RsaPrivateKey::new(&mut rng, 1024).unwrap();
@@ -259,18 +253,17 @@ mod tests {
 
             message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
-            let key = PublicKey {
-                version: Version::Dkim1,
-                acceptable_hash_algorithms: vec![HashAlgorithm::Sha1],
-                r#type: Type::Rsa,
-                notes: None,
-                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+            let mut key = PublicKey::new(
+                Type::Rsa,
+                rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
                     .unwrap()
                     .as_ref()
                     .to_vec(),
-                service_type: vec![],
-                flags: vec![],
-            };
+                rsa::PublicKeyParts::size(&public_key),
+                vec![],
+            )
+            .unwrap();
+            key.acceptable_hash_algorithms = vec![HashAlgorithm::Sha1];
 
             let err = signature.verify(message.inner(), &key).unwrap_err();
             println!("{err}");
@@ -314,18 +307,7 @@ mod tests {
 
             message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
-            let key = PublicKey {
-                version: Version::Dkim1,
-                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-                r#type: Type::Rsa,
-                notes: None,
-                public_key: vec![],
-                service_type: vec![],
-                flags: vec![],
-            };
-
-            let err = signature.verify(message.inner(), &key).unwrap_err();
-            println!("{err}");
+            let _key = PublicKey::new(Type::Rsa, vec![], 0, vec![]).unwrap_err();
         }
 
         #[test]
@@ -369,18 +351,16 @@ mod tests {
 
             message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
-            let key = PublicKey {
-                version: Version::Dkim1,
-                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-                r#type: Type::Rsa,
-                notes: None,
-                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+            let key = PublicKey::new(
+                Type::Rsa,
+                rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
                     .unwrap()
                     .as_ref()
                     .to_vec(),
-                service_type: vec![],
-                flags: vec![],
-            };
+                rsa::PublicKeyParts::size(&public_key),
+                vec![],
+            )
+            .unwrap();
 
             let err = signature.verify(message.inner(), &key).unwrap_err();
             println!("{err}");
@@ -430,18 +410,16 @@ mod tests {
                 "this header changed, so the dkim signature is invalid",
             );
 
-            let key = PublicKey {
-                version: Version::Dkim1,
-                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-                r#type: Type::Rsa,
-                notes: None,
-                public_key: rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
+            let key = PublicKey::new(
+                Type::Rsa,
+                rsa::pkcs8::EncodePublicKey::to_public_key_der(&public_key)
                     .unwrap()
                     .as_ref()
                     .to_vec(),
-                service_type: vec![],
-                flags: vec![],
-            };
+                rsa::PublicKeyParts::size(&public_key),
+                vec![],
+            )
+            .unwrap();
 
             let err = signature.verify(message.inner(), &key).unwrap_err();
             println!("{err}");

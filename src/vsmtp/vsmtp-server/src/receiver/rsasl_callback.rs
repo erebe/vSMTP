@@ -18,7 +18,7 @@
 use vsmtp_common::{
     auth::{Credentials, Mechanism},
     mail_context::ConnectionContext,
-    state::StateSMTP,
+    state::State,
     status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
@@ -72,7 +72,7 @@ impl Callback {
 
         let result = self
             .rule_engine
-            .run_when(&mut rule_state, StateSMTP::Authenticate);
+            .run_when(&mut rule_state, State::Authenticate);
 
         if !matches!(result, Status::Accept(..)) {
             return Err(Error::RuleEngineResult(result));

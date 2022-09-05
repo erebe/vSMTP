@@ -19,6 +19,8 @@
  *
 */
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+//
 #![doc(html_no_source)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
@@ -30,7 +32,7 @@
 //
 #![allow(clippy::use_self)] // false positive with enums
 
-/// The implementation follow the RFC 7208
+/// The implementation follow the RFC 7208 & 8301
 ///
 /// ```txt
 /// Email on the Internet can be forged in a number of ways.  In
