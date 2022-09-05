@@ -31,6 +31,7 @@ pre-release-replacements = [
 ]
 
 [workspace]
+resolver = "2"
 members = [
   "src/vqueue",
   "src/vsmtp/vsmtp-auth",
@@ -72,6 +73,7 @@ tracing-journald = "0.3.0"
 syslog = "6.0.1"
 
 [features]
+default = ["mysql"]
 tokio_console = ["console-subscriber"]
 mysql = ["vsmtp-rule-engine/mysql"]
 
