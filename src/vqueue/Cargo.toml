@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vqueue"
-version = "1.3.0-rc.0"
+version = "1.3.0-rc.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.60"
@@ -22,12 +22,13 @@ categories = ["command-line-utilities"]
 pre-release-replacements = [
     { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp/vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp/vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
     { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp/vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp/vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp/vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp/vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp/vsmtp-common", version = "1.3.0-rc.0" }
-vsmtp-config = { path = "../vsmtp/vsmtp-config", version = "1.3.0-rc.0" }
-vsmtp-mail-parser = { path = "../vsmtp/vsmtp-mail-parser", version = "1.3.0-rc.0" }
+vsmtp-common = { path = "../vsmtp/vsmtp-common", version = "1.3.0-rc.1" }
+vsmtp-config = { path = "../vsmtp/vsmtp-config", version = "1.3.0-rc.1" }
+vsmtp-mail-parser = { path = "../vsmtp/vsmtp-mail-parser", version = "1.3.0-rc.1" }
 
 clap = { version = "3.2.20", features = ["derive"] }
 itertools = "0.10.3"
