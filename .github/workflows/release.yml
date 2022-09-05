@@ -16,6 +16,8 @@ jobs:
           echo ${{ github.event.pull_request.labels.*.name }}
           if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
             echo '::set-output name=BUMP::rc'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-release') }}; then
+            echo '::set-output name=BUMP::release'
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
             echo '::set-output name=BUMP::patch'
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
