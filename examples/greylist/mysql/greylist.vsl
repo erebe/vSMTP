@@ -1,4 +1,4 @@
-/// Here is an example of a mysql database service setup.
+// Here is an example of a mysql database service setup.
 
 service mysql_greylist db:mysql = #{
     // the url to connect to your database.
