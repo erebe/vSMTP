@@ -251,6 +251,7 @@ pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineRes
     }
 }
 
+// TODO: rg4, rg6, str handling.
 pub(crate) fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
     match other {
         Object::Group(group) => Ok(group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
