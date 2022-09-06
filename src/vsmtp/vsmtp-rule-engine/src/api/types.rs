@@ -244,6 +244,8 @@ pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineRes
         Object::Address(addr) => Ok(this == addr.full()),
         Object::Fqdn(fqdn) => Ok(this == fqdn),
         Object::Regex(re) => Ok(re.is_match(this)),
+        Object::Ip4(ip4) => Ok(this == ip4.to_string()),
+        Object::Ip6(ip6) => Ok(this == ip6.to_string()),
         Object::Str(s) | Object::Identifier(s) => Ok(this == s),
         _ => Err(format!("a {} object cannot be compared to a string", other).into()),
     }
