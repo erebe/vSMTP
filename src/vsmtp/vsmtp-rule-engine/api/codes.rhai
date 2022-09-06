@@ -45,3 +45,6 @@ object code550_7_26 code = #{ code: 500, enhanced: "5.7.26", text: "Multiple aut
 // Null MX codes (RFC 7505)
 object code550_7_27 code = #{ code: 550, enhanced: "5.7.27", text: "Sender address has null MX" };
 object code556_1_10 code = #{ code: 556, enhanced: "5.1.10", text: "Recipient address has null MX" };
+
+// Greylisting code (https://www.rfc-editor.org/rfc/rfc6647.html#section-2.1)
+object code_greylist code = #{ code: 451, enhanced: "4.7.1", text: "Sender is not authorized. Please try again." };

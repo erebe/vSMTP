@@ -130,7 +130,8 @@ import "database" as db;
       if db::greylist.get(sender) == [] {
         // it does not, we add the address to the database, then deny the email.
         db::greylist.set([ sender ]);
-        deny()
+        // close the connection with a built in "451 - 4.7.1" error code.
+        deny(code_greylist)
       } else {
         // it is, we accept the email.
         accept()

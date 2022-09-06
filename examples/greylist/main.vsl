@@ -22,7 +22,7 @@ import "csv_greylist" as csv;
             // the database.
             if !in_domain(mail_from()) && csv::csv_greylist.get(sender) == [] {
                 csv::csv_greylist.set([ sender ]);
-                deny()
+                deny(code_greylist)
             } else {
                 // the user is known by the server, the transaction
                 // can proceed.
