@@ -16,7 +16,7 @@
  */
 use crate::Args;
 use tracing_subscriber::fmt::writer::{MakeWriterExt, OptionalWriter};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{filter, fmt, prelude::*, EnvFilter};
 use vsmtp_common::collection;
 use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_common::re::{either, log};
@@ -206,7 +206,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
     if let Some(system_log_config) = &config.server.logs.system {
         match &system_log_config {
             FieldServerLogSystem::Syslogd {
-                min_level,
+                level,
                 format,
                 socket,
             } => {
@@ -216,7 +216,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                             MakeSyslogWriter {
                                 config: (*format, socket.clone()),
                             }
-                            .with_min_level(match min_level {
+                            .with_max_level(match level {
                                 log::LevelFilter::Off => unimplemented!(),
                                 log::LevelFilter::Error => tracing::Level::ERROR,
                                 log::LevelFilter::Warn => tracing::Level::WARN,
@@ -236,18 +236,21 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                     subscriber.try_init()
                 }
             }
-            FieldServerLogSystem::Journald { .. } => {
-                let subscriber =
-                    subscriber.with(tracing_journald::layer().map_err(|e| anyhow::anyhow!("{e}"))?);
-                /*
-                .with_min_level(match min_level {
+            FieldServerLogSystem::Journald { level } => {
+                let min_level = match level {
                     log::LevelFilter::Off => unimplemented!(),
                     log::LevelFilter::Error => tracing::Level::ERROR,
                     log::LevelFilter::Warn => tracing::Level::WARN,
                     log::LevelFilter::Info => tracing::Level::INFO,
                     log::LevelFilter::Debug => tracing::Level::DEBUG,
                     log::LevelFilter::Trace => tracing::Level::TRACE,
-                }),*/
+                };
+
+                let subscriber = subscriber.with(
+                    tracing_journald::layer()
+                        .map_err(|e| anyhow::anyhow!("{e}"))?
+                        .with_filter(filter::filter_fn(move |i| *i.level() <= min_level)),
+                );
 
                 if args.no_daemon {
                     subscriber

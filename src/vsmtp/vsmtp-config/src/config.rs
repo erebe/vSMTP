@@ -269,7 +269,7 @@ pub mod field {
         /// Parameters for the `syslogd` backend.
         Syslogd {
             ///
-            min_level: log::LevelFilter,
+            level: log::LevelFilter,
             ///
             format: SyslogFormat,
             ///
@@ -278,7 +278,7 @@ pub mod field {
         ///
         Journald {
             ///
-            min_level: log::LevelFilter,
+            level: log::LevelFilter,
         },
     }
 
