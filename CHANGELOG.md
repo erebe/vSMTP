@@ -13,8 +13,6 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [1.3.0-rc.1] - 2022-09-05
-
 ### Added
 
 * support for `MySQL` databases. see [`/examples/greylist/mysql`](https://github.com/viridIT/vSMTP/tree/develop/examples/greylist/mysql). (#548)
@@ -23,10 +21,12 @@ release. They will however *never* happen in a patch release.
 
 * update the backend of the `SASL` protocol, using a state-of-the-art Rust implementation `rsasl` instead of binding the  `gsasl` C library. (#536)
 * update the vsl api with more consistent syntax. (#545)
+* Greylist sender domain & return code. (#566, #571)
 
 ### Fixed
 
 * IPv6 address for `EHLO` command. (#530)
+* Log level ordering. (#565)
 
 ### Documented
 
