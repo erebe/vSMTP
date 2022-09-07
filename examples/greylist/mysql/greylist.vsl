@@ -29,7 +29,7 @@ fn greylist(greylist) {
             values ("${sender.local_part}", "${sender.domain}", "${sender}");
         `);
 
-        deny()
+        deny(code_greylist)
     } else {
         // the user is known by the server, the transaction
         // can proceed.

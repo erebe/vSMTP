@@ -34,7 +34,7 @@ async fn test_greylist() {
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
-            "554 permanent problems with the remote server\r\n",
+            "451 4.7.1 Sender is not authorized. Please try again.\r\n",
         ]
         .concat()
     }
