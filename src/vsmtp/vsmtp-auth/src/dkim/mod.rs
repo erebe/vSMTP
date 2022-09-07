@@ -21,6 +21,8 @@ mod public_key;
 mod signature;
 mod verify;
 
+pub use public_key::KeyError;
+
 /// The result of the verification of a DKIM signature.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Result {

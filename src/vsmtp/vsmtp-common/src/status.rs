@@ -24,7 +24,7 @@ pub enum Status {
     /// informational data needs to be sent to the client.
     Info(ReplyOrCodeID),
 
-    /// accepts the current [`crate::state::StateSMTP`] value, skips all rules in the stage.
+    /// accepts the current [`crate::state::State`] value, skips all rules in the stage.
     Accept(ReplyOrCodeID),
 
     /// continue to the next rule / stage.

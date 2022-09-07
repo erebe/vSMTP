@@ -10,18 +10,8 @@ jobs:
   run-fuzz:
     runs-on: ubuntu-latest # self-hosted
     steps:
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev # clang...
       - uses: actions/checkout@v3
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v1
         with:
           path: ./fuzz/corpus

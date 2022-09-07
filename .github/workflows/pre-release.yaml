@@ -6,10 +6,7 @@ on:
 
 jobs:
   check-release:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}
+    runs-on:  ubuntu-latest
     steps:
       - name: Get bump method
         id: get-bump-method
@@ -31,17 +28,7 @@ jobs:
       - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            ./target
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -57,16 +44,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev lintian
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - run: |
           git clone https://github.com/viridIT/cargo-deb.git
           cd cargo-deb
