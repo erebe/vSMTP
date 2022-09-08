@@ -33,19 +33,23 @@ impl std::str::FromStr for Timeout {
 #[derive(Debug, clap::Parser, PartialEq, Eq)]
 #[clap(about, version, author)]
 pub struct Args {
-    /// Path of the vSMTP configuration file (toml format)
+    /// Path of the vSMTP configuration file. (toml format)
     #[clap(short, long, action)]
     pub config: Option<String>,
 
-    /// Commands
+    /// Commands.
     #[clap(subcommand)]
     pub command: Option<Commands>,
 
-    /// Do not run the program as a daemon
+    /// Do not run the program as a daemon.
     #[clap(short, long, action)]
     pub no_daemon: bool,
 
-    /// Make the server stop after a delay (human readable format)
+    /// Output to stdout.
+    #[clap(long, action)]
+    pub stdout: bool,
+
+    /// Make the server stop after a delay. (human readable format)
     #[clap(short, long, action)]
     pub timeout: Option<Timeout>,
 }
@@ -73,6 +77,7 @@ mod tests {
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path"]).unwrap()
@@ -83,6 +88,7 @@ mod tests {
                 command: Some(Commands::ConfigShow),
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"]).unwrap()
@@ -93,6 +99,7 @@ mod tests {
                 command: Some(Commands::ConfigDiff),
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"]).unwrap()
@@ -103,6 +110,7 @@ mod tests {
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: true,
+                stdout: false,
                 timeout: None
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "--no-daemon"]).unwrap()
@@ -113,6 +121,7 @@ mod tests {
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: true,
+                stdout: true,
                 timeout: Some(Timeout(std::time::Duration::from_secs(1)))
             },
             <Args as clap::StructOpt>::try_parse_from(&[
@@ -120,6 +129,7 @@ mod tests {
                 "-c",
                 "path",
                 "--no-daemon",
+                "--stdout",
                 "--timeout",
                 "1s"
             ])

@@ -216,7 +216,6 @@ impl RuleState {
                 "MSG" => Ok(Some(rhai::Dynamic::from(message.clone()))),
                 _ => Ok(None),
             })
-            .on_print(|msg| println!("{msg}"))
             .register_global_module(rule_engine.std_module.clone())
             .register_global_module(rule_engine.vsl_rhai_module.clone())
             .register_static_module("sys", rule_engine.vsl_native_module.clone())

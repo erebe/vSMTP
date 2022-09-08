@@ -220,7 +220,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                         .without_time(),
                 );
 
-                if args.no_daemon {
+                if args.stdout {
                     subscriber
                         .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
                         .try_init()
@@ -238,7 +238,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                         })),
                 );
 
-                if args.no_daemon {
+                if args.stdout {
                     subscriber
                         .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
                         .try_init()
@@ -247,7 +247,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                 }
             }
         }
-    } else if args.no_daemon {
+    } else if args.stdout {
         subscriber
             .with(get_fmt!().with_writer(std::io::stdout).with_ansi(true))
             .try_init()

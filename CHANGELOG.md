@@ -13,6 +13,12 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+* `--stdout` flag, print logs to stdout. (#579)
+
+### Changed
+* `--no-daemon` flag do not print logs to the standard output anymore. (#579)
+
 ## [1.3.0] - 2022-09-07
 
 ### Added
