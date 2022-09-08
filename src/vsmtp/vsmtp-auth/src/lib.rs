@@ -25,6 +25,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -32,7 +33,7 @@
 //
 #![allow(clippy::use_self)] // false positive with enums
 
-/// The implementation follow the RFC 7208 & 8301
+/// The implementation follow the RFC 7208
 ///
 /// ```txt
 /// Email on the Internet can be forged in a number of ways.  In
@@ -46,7 +47,7 @@
 /// ```
 pub mod spf;
 
-/// The implementation follow the RFC 6376
+/// The implementation follow the RFC 6376 & 8301
 ///
 /// ```txt
 /// DomainKeys Identified Mail (DKIM) permits a person, role, or

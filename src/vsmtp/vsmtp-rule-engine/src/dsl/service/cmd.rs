@@ -17,12 +17,10 @@
 
 use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
-use vsmtp_common::re::{anyhow, log};
-use vsmtp_config::re::users;
 
 pub fn parse_cmd_service(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     service_name: &str,
 ) -> EngineResult<Service> {
     let options: rhai::Map = context
@@ -42,7 +40,7 @@ pub fn parse_cmd_service(
         .get("timeout")
         .unwrap()
         .to_string()
-        .parse::<vsmtp_config::re::humantime::Duration>()
+        .parse::<humantime::Duration>()
         .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
         .into();
     let command = options.get("command").unwrap().to_string();

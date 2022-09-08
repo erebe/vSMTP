@@ -19,8 +19,8 @@ use crate::{
     api::EngineResult,
     dsl::service::{get_or_default, Service},
 };
+use anyhow::Context;
 use mysql::prelude::Queryable;
-use vsmtp_common::re::anyhow::{self, Context};
 
 /// A r2d2 connection manager for mysql.
 #[derive(Clone, Debug)]
@@ -93,7 +93,7 @@ pub fn parse_mysql_database(db_name: &str, options: &rhai::Map) -> EngineResult<
     let mut url = options.get("url").unwrap().to_string();
     let timeout: std::time::Duration =
         get_or_default::<String>(db_name, options, "timeout", Some("30s".to_string()))?
-            .parse::<vsmtp_config::re::humantime::Duration>()
+            .parse::<humantime::Duration>()
             .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
             .into();
     let connections = u32::try_from(get_or_default::<rhai::INT>(

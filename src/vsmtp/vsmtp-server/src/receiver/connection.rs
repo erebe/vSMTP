@@ -15,11 +15,7 @@
  *
 */
 use super::AbstractIO;
-use vsmtp_common::{
-    mail_context::ConnectionContext,
-    re::{anyhow, log, tokio},
-    CodeID, ConnectionKind, Reply, ReplyOrCodeID,
-};
+use vsmtp_common::{mail_context::ConnectionContext, CodeID, ConnectionKind, Reply, ReplyOrCodeID};
 use vsmtp_config::Config;
 
 /// Instance containing connection to the server's information

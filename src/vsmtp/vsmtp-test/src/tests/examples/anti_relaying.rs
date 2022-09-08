@@ -16,7 +16,6 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::re::tokio;
 
 // TODO: add more test cases for this example.
 #[tokio::test]

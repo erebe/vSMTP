@@ -16,7 +16,6 @@
 */
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
-use vsmtp_common::re::tokio;
 use vsmtp_config::{
     field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel},
     get_rustls_config,

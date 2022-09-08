@@ -16,7 +16,6 @@
 */
 
 use crate::{root_example, test_receiver};
-use vsmtp_common::re::tokio;
 
 #[tokio::test]
 async fn test_greylist() {

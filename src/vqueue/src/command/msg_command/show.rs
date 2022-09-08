@@ -1,11 +1,6 @@
 use crate::{command::get_message_path, MessageShowFormat};
-use vsmtp_common::{
-    mail_context::MailContext,
-    re::{
-        anyhow::{self, Context},
-        serde_json,
-    },
-};
+use anyhow::Context;
+use vsmtp_common::mail_context::MailContext;
 use vsmtp_mail_parser::MessageBody;
 
 pub fn show<OUT: std::io::Write>(

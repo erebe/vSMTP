@@ -1,5 +1,5 @@
 use crate::{QueueContent, QueueEntry};
-use vsmtp_common::{queue::Queue, re::anyhow};
+use vsmtp_common::queue::Queue;
 
 pub fn queue_show<OUT: std::io::Write>(
     queues: Vec<Queue>,
@@ -67,7 +67,6 @@ mod tests {
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
-        re::strum,
         transfer::{EmailTransferStatus, Transfer},
         Envelop,
     };

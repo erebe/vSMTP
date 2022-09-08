@@ -30,12 +30,8 @@ use crate::{
     },
     parser::{tls_certificate, tls_private_key},
 };
-use vsmtp_common::{
-    auth::Mechanism,
-    re::anyhow::{self, Context},
-    state::State,
-    CodeID, Reply,
-};
+use anyhow::Context;
+use vsmtp_common::{auth::Mechanism, state::State, CodeID, Reply};
 
 ///
 pub struct Builder<State> {

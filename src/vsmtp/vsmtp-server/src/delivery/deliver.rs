@@ -20,16 +20,9 @@ use crate::{
     receiver::MailHandlerError,
     ProcessMessage,
 };
+use anyhow::Context;
 use vsmtp_common::{
-    queue::Queue,
-    queue_path,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
-    state::State,
-    status::Status,
-    transfer::EmailTransferStatus,
+    queue::Queue, queue_path, state::State, status::Status, transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
@@ -231,7 +224,6 @@ mod tests {
         addr,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
-        re::tokio,
         transfer::{EmailTransferStatus, Transfer},
         Envelop,
     };

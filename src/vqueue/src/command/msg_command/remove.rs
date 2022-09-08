@@ -1,5 +1,4 @@
 use crate::command::get_message_path;
-use vsmtp_common::re::anyhow;
 
 pub fn remove<OUT: std::io::Write, IN: std::io::BufRead>(
     msg_id: &str,

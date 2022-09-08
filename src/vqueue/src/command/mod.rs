@@ -1,8 +1,5 @@
 use crate::{Commands, MessageCommand};
-use vsmtp_common::{
-    queue::Queue,
-    re::{anyhow, strum},
-};
+use vsmtp_common::queue::Queue;
 use vsmtp_config::Config;
 
 mod queue_show;

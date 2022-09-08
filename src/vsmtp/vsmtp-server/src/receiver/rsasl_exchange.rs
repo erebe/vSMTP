@@ -17,12 +17,7 @@
 
 use super::Connection;
 use super::{rsasl_callback::ValidationVSL, Callback};
-use vsmtp_common::{
-    auth::Mechanism,
-    mail_context::ConnectionContext,
-    re::{anyhow, base64, log, tokio},
-    CodeID,
-};
+use vsmtp_common::{auth::Mechanism, mail_context::ConnectionContext, CodeID};
 use vsmtp_config::{field::FieldServerSMTPAuth, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
 

@@ -17,10 +17,7 @@
 
 pub mod parsing;
 use crate::api::SharedObject;
-use vsmtp_common::{
-    re::{addr, anyhow, log, strum},
-    Address, Reply, ReplyCode,
-};
+use vsmtp_common::{Address, Reply, ReplyCode};
 
 const FILE_CAPACITY: usize = 20;
 
@@ -445,9 +442,9 @@ mod test {
         //     ]))
         //     .unwrap(),
         //     Object::File(vec![
-        //         Object::Address(addr!("foo@bar.net")),
-        //         Object::Address(addr!("nested@address.com")),
-        //         Object::Address(addr!("john@doe.com"))
+        //         Object::Address(new_addr!("foo@bar.net")),
+        //         Object::Address(new_addr!("nested@address.com")),
+        //         Object::Address(new_addr!("john@doe.com"))
         //     ])
         // );
 

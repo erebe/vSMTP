@@ -15,11 +15,8 @@
  *
  */
 use crate::Args;
-use tracing_subscriber::fmt::writer::{MakeWriterExt, OptionalWriter};
-use tracing_subscriber::{filter, fmt, prelude::*, EnvFilter};
+use anyhow::Context;
 use vsmtp_common::collection;
-use vsmtp_common::re::anyhow::{self, Context};
-use vsmtp_common::re::{either, log};
 use vsmtp_config::field::{FieldServerLogSystem, SyslogFormat, SyslogSocket};
 use vsmtp_config::Config;
 
@@ -63,9 +60,9 @@ struct MakeSyslogWriter {
     config: (SyslogFormat, SyslogSocket),
 }
 
-impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
     // NOTE: if the syslog failed to initialize, is it written to stdout ?
-    type Writer = fmt::writer::OptionalWriter<SyslogWriter>;
+    type Writer = tracing_subscriber::fmt::writer::OptionalWriter<SyslogWriter>;
 
     fn make_writer(&self) -> Self::Writer {
         fn get_3164() -> syslog::Formatter3164 {
@@ -87,42 +84,42 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
         let result = match (self.config.0, &self.config.1) {
             (SyslogFormat::Rfc3164, SyslogSocket::Udp { local, server }) => {
                 syslog::udp(get_3164(), local, server).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Left(logger),
                     })
                 })
             }
             (SyslogFormat::Rfc3164, SyslogSocket::Tcp { server }) => {
                 syslog::tcp(get_3164(), server).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Left(logger),
                     })
                 })
             }
             (SyslogFormat::Rfc3164, SyslogSocket::Unix { path }) => {
                 syslog::unix_custom(get_3164(), path).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Left(logger),
                     })
                 })
             }
             (SyslogFormat::Rfc5424, SyslogSocket::Udp { local, server }) => {
                 syslog::udp(get_5424(), local, server).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Right(logger),
                     })
                 })
             }
             (SyslogFormat::Rfc5424, SyslogSocket::Tcp { server }) => {
                 syslog::tcp(get_5424(), server).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Right(logger),
                     })
                 })
             }
             (SyslogFormat::Rfc5424, SyslogSocket::Unix { path }) => {
                 syslog::unix_custom(get_5424(), path).map(|logger| {
-                    OptionalWriter::some(SyslogWriter {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Right(logger),
                     })
                 })
@@ -133,7 +130,7 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
             Ok(logger) => logger,
             Err(e) => {
                 eprintln!("{}", e);
-                OptionalWriter::none()
+                tracing_subscriber::fmt::writer::OptionalWriter::none()
             }
         }
     }
@@ -142,7 +139,7 @@ impl<'a> fmt::MakeWriter<'a> for MakeSyslogWriter {
 #[cfg(debug_assertions)]
 macro_rules! get_fmt {
     () => {
-        fmt::layer()
+        tracing_subscriber::fmt::layer()
             .pretty()
             .with_file(true)
             .with_line_number(true)
@@ -155,7 +152,7 @@ macro_rules! get_fmt {
 #[cfg(not(debug_assertions))]
 macro_rules! get_fmt {
     () => {
-        fmt::layer()
+        tracing_subscriber::fmt::layer()
             .compact()
             .with_thread_ids(false)
             .with_target(false)
@@ -170,6 +167,10 @@ macro_rules! get_fmt {
 /// * The logs path in the configuration file are invalid.
 /// * Failed to initialize the tracing subsystem.
 pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
+    use tracing_subscriber::{
+        fmt::writer::MakeWriterExt, layer::SubscriberExt, util::SubscriberInitExt, Layer,
+    };
+
     std::fs::create_dir_all(config.server.logs.filepath.clone())
         .context("Cannot create `server.logs` directory")?;
 
@@ -186,15 +187,13 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         metadata.target() == "vsmtp_rule_engine::api::logging::logging_rhai"
     });
 
-    let subscriber = tracing_subscriber::registry().with(
-        EnvFilter::builder().try_from_env().unwrap_or_else(|_| {
-            let mut e = EnvFilter::default();
-            for i in &config.server.logs.level {
-                e = e.add_directive(i.clone());
-            }
-            e
-        }),
-    );
+    let subscriber = tracing_subscriber::registry().with({
+        let mut e = tracing_subscriber::EnvFilter::default();
+        for i in &config.server.logs.level {
+            e = e.add_directive(i.clone());
+        }
+        e
+    });
 
     #[cfg(feature = "tokio_console")]
     let subscriber = subscriber.with(console_subscriber::spawn());
@@ -216,14 +215,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                             MakeSyslogWriter {
                                 config: (*format, socket.clone()),
                             }
-                            .with_max_level(match level {
-                                log::LevelFilter::Off => unimplemented!(),
-                                log::LevelFilter::Error => tracing::Level::ERROR,
-                                log::LevelFilter::Warn => tracing::Level::WARN,
-                                log::LevelFilter::Info => tracing::Level::INFO,
-                                log::LevelFilter::Debug => tracing::Level::DEBUG,
-                                log::LevelFilter::Trace => tracing::Level::TRACE,
-                            }),
+                            .with_max_level(*level),
                         )
                         .without_time(),
                 );
@@ -237,19 +229,13 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
                 }
             }
             FieldServerLogSystem::Journald { level } => {
-                let min_level = match level {
-                    log::LevelFilter::Off => unimplemented!(),
-                    log::LevelFilter::Error => tracing::Level::ERROR,
-                    log::LevelFilter::Warn => tracing::Level::WARN,
-                    log::LevelFilter::Info => tracing::Level::INFO,
-                    log::LevelFilter::Debug => tracing::Level::DEBUG,
-                    log::LevelFilter::Trace => tracing::Level::TRACE,
-                };
-
+                let level = *level;
                 let subscriber = subscriber.with(
                     tracing_journald::layer()
                         .map_err(|e| anyhow::anyhow!("{e}"))?
-                        .with_filter(filter::filter_fn(move |i| *i.level() <= min_level)),
+                        .with_filter(tracing_subscriber::filter::filter_fn(move |i| {
+                            *i.level() <= level
+                        })),
                 );
 
                 if args.no_daemon {

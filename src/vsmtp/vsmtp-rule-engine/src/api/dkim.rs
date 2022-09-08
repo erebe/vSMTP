@@ -24,7 +24,7 @@ use vsmtp_auth::dkim::{
     Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature, SigningAlgorithm,
     VerifierError,
 };
-use vsmtp_common::{mail_context::MailContext, re::tokio};
+use vsmtp_common::mail_context::MailContext;
 
 pub use dkim_rhai::*;
 use vsmtp_mail_parser::MessageBody;

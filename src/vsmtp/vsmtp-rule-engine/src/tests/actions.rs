@@ -18,12 +18,11 @@ use crate::rule_state::RuleState;
 use crate::tests::helpers::get_default_config;
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::re::{addr, serde_json, tokio};
 use vsmtp_common::transfer::ForwardTarget;
+use vsmtp_common::{addr, CodeID, ReplyOrCodeID};
 use vsmtp_common::{
     mail_context::MessageMetadata, state::State, status::Status, transfer::Transfer,
 };
-use vsmtp_common::{CodeID, ReplyOrCodeID};
 use vsmtp_config::build_resolvers;
 use vsmtp_config::field::FieldServerVirtual;
 use vsmtp_mail_parser::{MailMimeParser, MessageBody};

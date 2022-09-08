@@ -20,7 +20,6 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, lettre, log},
     transfer::{EmailTransferStatus, ForwardTarget},
 };
 use vsmtp_config::Config;

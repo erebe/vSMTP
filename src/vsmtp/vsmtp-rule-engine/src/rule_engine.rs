@@ -29,14 +29,8 @@ use crate::dsl::{
 use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
-use vsmtp_common::re::serde_json;
 use vsmtp_common::{
-    mail_context::MailContext,
-    queue::Queue,
-    queue_path,
-    re::{anyhow, log},
-    state::State,
-    status::Status,
+    mail_context::MailContext, queue::Queue, queue_path, state::State, status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_mail_parser::MessageBody;
@@ -347,7 +341,8 @@ impl RuleEngine {
                 "service",
                 parse_service,
                 true,
-                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+                      input: &[rhai::Expression<'_>]| {
                     create_service(context, input, &config)
                 },
             )

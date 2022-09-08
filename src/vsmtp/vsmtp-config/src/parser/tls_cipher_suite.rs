@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::anyhow;
 
 /*
 const ALL_CIPHER_SUITE: [rustls::CipherSuite; 9] = [
@@ -126,7 +125,7 @@ where
     impl<'de> serde::de::Visitor<'de> for Visitor {
         type Value = Vec<CipherSuite>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("[...]")
         }
 
@@ -168,7 +167,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::parser::tls_cipher_suite::CipherSuite;
-    use vsmtp_common::re::serde_json;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct S {

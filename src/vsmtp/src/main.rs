@@ -16,20 +16,17 @@
  */
 use anyhow::Context;
 use vsmtp::{Args, Commands};
-use vsmtp_common::{
-    libc_abstraction::{daemon, initgroups},
-    re::{anyhow, log, serde_json},
-};
+use vsmtp_common::libc_abstraction::{daemon, initgroups};
 use vsmtp_config::Config;
 use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
         eprintln!("vSMTP terminating error: '{err}'");
-        log::error!("vSMTP terminating error: '{err}'");
+        tracing::error!("vSMTP terminating error: '{err}'");
         err.chain().skip(1).for_each(|cause| {
             eprintln!("because: {cause}");
-            log::error!("because: {cause}");
+            tracing::error!("because: {cause}");
         });
         std::process::exit(1);
     }

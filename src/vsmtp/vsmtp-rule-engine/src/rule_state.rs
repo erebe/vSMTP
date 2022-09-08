@@ -25,7 +25,6 @@ use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
 use vsmtp_common::mail_context::MessageMetadata;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::status::Status;
 use vsmtp_common::{
     mail_context::{ConnectionContext, MailContext},
@@ -232,7 +231,8 @@ impl RuleState {
                 "service",
                 parse_service,
                 true,
-                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+                      input: &[rhai::Expression<'_>]| {
                     create_service(context, input, &config)
                 },
             )

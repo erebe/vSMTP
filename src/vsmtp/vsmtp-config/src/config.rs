@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use serde_with::serde_as;
 use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 
 /// This structure contains all the field to configure the server at the startup.
@@ -45,8 +44,7 @@ pub struct Config {
 /// The inner field of the `vSMTP`'s configuration.
 #[allow(clippy::module_name_repetitions)]
 pub mod field {
-    use super::{serde_as, CodeID, Mechanism, Reply};
-    use vsmtp_common::re::{log, strum};
+    use super::{CodeID, Mechanism, Reply};
 
     /// This structure contains all the field to configure the server at the startup.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -263,13 +261,15 @@ pub mod field {
     /// The configuration of the `system logging module`.
     ///
     /// The implementation is backended for `syslogd` or `journald`.
+    #[serde_with::serde_as]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
     pub enum FieldServerLogSystem {
         /// Parameters for the `syslogd` backend.
         Syslogd {
             ///
-            level: log::LevelFilter,
+            #[serde_as(as = "serde_with::DisplayFromStr")]
+            level: tracing::Level,
             ///
             format: SyslogFormat,
             ///
@@ -278,7 +278,8 @@ pub mod field {
         ///
         Journald {
             ///
-            level: log::LevelFilter,
+            #[serde_as(as = "serde_with::DisplayFromStr")]
+            level: tracing::Level,
         },
     }
 
@@ -286,7 +287,7 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueWorking {
-        /// Size of the [`vsmtp_common::re::tokio::sync::mpsc::channel`]
+        /// Size of the channel queue communicating the mails from the `receiver` pool to the `processing` pool.
         #[serde(default = "FieldQueueWorking::default_channel_size")]
         pub channel_size: usize,
     }
@@ -295,7 +296,7 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueDelivery {
-        /// Size of the [`vsmtp_common::re::tokio::sync::mpsc::channel`]
+        /// Size of the channel queue communicating the mails from the `processing` pool to the `delivery` pool.
         #[serde(default = "FieldQueueDelivery::default_channel_size")]
         pub channel_size: usize,
         /// Maximum number of attempt to deliver the mail before moving it to the [`vsmtp_common::queue::Queue::Dead`]
@@ -495,7 +496,7 @@ pub mod field {
     }
 
     /// Parameters of the SMTP.
-    #[serde_as]
+    #[serde_with::serde_as]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTP {

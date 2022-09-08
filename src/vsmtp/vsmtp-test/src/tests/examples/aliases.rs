@@ -16,7 +16,7 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;

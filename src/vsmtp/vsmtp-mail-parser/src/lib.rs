@@ -4,6 +4,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]

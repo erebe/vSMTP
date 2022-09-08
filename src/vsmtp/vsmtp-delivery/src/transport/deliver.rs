@@ -15,16 +15,10 @@
  *
 */
 use super::Transport;
+use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::MessageMetadata,
-    rcpt::Rcpt,
-    re::{
-        anyhow::{self, Context},
-        lettre, log,
-    },
-    transfer::EmailTransferStatus,
-    Address,
+    mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus, Address,
 };
 use vsmtp_config::Config;
 
@@ -239,10 +233,7 @@ mod test {
 
     use crate::transport::deliver::Deliver;
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{
-        addr,
-        re::{lettre, tokio},
-    };
+    use vsmtp_common::addr;
     use vsmtp_config::{field::FieldServerDNS, Config};
 
     #[tokio::test]

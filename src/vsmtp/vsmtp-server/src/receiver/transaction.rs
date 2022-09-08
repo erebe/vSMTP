@@ -16,15 +16,8 @@
 */
 use super::connection::Connection;
 use vsmtp_common::{
-    addr,
-    auth::Mechanism,
-    event::Event,
-    mail_context::MessageMetadata,
-    rcpt::Rcpt,
-    re::{anyhow, either, log, tokio},
-    state::State,
-    status::Status,
-    Address, CodeID, Envelop, ReplyOrCodeID,
+    addr, auth::Mechanism, event::Event, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
+    status::Status, Address, CodeID, Envelop, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
 use vsmtp_mail_parser::MessageBody;

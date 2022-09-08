@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{re::anyhow, state::State};
+use vsmtp_common::state::State;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -125,7 +125,7 @@ macro_rules! vsl_guard_ok {
     ($guard:expr) => {
         $guard.map_err::<Box<rhai::EvalAltResult>, _>(|e| {
             $crate::error::RuntimeError::PoisonedGuard {
-                source: vsmtp_common::re::anyhow::anyhow!("{e}"),
+                source: anyhow::anyhow!("{e}"),
             }
             .into()
         })?

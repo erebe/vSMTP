@@ -17,7 +17,6 @@
 
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::{serde_json, tokio};
 use vsmtp_mail_parser::{MessageBody, RawBody};
 use vsmtp_server::ProcessMessage;
 

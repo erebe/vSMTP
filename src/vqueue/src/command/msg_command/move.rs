@@ -1,4 +1,4 @@
-use vsmtp_common::{queue::Queue, re::anyhow};
+use vsmtp_common::queue::Queue;
 
 use crate::command::get_message_path;
 

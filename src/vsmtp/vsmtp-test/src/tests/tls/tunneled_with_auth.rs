@@ -15,7 +15,6 @@
  *
 */
 use super::{test_tls_tunneled_with_auth, TEST_SERVER_CERT, TEST_SERVER_KEY};
-use vsmtp_common::re::{base64, tokio};
 use vsmtp_config::{get_rustls_config, Config};
 
 fn get_tls_auth_config() -> Config {

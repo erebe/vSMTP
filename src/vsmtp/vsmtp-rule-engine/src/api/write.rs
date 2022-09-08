@@ -19,7 +19,6 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::re::serde_json;
 use vsmtp_config::create_app_folder;
 
 pub use write_rhai::*;

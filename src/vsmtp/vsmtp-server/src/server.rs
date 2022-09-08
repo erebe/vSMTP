@@ -18,14 +18,10 @@ use crate::{
     channel_message::ProcessMessage,
     receiver::{Connection, MailHandler},
 };
-use vsmtp_common::{
-    re::{
-        anyhow::{self, Context},
-        log, tokio,
-    },
-    CodeID, ConnectionKind,
-};
-use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
+use anyhow::Context;
+use tokio_rustls::rustls;
+use vsmtp_common::{CodeID, ConnectionKind};
+use vsmtp_config::{get_rustls_config, Config, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -296,7 +292,6 @@ impl Server {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
     use crate::{socket_bind_anyhow, ProcessMessage, Server};
     use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;

@@ -15,9 +15,8 @@
  *
 */
 use crate::tests::tls::{get_tls_config, test_tls_tunneled};
-use vsmtp_common::re::tokio;
+use tokio_rustls::rustls;
 use vsmtp_config::get_rustls_config;
-use vsmtp_config::re::rustls;
 use vsmtp_rule_engine::RuleEngine;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]

@@ -20,10 +20,9 @@ use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, log},
     transfer::{EmailTransferStatus, TransferErrors},
 };
-use vsmtp_config::{re::users, Config};
+use vsmtp_config::Config;
 
 /// see <https://en.wikipedia.org/wiki/Maildir>
 //
@@ -158,10 +157,9 @@ impl Maildir {
 #[cfg(test)]
 mod test {
 
-    use users::os::unix::UserExt;
-    use vsmtp_common::re::addr;
-
     use super::*;
+    use users::os::unix::UserExt;
+    use vsmtp_common::addr;
 
     #[test]
     fn test_maildir_path() {

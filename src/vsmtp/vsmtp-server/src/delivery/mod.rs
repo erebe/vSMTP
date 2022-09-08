@@ -24,14 +24,13 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
+use vsmtp_common::transfer::EmailTransferStatus;
 use vsmtp_common::{
     mail_context::MailContext,
     rcpt::Rcpt,
-    re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
 };
-use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
 use vsmtp_mail_parser::MessageBody;
@@ -159,7 +158,7 @@ pub async fn send_mail(
         })
         .collect::<Vec<_>>();
 
-    message_ctx.envelop.rcpt = futures::future::join_all(futures)
+    message_ctx.envelop.rcpt = futures_util::future::join_all(futures)
         .await
         .into_iter()
         .flatten()

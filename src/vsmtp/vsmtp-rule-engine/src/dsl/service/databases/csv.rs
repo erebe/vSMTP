@@ -17,8 +17,8 @@
 
 use super::{AccessMode, Refresh};
 use crate::{api::EngineResult, dsl::service::Service};
+use anyhow::Context;
 use std::{io::Write, str::FromStr};
-use vsmtp_common::re::anyhow::{self, Context};
 
 /// query a record matching the first element.
 pub fn query(

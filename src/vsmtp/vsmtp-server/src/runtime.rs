@@ -15,13 +15,8 @@
  *
 */
 use crate::{delivery, processing, ProcessMessage, Server};
-use vsmtp_common::{
-    queue::Queue,
-    re::{
-        anyhow::{self, Context},
-        log, strum, tokio,
-    },
-};
+use anyhow::Context;
+use vsmtp_common::queue::Queue;
 use vsmtp_config::Config;
 use vsmtp_rule_engine::RuleEngine;
 

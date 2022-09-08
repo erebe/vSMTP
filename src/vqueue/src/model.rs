@@ -1,12 +1,5 @@
-use vsmtp_common::{
-    collection,
-    mail_context::MailContext,
-    queue::Queue,
-    re::{
-        anyhow::{self, Context},
-        serde_json,
-    },
-};
+use anyhow::Context;
+use vsmtp_common::{collection, mail_context::MailContext, queue::Queue};
 
 #[derive(Debug, Clone)]
 pub struct QueueEntry {

@@ -15,14 +15,14 @@
  *
 */
 use self::transaction::{Transaction, TransactionResult};
+use tokio_rustls::rustls;
 use vsmtp_common::{
     mail_context::{ConnectionContext, MAIL_CAPACITY},
-    re::{anyhow, either, log, tokio},
     state::State,
     status::Status,
     CodeID, ConnectionKind,
 };
-use vsmtp_config::{re::rustls, Resolvers};
+use vsmtp_config::Resolvers;
 use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
 use vsmtp_rule_engine::RuleEngine;
 

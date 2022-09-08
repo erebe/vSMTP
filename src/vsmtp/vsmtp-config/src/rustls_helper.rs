@@ -15,7 +15,6 @@
  *
 */
 use rustls::ALL_CIPHER_SUITES;
-use vsmtp_common::re::{anyhow, log};
 
 use crate::field::{FieldServerTls, FieldServerVirtual};
 
@@ -34,7 +33,7 @@ struct CertResolver {
 impl rustls::server::ResolvesServerCert for CertResolver {
     fn resolve(
         &self,
-        client_hello: rustls::server::ClientHello,
+        client_hello: rustls::server::ClientHello<'_>,
     ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
         self.sni_resolver
             .resolve(client_hello)

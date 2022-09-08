@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::anyhow;
 
 pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
     let path = std::path::Path::new(&input);
@@ -84,7 +83,6 @@ where
 mod tests {
     use crate::field::SecretFile;
     use std::io::Write;
-    use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
     #[derive(Debug, serde::Serialize, serde::Deserialize)]

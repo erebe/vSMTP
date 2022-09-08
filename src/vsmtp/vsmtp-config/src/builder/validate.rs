@@ -23,7 +23,6 @@ use crate::{
     },
     Config,
 };
-use vsmtp_common::re::anyhow;
 
 impl Builder<WantsValidate> {
     ///

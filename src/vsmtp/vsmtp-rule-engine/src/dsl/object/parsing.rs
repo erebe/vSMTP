@@ -88,8 +88,8 @@ pub fn parse_object(
 
 /// parses the given syntax tree and construct an object from it. always called after `parse_object`.
 pub fn create_object(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
 ) -> EngineResult<rhai::Dynamic> {
     let object_name = input[0].get_string_value().unwrap().to_string();
     let object_type = input[1].get_string_value().unwrap().to_string();
@@ -135,8 +135,8 @@ pub fn create_object(
 
 /// create a file object as a Map.
 fn create_file(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     object_name: &str,
 ) -> EngineResult<rhai::Map> {
     let content_type = input[3].get_string_value().unwrap();
@@ -173,8 +173,8 @@ fn create_file(
 
 /// create a code object.
 fn create_code(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     object_name: &str,
 ) -> EngineResult<rhai::Map> {
     let object = context.eval_expression_tree(&input[3])?;
@@ -211,8 +211,8 @@ fn create_code(
 
 /// create a type other than file as a Map.
 fn create_other(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     object_type: &str,
     object_name: &str,
 ) -> EngineResult<rhai::Map> {

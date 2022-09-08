@@ -22,7 +22,6 @@ use rhai::plugin::{
 };
 use rhai::EvalAltResult;
 use vsmtp_auth::dmarc;
-use vsmtp_common::re::tokio;
 use vsmtp_common::Address;
 
 pub use dmarc_rhai::*;

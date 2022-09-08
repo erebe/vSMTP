@@ -22,15 +22,9 @@ mod tunneled_with_auth;
 const TEST_SERVER_CERT: &str = "src/template/certs/certificate.crt";
 const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
-use vsmtp_common::{
-    re::{anyhow, tokio},
-    ConnectionKind,
-};
-use vsmtp_config::{
-    get_rustls_config,
-    re::{rustls, rustls_pemfile},
-    Config,
-};
+use tokio_rustls::rustls;
+use vsmtp_common::ConnectionKind;
+use vsmtp_config::{get_rustls_config, Config};
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::Connection;
 use vsmtp_server::{ProcessMessage, Server};

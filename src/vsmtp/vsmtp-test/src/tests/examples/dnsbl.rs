@@ -15,7 +15,6 @@
  *
 */
 use crate::test_receiver;
-use vsmtp_common::re::tokio;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_dnsbl_1() {

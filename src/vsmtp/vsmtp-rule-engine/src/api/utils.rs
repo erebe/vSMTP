@@ -15,12 +15,11 @@
  *
 */
 use crate::api::{EngineResult, Server, SharedObject};
+use anyhow::Context;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::re::anyhow::Context;
-use vsmtp_common::re::lettre;
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
@@ -172,7 +171,7 @@ mod utils_rhai {
 
 // TODO: use UsersCache to optimize user lookup.
 fn user_exist(name: &str) -> bool {
-    vsmtp_config::re::users::get_user_by_name(name).is_some()
+    users::get_user_by_name(name).is_some()
 }
 
 // NOTE: should lookup & rlookup return an error if no record was found ?
@@ -188,8 +187,8 @@ pub fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
         .get(&server.config.server.domain)
         .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
 
-    Ok(vsmtp_common::re::tokio::task::block_in_place(move || {
-        vsmtp_common::re::tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
+    Ok(tokio::task::block_in_place(move || {
+        tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
     })
     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
     .into_iter()
@@ -213,8 +212,8 @@ pub fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
         .get(&server.config.server.domain)
         .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
 
-    Ok(vsmtp_common::re::tokio::task::block_in_place(move || {
-        vsmtp_common::re::tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))
+    Ok(tokio::task::block_in_place(move || {
+        tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))
     })
     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
     .into_iter()

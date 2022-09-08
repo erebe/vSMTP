@@ -18,14 +18,8 @@ use crate::{
     delivery::{send_mail, SenderOutcome},
     ProcessMessage,
 };
-use vsmtp_common::{
-    queue::Queue,
-    queue_path,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
-};
+use anyhow::Context;
+use vsmtp_common::{queue::Queue, queue_path};
 use vsmtp_config::{Config, Resolvers};
 
 pub async fn flush_deferred_queue(
@@ -94,7 +88,6 @@ mod tests {
         addr,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
-        re::tokio,
         transfer::{EmailTransferStatus, Transfer, TransferErrors},
         Envelop,
     };

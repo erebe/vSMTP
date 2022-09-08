@@ -18,7 +18,6 @@ use crate::{
     field::{FieldServerVirtualTls, SecretFile},
     parser::{tls_certificate, tls_private_key},
 };
-use vsmtp_common::re::anyhow;
 
 impl<'de> serde::Deserialize<'de> for SecretFile<rustls::PrivateKey> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -46,6 +46,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -89,17 +90,8 @@ pub use config::{field, Config};
 pub use rustls_helper::get_rustls_config;
 pub use trust_dns_helper::{build_resolvers, Resolvers};
 
-/// Re-exported dependencies
-pub mod re {
-    pub use humantime_serde::re::humantime;
-    pub use rustls;
-    // NOTE: this one should not be re-exported (because tests only)
-    pub use rustls_pemfile;
-    pub use users;
-}
-
 use builder::{Builder, WantsVersion};
-use vsmtp_common::{libc_abstraction::chown, re::anyhow};
+use vsmtp_common::libc_abstraction::chown;
 
 impl Config {
     /// Create an instance of [`Builder`].

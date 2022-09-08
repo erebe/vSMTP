@@ -15,17 +15,15 @@
  *
 */
 
+use super::get_or_default;
 use crate::dsl::service::SmtpConnection;
 use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
-use vsmtp_common::re::lettre;
 use vsmtp_config::Config;
 
-use super::get_or_default;
-
 pub fn parse_smtp_service(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     service_name: &str,
     // NOTE: not used right now, but could be used to configure
     //       tls parameters for delegation separately from regular
@@ -52,7 +50,7 @@ pub fn parse_smtp_service(
         .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
     let delegator_timeout: std::time::Duration =
         get_or_default::<String>(service_name, &options, "timeout", Some("60s".to_string()))?
-            .parse::<vsmtp_config::re::humantime::Duration>()
+            .parse::<humantime::Duration>()
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
             .into();
 

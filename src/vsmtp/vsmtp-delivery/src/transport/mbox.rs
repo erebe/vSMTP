@@ -16,13 +16,11 @@
 */
 
 use super::Transport;
-
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown,
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, log},
     transfer::{EmailTransferStatus, TransferErrors},
 };
 use vsmtp_config::Config;

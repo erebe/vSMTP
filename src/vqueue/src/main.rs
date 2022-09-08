@@ -1,5 +1,5 @@
+use anyhow::Context;
 use vqueue::{execute, Args};
-use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_config::Config;
 
 fn main() -> anyhow::Result<()> {

@@ -39,8 +39,8 @@ pub fn parse_delegation(
 }
 
 pub fn create_delegation(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
 ) -> EngineResult<rhai::Dynamic> {
     let service = context.eval_expression_tree(&input[0])?;
     let name = input[1]

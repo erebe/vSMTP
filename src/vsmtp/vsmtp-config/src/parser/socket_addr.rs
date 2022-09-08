@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{re::anyhow, utils::ipv6_with_scope_id};
+use vsmtp_common::utils::ipv6_with_scope_id;
 
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<std::net::SocketAddr>, D::Error>
 where
@@ -33,7 +33,6 @@ where
 #[cfg(test)]
 mod test {
     use vsmtp_common::libc_abstraction::{if_indextoname, if_nametoindex};
-    use vsmtp_common::re::serde_json;
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct S {

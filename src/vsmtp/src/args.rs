@@ -15,9 +15,6 @@
  *
 */
 
-use vsmtp_common::re::anyhow;
-use vsmtp_config::re::humantime;
-
 ///
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timeout(pub std::time::Duration);

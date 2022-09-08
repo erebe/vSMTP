@@ -26,7 +26,7 @@ use crate::{
     field::SyslogSocket,
     Config,
 };
-use vsmtp_common::{auth::Mechanism, collection, re::strum, CodeID, Reply, ReplyCode};
+use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
 
 impl Default for Config {
     fn default() -> Self {

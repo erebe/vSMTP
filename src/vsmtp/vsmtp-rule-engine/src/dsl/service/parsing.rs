@@ -95,8 +95,8 @@ pub fn parse_service(
 
 /// parses the given syntax tree and construct a service from it.
 pub fn create_service(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     config: &Config,
 ) -> EngineResult<rhai::Dynamic> {
     let service_name = input[0].get_string_value().unwrap().to_string();
@@ -124,8 +124,8 @@ pub fn create_service(
 
 /// open a file database using the csv crate.
 fn open_database(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     service_name: &str,
 ) -> EngineResult<Service> {
     let database_type = input[3].get_string_value().unwrap();

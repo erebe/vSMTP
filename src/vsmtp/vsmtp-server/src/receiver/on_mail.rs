@@ -17,12 +17,7 @@
 
 use crate::{Connection, Process, ProcessMessage};
 use vsmtp_common::{
-    mail_context::MailContext,
-    queue::Queue,
-    re::{anyhow, log, tokio},
-    status::Status,
-    transfer::EmailTransferStatus,
-    CodeID,
+    mail_context::MailContext, queue::Queue, status::Status, transfer::EmailTransferStatus, CodeID,
 };
 use vsmtp_config::create_app_folder;
 use vsmtp_mail_parser::MessageBody;

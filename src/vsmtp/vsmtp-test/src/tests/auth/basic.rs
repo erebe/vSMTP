@@ -18,12 +18,7 @@ use crate::{
     test_receiver,
     tests::auth::{safe_auth_config, unsafe_auth_config},
 };
-use vsmtp_common::{
-    addr,
-    mail_context::MailContext,
-    re::{base64, tokio},
-    CodeID,
-};
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;

@@ -15,10 +15,7 @@
  *
 */
 
-use vsmtp_common::{
-    re::{anyhow, tokio},
-    CodeID, ConnectionKind,
-};
+use vsmtp_common::{CodeID, ConnectionKind};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;

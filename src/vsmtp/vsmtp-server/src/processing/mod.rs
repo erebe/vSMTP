@@ -15,13 +15,7 @@
  *
 */
 use crate::{delegate, receiver::MailHandlerError, Process, ProcessMessage};
-use vsmtp_common::{
-    queue::Queue,
-    re::{anyhow, log, tokio},
-    state::State,
-    status::Status,
-    transfer::EmailTransferStatus,
-};
+use vsmtp_common::{queue::Queue, state::State, status::Status, transfer::EmailTransferStatus};
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
 
