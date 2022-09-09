@@ -64,6 +64,9 @@ pub mod field {
         /// If this value is `-1`, then the server will accept any number of client.
         #[serde(default = "FieldServer::default_client_count_max")]
         pub client_count_max: i64,
+        /// Maximum size in bytes of the message.
+        #[serde(default = "FieldServer::default_message_size_limit")]
+        pub message_size_limit: usize,
         /// see [`FieldServerSystem`]
         #[serde(default)]
         pub system: FieldServerSystem,

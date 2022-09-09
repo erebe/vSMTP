@@ -121,14 +121,16 @@ pub enum Event {
     // Message size declaration // https://datatracker.ietf.org/doc/html/rfc1870
 }
 
+// 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
+const LINE_SIZE_LIMIT: usize = 88;
+
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
     /// See <https://datatracker.ietf.org/doc/html/rfc5321#section-4.1>
     ///
     /// # Errors
     pub fn parse_cmd(input: &str) -> Result<Self, CodeID> {
-        // 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
-        if input.len() > 88 || input.is_empty() {
+        if input.len() > LINE_SIZE_LIMIT || input.is_empty() {
             return Err(CodeID::UnrecognizedCommand);
         }
 
@@ -139,7 +141,7 @@ impl Event {
 
         let mut smtp_args = words.iter();
         let smtp_verb = match smtp_args.next() {
-            // TODO: verify rfc about that..
+            // TODO: verify rfc.
             // NOTE: if the first word is not the beginning of the input (whitespace before)
             Some(fist_word) if &input[..fist_word.len()] != *fist_word => {
                 return Err(CodeID::SyntaxErrorParams);

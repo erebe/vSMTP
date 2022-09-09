@@ -3,6 +3,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   [ Updated by ltabis ]
   * Added
     - `--stdout` flag, print logs to stdout. (#579)
+    - Message size limit configuration. (#580)
   * Changed
     - `--no-daemon` flag do not print logs to
       the standard output anymore. (#579)

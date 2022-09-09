@@ -17,6 +17,7 @@
 mod auth;
 mod clair;
 mod examples;
+mod message_max_size;
 mod rset;
 mod rules;
 mod tls;

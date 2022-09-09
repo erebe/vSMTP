@@ -105,6 +105,7 @@ impl Builder<WantsServer> {
                 parent: self.state,
                 domain: domain.to_string(),
                 client_count_max,
+                message_size_limit: FieldServer::default_message_size_limit(),
             },
         }
     }

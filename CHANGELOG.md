@@ -15,6 +15,7 @@ release. They will however *never* happen in a patch release.
 
 ### Added
 * `--stdout` flag, print logs to stdout. (#579)
+* Message size limit configuration. (#580)
 
 ### Changed
 * `--no-daemon` flag do not print logs to the standard output anymore. (#579)

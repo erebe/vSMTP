@@ -381,9 +381,20 @@ impl Transaction {
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = connection.config.server.smtp.timeout_client.data;
         async_stream::stream! {
+            let mut message_size = 0;
             loop {
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
+
+                        message_size += client_message.len();
+
+                        if message_size >= connection.config.server.message_size_limit {
+                            return match connection.send_code(CodeID::MessageSizeExceeded).await {
+                                Ok(_) => (),
+                                Err(e) => todo!("{e:?}")
+                            }
+                        }
+
                         let command_or_code = Event::parse_data(client_message);
                         log::trace!("parsed=`{command_or_code:?}`");
 

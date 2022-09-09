@@ -61,6 +61,7 @@ impl Default for FieldServer {
         Self {
             domain: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
+            message_size_limit: Self::default_message_size_limit(),
             system: FieldServerSystem::default(),
             interfaces: FieldServerInterfaces::default(),
             logs: FieldServerLogs::default(),
@@ -81,6 +82,10 @@ impl FieldServer {
 
     pub(crate) const fn default_client_count_max() -> i64 {
         16
+    }
+
+    pub(crate) const fn default_message_size_limit() -> usize {
+        10_000_000
     }
 }
 
@@ -387,6 +392,9 @@ impl FieldServerSMTP {
             ),
             CodeID::BadSequence => Reply::new(
                 ReplyCode::Code{ code: 503 }, "Bad sequence of commands"
+            ),
+            CodeID::MessageSizeExceeded => Reply::new(
+                ReplyCode::Enhanced { code: 552, enhanced: "4.3.1".to_string() }, "Message size exceeds fixed maximum message size"
             ),
             CodeID::TlsGoAhead => Reply::new(
                 ReplyCode::Code{ code: 220 }, "TLS go ahead"

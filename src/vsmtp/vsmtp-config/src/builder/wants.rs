@@ -37,6 +37,7 @@ pub struct WantsServerSystem {
     pub(crate) parent: WantsServer,
     pub(super) domain: String,
     pub(super) client_count_max: i64,
+    pub(super) message_size_limit: usize,
 }
 
 ///
