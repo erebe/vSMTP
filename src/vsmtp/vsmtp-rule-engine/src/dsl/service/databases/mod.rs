@@ -1,57 +1,57 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+use super::{Parser, Service};
+use crate::api::EngineResult;
+
 pub mod csv;
 #[cfg(feature = "mysql")]
 pub mod mysql;
 
-/// the access mode to the database.
-#[derive(Debug)]
-pub enum AccessMode {
-    Read,
-    Write,
-    ReadWrite,
-}
+/// open a file database using the csv crate.
+pub fn parse_database_service(
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
+    service_name: &str,
+) -> EngineResult<Service> {
+    let database_parsers: Vec<Box<dyn Parser>> = vec![
+        Box::new(self::csv::parsing::CSVParser),
+        #[cfg(feature = "mysql")]
+        Box::new(self::mysql::parsing::MySQLParser),
+    ];
 
-impl std::fmt::Display for AccessMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Read => "O_RDONLY",
-                Self::Write => "O_WRONLY",
-                Self::ReadWrite => "O_RDWR",
-            }
-        )
-    }
-}
+    let database_type = input[3]
+        .get_string_value()
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "failed to get database type".into())?;
 
-impl std::str::FromStr for AccessMode {
-    type Err = ();
+    let mut options: rhai::Map = context
+        .eval_expression_tree(&input[4])?
+        .try_cast()
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+            "database options must be declared with a rhai map `#{}`".into()
+        })?;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "O_RDONLY" => Ok(Self::Read),
-            "O_WRONLY" => Ok(Self::Write),
-            "O_RDWR" => Ok(Self::ReadWrite),
-            _ => Err(()),
-        }
-    }
-}
+    options.insert("name".into(), rhai::Dynamic::from(service_name.to_string()));
 
-/// refresh rate of the database.
-#[derive(Debug)]
-pub enum Refresh {
-    Always,
-    No,
-}
-
-impl std::str::FromStr for Refresh {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "always" => Ok(Self::Always),
-            "no" => Ok(Self::No),
-            _ => Err(()),
-        }
-    }
+    database_parsers
+        .iter()
+        .find(|parser| parser.service_type() == database_type)
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+            format!("unknown database type: {}", database_type).into()
+        })?
+        .parse_service(service_name, options)
 }

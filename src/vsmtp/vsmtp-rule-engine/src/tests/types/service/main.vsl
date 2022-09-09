@@ -23,6 +23,8 @@ import "services" as svc;
             print(svc::echo.to_string());
             print(svc::echo.to_debug());
 
+            let result1 = svc::echo.run();
+            let result2 = svc::echo.run(["-e", "with custom arguments\r\n"]);
             let result1 = svc::echo.cmd_run();
             let result2 = svc::echo.cmd_run(["-e", "with custom arguments\r\n"]);
 

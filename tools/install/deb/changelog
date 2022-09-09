@@ -6,6 +6,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   * Changed
     - `--no-daemon` flag do not print logs to
       the standard output anymore. (#579)
+    - Refactorization of services parsing. (#576)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 08 Sep 2022 22:00:10 +0200
 

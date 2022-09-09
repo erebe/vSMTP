@@ -64,9 +64,6 @@ addr = { version = "0.15.4", default-features = false, features = [
 
 r2d2 = { version = "0.8.10", default-features = false }
 csv = { version = "1.1.6", default-features = false }
-
-log = { version = "0.4.17", default-features = false, features = ["std"] }
-
 mysql = { version = "22.2.0", optional = true, default-features = false, features = [
   "rustls-tls",
   "buffer-pool",
@@ -81,8 +78,15 @@ mysql_common = { version = "0.28.2", optional = true, default-features = false, 
   "uuid",
   "frunk",
 ] }
+
+log = { version = "0.4.17", default-features = false, features = ["std"] }
+
 serde_json = { version = "1.0.85", default-features = false, features = [
   "std",
+] }
+serde = { version = "1.0.144", default-features = false, features = [
+  "std",
+  "derive",
 ] }
 rhai = { version = "1.9.1", default-features = false, features = [
   "std",
@@ -90,6 +94,7 @@ rhai = { version = "1.9.1", default-features = false, features = [
   "sync",
   "internals",
   "no_closure",
+  "serde",
 ] }
 lettre = { version = "0.10.0", default-features = false, features = [
   "smtp-transport",
@@ -126,7 +131,7 @@ tokio = { version = "1.21.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-humantime = { version = "2.1.0", default-features = false }
+humantime-serde = { version = "1.1.1", default-features = false }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["r2d2"]

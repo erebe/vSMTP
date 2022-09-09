@@ -14,10 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod aliases;
-mod anti_relaying;
-mod dnsbl;
-mod family;
-mod greylist;
-mod message;
-mod services;
+
+/// refresh rate of the database.
+#[derive(Debug, serde::Deserialize, strum::EnumString, strum::Display)]
+#[serde(rename_all = "lowercase")]
+pub enum Refresh {
+    Always,
+    No,
+}

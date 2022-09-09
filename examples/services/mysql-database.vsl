@@ -1,0 +1,42 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+// A service to interface with a MySQL database.
+service mysql_database db:mysql = #{
+    // the url to connect to your database.
+    url: "mysql://localhost/",
+    // the number of connections to open on your database. (Optional, 4 by default)
+    connections: 4,
+    // the time allowed to connect to the database.  (Optional, 30s by default)
+    timeout: "1s",
+};
+
+// A service to interface with a spam database using MySQL.
+service spam_database db:mysql = #{
+    url: "mysql://localhost/",
+    timeout: "1s",
+};
+
+rule "check for spam" || {
+    let records = spam_database.query(`SELECT * FROM spam.ips where ip = ${client_ip()};`);
+
+    if records.is_empty() == false {
+        // Possible spam detected ...
+    }
+};
+
+#{}

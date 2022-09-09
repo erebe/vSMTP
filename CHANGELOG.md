@@ -18,6 +18,7 @@ release. They will however *never* happen in a patch release.
 
 ### Changed
 * `--no-daemon` flag do not print logs to the standard output anymore. (#579)
+* Refactorization of services parsing. (#576)
 
 ## [1.3.0] - 2022-09-07
 

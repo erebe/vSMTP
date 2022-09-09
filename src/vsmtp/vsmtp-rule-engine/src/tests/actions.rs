@@ -14,9 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::rule_engine::RuleEngine;
 use crate::rule_state::RuleState;
-use crate::tests::helpers::get_default_config;
-use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
+use crate::tests::helpers::{get_default_config, get_default_state};
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{addr, CodeID, ReplyOrCodeID};

@@ -124,8 +124,7 @@ fn rm(key) { this.db_rm(key.to_string()) }
 ///
 /// ```js
 /// service my_db db:mysql = #{
-///     url: "mysql://localhost/",
-///     user: "guest",
+///     url: "mysql://localhost/?user=guest",
 /// };
 /// ```
 ///
@@ -158,6 +157,36 @@ fn rm(key) { this.db_rm(key.to_string()) }
 /// ### Module:Services
 fn query(q) { this.db_query(q) }
 
+/// Run a command from a `cmd` service with the default arguments provided in the service.
+///
+/// ### Effective smtp stage
+///
+/// All of them.
+///
+/// ### Example
+///
+/// ```js
+/// // services.vsl
+/// service echo cmd = #{
+///     command: "echo",
+///     args: ["-e", "new connection received\n"],
+/// };
+/// ```
+///
+/// ```js
+/// // main.vsl
+/// import "services" as svc;
+///
+/// #{
+///     connect: [
+///        action "echo incoming" || svc::echo.run(),
+///     ]
+/// }
+/// ```
+///
+/// ### Module:Services
+fn run() { this.cmd_run() }
+
 /// Run a command from a `cmd` service with arguments.
 /// This allows you to run a command with dynamic arguments.
 ///
@@ -189,7 +218,7 @@ fn query(q) { this.db_query(q) }
 ///     rcpt: [
 ///        action "print recipient using command" || {
 ///             // prints all recipients using the `echo` command.
-///             svc::echo.cmd_run(["-E", "-n", `new recipient: ${rcpt()}`]);
+///             svc::echo.run(["-E", "-n", `new recipient: ${rcpt()}`]);
 ///        }
 ///     ]
 /// }

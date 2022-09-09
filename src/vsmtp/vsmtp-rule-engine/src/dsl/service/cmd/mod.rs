@@ -15,52 +15,7 @@
  *
 */
 
-use crate::{api::EngineResult, dsl::service::Service};
-use rhai::EvalAltResult;
-
-pub fn parse_cmd_service(
-    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-    input: &[rhai::Expression<'_>],
-    service_name: &str,
-) -> EngineResult<Service> {
-    let options: rhai::Map = context
-        .eval_expression_tree(&input[3])?
-        .try_cast()
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "cmd service options must be a map".into())?;
-
-    for key in ["timeout", "command"] {
-        if !options.contains_key(key) {
-            return Err(
-                format!("cmd service {service_name} is missing the '{key}' option.").into(),
-            );
-        }
-    }
-
-    let timeout: std::time::Duration = options
-        .get("timeout")
-        .unwrap()
-        .to_string()
-        .parse::<humantime::Duration>()
-        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
-        .into();
-    let command = options.get("command").unwrap().to_string();
-    let user = options.get("user").map(std::string::ToString::to_string);
-    let group = options.get("group").map(std::string::ToString::to_string);
-    let args = options.get("args").and_then(|args| {
-        args.clone()
-            .into_array()
-            .ok()
-            .map(|args| args.into_iter().map(|arg| arg.to_string()).collect())
-    });
-
-    Ok(Service::Cmd {
-        timeout,
-        user,
-        group,
-        command,
-        args,
-    })
-}
+pub mod parsing;
 
 /// run a cmd service.
 /// # Errors

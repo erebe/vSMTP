@@ -15,23 +15,25 @@
  *
 */
 
-use super::{AccessMode, Refresh};
-use crate::{api::EngineResult, dsl::service::Service};
-use anyhow::Context;
-use std::{io::Write, str::FromStr};
+pub mod access;
+pub mod parsing;
+pub mod refresh;
+
+use anyhow::{self, Context};
+use std::io::Write;
 
 /// query a record matching the first element.
 pub fn query(
     path: &std::path::PathBuf,
-    delimiter: u8,
-    _: &Refresh,
+    delimiter: char,
+    _: &refresh::Refresh,
     fd: &std::fs::File,
     key: &str,
 ) -> anyhow::Result<Option<csv::StringRecord>> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .trim(csv::Trim::All)
-        .delimiter(delimiter)
+        .delimiter(u8::try_from(delimiter)?)
         .from_reader(fd);
 
     for record in reader.records() {
@@ -53,13 +55,13 @@ pub fn query(
 /// add a record to the csv database.
 pub fn add_record(
     path: &std::path::PathBuf,
-    delimiter: u8,
+    delimiter: char,
     fd: &std::fs::File,
     record: &[String],
 ) -> anyhow::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .has_headers(false)
-        .delimiter(delimiter)
+        .delimiter(u8::try_from(delimiter)?)
         .from_writer(fd);
 
     writer
@@ -102,56 +104,4 @@ pub fn remove_record(path: &std::path::PathBuf, key: &str) -> anyhow::Result<()>
         .context(format!("failed to update a csv database at {path:?}"))?;
 
     Ok(())
-}
-
-pub fn parse_csv_database(db_name: &str, options: &rhai::Map) -> EngineResult<Service> {
-    for key in ["connector", "access", "refresh", "delimiter"] {
-        if !options.contains_key(key) {
-            return Err(format!("database {db_name} is missing the '{key}' option.").into());
-        }
-    }
-
-    let connector =
-        std::path::PathBuf::from_str(&options.get("connector").unwrap().to_string()).unwrap();
-
-    let refresh = options.get("refresh").unwrap().to_string();
-    let refresh = Refresh::from_str(&refresh).map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-        format!("{} is not a correct database refresh rate", refresh).into()
-    })?;
-
-    let delimiter = options
-        .get("delimiter")
-        .unwrap()
-        .as_char()
-        .map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-            "the delimiter of a csv database must be a single char".into()
-        })? as u8;
-
-    let access = options.get("access").unwrap().to_string();
-    let access = AccessMode::from_str(&access).map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-        format!("{} is not a correct database access mode", access).into()
-    })?;
-
-    let fd = std::fs::OpenOptions::new()
-        .append(true)
-        .read(match access {
-            AccessMode::ReadWrite | AccessMode::Read => true,
-            AccessMode::Write => false,
-        })
-        .write(match access {
-            AccessMode::ReadWrite | AccessMode::Write => true,
-            AccessMode::Read => false,
-        })
-        .open(&connector)
-        .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-            format!("could not load database at {connector:?}: {err}").into()
-        })?;
-
-    Ok(Service::CSVDatabase {
-        path: connector,
-        delimiter,
-        access,
-        refresh,
-        fd,
-    })
 }

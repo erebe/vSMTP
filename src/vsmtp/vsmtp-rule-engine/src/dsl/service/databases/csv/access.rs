@@ -14,10 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod aliases;
-mod anti_relaying;
-mod dnsbl;
-mod family;
-mod greylist;
-mod message;
-mod services;
+
+/// the access mode to the database.
+#[derive(Debug, serde::Deserialize, strum::EnumString, strum::Display)]
+#[allow(clippy::module_name_repetitions)]
+pub enum AccessMode {
+    #[serde(rename = "O_RDONLY")]
+    Read,
+    #[serde(rename = "O_WRONLY")]
+    Write,
+    #[serde(rename = "O_RDWR")]
+    ReadWrite,
+}
