@@ -5,13 +5,17 @@ use vsmtp_common::queue::Queue;
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[clap(about, version, author)]
 pub struct Args {
+    /// Print the version and exit.
+    #[clap(short, long, action)]
+    pub version: bool,
+
     /// Path of the vSMTP configuration file (toml format)
     #[clap(short, long, action)]
     pub config: Option<String>,
 
     ///
     #[clap(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 ///
@@ -80,47 +84,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn arg_show_version() {
+        assert_eq!(
+            Args {
+                version: true,
+                config: None,
+                command: None,
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "--version"]).unwrap()
+        );
+    }
+
+    #[test]
     fn arg_show_queue() {
         assert_eq!(
             Args {
+                version: false,
                 config: None,
-                command: Commands::Show {
+                command: Some(Commands::Show {
                     queues: vec![],
                     empty_token: '0'
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 config: None,
-                command: Commands::Show {
+                command: Some(Commands::Show {
                     queues: vec![Queue::Dead],
                     empty_token: '0'
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show", "dead"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 config: None,
-                command: Commands::Show {
+                command: Some(Commands::Show {
                     queues: vec![],
                     empty_token: '.'
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show", "-e", "."]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 config: None,
-                command: Commands::Show {
+                command: Some(Commands::Show {
                     queues: vec![Queue::Dead, Queue::Deliver],
                     empty_token: '0'
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show", "dead", "deliver"]).unwrap()
         );
@@ -130,26 +150,30 @@ mod tests {
     fn arg_show_message() {
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Json
                     }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "show"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Json
                     }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "show", "json"])
                 .unwrap()
@@ -157,13 +181,15 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Eml
                     }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "show", "eml"])
                 .unwrap()
@@ -174,11 +200,13 @@ mod tests {
     fn arg_move_message() {
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Move { queue: Queue::Dead }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "move", "dead"])
                 .unwrap()
@@ -189,22 +217,26 @@ mod tests {
     fn arg_remove_message() {
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Remove { yes: false }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "remove"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
+
                 config: None,
-                command: Commands::Msg {
+                command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
                     command: MessageCommand::Remove { yes: true }
-                }
+                })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "remove", "--yes"])
                 .unwrap()

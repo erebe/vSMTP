@@ -8,6 +8,8 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     - `--no-daemon` flag do not print logs to
       the standard output anymore. (#579)
     - Refactorization of services parsing. (#576)
+    - `vsmtp` & `vqueue` `version` flag display build commit (#585)
+    - `vqueue` display error if no subcommands are specified (#585)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 08 Sep 2022 22:00:10 +0200
 

@@ -18,6 +18,8 @@ readme = "../../README.md"
 keywords = ["vsmtp"]
 categories = ["command-line-utilities"]
 
+build = "build.rs"
+
 [package.metadata.release]
 pre-release-replacements = [
     { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp/vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp/vsmtp-common\", version = \"{{version}}\" }", prerelease = true },

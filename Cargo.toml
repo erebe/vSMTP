@@ -19,6 +19,8 @@ categories = ["email"]
 rust-version = "1.60"
 default-run = "vsmtp"
 
+build = "build.rs"
+
 [package.metadata.release]
 tag = true
 pre-release-replacements = [
@@ -64,6 +66,7 @@ vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine", version = "1.3.0" 
 clap = { version = "3.2.20", default-features = false, features = [
   "std",
   "derive",
+  "cargo",
 ] }
 diff = { version = "0.1.13", default-features = false }
 serde_json = { version = "1.0.85", default-features = false, features = [

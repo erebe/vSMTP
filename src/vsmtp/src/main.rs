@@ -15,6 +15,7 @@
  *
  */
 use anyhow::Context;
+use clap::{crate_name, crate_version};
 use vsmtp::{Args, Commands};
 use vsmtp_common::libc_abstraction::{daemon, initgroups};
 use vsmtp_config::Config;
@@ -41,6 +42,16 @@ fn bind_sockets(addr: &[std::net::SocketAddr]) -> anyhow::Result<Vec<std::net::T
 
 fn try_main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
+
+    if args.version {
+        println!(
+            "{} v{}\ncommit: {}",
+            crate_name!(),
+            crate_version!(),
+            env!("GIT_HASH")
+        );
+        return Ok(());
+    }
 
     let config = args.config.as_ref().map_or_else(
         || Ok(Config::default()),

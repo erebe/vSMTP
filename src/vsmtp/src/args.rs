@@ -31,8 +31,12 @@ impl std::str::FromStr for Timeout {
 
 ///
 #[derive(Debug, clap::Parser, PartialEq, Eq)]
-#[clap(about, version, author)]
+#[clap(about, author)]
 pub struct Args {
+    /// Print the version and exit.
+    #[clap(short, long, action)]
+    pub version: bool,
+
     /// Path of the vSMTP configuration file. (toml format)
     #[clap(short, long, action)]
     pub config: Option<String>,
@@ -74,6 +78,7 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: false,
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: false,
@@ -85,6 +90,7 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: false,
                 command: Some(Commands::ConfigShow),
                 config: Some("path".to_string()),
                 no_daemon: false,
@@ -96,6 +102,7 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: false,
                 command: Some(Commands::ConfigDiff),
                 config: Some("path".to_string()),
                 no_daemon: false,
@@ -107,6 +114,19 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: true,
+                command: None,
+                config: None,
+                no_daemon: false,
+                stdout: false,
+                timeout: None
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "--version"]).unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                version: false,
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: true,
@@ -118,6 +138,7 @@ mod tests {
 
         assert_eq!(
             Args {
+                version: false,
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: true,
