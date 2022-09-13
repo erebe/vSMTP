@@ -15,6 +15,7 @@
  *
 */
 use crate::{config, test_receiver};
+use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
@@ -39,6 +40,7 @@ async fn test_receiver_1() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
@@ -288,6 +290,7 @@ async fn test_receiver_13() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -379,6 +382,7 @@ async fn test_receiver_14() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(

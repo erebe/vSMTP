@@ -20,7 +20,7 @@ use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::State, status::Status};
 
 /// a set of directives, filtered by smtp stage.
-pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
+pub type Directives = std::collections::BTreeMap<State, Vec<Directive>>;
 
 /// a type of rule that can be executed from a function pointer.
 #[derive(strum::AsRefStr)]

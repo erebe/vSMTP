@@ -38,14 +38,14 @@ pub fn get_tls_config() -> Config {
         .unwrap()
         .with_ipv4_localhost()
         .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .with_spool_dir_and_default_queues("./tmp/spool")
         .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)
         .unwrap()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
         .without_auth()
-        .with_default_app()
+        .with_app_at_location("./tmp/app")
         .with_vsl("./src/tests/empty_main.vsl")
         .with_default_app_logs()
         .with_system_dns()
@@ -95,9 +95,15 @@ async fn test_starttls(
                 None
             },
             std::sync::Arc::new(
-                RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
+                RuleEngine::new(
+                    server_config.clone(),
+                    server_config.app.vsl.filepath.clone(),
+                )
+                .unwrap(),
             ),
             std::sync::Arc::new(std::collections::HashMap::new()),
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
+                .unwrap(),
             working_sender,
             delivery_sender,
         )
@@ -206,7 +212,11 @@ async fn test_tls_tunneled_with_auth(
     after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
     let rule_engine = std::sync::Arc::new(
-        RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
+        RuleEngine::new(
+            server_config.clone(),
+            server_config.app.vsl.filepath.clone(),
+        )
+        .unwrap(),
     );
 
     test_tls_tunneled(
@@ -255,6 +265,8 @@ async fn test_tls_tunneled(
             get_tls_config(&server_config),
             rule_engine.clone(),
             std::sync::Arc::new(std::collections::HashMap::new()),
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
+                .unwrap(),
             working_sender,
             delivery_sender,
         )

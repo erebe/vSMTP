@@ -18,5 +18,11 @@ protocol_version = ["TLSv1.2", "TLSv1.3"]
 certificate = "../../../examples/config/tls/certificate.crt"
 private_key = "../../../examples/config/tls/private_key.key"
 
+[server.queues]
+dirpath = "../../../examples/family/spool"
+
+[app]
+dirpath = "../../../examples/family/app"
+
 [app.vsl]
 filepath = "../../../examples/family/main.vsl"

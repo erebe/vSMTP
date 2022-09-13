@@ -27,10 +27,14 @@ async fn simple() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = std::sync::Arc::new(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        std::sync::Arc::new(
+            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+        ),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         [
             "NOOP\r\n",
             "HELO client.com\r\n",
@@ -80,10 +84,14 @@ async fn starttls_under_tunnel() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = std::sync::Arc::new(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        std::sync::Arc::new(
+            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+        ),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)
@@ -121,10 +129,14 @@ async fn config_ill_formed() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = std::sync::Arc::new(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        std::sync::Arc::new(
+            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+        ),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         vec!["NOOP\r\n".to_string()],
         vec![],
         20461,
@@ -158,10 +170,14 @@ async fn sni() {
         },
     );
 
+    let config = std::sync::Arc::new(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        std::sync::Arc::new(
+            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+        ),
         "second.testserver.com",
-        std::sync::Arc::new(config),
+        config,
         ["NOOP\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)

@@ -24,6 +24,7 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::transfer::EmailTransferStatus;
 use vsmtp_common::{
     mail_context::MailContext,
@@ -41,17 +42,20 @@ mod deliver;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
-pub async fn start(
+pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
+    queue_manager: std::sync::Arc<Q>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {
-    if let Err(e) =
-        flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
-    {
-        log::error!("flushing queue failed: `{e}`");
-    }
+    flush_deliver_queue(
+        config.clone(),
+        resolvers.clone(),
+        queue_manager.clone(),
+        rule_engine.clone(),
+    )
+    .await;
 
     // NOTE: emails stored in the deferred queue are likely to slow down the process.
     //       the pickup process of this queue should be slower than pulling from the delivery queue.
@@ -66,6 +70,7 @@ pub async fn start(
                     handle_one_in_delivery_queue(
                         config.clone(),
                         resolvers.clone(),
+                        queue_manager.clone(),
                         pm,
                         rule_engine.clone(),
                     )
@@ -74,7 +79,13 @@ pub async fn start(
             _ = flush_deferred_interval.tick() => {
                 log::info!("cronjob delay elapsed `{}s`, flushing queue.",
                     config.server.queues.delivery.deferred_retry_period.as_secs());
-                tokio::spawn(flush_deferred_queue(config.clone(), resolvers.clone()));
+                tokio::spawn(
+                    flush_deferred_queue(
+                        config.clone(),
+                        resolvers.clone(),
+                        queue_manager.clone(),
+                    )
+                );
             }
         };
     }
@@ -222,7 +233,7 @@ pub async fn send_mail(
     SenderOutcome::MoveToDeferred
 }
 
-/// prepend trace informations to headers.
+/// prepend trace information to headers.
 /// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
     config: &Config,

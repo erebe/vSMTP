@@ -20,6 +20,7 @@ use crate::{
 };
 use anyhow::Context;
 use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{CodeID, ConnectionKind};
 use vsmtp_config::{get_rustls_config, Config, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
@@ -30,6 +31,7 @@ pub struct Server {
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
+    queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
@@ -78,6 +80,7 @@ impl Server {
         config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
@@ -98,6 +101,7 @@ impl Server {
             },
             rule_engine,
             resolvers,
+            queue_manager,
             config,
             working_sender,
             delivery_sender,
@@ -159,6 +163,7 @@ impl Server {
             self.tls_config.clone(),
             self.rule_engine.clone(),
             self.resolvers.clone(),
+            self.queue_manager.clone(),
             self.working_sender.clone(),
             self.delivery_sender.clone(),
         );
@@ -254,6 +259,7 @@ impl Server {
         tls_config,
         rule_engine,
         resolvers,
+        queue_manager,
         working_sender,
         delivery_sender
     ))]
@@ -262,6 +268,7 @@ impl Server {
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
@@ -270,6 +277,7 @@ impl Server {
                 tls_config,
                 rule_engine,
                 resolvers,
+                queue_manager,
                 &mut MailHandler {
                     working_sender,
                     delivery_sender,
@@ -307,6 +315,10 @@ mod tests {
                 config
             });
 
+            let queue_manager =
+                <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                    .unwrap();
+
             let delivery = tokio::sync::mpsc::channel::<ProcessMessage>(
                 config.server.queues.delivery.channel_size,
             );
@@ -317,8 +329,9 @@ mod tests {
 
             let s = Server::new(
                 config.clone(),
-                std::sync::Arc::new(RuleEngine::new(&config, &None).unwrap()),
+                std::sync::Arc::new(RuleEngine::new(config.clone(), None).unwrap()),
                 std::sync::Arc::new(std::collections::HashMap::new()),
+                queue_manager,
                 working.0,
                 delivery.0,
             )

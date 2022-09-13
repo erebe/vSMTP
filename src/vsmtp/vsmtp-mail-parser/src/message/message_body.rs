@@ -100,58 +100,10 @@ impl MessageBody {
         self.parsed.is_some()
     }
 
-    /// # Errors
-    ///
-    /// * failed to create the folder in `queues_dirpath`
-    pub fn write_to_mails(
-        &self,
-        queues_dirpath: impl Into<std::path::PathBuf>,
-        message_id: &str,
-    ) -> std::io::Result<()> {
-        let mails = queues_dirpath.into().join("mails");
-        if !mails.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&mails)?;
-        }
-        {
-            let mails_eml = mails.join(format!("{message_id}.eml"));
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&mails_eml)?;
-            std::io::Write::write_all(&mut file, self.raw.to_string().as_bytes())?;
-        }
-        if let Some(parsed) = &self.parsed {
-            let mails_json = mails.join(format!("{message_id}.json"));
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&mails_json)?;
-            std::io::Write::write_all(&mut file, serde_json::to_string(parsed)?.as_bytes())?;
-        }
-
-        Ok(())
-    }
-
-    /// # Errors
-    pub async fn read_mail_message(
-        dirpath: &std::path::Path,
-        id: &str,
-    ) -> anyhow::Result<MessageBody> {
-        use anyhow::Context;
-
-        let message_filepath = std::path::PathBuf::from_iter([
-            dirpath.to_path_buf(),
-            "mails".into(),
-            format!("{id}.eml").into(),
-        ]);
-
-        let content = tokio::fs::read_to_string(&message_filepath)
-            .await
-            .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
-
-        Self::try_from(content.as_str())
+    /// Get the parsed part
+    #[must_use]
+    pub const fn get_parsed(&self) -> &Option<Mail> {
+        &self.parsed
     }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.

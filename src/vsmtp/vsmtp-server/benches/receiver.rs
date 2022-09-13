@@ -17,6 +17,7 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
+use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
@@ -34,6 +35,7 @@ impl OnMail for DefaultMailHandler {
         _: &mut Connection<S>,
         _: Box<MailContext>,
         _: MessageBody,
+        _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -49,7 +51,7 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .unwrap()
             .with_ipv4_localhost()
             .with_default_logs_settings()
-            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .with_spool_dir_and_default_queues("./tmp/spool")
             .without_tls_support()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
@@ -97,6 +99,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,
                 _: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.envelop.helo, "foobar");
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");

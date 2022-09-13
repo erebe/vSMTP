@@ -15,6 +15,7 @@
  *
 */
 
+use vqueue::GenericQueueManager;
 use vsmtp_common::{CodeID, ConnectionKind};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
@@ -84,6 +85,7 @@ impl OnMail for DefaultMailHandler {
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
         _: MessageBody,
+        _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -103,7 +105,7 @@ pub async fn test_receiver_inner<M>(
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
-) -> anyhow::Result<()>
+) -> anyhow::Result<std::sync::Arc<dyn vqueue::GenericQueueManager>>
 where
     M: OnMail + Send,
 {
@@ -117,13 +119,23 @@ where
         &mut mock,
     );
 
-    let rule_engine =
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
+    let rule_engine = std::sync::Arc::new(
+        RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+    );
 
-    let receivers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
+    let resolvers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let result = conn
-        .receive(None, rule_engine, receivers, mail_handler)
+        .receive(
+            None,
+            rule_engine,
+            resolvers,
+            queue_manager.clone(),
+            mail_handler,
+        )
         .await;
     tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
         .await
@@ -134,7 +146,9 @@ where
         std::str::from_utf8(&written_data),
     );
 
-    result
+    result?;
+
+    Ok(queue_manager)
 }
 
 /// Call `test_receiver_inner`

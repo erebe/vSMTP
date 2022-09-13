@@ -24,6 +24,7 @@ use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
+use vqueue::GenericQueueManager;
 use vsmtp_common::mail_context::MessageMetadata;
 use vsmtp_common::status::Status;
 use vsmtp_common::{
@@ -63,14 +64,11 @@ impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
     pub fn new(
-        config: &Config,
+        config: std::sync::Arc<Config>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
     ) -> Self {
-        let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
-            resolvers,
-        });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             // TODO: add `Default` trait to `ConnectionContext`.
             connection: ConnectionContext {
@@ -105,6 +103,12 @@ impl RuleState {
                 dkim: None,
             },
         }));
+        let server = std::sync::Arc::new(ServerAPI {
+            config,
+            resolvers,
+            queue_manager,
+        });
+
         let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
         let engine = Self::build_rhai_engine(
@@ -126,12 +130,13 @@ impl RuleState {
     /// create a new rule state with connection data.
     #[must_use]
     pub fn with_connection(
-        config: &Config,
+        config: std::sync::Arc<Config>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let mut state = Self::new(config, resolvers, rule_engine);
+        let mut state = Self::new(config, resolvers, queue_manager, rule_engine);
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
@@ -162,15 +167,17 @@ impl RuleState {
     /// create a `RuleState` from an existing mail context (f.e. when deserializing a context)
     #[must_use]
     pub fn with_context(
-        config: &Config,
+        config: std::sync::Arc<Config>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
         message: MessageBody,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
+            config,
             resolvers,
+            queue_manager,
         });
 
         // all rule are skipped until the designated rule

@@ -39,7 +39,7 @@ time = { version = "0.3.14", default-features = false, features = [
   "formatting",
   "macros",
 ] }
-addr = { version = "0.15.4", default-features = false, features = [
+addr = { version = "0.15.6", default-features = false, features = [
   "std",
   # "serde", # TODO
 ] }

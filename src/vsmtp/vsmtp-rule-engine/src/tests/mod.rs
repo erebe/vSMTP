@@ -48,7 +48,7 @@ pub mod helpers {
             .unwrap()
             .with_ipv4_localhost()
             .with_default_logs_settings()
-            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .with_spool_dir_and_default_queues("./tmp/spool")
             .without_tls_support()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
@@ -64,7 +64,9 @@ pub mod helpers {
     }
 
     /// create a rule engine state with it's associated configuration.
-    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> (RuleState, Config) {
+    pub(super) fn get_default_state(
+        dirpath: impl Into<std::path::PathBuf>,
+    ) -> (RuleState, std::sync::Arc<Config>) {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -73,7 +75,7 @@ pub mod helpers {
             .unwrap()
             .with_ipv4_localhost()
             .with_default_logs_settings()
-            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .with_spool_dir_and_default_queues("./tmp/spool")
             .without_tls_support()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
@@ -87,8 +89,17 @@ pub mod helpers {
             .validate()
             .unwrap();
 
-        let re = RuleEngine::from_script(&config, "#{}").unwrap();
+        let config = std::sync::Arc::new(config);
+        let re = RuleEngine::from_script(config.clone(), "#{}").unwrap();
         let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
-        (RuleState::new(&config, resolvers, &re), config)
+
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+
+        (
+            RuleState::new(config.clone(), resolvers, queue_manager, &re),
+            config,
+        )
     }
 }

@@ -15,6 +15,7 @@
  *
 */
 use crate::test_receiver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
@@ -32,7 +33,8 @@ macro_rules! test_lang {
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,
-                mut message: MessageBody
+                mut message: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.envelop.helo, "foobar".to_string());
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());

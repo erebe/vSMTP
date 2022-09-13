@@ -32,18 +32,19 @@ fn run_benchmark(body_size: u64, port: u16) {
                     config.server.queues.working.channel_size,
                 );
 
+                let config = std::sync::Arc::new(config);
+
                 let rule_engine = std::sync::Arc::new(
-                    RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
+                    RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
                 );
 
                 let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 
-                let config_arc = std::sync::Arc::new(config);
-
                 Server::new(
-                    config_arc.clone(),
+                    config.clone(),
                     rule_engine.clone(),
                     resolvers.clone(),
+     <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap(),
                     working_channel.0.clone(),
                     delivery_channel.0.clone(),
                 )

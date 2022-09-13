@@ -15,6 +15,7 @@
  *
 */
 
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
     auth::{Credentials, Mechanism},
     mail_context::ConnectionContext,
@@ -48,6 +49,8 @@ pub struct Callback {
     ///
     pub resolvers: std::sync::Arc<Resolvers>,
     ///
+    pub queue_manager: std::sync::Arc<dyn GenericQueueManager>,
+    ///
     pub config: std::sync::Arc<Config>,
     ///
     pub conn_ctx: ConnectionContext,
@@ -59,8 +62,9 @@ impl Callback {
         credentials: &Credentials,
     ) -> Result<<ValidationVSL as rsasl::validate::Validation>::Value, Error> {
         let mut rule_state = RuleState::with_connection(
-            &self.config,
+            self.config.clone(),
             self.resolvers.clone(),
+            self.queue_manager.clone(),
             &self.rule_engine,
             ConnectionContext {
                 credentials: Some(credentials.clone()),

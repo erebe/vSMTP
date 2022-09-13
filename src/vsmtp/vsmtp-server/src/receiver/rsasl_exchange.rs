@@ -17,6 +17,7 @@
 
 use super::Connection;
 use super::{rsasl_callback::ValidationVSL, Callback};
+use vqueue::GenericQueueManager;
 use vsmtp_common::{auth::Mechanism, mail_context::ConnectionContext, CodeID};
 use vsmtp_config::{field::FieldServerSMTPAuth, Resolvers};
 use vsmtp_rule_engine::RuleEngine;
@@ -96,6 +97,7 @@ where
         _auth_config: FieldServerSMTPAuth,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         helo_domain: &mut Option<String>,
         args: (Mechanism, Option<Vec<u8>>),
         helo_pre_auth: String,
@@ -108,6 +110,7 @@ where
                 resolvers,
                 config: self.config.clone(),
                 conn_ctx: self.context.clone(),
+                queue_manager,
             })
             .map_err(|e| anyhow::anyhow!("Failed to initialize SASL config: {e}"))?;
 

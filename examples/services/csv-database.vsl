@@ -18,7 +18,7 @@
 // A service to interface with a csv file.
 service my_database db:csv = #{
     // The path to the csv database.
-    connector: "../path-to-my_db.csv",
+    connector: "../../../examples/services/path-to-my_db.csv",
     // The access mode of the database. Can be:
     // `O_RDONLY`, `O_WRONLY` or `O_RDWR`. (Optional, "O_RDWR" by default)
     access: "O_RDONLY",

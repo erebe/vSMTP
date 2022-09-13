@@ -18,6 +18,7 @@ use crate::{
     test_receiver,
     tests::auth::{safe_auth_config, unsafe_auth_config},
 };
+use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -59,6 +60,7 @@ async fn plain_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -112,6 +114,7 @@ async fn login_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -169,6 +172,7 @@ async fn anonymous_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -222,6 +226,7 @@ async fn plain_in_clair_unsecured_utf8() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -369,6 +374,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");

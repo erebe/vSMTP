@@ -1,4 +1,20 @@
-use vsmtp_common::queue::Queue;
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+use crate::QueueID;
 
 ///
 #[derive(clap::Parser)]
@@ -26,7 +42,7 @@ pub enum Commands {
     Show {
         /// List of queues to print
         #[clap(value_parser)]
-        queues: Vec<Queue>,
+        queues: Vec<QueueID>,
         /// Character to print if the field is empty
         #[clap(short, long, action, default_value = "0")]
         empty_token: char,
@@ -56,7 +72,7 @@ pub enum MessageCommand {
     Move {
         ///
         #[clap(value_parser)]
-        queue: Queue,
+        queue: QueueID,
     },
     /// Remove the message from the filesystem
     Remove {
@@ -114,7 +130,7 @@ mod tests {
                 version: false,
                 config: None,
                 command: Some(Commands::Show {
-                    queues: vec![Queue::Dead],
+                    queues: vec![QueueID::Dead],
                     empty_token: '0'
                 })
             },
@@ -138,7 +154,7 @@ mod tests {
                 version: false,
                 config: None,
                 command: Some(Commands::Show {
-                    queues: vec![Queue::Dead, Queue::Deliver],
+                    queues: vec![QueueID::Dead, QueueID::Deliver],
                     empty_token: '0'
                 })
             },
@@ -205,7 +221,9 @@ mod tests {
                 config: None,
                 command: Some(Commands::Msg {
                     msg: "foobar".to_string(),
-                    command: MessageCommand::Move { queue: Queue::Dead }
+                    command: MessageCommand::Move {
+                        queue: QueueID::Dead
+                    }
                 })
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "move", "dead"])

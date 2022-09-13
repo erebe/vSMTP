@@ -15,6 +15,7 @@
  *
 */
 use super::connection::Connection;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
     addr, auth::Mechanism, event::Event, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
     status::Status, Address, CodeID, Envelop, ReplyOrCodeID,
@@ -355,10 +356,12 @@ impl Transaction {
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> Transaction {
         let rule_state = RuleState::with_connection(
-            conn.config.as_ref(),
+            conn.config.clone(),
             resolvers,
+            queue_manager,
             &rule_engine,
             conn.context.clone(),
         );

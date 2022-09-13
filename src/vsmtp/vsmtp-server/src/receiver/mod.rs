@@ -16,6 +16,7 @@
 */
 use self::transaction::{Transaction, TransactionResult};
 use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
     mail_context::{ConnectionContext, MAIL_CAPACITY},
     state::State,
@@ -35,7 +36,7 @@ mod rsasl_exchange;
 pub use io::AbstractIO;
 pub mod transaction;
 pub use connection::Connection;
-pub use on_mail::{MailHandler, MailHandlerError, OnMail};
+pub use on_mail::{MailHandler, OnMail};
 pub use rsasl_callback::Callback;
 
 #[derive(Default)]
@@ -83,6 +84,7 @@ where
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -91,7 +93,13 @@ where
         if self.kind == ConnectionKind::Tunneled {
             if let Some(tls_config) = tls_config {
                 return self
-                    .upgrade_to_secured(tls_config, rule_engine, resolvers, mail_handler)
+                    .upgrade_to_secured(
+                        tls_config,
+                        rule_engine,
+                        resolvers,
+                        queue_manager,
+                        mail_handler,
+                    )
                     .await;
             }
             anyhow::bail!("config ill-formed, handling a secured connection without valid config")
@@ -102,15 +110,25 @@ where
         self.send_code(CodeID::Greetings).await?;
 
         loop {
-            let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
+            let mut transaction = Transaction::new(
+                self,
+                &helo_domain,
+                rule_engine.clone(),
+                resolvers.clone(),
+                queue_manager.clone(),
+            );
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
                     self.send_code(CodeID::DataStart).await?;
 
                     if !self
-                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .handle_stream(
+                            mail_handler,
+                            transaction,
+                            &mut helo_domain,
+                            queue_manager.clone(),
+                        )
                         .await?
                     {
                         return Ok(());
@@ -119,7 +137,13 @@ where
                 TransactionResult::HandshakeTLS => {
                     if let Some(tls_config) = tls_config {
                         return self
-                            .upgrade_to_secured(tls_config, rule_engine, resolvers, mail_handler)
+                            .upgrade_to_secured(
+                                tls_config,
+                                rule_engine,
+                                resolvers,
+                                queue_manager,
+                                mail_handler,
+                            )
                             .await;
                     }
                     self.send_code(CodeID::TlsNotAvailable).await?;
@@ -131,6 +155,7 @@ where
                             auth_config.clone(),
                             rule_engine.clone(),
                             resolvers.clone(),
+                            queue_manager.clone(),
                             &mut helo_domain,
                             (mechanism, initial_response),
                             helo_pre_auth,
@@ -157,6 +182,7 @@ where
         &mut self,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -169,15 +195,25 @@ where
         let mut helo_domain = None;
 
         loop {
-            let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
+            let mut transaction = Transaction::new(
+                self,
+                &helo_domain,
+                rule_engine.clone(),
+                resolvers.clone(),
+                queue_manager.clone(),
+            );
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
                     self.send_code(CodeID::DataStart).await?;
 
                     if !self
-                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .handle_stream(
+                            mail_handler,
+                            transaction,
+                            &mut helo_domain,
+                            queue_manager.clone(),
+                        )
                         .await?
                     {
                         return Ok(());
@@ -192,6 +228,7 @@ where
                             auth_config.clone(),
                             rule_engine.clone(),
                             resolvers.clone(),
+                            queue_manager.clone(),
                             &mut helo_domain,
                             (mechanism, initial_response),
                             helo_pre_auth,
@@ -214,6 +251,7 @@ where
         tls_config: std::sync::Arc<rustls::ServerConfig>,
         rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -255,7 +293,7 @@ where
         };
 
         secured_conn
-            .receive_secured(rule_engine, resolvers, mail_handler)
+            .receive_secured(rule_engine, resolvers, queue_manager, mail_handler)
             .await
     }
 
@@ -264,6 +302,7 @@ where
         mail_handler: &mut M,
         mut transaction: Transaction,
         helo_domain: &mut Option<String>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<bool>
     where
         M: OnMail + Send,
@@ -323,7 +362,7 @@ where
 
         let helo = mail_context.envelop.helo.clone();
         let code = mail_handler
-            .on_mail(self, Box::new(mail_context), message)
+            .on_mail(self, Box::new(mail_context), message, queue_manager)
             .await;
         *helo_domain = Some(helo);
         self.send_code(code).await?;

@@ -37,6 +37,7 @@ vsmtp-common = { path = "../vsmtp-common", version = "1.3.0" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.3.0" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.0" }
 vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.0" }
+vqueue = { path = "../../vqueue", version = "1.3.0" }
 
 tracing = { version = "0.1.36", default-features = false, features = [
   "std",
@@ -57,10 +58,11 @@ iprange = { version = "0.6.7", default-features = false, features = [
 ipnet = { version = "2.5.0", default-features = false, features = [
   # "serde", # TODO
 ] }
-addr = { version = "0.15.4", default-features = false, features = [
+addr = { version = "0.15.6", default-features = false, features = [
   "std",
   # "serde", # TODO
 ] }
+either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 
 r2d2 = { version = "0.8.10", default-features = false }
 csv = { version = "1.1.6", default-features = false }
@@ -139,6 +141,7 @@ normal = ["r2d2"]
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
 vsmtp-test = { path = "../vsmtp-test" }
+pretty_assertions = "1.3.0"
 
 [features]
 mysql = ["dep:mysql", "dep:flate2", "dep:mysql_common"]

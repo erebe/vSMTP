@@ -15,6 +15,7 @@
  *
 */
 use crate::test_receiver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::CodeID;
@@ -36,6 +37,7 @@ async fn test_message() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             body: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "john.doe@example.com");

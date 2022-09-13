@@ -16,6 +16,7 @@
 */
 
 use crate::test_receiver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -35,6 +36,7 @@ async fn test_aliases() {
             _: &mut Connection<S>,
             ctx: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(
                 ctx.envelop.rcpt,

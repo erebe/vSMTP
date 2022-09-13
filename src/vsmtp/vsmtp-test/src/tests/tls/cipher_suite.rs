@@ -38,12 +38,14 @@ async fn test_all_cipher_suite() {
         config.server.tls.as_mut().unwrap().protocol_version = vec![i.version().version];
         config.server.tls.as_mut().unwrap().cipher_suite = vec![i.suite()];
 
+        let config = std::sync::Arc::new(config);
+
         let (client, server) = test_tls_tunneled(
             std::sync::Arc::new(
-                RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
+                RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
             ),
             "testserver.com",
-            std::sync::Arc::new(config),
+            config,
             vec!["QUIT\r\n".to_string()],
             [
                 "220 testserver.com Service ready",

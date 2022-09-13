@@ -22,3 +22,4 @@ mod rset;
 mod rules;
 mod tls;
 mod utf8;
+mod vqueue;

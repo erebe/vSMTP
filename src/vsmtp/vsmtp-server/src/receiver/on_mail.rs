@@ -16,10 +16,10 @@
 */
 
 use crate::{Connection, Process, ProcessMessage};
+use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    mail_context::MailContext, queue::Queue, status::Status, transfer::EmailTransferStatus, CodeID,
+    mail_context::MailContext, status::Status, transfer::EmailTransferStatus, CodeID,
 };
-use vsmtp_config::create_app_folder;
 use vsmtp_mail_parser::MessageBody;
 
 /// will be executed once the email is received.
@@ -33,6 +33,7 @@ pub trait OnMail {
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
         message: MessageBody,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID;
 }
 
@@ -42,18 +43,13 @@ pub struct MailHandler {
     pub(crate) delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
+#[must_use]
 #[derive(Debug, thiserror::Error)]
 pub enum MailHandlerError {
-    #[error("could not delegate message: `{0:#?}`")]
-    DelegateMessage(anyhow::Error),
     #[error("could not write to `mails` folder: `{0}`")]
     WriteMessageBody(std::io::Error),
-    #[error("could not create app folder: `{0}`")]
-    CreateAppFolder(anyhow::Error),
-    #[error("could not write to quarantine file: `{0}`")]
-    WriteQuarantineFile(std::io::Error),
     #[error("could not write to queue `{0}` got: `{1}`")]
-    WriteToQueue(Queue, String),
+    WriteToQueue(QueueID, String),
     #[error("could not send message to next process `{0}` got: `{1}`")]
     SendToNextProcess(Process, tokio::sync::mpsc::error::SendError<ProcessMessage>),
 }
@@ -73,31 +69,31 @@ impl MailHandler {
 
     #[allow(clippy::too_many_lines)]
     async fn on_mail_priv<
+        'a,
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
         &self,
-        conn: &mut Connection<S>,
+        _: &mut Connection<S>,
         mut mail_context: Box<MailContext>,
         mail_message: MessageBody,
+        queue_manager: &'a std::sync::Arc<dyn GenericQueueManager>,
     ) -> Result<(), MailHandlerError> {
         let (mut message_id, skipped) = (
             mail_context.metadata.message_id.clone().unwrap(),
             mail_context.metadata.skipped.clone(),
         );
 
-        let mut write_to_queue = Option::<Queue>::None;
+        let mut write_to_queue = Option::<QueueID>::None;
         let mut send_to_next_process = Option::<Process>::None;
         let mut delegated = false;
 
         match &skipped {
             Some(Status::Quarantine(path)) => {
-                let mut path = create_app_folder(&conn.config, Some(path))
-                    .map_err(MailHandlerError::CreateAppFolder)?;
-                path.push(format!("{message_id}.json"));
-
-                Queue::write_to_quarantine(&path, &mail_context)
+                let quarantine = QueueID::Quarantine { name: path.into() };
+                queue_manager
+                    .write_ctx(&quarantine, &mail_context)
                     .await
-                    .map_err(MailHandlerError::WriteQuarantineFile)?;
+                    .map_err(|err| MailHandlerError::WriteToQueue(quarantine, err.to_string()))?;
 
                 log::warn!("skipped due to quarantine.");
             }
@@ -128,29 +124,32 @@ impl MailHandler {
                     };
                 }
 
-                write_to_queue = Some(Queue::Dead);
+                write_to_queue = Some(QueueID::Dead);
             }
             Some(reason) => {
                 log::warn!("skipped due to '{}'.", reason.as_ref());
-                write_to_queue = Some(Queue::Deliver);
+                write_to_queue = Some(QueueID::Deliver);
                 send_to_next_process = Some(Process::Delivery);
             }
             None => {
-                write_to_queue = Some(Queue::Working);
+                write_to_queue = Some(QueueID::Working);
                 send_to_next_process = Some(Process::Processing);
             }
         };
 
-        mail_message
-            .write_to_mails(&conn.config.server.queues.dirpath, &message_id)
-            .map_err(MailHandlerError::WriteMessageBody)?;
+        queue_manager
+            .write_msg(&message_id, &mail_message)
+            .map_err(|e| MailHandlerError::WriteMessageBody(e.downcast().unwrap()))?;
 
         log::trace!("email written in 'mails' queue.");
 
         if let Some(queue) = write_to_queue {
-            queue
-                .write_to_queue(&conn.config.server.queues.dirpath, &mail_context)
-                .map_err(|error| MailHandlerError::WriteToQueue(queue, error.to_string()))?;
+            queue_manager
+                .write_ctx(&queue, &mail_context)
+                .await
+                .map_err(|error| {
+                    MailHandlerError::WriteToQueue(queue.clone(), error.to_string())
+                })?;
         }
 
         // TODO: even if it's a rare case, a result of None should remove the
@@ -179,8 +178,9 @@ impl OnMail for MailHandler {
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
         message: MessageBody,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
-        match self.on_mail_priv(conn, mail, message).await {
+        match self.on_mail_priv(conn, mail, message, &queue_manager).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
                 log::warn!("failed to process mail: {error}");

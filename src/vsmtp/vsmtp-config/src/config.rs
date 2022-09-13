@@ -164,7 +164,7 @@ pub mod field {
         pub processing: usize,
         /// Number of thread used by the pool `delivery`.
         ///
-        /// This pool send the mails to the recipient, and handle the [`vsmtp_common::queue::Queue`]
+        /// This pool send the mails to the recipient, and handle the delivery side.
         pub delivery: usize,
     }
 
@@ -286,7 +286,7 @@ pub mod field {
         },
     }
 
-    /// The configuration of the [`vsmtp_common::queue::Queue::Working`]
+    /// The configuration of the `working queue`.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueWorking {
@@ -295,23 +295,23 @@ pub mod field {
         pub channel_size: usize,
     }
 
-    /// The configuration of the [`vsmtp_common::queue::Queue::Deliver`] and the [`vsmtp_common::queue::Queue::Deferred`]
+    /// The configuration of the `vqueue`
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueDelivery {
         /// Size of the channel queue communicating the mails from the `processing` pool to the `delivery` pool.
         #[serde(default = "FieldQueueDelivery::default_channel_size")]
         pub channel_size: usize,
-        /// Maximum number of attempt to deliver the mail before moving it to the [`vsmtp_common::queue::Queue::Dead`]
+        /// Maximum number of attempt to deliver the mail before being considered dead.
         #[serde(default = "FieldQueueDelivery::default_deferred_retry_max")]
         pub deferred_retry_max: usize,
-        /// The mail in the  [`vsmtp_common::queue::Queue::Deferred`] are resend in a clock with this period.
+        /// The mail in the `deferred` are resend in a clock with this period.
         #[serde(with = "humantime_serde")]
         #[serde(default = "FieldQueueDelivery::default_deferred_retry_period")]
         pub deferred_retry_period: std::time::Duration,
     }
 
-    /// The configuration of the filesystem for the [`vsmtp_common::queue::Queue`].
+    /// The configuration of the filesystem for the mail queuer.
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerQueues {

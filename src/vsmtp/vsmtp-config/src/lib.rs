@@ -91,7 +91,6 @@ pub use rustls_helper::get_rustls_config;
 pub use trust_dns_helper::{build_resolvers, Resolvers};
 
 use builder::{Builder, WantsVersion};
-use vsmtp_common::libc_abstraction::chown;
 
 impl Config {
     /// Create an instance of [`Builder`].
@@ -138,6 +137,7 @@ impl Config {
     }
 }
 
+/*
 #[doc(hidden)]
 pub fn create_app_folder(
     config: &Config,
@@ -175,3 +175,4 @@ pub fn create_app_folder(
 
     Ok(full_path)
 }
+*/

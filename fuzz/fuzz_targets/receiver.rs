@@ -1,5 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
@@ -18,6 +19,7 @@ impl OnMail for FuzzOnMail {
         _: &mut Connection<S>,
         _: Box<MailContext>,
         _: MessageBody,
+        _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -59,8 +61,12 @@ fuzz_target!(|data: &[u8]| {
         &mut mock,
     );
 
-    let re =
-        std::sync::Arc::new(RuleEngine::new(&config, &None).expect("failed to build rule engine"));
+    let re = std::sync::Arc::new(
+        RuleEngine::new(config.clone(), None).expect("failed to build rule engine"),
+    );
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config).unwrap();
 
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
@@ -68,6 +74,7 @@ fuzz_target!(|data: &[u8]| {
             None,
             re,
             std::sync::Arc::new(std::collections::HashMap::new()),
+            queue_manager,
             &mut FuzzOnMail,
         ));
 });
