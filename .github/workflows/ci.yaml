@@ -29,9 +29,6 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.toolchain }}-${{ matrix.path }}
@@ -53,7 +50,9 @@ jobs:
         with:
           fail-fast: true
       - uses: Swatinem/rust-cache@v2
-      - run: cargo install cargo-udeps --locked
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-udeps
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -71,11 +70,35 @@ jobs:
         with:
           fail-fast: true
       - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-deny
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: ${{ env.RUST_MSRV }}
           command: check
           arguments: ""
+  nextest:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-nextest
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: nextest
+          args: run --workspace --all-features
   test:
     runs-on: ubuntu-latest
     needs: check
