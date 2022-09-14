@@ -136,7 +136,7 @@ impl Event {
 
         let words = input
             .split_whitespace()
-            // .inspect(|x| log::trace!(target: RECEIVER, "word:{}", x))
+            // .inspect(|x| tracing::trace!(word = x))
             .collect::<Vec<&str>>();
 
         let mut smtp_args = words.iter();

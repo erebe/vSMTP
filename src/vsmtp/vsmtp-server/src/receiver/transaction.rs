@@ -56,7 +56,6 @@ pub enum TransactionResult {
 }
 
 impl Transaction {
-    #[tracing::instrument(skip(connection, client_message))]
     fn parse_and_apply_and_get_reply<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
@@ -66,7 +65,7 @@ impl Transaction {
     ) -> either::Either<ProcessedEvent, TransactionResult> {
         let command_or_code = Event::parse_cmd(client_message);
 
-        log::trace!("received={client_message:?}; parsed=`{command_or_code:?}`");
+        tracing::trace!(message = %client_message, parsed = ?command_or_code);
 
         command_or_code.map_or_else(
             |c| either::Left((ReplyOrCodeID::Left(c), None)),
@@ -394,12 +393,11 @@ impl Transaction {
                         if message_size >= connection.config.server.message_size_limit {
                             return match connection.send_code(CodeID::MessageSizeExceeded).await {
                                 Ok(_) => (),
-                                Err(e) => todo!("{e:?}")
+                                Err(_) => () // TODO:
                             }
                         }
 
                         let command_or_code = Event::parse_data(client_message);
-                        log::trace!("parsed=`{command_or_code:?}`");
 
                         match command_or_code {
                             Ok(Some(line)) => yield line,
@@ -418,6 +416,7 @@ impl Transaction {
         }
     }
 
+    #[tracing::instrument(name = "smtp", skip_all)]
     pub async fn receive<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin + std::fmt::Debug,
     >(
@@ -459,12 +458,13 @@ impl Transaction {
                     match parsed_message {
                         either::Left((reply_to_send, new_state)) => {
                             if let Some(new_state) = new_state {
-                                log::info!(
-                                    "STATE: {old_state} => {new_state}",
-                                    old_state = self.state,
+                                tracing::debug!(
+                                    old = %self.state,
+                                    new = %new_state,
+                                    "State changed."
                                 );
-                                self.state = new_state;
 
+                                self.state = new_state;
                                 read_timeout =
                                     get_timeout_for_state(&connection.config, self.state);
                             }

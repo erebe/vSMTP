@@ -181,7 +181,9 @@ impl Object {
                             )),
                             _ => {}
                         },
-                        Err(error) => log::error!("couldn't read line in '{}': {}", path, error),
+                        Err(error) => {
+                            tracing::error!(?path, %error, "Could not read line in file.");
+                        }
                     };
                 }
 

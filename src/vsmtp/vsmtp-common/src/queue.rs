@@ -120,8 +120,6 @@ impl Queue {
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
-        log::debug!("successfully written to {self} queue");
-
         Ok(())
     }
 

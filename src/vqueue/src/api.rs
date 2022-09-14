@@ -139,10 +139,12 @@ where
     where
         Self: Sized,
     {
-        anyhow::ensure!(before != after, "the queues are the same: `{before}`");
+        anyhow::ensure!(before != after, "Queues are the same: `{before}`");
 
         let ctx = self.get_ctx(before, msg_id)?;
-        self.move_to(before, after, &ctx).await
+        self.move_to(before, after, &ctx).await?;
+
+        Ok(())
     }
 
     ///
@@ -155,7 +157,9 @@ where
     where
         Self: Sized,
     {
-        anyhow::ensure!(before != after, "the queues are the same: `{before}`");
+        anyhow::ensure!(before != after, "Queues are the same: `{before}`");
+
+        tracing::debug!(from = %before, to = %after, "Moving email.");
 
         self.write_ctx(after, ctx).await?;
         self.remove_ctx(
@@ -166,6 +170,7 @@ where
                 .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?,
         )
         .await?;
+
         Ok(())
     }
 }

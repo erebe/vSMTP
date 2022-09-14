@@ -18,7 +18,7 @@
 use crate::{Connection, Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    mail_context::MailContext, status::Status, transfer::EmailTransferStatus, CodeID,
+    mail_context::MailContext, state::State, status::Status, transfer::EmailTransferStatus, CodeID,
 };
 use vsmtp_mail_parser::MessageBody;
 
@@ -52,6 +52,8 @@ pub enum MailHandlerError {
     WriteToQueue(QueueID, String),
     #[error("could not send message to next process `{0}` got: `{1}`")]
     SendToNextProcess(Process, tokio::sync::mpsc::error::SendError<ProcessMessage>),
+    #[error("delegate directive cannot be used in preq stage")]
+    InvalidDelegation,
 }
 
 impl MailHandler {
@@ -88,17 +90,17 @@ impl MailHandler {
         let mut delegated = false;
 
         match &skipped {
-            Some(Status::Quarantine(path)) => {
+            Some(status @ Status::Quarantine(path)) => {
                 let quarantine = QueueID::Quarantine { name: path.into() };
                 queue_manager
                     .write_ctx(&quarantine, &mail_context)
                     .await
                     .map_err(|err| MailHandlerError::WriteToQueue(quarantine, err.to_string()))?;
 
-                log::warn!("skipped due to quarantine.");
+                tracing::warn!(status = status.as_ref(), "Rules skipped.");
             }
             Some(Status::Delegated(_)) => {
-                unreachable!("delegate directive cannot be used in preq stage")
+                return Err(MailHandlerError::InvalidDelegation);
             }
             Some(Status::DelegationResult) => {
                 if let Some(old_message_id) = mail_message
@@ -127,7 +129,8 @@ impl MailHandler {
                 write_to_queue = Some(QueueID::Dead);
             }
             Some(reason) => {
-                log::warn!("skipped due to '{}'.", reason.as_ref());
+                tracing::warn!(stage = %State::PreQ, status = ?reason.as_ref(), "Rules skipped.");
+
                 write_to_queue = Some(QueueID::Deliver);
                 send_to_next_process = Some(Process::Delivery);
             }
@@ -140,8 +143,6 @@ impl MailHandler {
         queue_manager
             .write_msg(&message_id, &mail_message)
             .map_err(|e| MailHandlerError::WriteMessageBody(e.downcast().unwrap()))?;
-
-        log::trace!("email written in 'mails' queue.");
 
         if let Some(queue) = write_to_queue {
             queue_manager
@@ -170,7 +171,7 @@ impl MailHandler {
 
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
-    #[tracing::instrument(skip(self, conn))]
+    #[tracing::instrument(name = "preq", skip_all)]
     async fn on_mail<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
@@ -183,7 +184,7 @@ impl OnMail for MailHandler {
         match self.on_mail_priv(conn, mail, message, &queue_manager).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
-                log::warn!("failed to process mail: {error}");
+                tracing::warn!(%error, "Mail processing failure");
                 CodeID::Denied
             }
         }

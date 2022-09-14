@@ -78,7 +78,7 @@ where
     /// * server failed to send a message
     /// * a transaction failed
     /// * the pre-queue processing of the mail failed
-    #[tracing::instrument(skip(tls_config, rule_engine, resolvers, mail_handler))]
+    #[tracing::instrument(name = "transaction", skip_all)]
     pub async fn receive<M>(
         &mut self,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -120,6 +120,8 @@ where
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
+                    tracing::info!("SMTP handshake initiated.");
+
                     self.send_code(CodeID::DataStart).await?;
 
                     if !self
@@ -135,6 +137,8 @@ where
                     }
                 }
                 TransactionResult::HandshakeTLS => {
+                    tracing::debug!("TLS handshake initiated");
+
                     if let Some(tls_config) = tls_config {
                         return self
                             .upgrade_to_secured(
@@ -150,6 +154,8 @@ where
                     anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
                 }
                 TransactionResult::HandshakeSASL(helo_pre_auth, mechanism, initial_response) => {
+                    tracing::debug!("SASL handshake initiated");
+
                     if let Some(auth_config) = &self.config.server.smtp.auth {
                         self.handle_auth(
                             auth_config.clone(),
@@ -166,6 +172,8 @@ where
                     }
                 }
                 TransactionResult::SessionEnded(code) => {
+                    tracing::info!("The session just ended. (due to QUIT command or EOF)");
+
                     self.send_reply_or_code(code).await?;
                     return Ok(());
                 }
@@ -176,8 +184,7 @@ where
     // NOTE: the implementation of `receive` and `receive_secured` are very similar,
     // but need to be distinct (and thus not called in a recursion fashion) because of
     // `rustc --explain E0275`
-    // TODO: could keep the `parent` to produce better logs
-    #[tracing::instrument(parent = None, skip( rule_engine, resolvers, mail_handler))]
+    #[tracing::instrument(parent = None, name = "receive secured transaction", skip_all)]
     async fn receive_secured<M>(
         &mut self,
         rule_engine: std::sync::Arc<RuleEngine>,
@@ -309,7 +316,7 @@ where
     {
         // fetching the email using the transaction's stream.
         {
-            log::info!("SMTP handshake completed, fetching email");
+            tracing::info!("SMTP handshake completed, fetching email.");
             let mut body = {
                 let stream = Transaction::stream(self);
                 tokio::pin!(stream);

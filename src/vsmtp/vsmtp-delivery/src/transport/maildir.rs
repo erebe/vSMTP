@@ -32,7 +32,7 @@ pub struct Maildir;
 
 #[async_trait::async_trait]
 impl Transport for Maildir {
-    #[tracing::instrument(skip(self, config, metadata, content))]
+    #[tracing::instrument(name = "maildir", skip_all)]
     async fn deliver(
         self,
         config: &Config,
@@ -53,21 +53,21 @@ impl Transport for Maildir {
                 )
             }) {
                 Some(Ok(_)) => {
-                    log::info!("successfully delivered to `{rcpt}` as maildir");
+                    tracing::info!("Email delivered.");
 
                     rcpt.email_status = EmailTransferStatus::Sent {
                         timestamp: std::time::SystemTime::now(),
                     }
                 }
-                Some(Err(e)) => {
-                    log::error!("failed to write email in maildir of '{rcpt}': {e}");
+                Some(Err(error)) => {
+                    tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.email_status.held_back(e);
+                    rcpt.email_status.held_back(error);
                 }
                 None => {
-                    log::error!(
-                        "failed to write email in maildir of '{}', user not found",
-                        rcpt.address.local_part(),
+                    tracing::error!(
+                        error = format!("user not found: {}", rcpt.address.local_part()),
+                        "Email delivery failure."
                     );
 
                     rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
@@ -86,19 +86,19 @@ impl Maildir {
         user: &users::User,
         group_local: Option<&users::Group>,
     ) -> anyhow::Result<()> {
-        log::trace!("creating folder at `{}`", path.display());
+        tracing::debug!(to = %path.display(), "Creating folder.");
 
         if path.exists() {
-            log::trace!("folder `{}` already exists", path.display());
+            tracing::debug!("Folder already exists.");
         } else {
             std::fs::create_dir(&path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
 
-            log::trace!(
-                "setting the right ({}:{}) for folder at `{}`",
-                user.uid(),
-                group_local.map_or(u32::MAX, users::Group::gid),
-                path.display()
+            tracing::trace!(
+                user = user.uid(),
+                group = group_local.map_or(u32::MAX, users::Group::gid),
+                to = %path.display(),
+                "Setting permissions.",
             );
 
             chown(path, Some(user.uid()), group_local.map(users::Group::gid))
@@ -147,8 +147,6 @@ impl Maildir {
             Some(user.uid()),
             group_local.map(users::Group::gid),
         )?;
-
-        log::debug!("{} bytes written to `{:?}`'s inbox", content.len(), user);
 
         Ok(())
     }

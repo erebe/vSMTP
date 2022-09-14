@@ -23,11 +23,15 @@ use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
-        eprintln!("vSMTP terminating error: '{err}'");
-        tracing::error!("vSMTP terminating error: '{err}'");
+        let error = format!("vSMTP terminating error: '{err}'");
+
+        eprintln!("{error}");
+        tracing::error!(error);
         err.chain().skip(1).for_each(|cause| {
-            eprintln!("because: {cause}");
-            tracing::error!("because: {cause}");
+            let reason = format!("because: {cause}");
+
+            eprintln!("{reason}");
+            tracing::error!(reason);
         });
         std::process::exit(1);
     }
@@ -85,13 +89,26 @@ fn try_main() -> anyhow::Result<()> {
         }
     }
 
+    vsmtp::tracing_subscriber::initialize(&args, &config)?;
+
+    tracing::info!(
+        server = ?config.server.logs.filepath,
+        app = ?config.app.logs.filepath,
+        syslog = config
+        .server
+        .logs
+        .system
+        .as_ref()
+        .map(|sys| sys.to_string())
+        .unwrap_or_else(|| "None".to_string()),
+        "vSMTP logs initialized: ",
+    );
+
     let sockets = (
         bind_sockets(&config.server.interfaces.addr)?,
         bind_sockets(&config.server.interfaces.addr_submission)?,
         bind_sockets(&config.server.interfaces.addr_submissions)?,
     );
-
-    vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
     if !args.no_daemon {
         daemon(false, false)?;

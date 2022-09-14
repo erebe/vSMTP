@@ -52,7 +52,7 @@ pub fn run(
         }
     }
 
-    log::trace!("cmd running command: {child:#?}");
+    tracing::trace!(?child, "Running command.");
 
     let mut child = match child.spawn() {
         Ok(child) => child,

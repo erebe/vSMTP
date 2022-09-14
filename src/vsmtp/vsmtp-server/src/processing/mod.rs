@@ -52,7 +52,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
 }
 
 #[allow(clippy::too_many_lines)]
-#[tracing::instrument(skip(config, rule_engine, resolvers, delivery_sender))]
+#[tracing::instrument(name = "working", skip_all)]
 async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
@@ -89,9 +89,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 .move_to(&queue, &QueueID::Quarantine { name: path.into() }, &ctx)
                 .await?;
 
-            log::warn!("skipped due to quarantine.");
+            tracing::warn!(stage = %State::PostQ, status = "quarantine", "Rules skipped.");
         }
-        Some(Status::Delegated(delegator)) => {
+        Some(status @ Status::Delegated(delegator)) => {
             ctx.metadata.skipped = Some(Status::DelegationResult);
 
             // NOTE:  moving here because the delegation process could try to
@@ -110,7 +110,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             write_email = false;
             delegated = true;
 
-            log::warn!("skipped due to delegation.");
+            tracing::warn!(stage = %State::PostQ, status = status.as_ref(), "Rules skipped.");
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -127,7 +127,8 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             move_to_queue = Some(QueueID::Dead);
         }
         Some(reason) => {
-            log::warn!("skipped due to '{}'.", reason.as_ref());
+            tracing::warn!(status = ?reason, "Rules skipped.");
+
             move_to_queue = Some(QueueID::Deliver);
             send_to_delivery = true;
         }
@@ -139,8 +140,6 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
 
     if write_email {
         queue_manager.write_msg(&process_message.message_id, &mail_message)?;
-
-        log::debug!("email written in 'mails' queue.");
     }
 
     if let Some(next_queue) = move_to_queue {

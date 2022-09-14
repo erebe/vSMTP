@@ -23,7 +23,7 @@ use crate::{
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
         TlsSecurityLevel,
     },
-    field::SyslogSocket,
+    field::{SyslogFormat, SyslogSocket},
     Config,
 };
 use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
@@ -183,6 +183,12 @@ impl FieldServerLogs {
     }
 }
 
+impl Default for SyslogFormat {
+    fn default() -> Self {
+        Self::Rfc5424
+    }
+}
+
 impl SyslogSocket {
     pub(crate) fn default_udp_local() -> std::net::SocketAddr {
         "127.0.0.1:0".parse().expect("valid")
@@ -195,9 +201,11 @@ impl SyslogSocket {
     pub(crate) fn default_tcp_server() -> std::net::SocketAddr {
         "127.0.0.1:601".parse().expect("valid")
     }
+}
 
-    pub(crate) fn default_unix_path() -> std::path::PathBuf {
-        "/var/run/syslog".into()
+impl Default for SyslogSocket {
+    fn default() -> Self {
+        Self::Unix { path: None }
     }
 }
 

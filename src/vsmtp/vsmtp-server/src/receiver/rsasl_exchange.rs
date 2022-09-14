@@ -114,10 +114,10 @@ where
             })
             .map_err(|e| anyhow::anyhow!("Failed to initialize SASL config: {e}"))?;
 
-        if let Err(e) = self.on_authentication(rsasl_config, args).await {
-            log::warn!("SASL exchange produced an error: {e}");
+        if let Err(error) = self.on_authentication(rsasl_config, args).await {
+            tracing::warn!(%error, "SASL exchange failure.");
 
-            match e {
+            match error {
                 Error::Failed(e) => {
                     self.send_code(CodeID::AuthInvalidCredentials).await?;
                     anyhow::bail!("{e} - {}", CodeID::AuthInvalidCredentials)
@@ -178,9 +178,10 @@ where
                 .as_ref()
                 .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
             {
-                log::warn!(
-                "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted selfection!"
-            );
+                tracing::warn!(
+                    %mechanism,
+                    "Unsecured AUTH mechanism used on a non-encrypted connection."
+                );
             } else {
                 self.send_code(CodeID::AuthMechanismMustBeEncrypted)
                     .await

@@ -30,11 +30,15 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     queue_manager: std::sync::Arc<Q>,
     rule_engine: std::sync::Arc<RuleEngine>,
 ) {
-    log::info!("Flushing deliver queue");
+    // FIXME: add span on the function.
+    tracing::info!("Flushing deliver queue.");
 
     let queued = match queue_manager.list(&QueueID::Deliver) {
         Ok(queued) => queued,
-        Err(e) => todo!("{}", e),
+        Err(error) => {
+            tracing::error!(%error, "Flushing failed");
+            todo!("what should we do on flushing error ? stop the server, simply log the error ?")
+        }
     };
 
     for i in queued {
@@ -67,6 +71,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
 /// * rule engine mutex is poisoned.
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
+#[tracing::instrument(name = "delivery", skip_all)]
 #[allow(clippy::too_many_lines)]
 pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
@@ -75,8 +80,6 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
-    log::debug!("processing email '{}'", process_message.message_id);
-
     let queue = if process_message.delegated {
         QueueID::Delegated
     } else {
@@ -96,7 +99,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
     );
 
     match &skipped {
-        Some(Status::Quarantine(path)) => {
+        Some(status @ Status::Quarantine(path)) => {
             queue_manager
                 .move_to(
                     &queue,
@@ -107,11 +110,11 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
 
             queue_manager.write_msg(&process_message.message_id, &mail_message)?;
 
-            log::warn!("skipped due to quarantine.");
+            tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
             return Ok(());
         }
-        Some(Status::Delegated(delegator)) => {
+        Some(status @ Status::Delegated(delegator)) => {
             mail_context.metadata.skipped = Some(Status::DelegationResult);
 
             queue_manager
@@ -124,13 +127,15 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             //       thread could pickup the email faster than this function.
             delegate(delegator, &mail_context, &mail_message)?;
 
-            log::warn!("skipped due to delegation.");
+            tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
             return Ok(());
         }
-        Some(Status::DelegationResult) => unreachable!(
-            "delivery is the last stage, delegation results cannot travel down any further."
-        ),
+        Some(Status::DelegationResult) => {
+            anyhow::bail!(
+                "delivery is the last stage, delegation results cannot travel down any further."
+            )
+        }
         Some(Status::Deny(code)) => {
             for rcpt in &mut mail_context.envelop.rcpt {
                 rcpt.email_status = EmailTransferStatus::Failed {
@@ -145,12 +150,10 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
 
             queue_manager.write_msg(&process_message.message_id, &mail_message)?;
 
-            log::warn!("mail has been denied and moved to the `dead` queue.");
-
             return Ok(());
         }
         Some(reason) => {
-            log::warn!("skipped due to '{}'.", reason.as_ref());
+            tracing::warn!(status = ?reason, "Rules skipped.");
         }
         None => {}
     };

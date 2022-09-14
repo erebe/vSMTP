@@ -41,7 +41,7 @@ where
         .spawn(move || {
             let name_rt = name.clone();
             runtime.block_on(async move {
-                log::info!("Runtime '{name_rt}' started successfully");
+                tracing::info!(name = name_rt, "Runtime started successfully.");
 
                 match timeout {
                     Some(duration) => {
@@ -136,12 +136,12 @@ pub fn start_runtime(
             ) {
                 Ok(server) => server,
                 Err(error) => {
-                    log::error!("{}", error);
+                    tracing::error!(%error, "Receiver build failure.");
                     return;
                 }
             };
             if let Err(error) = server.listen_and_serve(sockets).await {
-                log::error!("{}", error);
+                tracing::error!(%error, "Receiver failure.");
             }
         },
         timeout,
@@ -156,8 +156,7 @@ pub fn start_runtime(
     ])?;
     let _signal_handler = std::thread::spawn(move || {
         for sig in signals.forever() {
-            log::info!("Received signal '{}'", sig);
-            log::warn!("Stopping vSMTP server");
+            tracing::warn!(signal = sig, "Stopping vSMTP server.");
             error_handler_sig
                 .blocking_send(())
                 .expect("failed to send terminating instruction");

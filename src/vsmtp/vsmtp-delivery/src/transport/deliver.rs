@@ -78,7 +78,6 @@ impl<'r> Deliver<'r> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, config, from, content))]
     async fn deliver_one_domain(
         &self,
         config: &Config,
@@ -90,7 +89,7 @@ impl<'r> Deliver<'r> {
         let envelop = from
             .full()
             .parse()
-            .context("envelop is invalid")
+            .context("sender in envelop is invalid")
             .and_then(|from| {
                 Ok((
                     from,
@@ -99,16 +98,18 @@ impl<'r> Deliver<'r> {
                             i.address
                                 .full()
                                 .parse::<lettre::Address>()
-                                .with_context(|| format!("receiver address is not valid: {i}"))
+                                .with_context(|| format!("recipient address is invalid: {i}"))
                         })
                         .collect::<anyhow::Result<Vec<_>>>()?,
                 ))
             })
             .and_then(|(from, rcpt_addresses)| {
                 lettre::address::Envelope::new(Some(from), rcpt_addresses)
-                    .context("envelop is invalid")
+                    .context("failed to build message envelop")
             })
             .map_err(|err| ResultSendMail::Failed(err.to_string()))?;
+
+        tracing::trace!(?envelop);
 
         let records = self
             .get_mx_records(domain)
@@ -116,8 +117,10 @@ impl<'r> Deliver<'r> {
             .with_context(|| format!("failed to get mx records for '{domain}'"))
             .map_err(ResultSendMail::IncreaseHeldBack)?;
 
+        tracing::trace!(?records);
+
         if records.is_empty() {
-            log::warn!("empty set of MX records found for '{domain}'");
+            tracing::warn!("empty set of MX records found for '{domain}'");
 
             // using directly the AAAA record instead of an mx record.
             // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
@@ -131,11 +134,14 @@ impl<'r> Deliver<'r> {
         for record in records.by_ref() {
             let host = record.exchange().to_ascii();
 
+            tracing::debug!("Trying to send an email.");
+            tracing::trace!(%host);
+
             // checking for a null mx record.
             // see https://datatracker.ietf.org/doc/html/rfc7505
             if host == "." {
-                log::warn!(
-                    "trying to delivery to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
+                tracing::error!(
+                    "Trying to deliver to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
 
                 return Err(ResultSendMail::Failed(
@@ -147,9 +153,14 @@ impl<'r> Deliver<'r> {
                 .send_email(config, &host, &envelop, from, content)
                 .await
             {
-                Ok(_) => return Ok(()),
+                Ok(()) => {
+                    tracing::info!("Email sent successfully");
+                    tracing::trace!(%host, sender = %from, ?envelop);
+
+                    return Ok(());
+                }
                 Err(err) => {
-                    log::warn!("failed to send message from '{from}' for '{domain}': {err}");
+                    tracing::warn!("failed to send message from '{from}' to '{host}': {err}");
                 }
             }
         }
@@ -191,23 +202,22 @@ impl<'r> Transport for Deliver<'r> {
                     };
                 }),
                 Err(ResultSendMail::IncreaseHeldBack(error)) => {
-                    log::warn!(
-                        "TEMP ERROR, failed to send message from '{from}' for '{domain}': {error}",
-                        from = from.full(),
-                        domain = domain,
-                        error = error
+                    tracing::warn!(
+                        %error,
+                        "Temporary failure to send email."
                     );
+                    tracing::trace!(rcpt = ?rcpt.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(), sender = %from.full(), %domain);
+
                     for i in rcpt {
                         i.email_status.held_back(error.to_string());
                     }
                 }
                 Err(ResultSendMail::Failed(reason)) => {
-                    log::error!(
-                        "PERM ERROR, failed to send message from '{from}' for '{domain}': {reason}",
-                        from = from.full(),
-                        domain = domain,
-                        reason = reason
+                    tracing::error!(
+                        error = %reason,
+                        "Permanent failure to send email."
                     );
+                    tracing::trace!(rcpt = ?rcpt.iter().map(std::string::ToString::to_string), sender = %from.full(), %domain);
 
                     for i in rcpt {
                         i.email_status = EmailTransferStatus::Failed {

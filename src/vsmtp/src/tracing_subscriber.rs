@@ -96,13 +96,18 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
                     })
                 })
             }
-            (SyslogFormat::Rfc3164, SyslogSocket::Unix { path }) => {
-                syslog::unix_custom(get_3164(), path).map(|logger| {
+            (SyslogFormat::Rfc3164, SyslogSocket::Unix { path }) => match path {
+                Some(custom_path) => syslog::unix_custom(get_3164(), custom_path).map(|logger| {
                     tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Left(logger),
                     })
-                })
-            }
+                }),
+                None => syslog::unix(get_3164()).map(|logger| {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
+                        logger: either::Left(logger),
+                    })
+                }),
+            },
             (SyslogFormat::Rfc5424, SyslogSocket::Udp { local, server }) => {
                 syslog::udp(get_5424(), local, server).map(|logger| {
                     tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
@@ -117,13 +122,18 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
                     })
                 })
             }
-            (SyslogFormat::Rfc5424, SyslogSocket::Unix { path }) => {
-                syslog::unix_custom(get_5424(), path).map(|logger| {
+            (SyslogFormat::Rfc5424, SyslogSocket::Unix { path }) => match path {
+                Some(custom_path) => syslog::unix_custom(get_5424(), custom_path).map(|logger| {
                     tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
                         logger: either::Right(logger),
                     })
-                })
-            }
+                }),
+                None => syslog::unix(get_5424()).map(|logger| {
+                    tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
+                        logger: either::Right(logger),
+                    })
+                }),
+            },
         };
 
         match result {
@@ -140,12 +150,16 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
 macro_rules! get_fmt {
     () => {
         tracing_subscriber::fmt::layer()
-            .pretty()
             .with_file(true)
             .with_line_number(true)
             .with_thread_ids(true)
             .with_target(true)
             .with_ansi(false)
+        // TODO: uncomment this before committing.
+        // .compact()
+        // .with_thread_ids(false)
+        // .with_target(false)
+        // .with_ansi(false)
     };
 }
 

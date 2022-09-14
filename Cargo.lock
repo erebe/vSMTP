@@ -3130,6 +3130,7 @@ dependencies = [
  "serde_json",
  "strum",
  "tokio",
+ "tracing",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",

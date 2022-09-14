@@ -77,7 +77,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                 );
             }
             _ = flush_deferred_interval.tick() => {
-                log::info!("cronjob delay elapsed `{}s`, flushing queue.",
+                tracing::info!("cronjob delay elapsed `{}s`, flushing queue.",
                     config.server.queues.delivery.deferred_retry_period.as_secs());
                 tokio::spawn(
                     flush_deferred_queue(
@@ -98,6 +98,7 @@ pub enum SenderOutcome {
     RemoveFromDisk,
 }
 
+#[tracing::instrument(name = "send", skip_all)]
 #[allow(clippy::too_many_lines)]
 pub async fn send_mail(
     config: &Config,
@@ -118,6 +119,7 @@ pub async fn send_mail(
     }
 
     if acc.is_empty() {
+        tracing::warn!("No recipients to send to.");
         return SenderOutcome::MoveToDead;
     }
 
@@ -165,7 +167,7 @@ pub async fn send_mail(
             Transfer::Maildir => {
                 Maildir.deliver(config, &message_ctx.metadata, from, to, &message_content)
             }
-            Transfer::None => unreachable!(),
+            Transfer::None => unreachable!("at this stage all transfer methods should be set."),
         })
         .collect::<Vec<_>>();
 
@@ -175,7 +177,8 @@ pub async fn send_mail(
         .flatten()
         .collect::<Vec<_>>();
 
-    log::trace!("the recipients are: `{:#?}`", message_ctx.envelop.rcpt);
+    tracing::debug!(rcpt = ?message_ctx.envelop.rcpt.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),  "Sending.");
+    tracing::trace!(rcpt = ?message_ctx.envelop.rcpt);
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut message_ctx.envelop.rcpt {
@@ -192,7 +195,6 @@ pub async fn send_mail(
         }
     }
 
-    // If there is no recipient, or no transfer method for each of them
     if message_ctx.envelop.rcpt.is_empty()
         || message_ctx
             .envelop
@@ -200,35 +202,39 @@ pub async fn send_mail(
             .iter()
             .all(|rcpt| matches!(rcpt.transfer_method, Transfer::None))
     {
+        tracing::warn!("No recipients to send to, or all transfer method are set to none.");
         return SenderOutcome::MoveToDead;
     }
 
-    // If all has been successfully sent
     if message_ctx
         .envelop
         .rcpt
         .iter()
         .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
     {
+        tracing::info!("Send operation successful.");
         return SenderOutcome::RemoveFromDisk;
     }
 
-    // If there is no more sendable recipient
     if message_ctx
         .envelop
         .rcpt
         .iter()
         .all(|rcpt| !rcpt.email_status.is_sendable())
     {
+        tracing::warn!("No more sendable recipients.");
         return SenderOutcome::MoveToDead;
     }
 
-    for i in &mut message_ctx.envelop.rcpt {
-        if matches!(&i.email_status, EmailTransferStatus::Waiting { .. }) {
-            i.email_status
+    for rcpt in &mut message_ctx.envelop.rcpt {
+        if matches!(&rcpt.email_status, EmailTransferStatus::Waiting { .. }) {
+            rcpt.email_status
                 .held_back("ignored by delivery transport".to_string());
         }
     }
+
+    tracing::warn!("Some send operations failed, email deferred.");
+    tracing::debug!(failed = ?message_ctx.envelop.rcpt.iter().filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. })).map(|r| (r.address.to_string(), r.email_status.clone())).collect::<Vec<_>>());
 
     SenderOutcome::MoveToDeferred
 }

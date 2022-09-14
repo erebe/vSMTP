@@ -90,6 +90,8 @@ impl GenericQueueManager for QueueManager {
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
+        tracing::debug!(to = ?queue_path, "Email context written.");
+
         Ok(())
     }
 
@@ -119,6 +121,8 @@ impl GenericQueueManager for QueueManager {
             std::io::Write::write_all(&mut file, serde_json::to_string(parsed)?.as_bytes())?;
         }
 
+        tracing::debug!(to = ?mails, "Email written.");
+
         Ok(())
     }
 
@@ -130,7 +134,11 @@ impl GenericQueueManager for QueueManager {
         ctx_filepath.set_extension("json");
 
         std::fs::remove_file(&ctx_filepath)
-            .with_context(|| format!("failed to remove `{}`", ctx_filepath.display()))
+            .with_context(|| format!("failed to remove `{}`", ctx_filepath.display()))?;
+
+        tracing::debug!(from = %queue, "Email context removed.");
+
+        Ok(())
     }
 
     async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()> {
@@ -145,6 +153,8 @@ impl GenericQueueManager for QueueManager {
             std::fs::remove_file(&mails_json)
                 .with_context(|| format!("failed to remove `{}`", mails_json.display()))?;
         }
+
+        tracing::debug!(from = ?mails, "Email removed.");
 
         Ok(())
     }

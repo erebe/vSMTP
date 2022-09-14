@@ -20,8 +20,9 @@ release. They will however *never* happen in a patch release.
 ### Changed
 * `--no-daemon` flag do not print logs to the standard output anymore. (#579)
 * Refactorization of services parsing. (#576)
-* `vsmtp` & `vqueue` `--version` flag display build commit (#585)
-* `vqueue` display error if no subcommands are specified (#585)
+* `vsmtp` & `vqueue` `--version` flag display build commit. (#585)
+* `vqueue` display error if no subcommands are specified. (#585)
+* Updated logs to communicate better the state of vSMTP. (#587)
 
 ## [1.3.0] - 2022-09-07
 

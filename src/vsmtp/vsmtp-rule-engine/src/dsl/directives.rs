@@ -50,6 +50,7 @@ impl std::fmt::Debug for Directive {
 }
 
 impl Directive {
+    /// Get the name of the directive.
     pub fn name(&self) -> &str {
         match self {
             Self::Delegation { name, .. } | Self::Rule { name, .. } | Self::Action { name, .. } => {
@@ -58,21 +59,21 @@ impl Directive {
         }
     }
 
-    #[tracing::instrument(skip(state, ast), err, ret)]
+    /// Execute the content of the directive.
     pub fn execute(
         &self,
-        state: &mut RuleState,
+        rule_state: &mut RuleState,
         ast: &rhai::AST,
         stage: State,
     ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {
-                state
+                rule_state
                     .engine()
                     .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())
             }
             Directive::Action { pointer, .. } => {
-                state
+                rule_state
                     .engine()
                     .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())?;
 
@@ -84,7 +85,7 @@ impl Directive {
                 name,
             } => {
                 if let Service::Smtp { delegator, .. } = &**service {
-                    let args = vsl_guard_ok!(state.message().read())
+                    let args = vsl_guard_ok!(rule_state.message().read())
                         .get_header("X-VSMTP-DELEGATION")
                         .and_then(|header| {
                             vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
@@ -100,16 +101,16 @@ impl Directive {
                     // queue and run the block of code.
                     // Otherwise, we add the X-VSMTP-DELEGATION to the message.
                     return match args {
-                        Some(header_directive) if header_directive == *name => state
+                        Some(header_directive) if header_directive == *name => rule_state
                             .engine()
                             .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
                         _ => {
                             // FIXME: fold this header.
-                            vsl_guard_ok!(state.message().write()).prepend_header(
+                            vsl_guard_ok!(rule_state.message().write()).prepend_header(
                                 "X-VSMTP-DELEGATION",
                                 &format!(
                                     "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
-                                    vsl_guard_ok!(state.context().read())
+                                    vsl_guard_ok!(rule_state.context().read())
                                         .metadata
                                         .message_id
                                         .as_ref()

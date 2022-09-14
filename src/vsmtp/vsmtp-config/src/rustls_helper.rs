@@ -21,7 +21,7 @@ use crate::field::{FieldServerTls, FieldServerVirtual};
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {
     fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
-        log::trace!("{} {:?} {:?}", label, client_random, secret);
+        tracing::trace!(label, ?client_random, ?secret);
     }
 }
 

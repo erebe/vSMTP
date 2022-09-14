@@ -22,6 +22,7 @@ use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_config::{Config, Resolvers};
 
+// TODO: what should be the procedure on failure here ?
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
@@ -29,16 +30,22 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 ) {
     let queued = match queue_manager.list(&QueueID::Deferred) {
         Ok(queued) => queued,
-        Err(e) => todo!("{}", e),
+        Err(error) => {
+            tracing::error!(%error, "Listing deferred queue failure.");
+            return;
+        }
     };
 
     for i in queued {
         let msg_id = match i {
             Ok(msg_id) => msg_id,
-            Err(_) => todo!(),
+            Err(error) => {
+                tracing::error!(%error, "Deferred message id missing.");
+                continue;
+            }
         };
 
-        let _err = handle_one_in_deferred_queue(
+        if let Err(error) = handle_one_in_deferred_queue(
             config.clone(),
             resolvers.clone(),
             queue_manager.clone(),
@@ -47,18 +54,21 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
                 delegated: false,
             },
         )
-        .await;
+        .await
+        {
+            tracing::error!(%error, "Flushing deferred queue failure.");
+        }
     }
 }
 
-#[tracing::instrument(skip(config, resolvers))]
+#[tracing::instrument(name = "deferred", skip_all, fields(message_id = %process_message.message_id))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    log::debug!("processing email");
+    tracing::debug!("Processing email.");
 
     let (mut mail_context, mail_message) =
         queue_manager.get_both(&QueueID::Deferred, &process_message.message_id)?;

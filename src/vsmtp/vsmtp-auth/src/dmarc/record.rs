@@ -93,14 +93,14 @@ impl Record {
                     match get_root_domain(rfc5322_from) {
                         Ok(root_rfc5322_from) => root_rfc5322_from,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
                     match get_root_domain(dkim_domain) {
                         Ok(root_domain_used) => root_domain_used,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
@@ -121,14 +121,14 @@ impl Record {
                     match get_root_domain(rfc5322_from) {
                         Ok(root_rfc5322_from) => root_rfc5322_from,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
                     match get_root_domain(spf_domain) {
                         Ok(root_spf_domain) => root_spf_domain,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },

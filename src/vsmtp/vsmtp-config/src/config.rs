@@ -238,7 +238,7 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
     pub enum SyslogSocket {
-        ///
+        /// Send logs using udp.
         Udp {
             /// Local address for the UDP stream.
             #[serde(default = "SyslogSocket::default_udp_local")]
@@ -247,17 +247,16 @@ pub mod field {
             #[serde(default = "SyslogSocket::default_udp_server")]
             server: std::net::SocketAddr,
         },
-        ///
+        /// Send logs using tcp.
         Tcp {
             ///
             #[serde(default = "SyslogSocket::default_tcp_server")]
             server: std::net::SocketAddr,
         },
-        ///
+        /// Send logs using a unix socket with a custom path.
         Unix {
-            ///
-            #[serde(default = "SyslogSocket::default_unix_path")]
-            path: std::path::PathBuf,
+            /// Path to the unix socket.
+            path: Option<std::path::PathBuf>,
         },
     }
 
@@ -265,7 +264,7 @@ pub mod field {
     ///
     /// The implementation is backended for `syslogd` or `journald`.
     #[serde_with::serde_as]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
     #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
     pub enum FieldServerLogSystem {
         /// Parameters for the `syslogd` backend.
@@ -274,8 +273,10 @@ pub mod field {
             #[serde_as(as = "serde_with::DisplayFromStr")]
             level: tracing::Level,
             ///
+            #[serde(default)]
             format: SyslogFormat,
             ///
+            #[serde(default)]
             socket: SyslogSocket,
         },
         ///

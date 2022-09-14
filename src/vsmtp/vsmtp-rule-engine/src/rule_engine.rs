@@ -70,6 +70,8 @@ impl RuleEngine {
         Self::new_inner(config, &either::Left(input))
     }
 
+    // NOTE: since a single engine instance is created for each postq emails
+    //       no instrument attribute are placed here.
     /// create a rule engine instance from a script.
     ///
     /// # Errors
@@ -79,18 +81,19 @@ impl RuleEngine {
         Self::new_inner(config, &either::Right(input))
     }
 
+    #[tracing::instrument(name = "building-rules", skip_all)]
     fn new_inner(
         config: std::sync::Arc<Config>,
         input: &RuleEngineInput<'_>,
     ) -> anyhow::Result<Self> {
-        log::debug!("building vsl compiler and modules ...");
-
         let (server_config, app_config) = (
             serde_json::to_string(&config.server)
                 .context("failed to convert the server configuration to json")?,
             serde_json::to_string(&config.app)
                 .context("failed to convert the app configuration to json")?,
         );
+
+        tracing::debug!("Building vSL compiler ...");
 
         let mut compiler = Self::new_compiler(config);
 
@@ -126,17 +129,21 @@ impl RuleEngine {
             }
         });
 
-        log::debug!("compiling rhai scripts ...");
+        tracing::debug!("Compiling vSL api ...");
 
         let vsl_rhai_module =
             rhai::Shared::new(Self::compile_api(&compiler).context("failed to compile vsl's api")?);
         compiler.register_global_module(vsl_rhai_module.clone());
 
         let main_vsl = match &input {
-            either::Either::Left(Some(path)) => std::fs::read_to_string(&path)
-                .context(format!("failed to read file: '{}'", path.display()))?,
+            either::Either::Left(Some(path)) => {
+                tracing::info!("Analyzing vSL rules at {path:?}");
+
+                std::fs::read_to_string(&path)
+                    .context(format!("failed to read file: '{}'", path.display()))?
+            }
             either::Either::Left(None) => {
-                log::warn!(
+                tracing::warn!(
                     "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default."
                 );
                 include_str!("../api/default_rules.rhai").to_string()
@@ -150,7 +157,7 @@ impl RuleEngine {
 
         let directives = Self::extract_directives(&compiler, &ast)?;
 
-        log::debug!("done.");
+        tracing::info!("Done.");
 
         Ok(Self {
             ast,
@@ -170,10 +177,12 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
+    #[tracing::instrument(name = "rule", skip_all, fields(stage = %smtp_state))]
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: State) -> Status {
         let directive_set = if let Some(directive_set) = self.directives.get(&smtp_state) {
             directive_set
         } else {
+            tracing::debug!("No rules for the current state, skipping.");
             return Status::Next;
         };
 
@@ -188,16 +197,16 @@ impl RuleEngine {
                 {
                     let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
-                    let (stage, directive_name, message_id) = match (
-                        header.args.get("stage"),
-                        header.args.get("directive"),
-                        header.args.get("id"),
-                    ) {
-                        (Some(stage), Some(directive_name), Some(message_id)) => {
+                    let (stage, directive_name, message_id) =
+                        if let (Some(stage), Some(directive_name), Some(message_id)) = (
+                            header.args.get("stage"),
+                            header.args.get("directive"),
+                            header.args.get("id"),
+                        ) {
                             (stage, directive_name, message_id)
-                        }
-                        _ => return Status::DelegationResult,
-                    };
+                        } else {
+                            return Status::DelegationResult;
+                        };
 
                     if *stage == smtp_state.to_string() {
                         if let Some(d) = directive_set
@@ -224,10 +233,12 @@ impl RuleEngine {
                                     context.metadata.skipped = None;
                                     *rule_state.context().write().unwrap() = context;
                                 }
-                                Err(err) => {
-                                    log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}");
+                                Err(error) => {
+                                    tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
                                 }
                             }
+
+                            tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
 
                             rule_state.resume();
                             &directive_set[d..]
@@ -248,22 +259,24 @@ impl RuleEngine {
         #[allow(clippy::single_match_else)]
         match self.execute_directives(rule_state, directive_set, smtp_state) {
             Ok(status) => {
+                tracing::debug!(?status);
+
                 if status.is_finished() {
-                    log::debug!(
-                        "[{smtp_state}] the rule engine will skip all rules because of the previous result."
+                    tracing::debug!(
+                        "The rule engine will skip all rules because of the previous result."
                     );
                     rule_state.skipping(status.clone());
                 }
 
                 status
             }
-            Err(_) => {
-                // TODO: keep the error for the `deferred` info
+            Err(err) => {
+                tracing::error!(%err);
+                // TODO: keep the error for the `deferred` info.
 
                 // if an error occurs, the engine denies the connection by default.
-                let state_if_error = deny();
-                rule_state.skipping(state_if_error.clone());
-                state_if_error
+                rule_state.skipping(deny());
+                deny()
             }
         }
     }
@@ -311,6 +324,7 @@ impl RuleEngine {
         let mut status = Status::Next;
 
         for directive in directives {
+            tracing::debug!("Executing {} '{}'", directive.as_ref(), directive.name());
             status = directive.execute(state, &self.ast, stage)?;
 
             if status != Status::Next {

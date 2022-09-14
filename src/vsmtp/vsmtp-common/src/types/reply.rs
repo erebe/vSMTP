@@ -110,12 +110,10 @@ impl<'de> serde::Deserialize<'de> for Reply {
 impl Reply {
     ///
     pub fn new(code: ReplyCode, text: impl Into<String>) -> Self {
-        let text = text.into();
-        if text.contains("\r\n") {
-            log::info!("found a '\\r\\n' in your {code:?}, this is not required as they will be inserted automatically");
+        Self {
+            code,
+            text: text.into(),
         }
-
-        Self { code, text }
     }
 
     ///
