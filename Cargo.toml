@@ -48,7 +48,7 @@ members = [
   "src/vsmtp/vsmtp-test",
 ]
 
-exclude = ["fuzz", "benchmarks/stress", "src/vsmtp/vsmtp-docs"]
+exclude = ["fuzz", "benchmarks/stress"]
 
 [[bin]]
 name = "vsmtp"

@@ -155,11 +155,6 @@ macro_rules! get_fmt {
             .with_thread_ids(true)
             .with_target(true)
             .with_ansi(false)
-        // TODO: uncomment this before committing.
-        // .compact()
-        // .with_thread_ids(false)
-        // .with_target(false)
-        // .with_ansi(false)
     };
 }
 
