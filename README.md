@@ -11,20 +11,16 @@
 
 <div align="center">
   <a href="https://www.viridit.com">
-    <img src="https://img.shields.io/badge/visit-website-green"
+    <img src="https://img.shields.io/badge/visit-viridit.com-green?logo=internet"
       alt="website" />
   </a>
   <a href="https://vsmtp.rs">
-    <img src="https://img.shields.io/badge/read-book-yellowgreen"
+    <img src="https://img.shields.io/badge/read-vsmtp.rs-yellowgreen"
       alt="documentation" />
   </a>
   <a href="https://discord.gg/N8JGBRBshf">
     <img src="https://img.shields.io/badge/join-discord-blue?logo=discord&color=blueviolet"
       alt="discord" />
-  </a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0">
-    <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg"
-      alt="License GPLv3" />
   </a>
 </div>
 
@@ -33,13 +29,13 @@
     <img src="https://img.shields.io/badge/rustc-1.60%2B-informational.svg?logo=rust"
       alt="Rustc Version 1.60.0" />
   </a>
-  <a href="https://crates.io/crates/vsmtp">
-    <img src="https://img.shields.io/crates/v/vsmtp.svg"
-      alt="Crates.io" />
-  </a>
   <a href="https://docs.rs/vsmtp">
     <img src="https://docs.rs/vsmtp/badge.svg"
       alt="docs" />
+  </a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0">
+    <img src="https://img.shields.io/github/license/viridIT/vSMTP?color=blue"
+      alt="License GPLv3" />
   </a>
 </div>
 
@@ -58,13 +54,20 @@
   </a>
 </div>
 
-<!--
 <div align="center">
   <a href="https://github.com/viridIT/vSMTP/releases">
-    <img src="https://img.shields.io/github/v/release/viridIT/vSMTP">
+    <img src="https://img.shields.io/github/v/release/viridIT/vSMTP?logo=github"
+      alt="Latest Release">
+  </a>
+  <a href="https://crates.io/crates/vsmtp">
+    <img src="https://img.shields.io/crates/v/vsmtp.svg"
+      alt="Crates.io" />
+  </a>
+  <a href="https://hub.docker.com/repository/docker/viridit/vsmtp">
+    <img src="https://img.shields.io/docker/pulls/viridit/vsmtp?logo=docker"
+      alt="Docker Pulls" >
   </a>
 </div>
--->
 
 ---
 
