@@ -43,7 +43,7 @@ tracing = { version = "0.1.36", default-features = false, features = [
   "std",
   "attributes",
 ] }
-anyhow = { version = "1.0.64", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 
 thiserror = { version = "1.0.32", default-features = false }
 

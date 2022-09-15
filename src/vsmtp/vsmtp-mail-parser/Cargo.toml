@@ -28,7 +28,7 @@ serde = { version = "1.0.144", default-features = false, features = [
 ] }
 
 tokio-stream = { version = "0.1.9", default-features = false }
-anyhow = { version = "1.0.64", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 
 # TODO : remove me
 convert_case = "0.5.0"

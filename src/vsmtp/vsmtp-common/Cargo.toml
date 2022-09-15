@@ -28,7 +28,7 @@ pre-release-replacements = [
 vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.0" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.0" }
 
-anyhow = { version = "1.0.64", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }
 serde_json = { version = "1.0.85", default-features = false, features = [
     "std",
