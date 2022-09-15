@@ -6,7 +6,7 @@ on:
 
 jobs:
   check-release:
-    runs-on:  ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Get bump method
         id: get-bump-method
@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+      - name: Install lintian
+        run: sudo apt-get update && sudo apt-get install -y lintian
       - uses: Swatinem/rust-cache@v2
       - run: |
           git clone https://github.com/viridIT/cargo-deb.git
