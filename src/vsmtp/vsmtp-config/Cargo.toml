@@ -66,7 +66,7 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
   "tokio-runtime",
 ] }
 
-semver = { version = "1.0.13", default-features = false, features = [
+semver = { version = "1.0.14", default-features = false, features = [
   "std",
   "serde",
 ] }
