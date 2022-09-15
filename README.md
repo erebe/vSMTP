@@ -26,8 +26,8 @@
 
 <div align="center">
   <a href="https://www.whatrustisit.com">
-    <img src="https://img.shields.io/badge/rustc-1.60%2B-informational.svg?logo=rust"
-      alt="Rustc Version 1.60.0" />
+    <img src="https://img.shields.io/badge/rustc-1.62.1%2B-informational.svg?logo=rust"
+      alt="Rustc Version 1.62.1" />
   </a>
   <a href="https://docs.rs/vsmtp">
     <img src="https://docs.rs/vsmtp/badge.svg"

@@ -16,7 +16,7 @@ readme = "README.md"
 keywords = ["vsmtp", "mta", "smtp", "server", "mail"]
 categories = ["email"]
 
-rust-version = "1.60"
+rust-version = "1.62.1"
 default-run = "vsmtp"
 
 build = "build.rs"
