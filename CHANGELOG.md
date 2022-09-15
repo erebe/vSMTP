@@ -18,6 +18,7 @@ release. They will however *never* happen in a patch release.
 * Message size limit configuration. (#580)
 
 ### Changed
+* BREAKING: MSRV bumped to 1.62.1 (#601)
 * `--no-daemon` flag do not print logs to the standard output anymore. (#579)
 * Refactorization of services parsing. (#576)
 * `vsmtp` & `vqueue` `--version` flag display build commit. (#585)
