@@ -45,7 +45,7 @@ viaspf = { version = "0.4.1", default-features = false, features = [
     "trust-dns-resolver",
 ] }
 
-sha2 = { version = "0.10.3", default-features = false, features = ["std"] }
+sha2 = { version = "0.10.6", default-features = false, features = ["std"] }
 rsa = { version = "0.6.1", default-features = false, features = [
     "std",
     "pem",
