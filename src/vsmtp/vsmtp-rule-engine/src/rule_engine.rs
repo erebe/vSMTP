@@ -114,7 +114,7 @@ impl RuleEngine {
             .register_static_module("toml", toml_module.clone());
 
         compiler.set_module_resolver(match &input {
-            // TODO: handle canonicalization
+            // TODO: handle canonicalization.
             either::Either::Left(Some(path)) => FileModuleResolver::new_with_path_and_extension(
                 path.parent().ok_or_else(|| {
                     anyhow::anyhow!(
@@ -133,6 +133,7 @@ impl RuleEngine {
 
         let vsl_rhai_module =
             rhai::Shared::new(Self::compile_api(&compiler).context("failed to compile vsl's api")?);
+
         compiler.register_global_module(vsl_rhai_module.clone());
 
         let main_vsl = match &input {
@@ -270,8 +271,8 @@ impl RuleEngine {
 
                 status
             }
-            Err(err) => {
-                tracing::error!(%err);
+            Err(error) => {
+                tracing::error!(%error);
                 // TODO: keep the error for the `deferred` info.
 
                 // if an error occurs, the engine denies the connection by default.
@@ -342,18 +343,19 @@ impl RuleEngine {
 
         // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
+        engine.on_parse_token(|token, _, _| {
+            match token {
+                // remap 'is' operator to '==', it's easier than creating a new operator.
+                // NOTE: warning => "is" is a reserved keyword in rhai's tokens, maybe change to "eq" ?
+                rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
+                rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
+                // Pass through all other tokens unchanged
+                _ => token,
+            }
+        });
+
         engine
             .disable_symbol("eval")
-            .on_parse_token(|token, _, _| {
-                match token {
-                    // remap 'is' operator to '==', it's easier than creating a new operator.
-                    // NOTE: warning => "is" is a reserved keyword in rhai's tokens, maybe change to "eq" ?
-                    rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
-                    rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
-                    // Pass through all other tokens unchanged
-                    _ => token,
-                }
-            })
             .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
@@ -369,6 +371,8 @@ impl RuleEngine {
             )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
+
+        engine.set_fast_operators(false);
 
         engine
     }

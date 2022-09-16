@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-            # Workspace stable
+          # Workspace stable
           - toolchain: stable
             path: ./Cargo.toml
             # Workspace MSRV

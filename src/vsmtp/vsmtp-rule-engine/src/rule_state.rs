@@ -222,7 +222,9 @@ impl RuleState {
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
                 "MSG" => Ok(Some(rhai::Dynamic::from(message.clone()))),
                 _ => Ok(None),
-            })
+            });
+
+        engine
             .register_global_module(rule_engine.std_module.clone())
             .register_global_module(rule_engine.vsl_rhai_module.clone())
             .register_static_module("sys", rule_engine.vsl_native_module.clone())
@@ -244,6 +246,8 @@ impl RuleState {
             )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
+
+        engine.set_fast_operators(false);
 
         engine
     }
