@@ -52,7 +52,7 @@ rsa = { version = "0.6.1", default-features = false, features = [
     # "serde", # TODO
 ] }
 
-sha1 = { version = "0.10.2", optional = true, default-features = false, features = [
+sha1 = { version = "0.10.5", optional = true, default-features = false, features = [
     "std",
 ] }
 
