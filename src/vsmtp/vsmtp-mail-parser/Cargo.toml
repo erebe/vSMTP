@@ -27,7 +27,7 @@ serde = { version = "1.0.144", default-features = false, features = [
     "derive",
 ] }
 
-tokio-stream = { version = "0.1.9", default-features = false }
+tokio-stream = { version = "0.1.10", default-features = false }
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 
 # TODO : remove me
