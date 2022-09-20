@@ -38,7 +38,7 @@ clap = { version = "3.2.22", default-features = false, features = [
     "std",
     "derive",
 ] }
-itertools = { version = "0.10.4", default-features = false, features = [
+itertools = { version = "0.10.5", default-features = false, features = [
     "use_std",
 ] }
 serde_json = { version = "1.0.85", default-features = false, features = [
