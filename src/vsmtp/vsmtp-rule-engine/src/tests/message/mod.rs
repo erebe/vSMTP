@@ -22,6 +22,7 @@ use crate::{
 use vsmtp_common::{
     addr, mail_context::MessageMetadata, state::State, status::Status, CodeID, ReplyOrCodeID,
 };
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{BodyType, Mail, MailHeaders, MailMimeParser, MessageBody};
 
 #[test]
@@ -30,7 +31,7 @@ fn test_email_context_empty() {
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
 
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
@@ -47,7 +48,7 @@ fn test_email_context_raw() {
     let config = get_default_config("./tmp/app");
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
@@ -69,7 +70,7 @@ fn test_email_context_mail() {
     let config = get_default_config("./tmp/app");
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
@@ -131,7 +132,7 @@ fn test_email_bcc() {
     let config = get_default_config("./tmp/app");
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["bcc", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
@@ -153,7 +154,7 @@ fn test_email_add_get_set_header() {
         Some(rules_path!["mutate_header", "main.vsl"]),
     )
     .unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 

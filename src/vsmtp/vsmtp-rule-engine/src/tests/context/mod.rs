@@ -19,13 +19,14 @@ use vsmtp_common::{
     addr, auth::Credentials, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
     status::Status, CodeID, ReplyOrCodeID,
 };
+use vsmtp_config::DnsResolvers;
 
 #[test]
 fn test_context() {
     let config = get_default_config("./tmp/app");
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();

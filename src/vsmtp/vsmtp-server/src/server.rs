@@ -22,7 +22,7 @@ use anyhow::Context;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{CodeID, ConnectionKind};
-use vsmtp_config::{get_rustls_config, Config, Resolvers};
+use vsmtp_config::{get_rustls_config, Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -30,7 +30,7 @@ pub struct Server {
     config: std::sync::Arc<Config>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -79,7 +79,7 @@ impl Server {
     pub fn new(
         config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -258,7 +258,7 @@ impl Server {
         mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -292,6 +292,7 @@ impl Server {
 mod tests {
 
     use crate::{socket_bind_anyhow, ProcessMessage, Server};
+    use vsmtp_config::DnsResolvers;
     use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
@@ -321,7 +322,7 @@ mod tests {
             let s = Server::new(
                 config.clone(),
                 std::sync::Arc::new(RuleEngine::new(config.clone(), None).unwrap()),
-                std::sync::Arc::new(std::collections::HashMap::new()),
+                std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap()),
                 queue_manager,
                 working.0,
                 delivery.0,

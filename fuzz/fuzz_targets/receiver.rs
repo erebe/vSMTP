@@ -2,7 +2,7 @@
 use libfuzzer_sys::fuzz_target;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind};
-use vsmtp_config::Config;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
@@ -66,15 +66,13 @@ fuzz_target!(|data: &[u8]| {
     );
 
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config).unwrap();
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+    let dns_resolvers = std::sync::Arc::new(
+        DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),
+    );
 
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(conn.receive(
-            None,
-            re,
-            std::sync::Arc::new(std::collections::HashMap::new()),
-            queue_manager,
-            &mut FuzzOnMail,
-        ));
+        .block_on(conn.receive(None, re, dns_resolvers, queue_manager, &mut FuzzOnMail));
 });

@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use vsmtp_config::build_resolvers;
+use vsmtp_config::DnsResolvers;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{socket_bind_anyhow, ProcessMessage, Server};
 use vsmtp_test::config;
@@ -38,7 +38,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                     RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
                 );
 
-                let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
+                let resolvers = std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap());
 
                 Server::new(
                     config.clone(),

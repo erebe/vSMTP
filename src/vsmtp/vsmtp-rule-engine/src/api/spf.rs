@@ -53,7 +53,7 @@ mod security {
             )
         };
 
-        let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
+        let resolver = srv.resolvers.get_resolver_root();
 
         match mail_from.full().parse() {
             Err(..) => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),

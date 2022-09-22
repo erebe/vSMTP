@@ -16,6 +16,7 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{state::State, status::Status, CodeID, ReplyOrCodeID};
+use vsmtp_config::DnsResolvers;
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_test::root_example;
@@ -104,7 +105,7 @@ fn test_services() {
     let config = std::sync::Arc::new(config);
 
     let re = RuleEngine::new(config.clone(), Some(rules_path!["service", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
@@ -159,7 +160,7 @@ fn test_config_display() {
     let config = std::sync::Arc::new(config);
 
     let re = RuleEngine::new(config.clone(), Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 

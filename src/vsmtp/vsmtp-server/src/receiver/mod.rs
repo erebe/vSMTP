@@ -23,7 +23,7 @@ use vsmtp_common::{
     status::Status,
     CodeID, ConnectionKind,
 };
-use vsmtp_config::Resolvers;
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
 use vsmtp_rule_engine::RuleEngine;
 
@@ -83,7 +83,7 @@ where
         &mut self,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
@@ -188,7 +188,7 @@ where
     async fn receive_secured<M>(
         &mut self,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
@@ -257,7 +257,7 @@ where
         &mut self,
         tls_config: std::sync::Arc<rustls::ServerConfig>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>

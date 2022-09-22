@@ -82,13 +82,14 @@ mod config;
 mod default;
 mod ensure;
 mod rustls_helper;
-mod trust_dns_helper;
 mod virtual_tls;
 
-pub use config::{field, Config};
+mod dns_resolver;
 
+pub use dns_resolver::DnsResolvers;
+
+pub use config::{field, Config};
 pub use rustls_helper::get_rustls_config;
-pub use trust_dns_helper::{build_resolvers, Resolvers};
 
 use builder::{Builder, WantsVersion};
 

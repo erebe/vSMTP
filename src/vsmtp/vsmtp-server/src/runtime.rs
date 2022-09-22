@@ -16,7 +16,7 @@
 */
 use crate::{delivery, processing, ProcessMessage, Server};
 use anyhow::Context;
-use vsmtp_config::Config;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
@@ -89,7 +89,7 @@ pub fn start_runtime(
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
 
     let resolvers = std::sync::Arc::new(
-        vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+        DnsResolvers::from_config(&config).context("could not initialize dns")?,
     );
 
     let _tasks_delivery = init_runtime(

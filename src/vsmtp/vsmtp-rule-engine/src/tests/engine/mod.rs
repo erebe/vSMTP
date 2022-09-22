@@ -21,6 +21,7 @@ use vsmtp_common::{
     status::Status,
     CodeID, Envelop, ReplyOrCodeID,
 };
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::MessageBody;
 
 #[test]
@@ -98,7 +99,7 @@ fn test_rule_state() {
     let config = std::sync::Arc::new(config);
 
     let rule_engine = RuleEngine::from_script(config.clone(), "#{}").unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();

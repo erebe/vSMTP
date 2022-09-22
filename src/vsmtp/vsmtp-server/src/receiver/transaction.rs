@@ -20,7 +20,7 @@ use vsmtp_common::{
     addr, auth::Mechanism, event::Event, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
     status::Status, Address, CodeID, Envelop, ReplyOrCodeID,
 };
-use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
+use vsmtp_config::{field::TlsSecurityLevel, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -354,7 +354,7 @@ impl Transaction {
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> Transaction {
         let rule_state = RuleState::with_connection(

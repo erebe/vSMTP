@@ -78,7 +78,7 @@ mod tests {
         let input = std::io::Cursor::new(vec![]);
 
         let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove".into();
+        config.server.queues.dirpath = "./tmp/cmd_remove1".into();
         let config = std::sync::Arc::new(config);
 
         let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
@@ -118,7 +118,7 @@ mod tests {
         let input = std::io::Cursor::new(b"yes\n" as &[u8]);
 
         let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove".into();
+        config.server.queues.dirpath = "./tmp/cmd_remove2".into();
         let config = std::sync::Arc::new(config);
 
         let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
@@ -159,7 +159,7 @@ mod tests {
         let input = std::io::Cursor::new(b"no\n" as &[u8]);
 
         let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove".into();
+        config.server.queues.dirpath = "./tmp/cmd_remove3".into();
         let config = std::sync::Arc::new(config);
 
         let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);

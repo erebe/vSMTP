@@ -21,12 +21,12 @@ use crate::{
 };
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{state::State, status::Status, transfer::EmailTransferStatus};
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     rule_engine: std::sync::Arc<RuleEngine>,
 ) {
@@ -75,7 +75,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
 #[allow(clippy::too_many_lines)]
 pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<RuleEngine>,
@@ -160,7 +160,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
 
     add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
         SenderOutcome::MoveToDead => {
             queue_manager
                 .move_to(&queue, &QueueID::Dead, &mail_context)
@@ -213,10 +213,7 @@ mod tests {
             .write_both(&QueueID::Deliver, &ctx, &local_msg())
             .await
             .unwrap();
-
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_delivery_queue(
             config.clone(),
@@ -266,10 +263,7 @@ mod tests {
             .write_both(&QueueID::Deliver, &ctx, &local_msg())
             .await
             .unwrap();
-
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_delivery_queue(
             config.clone(),

@@ -22,7 +22,7 @@ use vsmtp_common::{
     state::State,
     status::Status,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 #[derive(Debug, thiserror::Error)]
@@ -47,7 +47,7 @@ pub struct Callback {
     ///
     pub rule_engine: std::sync::Arc<RuleEngine>,
     ///
-    pub resolvers: std::sync::Arc<Resolvers>,
+    pub resolvers: std::sync::Arc<DnsResolvers>,
     ///
     pub queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ///

@@ -23,8 +23,8 @@ use vsmtp_common::{addr, CodeID, ReplyOrCodeID};
 use vsmtp_common::{
     mail_context::MessageMetadata, state::State, status::Status, transfer::Transfer,
 };
-use vsmtp_config::build_resolvers;
 use vsmtp_config::field::FieldServerVirtual;
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{MailMimeParser, MessageBody};
 use vsmtp_test::config::local_test;
 
@@ -339,7 +339,7 @@ async fn test_lookup() {
 
     let config = std::sync::Arc::new(config);
     let re = RuleEngine::new(config.clone(), Some(rules_path!["actions", "utils.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
@@ -377,7 +377,7 @@ fn test_in_domain_and_server_name_sni() {
     let config = std::sync::Arc::new(config);
 
     let re = RuleEngine::new(config.clone(), Some(rules_path!["actions", "utils.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);

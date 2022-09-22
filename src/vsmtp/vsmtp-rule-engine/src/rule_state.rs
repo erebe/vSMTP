@@ -31,7 +31,7 @@ use vsmtp_common::{
     mail_context::{ConnectionContext, MailContext},
     Envelop,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
 /// a state container that bridges rhai's & rust contexts.
@@ -65,7 +65,7 @@ impl RuleState {
     #[must_use]
     pub fn new(
         config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
     ) -> Self {
@@ -131,7 +131,7 @@ impl RuleState {
     #[must_use]
     pub fn with_connection(
         config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
@@ -168,7 +168,7 @@ impl RuleState {
     #[must_use]
     pub fn with_context(
         config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,

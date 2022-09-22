@@ -31,7 +31,7 @@ use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{mail_context::MailContext, state::State, status::Status};
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
 /// a sharable rhai engine.
@@ -292,7 +292,7 @@ impl RuleEngine {
         &self,
         state: State,
         config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_context: MailContext,
         mail_message: MessageBody,

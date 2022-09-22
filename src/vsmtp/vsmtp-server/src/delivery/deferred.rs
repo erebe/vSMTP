@@ -20,12 +20,12 @@ use crate::{
 };
 use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 
 // TODO: what should be the procedure on failure here ?
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
 ) {
     let queued = match queue_manager.list(&QueueID::Deferred) {
@@ -64,7 +64,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 #[tracing::instrument(name = "deferred", skip_all, fields(message_id = %process_message.message_id))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
@@ -73,7 +73,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     let (mut mail_context, mail_message) =
         queue_manager.get_both(&QueueID::Deferred, &process_message.message_id)?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
         SenderOutcome::MoveToDead => queue_manager
             .move_to(&QueueID::Deferred, &QueueID::Dead, &mail_context)
             .await
@@ -127,9 +127,7 @@ mod tests {
             .await
             .unwrap();
 
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_deferred_queue(
             config.clone(),
@@ -171,10 +169,7 @@ mod tests {
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
             .await
             .unwrap();
-
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_deferred_queue(
             config.clone(),

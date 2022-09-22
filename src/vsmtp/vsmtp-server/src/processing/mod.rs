@@ -17,13 +17,13 @@
 use crate::{delegate, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{state::State, status::Status, transfer::EmailTransferStatus};
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -56,7 +56,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
 async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -172,7 +172,7 @@ mod tests {
 
         let config = std::sync::Arc::new(config);
 
-        let resolvers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
         let queue_manager =
             <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
@@ -214,10 +214,7 @@ mod tests {
 
         let (delivery_sender, mut delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
-
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_working_queue(
             config.clone(),
@@ -273,10 +270,7 @@ mod tests {
 
         let (delivery_sender, _delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
-
-        let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
-        );
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_working_queue(
             config.clone(),

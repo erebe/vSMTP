@@ -23,7 +23,6 @@ use crate::{
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
-use trust_dns_resolver::TokioAsyncResolver;
 use vqueue::GenericQueueManager;
 use vsmtp_common::transfer::EmailTransferStatus;
 use vsmtp_common::{
@@ -32,7 +31,7 @@ use vsmtp_common::{
     status::Status,
     transfer::{ForwardTarget, Transfer},
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
@@ -45,7 +44,7 @@ mod deliver;
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {
@@ -104,7 +103,7 @@ pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: std::sync::Arc<DnsResolvers>,
 ) -> SenderOutcome {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
@@ -125,10 +124,6 @@ pub async fn send_mail(
 
     let message_content = message_body.inner().to_string();
 
-    let root_server_resolver = resolvers
-        .get(&config.server.domain)
-        .expect("root server's resolver is missing");
-
     let from = &message_ctx.envelop.mail_from;
 
     let futures = acc
@@ -137,10 +132,11 @@ pub async fn send_mail(
         .map(|(key, to)| match key {
             Transfer::Forward(forward_target) => {
                 let resolver = match &forward_target {
-                    ForwardTarget::Domain(domain) => resolvers.get(domain),
-                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => None,
-                }
-                .unwrap_or(root_server_resolver);
+                    ForwardTarget::Domain(domain) => resolvers.get_resolver_or_root(domain),
+                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
+                        resolvers.get_resolver_root()
+                    }
+                };
 
                 Forward::new(forward_target.clone(), resolver).deliver(
                     config,
@@ -151,14 +147,12 @@ pub async fn send_mail(
                 )
             }
             Transfer::Deliver => Deliver::new({
-                resolvers
-                    .get(
-                        to.get(0)
-                            .expect("at least one element in the group")
-                            .address
-                            .domain(),
-                    )
-                    .unwrap_or(root_server_resolver)
+                resolvers.get_resolver_or_root(
+                    to.get(0)
+                        .expect("at least one element in the group")
+                        .address
+                        .domain(),
+                )
             })
             .deliver(config, &message_ctx.metadata, from, to, &message_content),
             Transfer::Mbox => {

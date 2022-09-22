@@ -18,6 +18,7 @@
 use vqueue::GenericQueueManager;
 use vsmtp_common::{CodeID, ConnectionKind};
 use vsmtp_config::Config;
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
@@ -123,7 +124,7 @@ where
         RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
     );
 
-    let resolvers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();

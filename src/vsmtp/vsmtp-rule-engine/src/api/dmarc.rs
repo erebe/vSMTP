@@ -60,7 +60,7 @@ mod dmarc_rhai {
     /// Get a valid DMARC record for the domain
     #[rhai_fn(global, pure, return_raw)]
     pub fn get_dmarc_record(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
-        let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
+        let resolver = server.resolvers.get_resolver_root();
 
         let txt_record = tokio::task::block_in_place(move || {
             tokio::runtime::Handle::current()

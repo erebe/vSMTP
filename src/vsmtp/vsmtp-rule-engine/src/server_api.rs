@@ -15,12 +15,12 @@
  *
 */
 use vqueue::GenericQueueManager;
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]
 pub struct ServerAPI {
     pub config: std::sync::Arc<Config>,
-    pub resolvers: std::sync::Arc<Resolvers>,
+    pub resolvers: std::sync::Arc<DnsResolvers>,
     pub queue_manager: std::sync::Arc<dyn GenericQueueManager>,
 }

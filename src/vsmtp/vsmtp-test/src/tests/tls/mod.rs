@@ -24,6 +24,7 @@ const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
 use tokio_rustls::rustls;
 use vsmtp_common::ConnectionKind;
+use vsmtp_config::DnsResolvers;
 use vsmtp_config::{get_rustls_config, Config};
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::Connection;
@@ -101,7 +102,7 @@ async fn test_starttls(
                 )
                 .unwrap(),
             ),
-            std::sync::Arc::new(std::collections::HashMap::new()),
+            std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap()),
             <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
                 .unwrap(),
             working_sender,
@@ -264,7 +265,7 @@ async fn test_tls_tunneled(
             ),
             get_tls_config(&server_config),
             rule_engine.clone(),
-            std::sync::Arc::new(std::collections::HashMap::new()),
+            std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap()),
             <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
                 .unwrap(),
             working_sender,

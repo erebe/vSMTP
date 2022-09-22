@@ -19,7 +19,7 @@ use super::Connection;
 use super::{rsasl_callback::ValidationVSL, Callback};
 use vqueue::GenericQueueManager;
 use vsmtp_common::{auth::Mechanism, mail_context::ConnectionContext, CodeID};
-use vsmtp_config::{field::FieldServerSMTPAuth, Resolvers};
+use vsmtp_config::{field::FieldServerSMTPAuth, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
@@ -96,7 +96,7 @@ where
         &mut self,
         _auth_config: FieldServerSMTPAuth,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         helo_domain: &mut Option<String>,
         args: (Mechanism, Option<Vec<u8>>),

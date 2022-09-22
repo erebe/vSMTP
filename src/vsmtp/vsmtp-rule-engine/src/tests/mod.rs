@@ -35,7 +35,7 @@ mod rules;
 mod types;
 
 pub mod helpers {
-    use vsmtp_config::Config;
+    use vsmtp_config::{Config, DnsResolvers};
 
     use crate::{rule_engine::RuleEngine, rule_state::RuleState};
 
@@ -91,7 +91,7 @@ pub mod helpers {
 
         let config = std::sync::Arc::new(config);
         let re = RuleEngine::from_script(config.clone(), "#{}").unwrap();
-        let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         let queue_manager =
             <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())

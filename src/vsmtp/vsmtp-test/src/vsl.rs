@@ -17,13 +17,13 @@
 
 use crate::config::{local_ctx, local_msg, local_test};
 use vsmtp_common::state::State;
+use vsmtp_config::DnsResolvers;
 use vsmtp_rule_engine::RuleEngine;
 
 ///
 pub fn run(vsl: &'static str) {
     let config = std::sync::Arc::new(local_test());
-    let rule_engine =
-        RuleEngine::from_script(config.clone(), vsl).expect("Cannot create rule engine");
+    let rule_engine = RuleEngine::from_script(config.clone(), vsl).expect("rule engine");
 
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
@@ -32,7 +32,7 @@ pub fn run(vsl: &'static str) {
     let _output = rule_engine.just_run_when(
         State::Connect,
         config,
-        std::sync::Arc::new(vsmtp_common::collection! {}),
+        std::sync::Arc::new(DnsResolvers::from_system_conf().expect("resolvers")),
         queue_manager,
         local_ctx(),
         local_msg(),

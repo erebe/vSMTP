@@ -182,10 +182,7 @@ fn user_exist(name: &str) -> bool {
 /// * Root resolver was not found.
 /// * Lookup failed.
 pub fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
-    let resolver = server
-        .resolvers
-        .get(&server.config.server.domain)
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
+    let resolver = server.resolvers.get_resolver_root();
 
     Ok(tokio::task::block_in_place(move || {
         tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
@@ -207,10 +204,7 @@ pub fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
         <std::net::IpAddr as std::str::FromStr>::from_str(ip)
             .context("fail to parse ip address in rlookup")
     );
-    let resolver = server
-        .resolvers
-        .get(&server.config.server.domain)
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
+    let resolver = server.resolvers.get_resolver_root();
 
     Ok(tokio::task::block_in_place(move || {
         tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))

@@ -300,7 +300,7 @@ impl Impl {
             });
         }
 
-        let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
+        let resolver = server.resolvers.get_resolver_root();
 
         let txt_record = tokio::task::block_in_place(move || {
             tokio::runtime::Handle::current()
