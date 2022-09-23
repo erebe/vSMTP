@@ -57,7 +57,7 @@ tokio = { version = "1.21.1", default-features = false, features = [
     "libc",
     "mio",
 ] }
-serde = { version = "1.0.144", default-features = false, features = [
+serde = { version = "1.0.145", default-features = false, features = [
     "std",
     "derive",
 ] }
