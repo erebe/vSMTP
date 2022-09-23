@@ -55,7 +55,7 @@ fn mime_parser() {
                 }
             ],
             content: MimeBodyType::Multipart(MimeMultipart {
-                preamble: "".to_string(),
+                preamble: String::new(),
                 parts: vec![
                     Mime {
                         headers: vec![
@@ -69,7 +69,7 @@ fn mime_parser() {
                             }
                         ],
                         content: MimeBodyType::Multipart(MimeMultipart {
-                            preamble: "".to_string(),
+                            preamble: String::new(),
                             parts: vec![
                                 Mime {
                                     headers: vec![
@@ -118,7 +118,7 @@ fn mime_parser() {
                                     ].into_iter().map(str::to_string).collect::<_>())
                                 }
                             ],
-                            epilogue: "".to_string()
+                            epilogue: String::new()
                         })
                     },
                     Mime {
@@ -156,7 +156,7 @@ fn mime_parser() {
                             ""
                         ].into_iter().map(str::to_string).collect::<_>())
                     }],
-                    epilogue: "".to_string()
+                    epilogue: String::new()
                 })
             }))
         }

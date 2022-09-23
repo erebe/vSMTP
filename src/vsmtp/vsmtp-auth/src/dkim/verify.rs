@@ -93,6 +93,7 @@ impl Signature {
                 .unwrap_or_default(),
         );
 
+        #[allow(clippy::option_if_let_else)]
         let body_hash = self.signing_algorithm.hash(match self.body_length {
             // TODO: handle policy
             Some(len) => &body[..std::cmp::min(body.len(), len)],

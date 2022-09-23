@@ -60,7 +60,7 @@ fn try_main() -> anyhow::Result<()> {
     let config = args.config.as_ref().map_or_else(
         || Ok(Config::default()),
         |config| {
-            std::fs::read_to_string(&config)
+            std::fs::read_to_string(config)
                 .context(format!("Cannot read file '{}'", config))
                 .and_then(|f| Config::from_toml(&f).context("File contains format error"))
                 .context("Cannot parse the configuration")

@@ -21,7 +21,7 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
         path.exists(),
         format!("private key path does not exists: '{}'", path.display())
     );
-    let mut reader = std::io::BufReader::new(std::fs::File::open(&path)?);
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
 
     let pem = rustls_pemfile::read_one(&mut reader)?
         .into_iter()

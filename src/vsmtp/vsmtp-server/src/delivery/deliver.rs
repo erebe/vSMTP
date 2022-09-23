@@ -42,10 +42,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     for i in queued {
-        let msg_id = match i {
-            Ok(msg_id) => msg_id,
-            Err(_) => todo!(),
-        };
+        let msg_id = i.map_or_else(|_| todo!(), |msg_id| msg_id);
 
         let _err = handle_one_in_delivery_queue(
             config.clone(),

@@ -94,10 +94,10 @@ impl<'de> serde::Deserialize<'de> for Reply {
                 }
                 let code = code.ok_or_else(|| serde::de::Error::missing_field("code"))?;
                 Ok(Reply::new(
-                    match enhanced {
-                        Some(enhanced) => ReplyCode::Enhanced { code, enhanced },
-                        None => ReplyCode::Code { code },
-                    },
+                    enhanced.map_or(ReplyCode::Code { code }, |enhanced| ReplyCode::Enhanced {
+                        code,
+                        enhanced,
+                    }),
                     text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
                 ))
             }
@@ -324,7 +324,7 @@ mod tests {
                 Reply::parse_str("250 ").unwrap(),
                 Reply {
                     code: ReplyCode::Code { code: 250 },
-                    text: "".to_string()
+                    text: String::new()
                 }
             );
         }

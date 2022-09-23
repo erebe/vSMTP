@@ -173,24 +173,20 @@ impl Signature {
     ///
     #[must_use]
     pub fn has_expired(&self, epsilon: u64) -> bool {
-        match self.expire_time {
-            Some(expire_time) => {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_secs();
+        self.expire_time.map_or(false, |expire_time| {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs();
 
-                let expire_time = expire_time.as_secs();
+            let expire_time = expire_time.as_secs();
 
-                // `now - x` or `x - now`, to get +/-
-                now.checked_sub(expire_time)
-                    .or_else(|| expire_time.checked_sub(now))
-                    .expect("cannot have 2 overflow")
-                    > epsilon
-            }
-            // expiration date is undefined
-            None => false,
-        }
+            // `now - x` or `x - now`, to get +/-
+            now.checked_sub(expire_time)
+                .or_else(|| expire_time.checked_sub(now))
+                .expect("cannot have 2 overflow")
+                > epsilon
+        })
     }
 
     ///

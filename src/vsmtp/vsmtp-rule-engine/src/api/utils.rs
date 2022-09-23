@@ -109,10 +109,7 @@ mod utils_rhai {
     #[rhai_fn(global)]
     #[must_use]
     pub fn get_root_domain(domain: &str) -> String {
-        match vsmtp_auth::get_root_domain(domain) {
-            Ok(root) => root,
-            Err(_) => domain.to_string(),
-        }
+        vsmtp_auth::get_root_domain(domain).map_or_else(|_| domain.to_string(), |root| root)
     }
 
     /// Get the root domain (the registrable part)

@@ -101,7 +101,7 @@ fn simple() {
                                 },
                             },],
                             content: MimeBodyType::Multipart(MimeMultipart {
-                                preamble: "".to_string(),
+                                preamble: String::new(),
                                 parts: vec![
                                     Mime {
                                         headers: vec![
@@ -148,7 +148,7 @@ fn simple() {
                                         )
                                     }
                                 ],
-                                epilogue: "".to_string()
+                                epilogue: String::new()
                             })
                         },
                         Mime {
@@ -199,7 +199,7 @@ fn simple() {
                             })
                         }
                     ],
-                    epilogue: "".to_string(),
+                    epilogue: String::new(),
                 })
             }))
         }

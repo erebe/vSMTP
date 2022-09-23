@@ -215,29 +215,24 @@ where
 
         let mut data = if session.are_we_first() {
             None
+        } else if let Some(data) = data {
+            Some(base64::decode(data).map_err(Error::InvalidBase64)?)
         } else {
-            match data {
-                Some(data) => Some(base64::decode(data).map_err(Error::InvalidBase64)?),
-                None => {
-                    writer.conn.send("334 \r\n").await.unwrap();
+            writer.conn.send("334 \r\n").await.unwrap();
 
-                    match writer.conn.read(READ_TIMEOUT).await {
-                        Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
-                        Ok(Some(buffer)) => {
-                            Some(base64::decode(buffer).map_err(Error::InvalidBase64)?)
-                        }
-                        Err(timeout) if timeout.kind() == std::io::ErrorKind::TimedOut => {
-                            return Err(Error::Timeout(timeout));
-                        }
-                        Ok(None) => {
-                            return Err(Error::ReadingMessage(std::io::Error::new(
-                                std::io::ErrorKind::UnexpectedEof,
-                                "connection closed",
-                            )))
-                        }
-                        Err(e) => return Err(Error::ReadingMessage(e)),
-                    }
+            match writer.conn.read(READ_TIMEOUT).await {
+                Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
+                Ok(Some(buffer)) => Some(base64::decode(buffer).map_err(Error::InvalidBase64)?),
+                Err(timeout) if timeout.kind() == std::io::ErrorKind::TimedOut => {
+                    return Err(Error::Timeout(timeout));
                 }
+                Ok(None) => {
+                    return Err(Error::ReadingMessage(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        "connection closed",
+                    )))
+                }
+                Err(e) => return Err(Error::ReadingMessage(e)),
             }
         };
 

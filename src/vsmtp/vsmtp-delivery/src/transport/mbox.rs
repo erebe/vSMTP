@@ -115,7 +115,7 @@ fn write_content_to_mbox(
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&mbox)?;
+        .open(mbox)?;
 
     chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
         .with_context(|| format!("could not set owner for '{mbox:?}' mbox"))?;

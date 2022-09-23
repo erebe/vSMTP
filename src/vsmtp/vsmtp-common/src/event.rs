@@ -213,22 +213,20 @@ impl Event {
     }
 
     fn parse_arg_ehlo(args: &[&str]) -> Result<Self, CodeID> {
-        match Self::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Self::EhloCmd(out)),
-            Err(_) => Err(CodeID::SyntaxErrorParams),
-        }
+        Self::parse_domain_or_address_literal(args)
+            .map_or(Err(CodeID::SyntaxErrorParams), |out| Ok(Self::EhloCmd(out)))
     }
 
     pub(super) fn from_path(input: &str, may_be_empty: bool) -> Result<String, CodeID> {
         if input.starts_with('<') && input.ends_with('>') {
             match &input[1..input.len() - 1] {
-                "" if may_be_empty => Ok("".to_string()),
+                "" if may_be_empty => Ok(String::new()),
                 // TODO: should accept and ignore A-d-l ("source route")
                 // https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.2
-                mailbox => match addr::parse_email_address(mailbox) {
-                    Ok(mailbox) => Ok(mailbox.to_string()),
-                    Err(_) => Err(CodeID::SyntaxErrorParams),
-                },
+                mailbox => addr::parse_email_address(mailbox)
+                    .map_or(Err(CodeID::SyntaxErrorParams), |mailbox| {
+                        Ok(mailbox.to_string())
+                    }),
             }
         } else {
             Err(CodeID::SyntaxErrorParams)

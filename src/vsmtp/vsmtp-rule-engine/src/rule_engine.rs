@@ -140,7 +140,7 @@ impl RuleEngine {
             either::Either::Left(Some(path)) => {
                 tracing::info!("Analyzing vSL rules at {path:?}");
 
-                std::fs::read_to_string(&path)
+                std::fs::read_to_string(path)
                     .context(format!("failed to read file: '{}'", path.display()))?
             }
             either::Either::Left(None) => {

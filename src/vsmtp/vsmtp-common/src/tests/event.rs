@@ -39,7 +39,7 @@ fn dot_stuffing() {
 
 #[test]
 fn data_valid() {
-    assert_eq!(Event::parse_data("".to_string()), Ok(Some("".to_string())));
+    assert_eq!(Event::parse_data(String::new()), Ok(Some(String::new())));
     assert_eq!(
         Event::parse_data("foobar helo".to_string()),
         Ok(Some("foobar helo".to_string()))
@@ -486,7 +486,7 @@ fn parse_path() {
         Event::from_path("foo@bar", true),
         Err(CodeID::SyntaxErrorParams)
     );
-    assert_eq!(Event::from_path("<>", true), Ok("".to_string()));
+    assert_eq!(Event::from_path("<>", true), Ok(String::new()));
     assert_eq!(
         Event::from_path("<>", false),
         Err(CodeID::SyntaxErrorParams)

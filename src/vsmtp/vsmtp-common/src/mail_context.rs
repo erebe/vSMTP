@@ -101,7 +101,7 @@ impl MailContext {
     /// * file found but failed to read.
     /// * file read but failed to serialize.
     pub fn from_file_path_sync(file: &std::path::Path) -> anyhow::Result<MailContext> {
-        let content = std::fs::read_to_string(&file)
+        let content = std::fs::read_to_string(file)
             .with_context(|| format!("Cannot read file '{}'", file.display()))?;
 
         Self::from_json(&content)

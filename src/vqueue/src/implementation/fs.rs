@@ -129,7 +129,7 @@ impl GenericQueueManager for QueueManager {
     async fn remove_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()> {
         let mut ctx_filepath = Self::get_root_folder(&self.config, queue)
             .join(queue.to_string())
-            .join(&msg_id);
+            .join(msg_id);
 
         ctx_filepath.set_extension("json");
 
@@ -178,7 +178,7 @@ impl GenericQueueManager for QueueManager {
     fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext> {
         let mut ctx_filepath = Self::get_root_folder(&self.config, queue)
             .join(queue.to_string())
-            .join(&msg_id);
+            .join(msg_id);
 
         ctx_filepath.set_extension("json");
 
@@ -196,7 +196,7 @@ impl GenericQueueManager for QueueManager {
     ) -> anyhow::Result<DetailedMailContext> {
         let mut ctx_filepath = Self::get_root_folder(&self.config, queue)
             .join(queue.to_string())
-            .join(&msg_id);
+            .join(msg_id);
         ctx_filepath.set_extension("json");
 
         let file = std::fs::OpenOptions::new().read(true).open(&ctx_filepath)?;

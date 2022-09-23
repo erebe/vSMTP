@@ -111,7 +111,7 @@ async fn test_starttls(
         .await
     });
 
-    let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT).unwrap());
+    let mut reader = std::io::BufReader::new(std::fs::File::open(TEST_SERVER_CERT).unwrap());
 
     let pem = rustls_pemfile::certs(&mut reader)
         .unwrap()
@@ -274,7 +274,7 @@ async fn test_tls_tunneled(
         .await
     });
 
-    let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT)?);
+    let mut reader = std::io::BufReader::new(std::fs::File::open(TEST_SERVER_CERT)?);
 
     let pem = rustls_pemfile::certs(&mut reader)
         .unwrap()

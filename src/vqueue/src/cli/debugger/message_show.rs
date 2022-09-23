@@ -20,9 +20,9 @@ use crate::{
 };
 
 impl Commands {
-    pub(crate) async fn message_show<OUT: std::io::Write + Send + Sync>(
+    pub(crate) fn message_show<OUT: std::io::Write + Send + Sync>(
         msg_id: &str,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: &std::sync::Arc<impl GenericQueueManager + Send + Sync>,
         format: &MessageShowFormat,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
@@ -89,9 +89,13 @@ mod tests {
             .await
             .unwrap();
 
-        Commands::message_show(msg_id, queue_manager, &MessageShowFormat::Json, &mut output)
-            .await
-            .unwrap();
+        Commands::message_show(
+            msg_id,
+            &queue_manager,
+            &MessageShowFormat::Json,
+            &mut output,
+        )
+        .unwrap();
 
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
@@ -166,8 +170,7 @@ Message body:
             .await
             .unwrap();
 
-        Commands::message_show(msg_id, queue_manager, &MessageShowFormat::Eml, &mut output)
-            .await
+        Commands::message_show(msg_id, &queue_manager, &MessageShowFormat::Eml, &mut output)
             .unwrap();
 
         pretty_assertions::assert_eq!(

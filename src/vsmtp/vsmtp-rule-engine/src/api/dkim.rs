@@ -330,10 +330,7 @@ impl Impl {
             .map_err(|inner| DkimErrors::KeyParsingFailed { inner })?;
 
         Ok(if on_multiple_key_records == "first" {
-            match keys.into_iter().next() {
-                Some(i) => vec![i],
-                None => vec![],
-            }
+            keys.into_iter().next().map_or_else(Vec::new, |i| vec![i])
         } else {
             keys
         })

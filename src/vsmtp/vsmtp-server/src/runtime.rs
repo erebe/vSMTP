@@ -148,7 +148,7 @@ pub fn start_runtime(
     );
 
     let error_handler_sig = error_handler.0.clone();
-    let mut signals = signal_hook::iterator::Signals::new(&[
+    let mut signals = signal_hook::iterator::Signals::new([
         // Send by `systemctl stop` (and then sending `SIGKILL`)
         signal_hook::consts::SIGTERM,
         // Ctrl+C on a terminal

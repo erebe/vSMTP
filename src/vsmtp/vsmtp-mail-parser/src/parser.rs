@@ -108,11 +108,9 @@ impl MailMimeParser {
 
     fn check_boundary(&self, line: &str) -> Option<BoundaryType> {
         // we start by checking if the stack as any boundary.
-        match self.boundary_stack.last() {
-            Some(b) => match get_boundary_type(line, b) {
-                None => {
-                    // else we need to check the entire stack (except for the last element)
-                    // in case of a bad formatted multipart message.
+        self.boundary_stack.last().and_then(|b| {
+            get_boundary_type(line, b).map_or_else(
+                || {
                     if self.boundary_stack[..self.boundary_stack.len() - 1]
                         .iter()
                         .any(|b| get_boundary_type(line, b).is_some())
@@ -121,13 +119,10 @@ impl MailMimeParser {
                     } else {
                         None
                     }
-                }
-                // if the current scoped boundary is detected, we can return it's type.
-                Some(t) => Some(t),
-            },
-            // if their are no boundaries to check, we just return none.
-            _ => None,
-        }
+                },
+                Some,
+            )
+        })
     }
 
     fn as_regular_body(&self, content: &mut &[&str]) -> ParserResult<Vec<String>> {

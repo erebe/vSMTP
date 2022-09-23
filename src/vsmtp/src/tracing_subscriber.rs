@@ -96,6 +96,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
                     })
                 })
             }
+            #[allow(clippy::option_if_let_else)]
             (SyslogFormat::Rfc3164, SyslogSocket::Unix { path }) => match path {
                 Some(custom_path) => syslog::unix_custom(get_3164(), custom_path).map(|logger| {
                     tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {
@@ -122,6 +123,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
                     })
                 })
             }
+            #[allow(clippy::option_if_let_else)]
             (SyslogFormat::Rfc5424, SyslogSocket::Unix { path }) => match path {
                 Some(custom_path) => syslog::unix_custom(get_5424(), custom_path).map(|logger| {
                     tracing_subscriber::fmt::writer::OptionalWriter::some(SyslogWriter {

@@ -21,7 +21,7 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
         path.exists(),
         format!("certificate path does not exists: '{}'", path.display())
     );
-    let mut reader = std::io::BufReader::new(std::fs::File::open(&path)?);
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
 
     let pem = rustls_pemfile::certs(&mut reader)?
         .into_iter()

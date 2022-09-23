@@ -91,7 +91,7 @@ impl Maildir {
         if path.exists() {
             tracing::debug!("Folder already exists.");
         } else {
-            std::fs::create_dir(&path)
+            std::fs::create_dir(path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
 
             tracing::trace!(

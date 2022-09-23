@@ -18,7 +18,7 @@
 use std::process::Command;
 fn main() {
     let output = Command::new("git")
-        .args(&["rev-parse", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .output()
         .expect("failed to get git commit hash");
 
