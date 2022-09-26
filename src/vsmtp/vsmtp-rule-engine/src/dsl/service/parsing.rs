@@ -24,6 +24,7 @@ use super::{cmd::parsing::CmdParser, smtp::parsing::SmtpParser, Parser};
 pub fn parse_service(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
+    _state: &mut rhai::Dynamic,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
         // service keyword, then the name of it.

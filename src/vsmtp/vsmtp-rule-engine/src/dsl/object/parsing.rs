@@ -25,6 +25,7 @@ use crate::error::CompilationError;
 pub fn parse_object(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
+    _state: &mut rhai::Dynamic,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
         // object keyword, then the name of the object.
@@ -90,6 +91,7 @@ pub fn parse_object(
 pub fn create_object(
     context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
     input: &[rhai::Expression<'_>],
+    _state: &rhai::Dynamic,
 ) -> EngineResult<rhai::Dynamic> {
     let object_name = input[0].get_string_value().unwrap().to_string();
     let object_type = input[1].get_string_value().unwrap().to_string();

@@ -231,16 +231,22 @@ impl RuleState {
             .register_static_module("toml", rule_engine.toml_module.clone())
             // FIXME: the following 4 lines should be remove for performance improvement.
             //        need to check out how to construct directives as a module.
-            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
-            .register_custom_syntax_raw("action", parse_action, true, create_action)
-            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
-            .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw(
+            .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_with_state_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_with_state_raw(
+                "delegate",
+                parse_delegation,
+                true,
+                create_delegation,
+            )
+            .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_with_state_raw(
                 "service",
                 parse_service,
                 true,
                 move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-                      input: &[rhai::Expression<'_>]| {
+                      input: &[rhai::Expression<'_>],
+                      _state: &rhai::Dynamic| {
                     create_service(context, input, &config)
                 },
             )

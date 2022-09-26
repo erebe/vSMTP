@@ -90,7 +90,7 @@ serde = { version = "1.0.145", default-features = false, features = [
   "std",
   "derive",
 ] }
-rhai = { version = "1.10.0", default-features = false, features = [
+rhai = { version = "1.10.1", default-features = false, features = [
   "std",
   "unchecked",
   "sync",
