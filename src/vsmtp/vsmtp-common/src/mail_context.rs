@@ -35,7 +35,7 @@ pub struct MessageMetadata {
     /// result of the spf evaluation.
     pub spf: Option<spf::Result>,
     /// result of the dkim verification
-    pub dkim: Option<dkim::Result>,
+    pub dkim: Option<dkim::VerificationResult>,
 }
 
 /// Representation of one connection

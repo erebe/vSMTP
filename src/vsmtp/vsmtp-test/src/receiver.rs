@@ -159,7 +159,7 @@ macro_rules! test_receiver {
     ($input:expr, $output:expr) => {
         test_receiver! {
             on_mail => &mut $crate::receiver::DefaultMailHandler {},
-            with_config => $crate::config::local_test(),
+            with_config => std::sync::Arc::new($crate::config::local_test()),
             $input,
             $output
         }
@@ -167,7 +167,7 @@ macro_rules! test_receiver {
     (on_mail => $resolver:expr, $input:expr, $output:expr) => {
         test_receiver! {
             on_mail => $resolver,
-            with_config => $crate::config::local_test(),
+            with_config => std::sync::Arc::new($crate::config::local_test()),
             $input,
             $output
         }
@@ -185,7 +185,7 @@ macro_rules! test_receiver {
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
-            std::sync::Arc::new($config),
+            $config,
         )
         .await
     };
@@ -203,7 +203,7 @@ macro_rules! test_receiver {
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
-            std::sync::Arc::new($config),
+            $config,
         )
         .await
     };

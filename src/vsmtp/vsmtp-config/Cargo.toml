@@ -21,10 +21,12 @@ categories = ["data-structures"]
 [package.metadata.release]
 pre-release-replacements = [
   { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"{{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", version = "1.3.0" }
+vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.0" }
 
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.15", default-features = false, features = [
@@ -34,8 +36,8 @@ tracing = { version = "0.1.36", default-features = false, features = ["std"] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }
 
 users = { version = "0.11.0", default-features = false }
-
-serde = { version = "1.0.145", default-features = false, features = [
+base64 = { version = "0.13.0", default-features = false }
+serde = { version = "1.0.144", default-features = false, features = [
   "std",
   "derive",
 ] }
@@ -44,7 +46,12 @@ strum = { version = "0.24.1", default-features = false, features = [
   "std",
   "derive",
 ] }
-
+ring-compat = { version = "0.4.1", default-features = false, features = [
+  "aead",
+  "alloc",
+  "digest",
+  "signature",
+] }
 toml = { version = "0.5.9", default-features = false }
 
 rustls = { version = "0.20.6", default-features = false, features = [
@@ -53,6 +60,7 @@ rustls = { version = "0.20.6", default-features = false, features = [
 ] }
 rustls-pemfile = { version = "1.0.1", default-features = false }
 
+pem = { version = "1.1.0", default-features = false }
 rsa = { version = "0.6.1", default-features = false, features = [
   "std",
   "pem",

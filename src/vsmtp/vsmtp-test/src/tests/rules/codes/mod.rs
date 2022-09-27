@@ -27,7 +27,7 @@ async fn info_message() {
     );
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "HELO someone\r\n",
             "HELO foo\r\n",
@@ -68,6 +68,7 @@ async fn deny_message() {
         )
         .unwrap(),
     );
+    let config = arc!(config);
 
     assert!(test_receiver! {
         with_config => config.clone(),
@@ -130,7 +131,7 @@ async fn accept_message() {
 
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "HELO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "admin", "password"))),

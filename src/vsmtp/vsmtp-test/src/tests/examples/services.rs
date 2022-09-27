@@ -21,7 +21,7 @@ use vsmtp_rule_engine::RuleEngine;
 #[test]
 fn test_cmd_service() {
     RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
+        arc!(vsmtp_config::Config::default()),
         Some(root_example!["services", "cmd.vsl"]),
     )
     .unwrap();
@@ -30,7 +30,7 @@ fn test_cmd_service() {
 #[test]
 fn test_smtp_service() {
     RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
+        arc!(vsmtp_config::Config::default()),
         Some(root_example!["services", "smtp.vsl"]),
     )
     .unwrap();
@@ -39,7 +39,7 @@ fn test_smtp_service() {
 #[test]
 fn test_csv_service() {
     RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
+        arc!(vsmtp_config::Config::default()),
         Some(root_example!["services", "csv-database.vsl"]),
     )
     .unwrap();
@@ -49,7 +49,7 @@ fn test_csv_service() {
 #[ignore = "mysql service automatically connects to the desired address, which does not exists when testing. To mock."]
 fn test_mysql_service() {
     RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
+        arc!(vsmtp_config::Config::default()),
         Some(root_example!["services", "mysql-database.vsl"]),
     )
     .unwrap();

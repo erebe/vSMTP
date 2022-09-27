@@ -49,7 +49,7 @@ async fn simple() {
 
     let (client, server) = test_tls_tunneled_with_auth(
         "testserver.com",
-        std::sync::Arc::new(config),
+        arc!(config),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
@@ -82,13 +82,11 @@ async fn simple() {
         .collect::<Vec<_>>(),
         20456,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )

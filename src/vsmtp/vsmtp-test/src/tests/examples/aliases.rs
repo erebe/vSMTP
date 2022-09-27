@@ -56,7 +56,7 @@ async fn test_aliases() {
 
     assert!(test_receiver! {
         on_mail => &mut MailHandler { },
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "HELO foo\r\n",
             "MAIL FROM: <someone@example.com>\r\n",

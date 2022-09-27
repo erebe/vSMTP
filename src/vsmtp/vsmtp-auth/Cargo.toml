@@ -44,19 +44,23 @@ viaspf = { version = "0.4.1", default-features = false, features = [
     "tokio-timeout",
     "trust-dns-resolver",
 ] }
-
-sha2 = { version = "0.10.6", default-features = false, features = ["std"] }
+ring-compat = { version = "0.4.1", default-features = false, features = [
+    "aead",
+    "alloc",
+    "digest",
+    "signature",
+] }
 rsa = { version = "0.6.1", default-features = false, features = [
     "std",
     "pem",
     # "serde", # TODO
 ] }
 
+sha2 = { version = "0.10.6", default-features = false, features = ["std"] }
 sha1 = { version = "0.10.5", optional = true, default-features = false, features = [
     "std",
 ] }
 
-convert_case = { version = "0.6.0", default-features = false }
 addr = { version = "0.15.6", default-features = false, features = [
     "std",
     # "serde", # TODO
@@ -73,7 +77,9 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
     "serde-config",
     "tokio-runtime",
 ] }
+
 rand = "0.8.5"
+vsmtp-test = { path = "../vsmtp-test" }
 
 [package.metadata.docs.rs]
 all-features = true

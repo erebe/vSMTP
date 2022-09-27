@@ -66,6 +66,8 @@ async fn test_message() {
     let toml = include_str!("../../../../../../examples/message/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
 
+    let config = arc!(config);
+
     // testing the forward rule.
     assert!(test_receiver! {
         with_config => config.clone(),

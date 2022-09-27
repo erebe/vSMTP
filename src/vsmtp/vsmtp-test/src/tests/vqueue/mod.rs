@@ -7,7 +7,7 @@ use vqueue::QueueID;
 #[tokio::test]
 async fn init_success() {
     let config = local_test();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     assert_eq!(format!("{:?}", queue_manager), "QueueManager { .. }");
@@ -18,7 +18,7 @@ async fn init_success() {
 fn init_fail() {
     let mut config = local_test();
     config.server.queues.dirpath = "/var/spool/vsmtp".into(); // no write access
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let _queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config).unwrap_err();
 }
@@ -26,7 +26,7 @@ fn init_fail() {
 #[tokio::test]
 async fn write_get_and_delete_ctx() {
     let config = local_test();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config).unwrap();
 
     for i in [
@@ -49,7 +49,7 @@ async fn write_get_and_delete_ctx() {
 async fn write_ctx_after_dir_deleted() {
     let mut config = local_test();
     config.server.queues.dirpath = "./tmp/spool2".into();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config.clone()).unwrap();
 
     let i = QueueID::Working;
@@ -69,7 +69,7 @@ async fn write_ctx_after_dir_deleted() {
 async fn write_msg_after_dir_deleted() {
     let mut config = local_test();
     config.server.queues.dirpath = "./tmp/spool3".into();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config.clone()).unwrap();
 
     let msg_id = "write_msg_after_dir_deleted".to_string();
@@ -86,7 +86,7 @@ async fn write_msg_after_dir_deleted() {
 #[tokio::test]
 async fn write_get_and_delete_msg() {
     let config = local_test();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config).unwrap();
 
     let msg_id = "write_get_and_delete-msg".to_string();
@@ -100,7 +100,7 @@ async fn write_get_and_delete_msg() {
 #[tokio::test]
 async fn write_get_and_delete_both() {
     let config = local_test();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config).unwrap();
 
     for i in [
@@ -128,7 +128,7 @@ async fn write_get_and_delete_both() {
 #[tokio::test]
 async fn move_same_queue() {
     let config = local_test();
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config.clone()).unwrap();
 
     let ctx = local_ctx();
@@ -144,7 +144,7 @@ async fn move_to() {
     config.server.queues.dirpath = "./tmp/spool_move_to".into();
     let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
 
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
     let queue_manager = vqueue::fs::QueueManager::init(config.clone()).unwrap();
 
     let mut ctx = local_ctx();

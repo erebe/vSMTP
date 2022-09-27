@@ -76,12 +76,13 @@ fn make_bench<M>(
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = vsmtp_test::test_receiver! {
-                on_mail => &mut mail_handler.clone(),
-                with_config => config.clone().as_ref().clone(),
-                input,
-                output
-            };
+            let _ = vsmtp_test::receiver::test_receiver_inner(
+                &mut mail_handler.clone(),
+                input.as_bytes(),
+                output.as_bytes(),
+                config.clone(),
+            )
+            .await;
         })
 }
 

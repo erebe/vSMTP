@@ -22,7 +22,7 @@ use vsmtp_rule_engine::RuleEngine;
 
 ///
 pub fn run(vsl: &'static str) {
-    let config = std::sync::Arc::new(local_test());
+    let config = arc!(local_test());
     let rule_engine = RuleEngine::from_script(config.clone(), vsl).expect("rule engine");
 
     let queue_manager =

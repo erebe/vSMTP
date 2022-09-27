@@ -23,7 +23,7 @@ async fn test_message_size_ko() {
     config.server.message_size_limit = 1_000_000;
 
     test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",

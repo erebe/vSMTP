@@ -22,7 +22,7 @@ async fn test_dnsbl_1() {
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
 
     assert!(test_receiver! {
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "EHLO [222.11.16.196]\r\n",
         ].concat(),
@@ -41,7 +41,7 @@ async fn test_dnsbl_2() {
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "HELO foo\r\n",
             "QUIT\r\n",

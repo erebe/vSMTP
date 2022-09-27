@@ -71,7 +71,6 @@ impl Builder<WantsValidate> {
                 },
                 logs: FieldServerLogs {
                     filepath: srv_logs.filepath,
-                    format: srv_logs.format,
                     level: srv_logs.level,
                     system: None,
                 },
@@ -84,7 +83,6 @@ impl Builder<WantsValidate> {
                 smtp: FieldServerSMTP {
                     rcpt_count_max: smtp_opt.rcpt_count_max,
                     disable_ehlo: smtp_opt.disable_ehlo,
-                    required_extension: smtp_opt.required_extension,
                     error: FieldServerSMTPError {
                         soft_count: smtp_error.error.soft_count,
                         hard_count: smtp_error.error.hard_count,
@@ -111,7 +109,6 @@ impl Builder<WantsValidate> {
                 },
                 logs: FieldAppLogs {
                     filepath: app_logs.filepath,
-                    format: app_logs.format,
                 },
             },
         })

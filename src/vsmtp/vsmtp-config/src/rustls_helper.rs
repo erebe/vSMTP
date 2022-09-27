@@ -110,7 +110,9 @@ pub fn get_rustls_config(
                                 sct_list: None,
                             },
                         )
-                        .map_err(|e| anyhow::anyhow!("cannot add sni to resolver: {e}"))?;
+                        .map_err(|e| {
+                            anyhow::anyhow!("cannot add sni to resolver '{domain}': {e}")
+                        })?;
 
                     Ok(sni_resolver)
                 },

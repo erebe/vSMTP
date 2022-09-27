@@ -139,7 +139,7 @@ fn test_config_display() {
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
         .with_system_dns()
-        .with_virtual_entries(&[VirtualEntry {
+        .with_virtual_entries(std::iter::once(VirtualEntry {
             domain: "domain@example.com".to_string(),
             tls: Some((
                 root_example!["config/tls/certificate.crt"]
@@ -152,7 +152,7 @@ fn test_config_display() {
                     .to_string(),
             )),
             dns: Some(FieldServerDNS::System),
-        }])
+        }))
         .unwrap()
         .validate()
         .unwrap();

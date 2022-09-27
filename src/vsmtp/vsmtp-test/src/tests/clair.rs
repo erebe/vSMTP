@@ -225,7 +225,7 @@ async fn test_receiver_12() {
     config.server.smtp.disable_ehlo = true;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         ["EHLO postmaster\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
@@ -243,7 +243,7 @@ async fn max_rcpt_reached() {
     config.server.smtp.rcpt_count_max = 5;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "MAIL FROM:<foo@bar.com>\r\n",
@@ -468,7 +468,7 @@ async fn test_receiver_9() {
     config.server.smtp.error.soft_count = 5;
     config.server.smtp.error.hard_count = 10;
 
-    let config = config;
+    let config = std::sync::Arc::new(config);
 
     let before_test = std::time::Instant::now();
     assert!(test_receiver! {

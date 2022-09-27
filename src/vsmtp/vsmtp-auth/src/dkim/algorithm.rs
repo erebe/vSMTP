@@ -31,38 +31,31 @@ pub enum SigningAlgorithm {
     /// See the implementation <https://docs.rs/sha2>
     #[strum(serialize = "rsa-sha256")]
     RsaSha256,
+    ///
+    #[strum(serialize = "ed25519-sha256")]
+    Ed25519Sha256,
 }
 
 impl SigningAlgorithm {
-    /// Is the instance compatible with the `hash_algo`, exposed in the `DNS record`?
-    #[must_use]
-    pub fn is_supported(&self, hash_algo: &[HashAlgorithm]) -> bool {
-        hash_algo.iter().any(|a| match (a, self) {
-            #[cfg(feature = "historic")]
-            (HashAlgorithm::Sha1, SigningAlgorithm::RsaSha1) => true,
-            (HashAlgorithm::Sha256, SigningAlgorithm::RsaSha256) => true,
-            #[cfg(feature = "historic")]
-            (HashAlgorithm::Sha1, SigningAlgorithm::RsaSha256)
-            | (HashAlgorithm::Sha256, SigningAlgorithm::RsaSha1) => false,
-        })
+    pub(super) fn support_any(self, hash_algo: &[HashAlgorithm]) -> bool {
+        let supported = self.get_supported_hash_algo();
+        hash_algo.iter().any(|a| supported.contains(a))
     }
 
-    /// Return the hashed `data` using the algorithm.
-    #[must_use]
-    pub fn hash<T: AsRef<[u8]>>(self, data: T) -> Vec<u8> {
+    pub(super) const fn get_supported_hash_algo(self) -> &'static [HashAlgorithm] {
         match self {
             #[cfg(feature = "historic")]
-            SigningAlgorithm::RsaSha1 => {
-                let mut digest = <sha1::Sha1 as sha1::Digest>::new();
-                sha1::Digest::update(&mut digest, data);
-                sha1::Digest::finalize(digest).to_vec()
-            }
-            SigningAlgorithm::RsaSha256 => {
-                let mut digest = <sha2::Sha256 as sha2::Digest>::new();
-                sha2::Digest::update(&mut digest, data);
-                sha2::Digest::finalize(digest).to_vec()
-            }
+            SigningAlgorithm::RsaSha1 => &[HashAlgorithm::Sha1],
+            #[cfg(feature = "historic")]
+            SigningAlgorithm::RsaSha256 => &[HashAlgorithm::Sha256, HashAlgorithm::Sha1],
+            _ => &[HashAlgorithm::Sha256],
         }
+    }
+
+    pub(super) fn get_preferred_hash_algo(self) -> &'static HashAlgorithm {
+        self.get_supported_hash_algo()
+            .first()
+            .expect("has at least one algorithm")
     }
 }
 
@@ -81,4 +74,24 @@ pub enum HashAlgorithm {
     Sha1,
     /// See the implementation <https://docs.rs/sha2>
     Sha256,
+}
+
+impl HashAlgorithm {
+    /// Return the hashed `data` using the algorithm.
+    #[must_use]
+    pub fn hash<T: AsRef<[u8]>>(self, data: T) -> Vec<u8> {
+        match self {
+            #[cfg(feature = "historic")]
+            HashAlgorithm::Sha1 => {
+                let mut digest = <sha1::Sha1 as sha1::Digest>::new();
+                sha1::Digest::update(&mut digest, data);
+                sha1::Digest::finalize(digest).to_vec()
+            }
+            HashAlgorithm::Sha256 => {
+                let mut digest = <sha2::Sha256 as sha2::Digest>::new();
+                sha2::Digest::update(&mut digest, data);
+                sha2::Digest::finalize(digest).to_vec()
+            }
+        }
+    }
 }

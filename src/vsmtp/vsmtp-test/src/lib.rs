@@ -25,6 +25,14 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 
+///
+#[macro_export]
+macro_rules! arc {
+    (  $x:expr  ) => {
+        std::sync::Arc::new($x)
+    };
+}
+
 /// Config shortcut
 pub mod config;
 

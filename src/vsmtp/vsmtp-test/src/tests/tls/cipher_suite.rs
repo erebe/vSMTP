@@ -38,12 +38,10 @@ async fn test_all_cipher_suite() {
         config.server.tls.as_mut().unwrap().protocol_version = vec![i.version().version];
         config.server.tls.as_mut().unwrap().cipher_suite = vec![i.suite()];
 
-        let config = std::sync::Arc::new(config);
+        let config = arc!(config);
 
         let (client, server) = test_tls_tunneled(
-            std::sync::Arc::new(
-                RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-            ),
+            arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
             "testserver.com",
             config,
             vec!["QUIT\r\n".to_string()],
@@ -56,13 +54,11 @@ async fn test_all_cipher_suite() {
             .collect::<Vec<_>>(),
             19980 + u32::from(i.suite().get_u16()) % 100,
             |config| {
-                Some(std::sync::Arc::new(
-                    get_rustls_config(
-                        config.server.tls.as_ref().unwrap(),
-                        &config.server.r#virtual,
-                    )
-                    .unwrap(),
-                ))
+                Some(arc!(get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap()))
             },
             |io: &tokio_rustls::client::TlsStream<tokio::net::TcpStream>| {
                 assert_eq!(

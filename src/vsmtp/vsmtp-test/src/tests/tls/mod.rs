@@ -85,23 +85,19 @@ async fn test_starttls(
                 client_stream,
             ),
             if with_valid_config {
-                Some(std::sync::Arc::new(
-                    get_rustls_config(
-                        server_config.server.tls.as_ref().unwrap(),
-                        &server_config.server.r#virtual,
-                    )
-                    .unwrap(),
-                ))
+                Some(arc!(get_rustls_config(
+                    server_config.server.tls.as_ref().unwrap(),
+                    &server_config.server.r#virtual,
+                )
+                .unwrap()))
             } else {
                 None
             },
-            std::sync::Arc::new(
-                RuleEngine::new(
-                    server_config.clone(),
-                    server_config.app.vsl.filepath.clone(),
-                )
-                .unwrap(),
-            ),
+            arc!(RuleEngine::new(
+                server_config.clone(),
+                server_config.app.vsl.filepath.clone(),
+            )
+            .unwrap()),
             std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap()),
             <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
                 .unwrap(),
@@ -129,7 +125,7 @@ async fn test_starttls(
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config));
+    let connector = tokio_rustls::TlsConnector::from(arc!(config));
 
     let client = tokio::spawn(async move {
         let mut stream = vsmtp_server::AbstractIO::new(
@@ -212,13 +208,11 @@ async fn test_tls_tunneled_with_auth(
     get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
     after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
-    let rule_engine = std::sync::Arc::new(
-        RuleEngine::new(
-            server_config.clone(),
-            server_config.app.vsl.filepath.clone(),
-        )
-        .unwrap(),
-    );
+    let rule_engine = arc!(RuleEngine::new(
+        server_config.clone(),
+        server_config.app.vsl.filepath.clone(),
+    )
+    .unwrap());
 
     test_tls_tunneled(
         rule_engine,
@@ -287,15 +281,13 @@ async fn test_tls_tunneled(
         root_store.add(&i).unwrap();
     }
 
-    let client_config = std::sync::Arc::new(
-        rustls::ClientConfig::builder()
-            .with_safe_default_cipher_suites()
-            .with_safe_default_kx_groups()
-            .with_safe_default_protocol_versions()
-            .unwrap()
-            .with_root_certificates(root_store)
-            .with_no_client_auth(),
-    );
+    let client_config = arc!(rustls::ClientConfig::builder()
+        .with_safe_default_cipher_suites()
+        .with_safe_default_kx_groups()
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(root_store)
+        .with_no_client_auth());
 
     let connector = tokio_rustls::TlsConnector::from(client_config.clone());
 

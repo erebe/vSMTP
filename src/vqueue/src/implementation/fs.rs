@@ -167,7 +167,7 @@ impl GenericQueueManager for QueueManager {
             .context(format!("Error from read dir '{}'", queue_path.display()))?
             .map(|i| match i {
                 Err(e) => Err(anyhow::Error::new(e)),
-                Ok(entry) => match entry.path().file_name().map(std::ffi::OsStr::to_str) {
+                Ok(entry) => match entry.path().file_stem().map(std::ffi::OsStr::to_str) {
                     Some(Some(name)) => Ok(name.to_string()),
                     _ => Err(anyhow::anyhow!("Invalid file name")),
                 },

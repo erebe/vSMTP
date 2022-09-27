@@ -27,12 +27,10 @@ async fn simple() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
 
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(
-            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-        ),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         config,
         [
@@ -62,13 +60,11 @@ async fn simple() {
         .collect::<Vec<_>>(),
         20466,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )
@@ -84,12 +80,10 @@ async fn starttls_under_tunnel() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
 
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(
-            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-        ),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         config,
         ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
@@ -107,13 +101,11 @@ async fn starttls_under_tunnel() {
         .collect::<Vec<_>>(),
         20467,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )
@@ -129,12 +121,10 @@ async fn config_ill_formed() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
 
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(
-            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-        ),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
         config,
         vec!["NOOP\r\n".to_string()],
@@ -170,12 +160,10 @@ async fn sni() {
         },
     );
 
-    let config = std::sync::Arc::new(config);
+    let config = arc!(config);
 
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(
-            RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-        ),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "second.testserver.com",
         config,
         ["NOOP\r\n", "QUIT\r\n"]
@@ -192,13 +180,11 @@ async fn sni() {
         .collect::<Vec<_>>(),
         20469,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )

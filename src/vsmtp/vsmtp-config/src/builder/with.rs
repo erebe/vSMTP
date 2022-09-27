@@ -260,7 +260,6 @@ impl Builder<WantsServerLogs> {
     pub fn with_default_logs_settings(self) -> Builder<WantsServerQueues> {
         self.with_logs_settings(
             FieldServerLogs::default_filepath(),
-            FieldServerLogs::default_format(),
             &FieldServerLogs::default_level(),
         )
     }
@@ -270,14 +269,12 @@ impl Builder<WantsServerLogs> {
     pub fn with_logs_settings(
         self,
         filepath: impl Into<std::path::PathBuf>,
-        format: impl Into<String>,
         level: &[tracing_subscriber::filter::Directive],
     ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
                 filepath: filepath.into(),
-                format: format.into(),
                 level: level.to_vec(),
             },
         }
@@ -378,6 +375,7 @@ impl Builder<WantsServerSMTPConfig1> {
     }
 
     ///
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_rcpt_count_and_default(
         self,
@@ -388,7 +386,6 @@ impl Builder<WantsServerSMTPConfig1> {
                 parent: self.state,
                 rcpt_count_max,
                 disable_ehlo: FieldServerSMTP::default_disable_ehlo(),
-                required_extension: FieldServerSMTP::default_required_extension(),
             },
         }
     }
@@ -578,21 +575,10 @@ impl Builder<WantsAppLogs> {
         self,
         filepath: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsServerDNS> {
-        self.with_app_logs_level_and_format(filepath, FieldAppLogs::default_format())
-    }
-
-    ///
-    #[must_use]
-    pub fn with_app_logs_level_and_format(
-        self,
-        filepath: impl Into<std::path::PathBuf>,
-        format: impl Into<String>,
-    ) -> Builder<WantsServerDNS> {
         Builder::<WantsServerDNS> {
             state: WantsServerDNS {
                 parent: self.state,
                 filepath: filepath.into(),
-                format: format.into(),
             },
         }
     }
@@ -685,14 +671,14 @@ impl Builder<WantsServerVirtual> {
     /// * one private key is not valid
     pub fn with_virtual_entries(
         self,
-        entries: &[VirtualEntry],
+        entries: impl Iterator<Item = VirtualEntry>,
     ) -> anyhow::Result<Builder<WantsValidate>> {
         let mut r#virtual = std::collections::BTreeMap::new();
 
         for entry in entries {
             r#virtual.insert(
                 entry.domain.clone(),
-                match (entry.tls.as_ref(), entry.dns.clone()) {
+                match (entry.tls.as_ref(), entry.dns) {
                     (None, None) => FieldServerVirtual {
                         tls: None,
                         dns: None,
@@ -703,7 +689,6 @@ impl Builder<WantsServerVirtual> {
                         dns: Some(dns_config),
                         dkim: None,
                     },
-                    // ::with_dns(dns_config.clone())?,
                     (Some((certificate, private_key)), None) => FieldServerVirtual {
                         tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
                         dns: None,

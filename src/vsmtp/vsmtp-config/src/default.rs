@@ -21,9 +21,8 @@ use crate::{
         FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
-        TlsSecurityLevel,
+        SyslogSocket, TlsSecurityLevel,
     },
-    field::{SyslogFormat, SyslogSocket},
     Config,
 };
 use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
@@ -162,7 +161,6 @@ impl Default for FieldServerLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
-            format: Self::default_format(),
             level: Self::default_level(),
             system: None,
         }
@@ -174,18 +172,8 @@ impl FieldServerLogs {
         "/var/log/vsmtp/vsmtp.log".into()
     }
 
-    pub(crate) fn default_format() -> String {
-        "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}".to_string()
-    }
-
     pub(crate) fn default_level() -> Vec<tracing_subscriber::filter::Directive> {
         vec!["warn".parse().expect("hardcoded value is valid")]
-    }
-}
-
-impl Default for SyslogFormat {
-    fn default() -> Self {
-        Self::Rfc5424
     }
 }
 
@@ -328,7 +316,6 @@ impl Default for FieldServerSMTP {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
             disable_ehlo: Self::default_disable_ehlo(),
-            required_extension: Self::default_required_extension(),
             error: FieldServerSMTPError::default(),
             timeout_client: FieldServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
@@ -344,13 +331,6 @@ impl FieldServerSMTP {
 
     pub(crate) const fn default_disable_ehlo() -> bool {
         false
-    }
-
-    pub(crate) fn default_required_extension() -> Vec<String> {
-        ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
-            .into_iter()
-            .map(str::to_string)
-            .collect()
     }
 
     // TODO: should be const and compile time checked
@@ -563,7 +543,6 @@ impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
-            format: Self::default_format(),
         }
     }
 }
@@ -571,9 +550,5 @@ impl Default for FieldAppLogs {
 impl FieldAppLogs {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
         "/var/log/vsmtp/app.log".into()
-    }
-
-    pub(crate) fn default_format() -> String {
-        "{d} - {m}{n}".to_string()
     }
 }

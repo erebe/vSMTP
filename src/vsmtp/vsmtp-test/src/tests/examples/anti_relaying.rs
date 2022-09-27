@@ -22,6 +22,7 @@ use crate::test_receiver;
 async fn test_check_relay() {
     let toml = include_str!("../../../../../../examples/anti_relaying/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
+    let config = arc!(config);
 
     assert!(test_receiver! {
         with_config => config.clone(),

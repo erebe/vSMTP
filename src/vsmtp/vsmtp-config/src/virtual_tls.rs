@@ -1,3 +1,5 @@
+use vsmtp_auth::dkim;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -58,6 +60,49 @@ impl<'de> serde::Deserialize<'de> for SecretFile<rsa::RsaPrivateKey> {
                 })
                 .map_err(serde::de::Error::custom)?,
             path: s.into(),
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SecretFile<dkim::PrivateKey> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let filepath = <String as serde::Deserialize>::deserialize(deserializer)?;
+
+        let rsa =
+            <rsa::RsaPrivateKey as rsa::pkcs8::DecodePrivateKey>::read_pkcs8_pem_file(&filepath)
+                .or_else(|_| {
+                    <rsa::RsaPrivateKey as rsa::pkcs1::DecodeRsaPrivateKey>::read_pkcs1_pem_file(
+                        &filepath,
+                    )
+                });
+
+        if let Ok(rsa) = rsa {
+            return Ok(Self {
+                inner: dkim::PrivateKey::Rsa(Box::new(rsa)),
+                path: filepath.into(),
+            });
+        }
+
+        let content = std::fs::read_to_string(&filepath)
+            .map_err(|e| serde::de::Error::custom(format!("Read '{filepath}' produced: '{e}'")))?;
+
+        let content_pem = pem::parse(content).map_err(|e| {
+            serde::de::Error::custom(format!("Parsing '{filepath}' produced: '{e}'"))
+        })?;
+
+        let ed25519 = ring_compat::ring::signature::Ed25519KeyPair::from_pkcs8_maybe_unchecked(
+            &content_pem.contents,
+        )
+        .map_err(|e| {
+            serde::de::Error::custom(format!("Failed to parse '{filepath}' as ed25519: '{e}'"))
+        })?;
+
+        Ok(Self {
+            inner: dkim::PrivateKey::Ed25519(Box::new(ed25519)),
+            path: filepath.into(),
         })
     }
 }

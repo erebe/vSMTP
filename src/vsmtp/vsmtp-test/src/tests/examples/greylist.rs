@@ -24,6 +24,8 @@ async fn test_greylist() {
     let toml = include_str!("../../../../../../examples/greylist/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
 
+    let config = arc!(config);
+
     assert!(test_receiver! {
         with_config => config.clone(),
         [
