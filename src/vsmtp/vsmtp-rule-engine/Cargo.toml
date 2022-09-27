@@ -45,7 +45,7 @@ tracing = { version = "0.1.36", default-features = false, features = [
 ] }
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 
-thiserror = { version = "1.0.35", default-features = false }
+thiserror = { version = "1.0.36", default-features = false }
 
 regex = { version = "1.6.0", default-features = false, features = [
   "std",
