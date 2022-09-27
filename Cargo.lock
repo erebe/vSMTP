@@ -716,7 +716,6 @@ checksum = "adfbc57365a37acbd2ebf2b64d7e69bb766e2fea813521ed536f5d0520dcf86c"
 dependencies = [
  "block-buffer",
  "crypto-common",
- "subtle",
 ]
 
 [[package]]
@@ -1028,15 +1027,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
-name = "hmac"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
-dependencies = [
- "digest",
-]
 
 [[package]]
 name = "hostname"
@@ -1433,26 +1423,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
-name = "linkme"
-version = "0.2.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edd4ad156b9934dc21cad96fd17278a7cb6f30a5657a9d976cd7b71d6d49c02c"
-dependencies = [
- "linkme-impl",
-]
-
-[[package]]
-name = "linkme-impl"
-version = "0.2.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fd9dc7072de7168cbdaba9125e8f742cd3a965aa12bde994b4611a174488d8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1775,15 +1745,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-sys",
-]
-
-[[package]]
-name = "pbkdf2"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "271779f35b581956db91a3e55737327a03aa051e90b1c47aeb189508533adfd7"
-dependencies = [
- "digest",
 ]
 
 [[package]]
@@ -2206,14 +2167,6 @@ version = "2.0.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc259c4497a7f65c00b33d8d232695a20803d30820763655458b686bb8711a52"
 dependencies = [
- "base64",
- "digest",
- "hmac",
- "linkme",
- "pbkdf2",
- "rand",
- "sha-1",
- "sha2",
  "stringprep",
  "thiserror",
 ]

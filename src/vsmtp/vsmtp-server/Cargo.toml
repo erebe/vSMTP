@@ -93,7 +93,7 @@ base64 = { version = "0.13.0", default-features = false }
 rsasl = { version = "2.0.0-rc.1", default-features = false, features = [
   "provider",
   "config_builder",
-  "registry_static",
+  # "registry_static",
   # "scram-sha-1",
   # "scram-sha-2",
   "anonymous",

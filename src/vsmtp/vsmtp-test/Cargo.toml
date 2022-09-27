@@ -35,7 +35,18 @@ tokio-rustls = "0.23.4"
 rustls-pemfile = "1.0.1"
 
 
-rsasl = { version = "2.0.0-rc.1", features = ["provider"] }
+rsasl = { version = "2.0.0-rc.1", default-features = false, features = [
+  "provider",
+  "config_builder",
+  # "registry_static",
+  # "scram-sha-1",
+  # "scram-sha-2",
+  "anonymous",
+  # "external",
+  # "xoauth2",
+  "plain",
+  "login",
+] }
 anyhow = "1.0.65"
 
 serde_json = "1.0.85"
