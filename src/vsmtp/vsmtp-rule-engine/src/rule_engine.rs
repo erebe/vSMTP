@@ -354,6 +354,13 @@ impl RuleEngine {
             }
         });
 
+        if cfg!(debug_assertions) {
+            engine.on_print(|msg| println!("{msg}"));
+            engine.on_debug(move |s, src, pos| {
+                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
+            });
+        }
+
         engine
             .disable_symbol("eval")
             .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)

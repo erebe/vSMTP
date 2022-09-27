@@ -224,6 +224,13 @@ impl RuleState {
                 _ => Ok(None),
             });
 
+        if cfg!(debug_assertions) {
+            engine.on_print(|msg| println!("{msg}"));
+            engine.on_debug(move |s, src, pos| {
+                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
+            });
+        }
+
         engine
             .register_global_module(rule_engine.std_module.clone())
             .register_global_module(rule_engine.vsl_rhai_module.clone())
