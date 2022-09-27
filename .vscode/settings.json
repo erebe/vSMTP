@@ -1,5 +1,6 @@
 {
   "cSpell.words": [
+    "aarch",
     "adkim",
     "afrf",
     "alloc",
@@ -170,5 +171,8 @@
   "lldb.consoleMode": "commands",
   "cSpell.enableFiletypes": [
     "rhai"
-  ]
+  ],
+  "rust-analyzer.server.extraEnv": {
+    "RUSTUP_TOOLCHAIN": "stable"
+  }
 }
