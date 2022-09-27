@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    error::{ParserError, ParserResult},
     message::mime_type::MimeHeader,
+    {ParserError, ParserResult},
 };
 
 #[inline]

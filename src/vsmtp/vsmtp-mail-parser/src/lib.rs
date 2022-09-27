@@ -28,12 +28,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod error;
-mod helpers;
-mod parser;
+pub(crate) mod helpers;
 
-pub use parser::get_mime_header;
-pub use parser::MailMimeParser;
+mod implementation {
+    pub mod basic_parser;
+    pub mod mail_mime_parser;
+}
+
+pub use implementation::{
+    basic_parser::BasicParser, mail_mime_parser::get_mime_header, mail_mime_parser::MailMimeParser,
+};
 
 mod message {
     pub mod mail;
@@ -49,10 +53,14 @@ pub use message::mime_type::*;
 pub use message::raw_body::*;
 
 mod traits {
+    pub mod error;
     pub mod mail_parser;
 }
 
-pub use traits::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
+pub use traits::{
+    error::{ParserError, ParserResult},
+    mail_parser::MailParser,
+};
 
 #[cfg(test)]
 pub mod tests;

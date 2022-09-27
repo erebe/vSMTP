@@ -18,13 +18,10 @@ use self::transaction::{Transaction, TransactionResult};
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{
-    mail_context::{ConnectionContext, MAIL_CAPACITY},
-    state::State,
-    status::Status,
-    CodeID, ConnectionKind,
+    mail_context::ConnectionContext, state::State, status::Status, CodeID, ConnectionKind,
 };
 use vsmtp_config::DnsResolvers;
-use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
+use vsmtp_mail_parser::{BasicParser, MailParser, MessageBody};
 use vsmtp_rule_engine::RuleEngine;
 
 mod connection;
@@ -38,34 +35,6 @@ pub mod transaction;
 pub use connection::Connection;
 pub use on_mail::{MailHandler, OnMail};
 pub use rsasl_callback::Callback;
-
-#[derive(Default)]
-struct NoParsing;
-
-#[async_trait::async_trait]
-impl MailParserOnFly for NoParsing {
-    async fn parse<'a>(
-        &'a mut self,
-        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> ParserOutcome {
-        let mut headers = Vec::with_capacity(20);
-        let mut body = String::with_capacity(MAIL_CAPACITY);
-
-        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            if line.is_empty() {
-                break;
-            }
-            headers.push(line);
-        }
-
-        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            body.push_str(&line);
-            body.push_str("\r\n");
-        }
-
-        Ok(either::Left(RawBody::new(headers, body)))
-    }
-}
 
 impl<S> Connection<S>
 where
@@ -320,7 +289,7 @@ where
             let mut body = {
                 let stream = Transaction::stream(self);
                 tokio::pin!(stream);
-                NoParsing::default().parse(stream).await?
+                MailParser::parse(&mut BasicParser::default(), stream).await?
             };
 
             let handle = transaction.rule_state.message();

@@ -16,38 +16,23 @@
 */
 // NOTE: should be improved
 
+///
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ParserError {
+    ///
+    #[error("parsing email failed: {0}")]
     InvalidMail(String),
+    ///
+    #[error("Mandatory header '{0}' not found")]
     MandatoryHeadersNotFound(String),
+    ///
+    #[error("Boundary not found in content-type header parameters, {0}")]
     BoundaryNotFound(String),
+    ///
+    #[error("Misplaced boundary in mime message, {0}")]
     MisplacedBoundary(String),
 }
 
-impl std::error::Error for ParserError {}
-
+///
 pub type ParserResult<T> = Result<T, ParserError>;
-
-impl std::fmt::Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidMail(message) => {
-                write!(f, "parsing email failed: {}", message)
-            }
-            Self::MandatoryHeadersNotFound(header) => {
-                write!(f, "Mandatory header '{}' not found", header)
-            }
-            Self::BoundaryNotFound(message) => {
-                write!(
-                    f,
-                    "Boundary not found in content-type header parameters, {}",
-                    message
-                )
-            }
-            Self::MisplacedBoundary(message) => {
-                write!(f, "Misplaced boundary in mime message, {}", message)
-            }
-        }
-    }
-}

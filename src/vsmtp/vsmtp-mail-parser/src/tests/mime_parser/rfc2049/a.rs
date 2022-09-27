@@ -15,7 +15,7 @@ const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
 #[ignore]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .parse_sync(MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
         .unwrap()
         .unwrap_right();
     pretty_assertions::assert_eq!(

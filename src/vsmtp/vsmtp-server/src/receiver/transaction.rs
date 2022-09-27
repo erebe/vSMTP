@@ -222,8 +222,7 @@ impl Transaction {
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
-                    | Status::Quarantine(_)
-                    | Status::Packet(_) => {
+                    | Status::Quarantine(_) => {
                         either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::MailFrom)))
                     }
                 }
@@ -249,8 +248,7 @@ impl Transaction {
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
-                    | Status::Quarantine(_)
-                    | Status::Packet(_) => {
+                    | Status::Quarantine(_) => {
                         either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::RcptTo)))
                     }
                 }

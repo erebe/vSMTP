@@ -14,13 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::error::{ParserError, ParserResult};
-use super::helpers::get_mime_type;
-use super::helpers::read_header;
+use crate::helpers::get_mime_type;
+use crate::helpers::read_header;
 use crate::message::mail::{BodyType, Mail, MailHeaders};
 use crate::message::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
-use crate::{MailParser, ParserOutcome};
-use anyhow::Context;
+use crate::{MailParser, RawBody};
+use crate::{ParserError, ParserResult};
 
 /// a boundary serves as a delimiter between mime parts in a multipart section.
 enum BoundaryType {
@@ -30,17 +29,15 @@ enum BoundaryType {
 }
 
 /// Instance parsing a message body
-#[allow(clippy::module_name_repetitions)]
 #[derive(Default)]
 pub struct MailMimeParser {
     boundary_stack: Vec<String>,
 }
 
 impl MailParser for MailMimeParser {
-    fn parse_lines(&mut self, data: &[&str]) -> ParserOutcome {
-        Ok(either::Right(
-            self.parse_inner(&mut &data[..]).context("parsing failed")?,
-        ))
+    fn parse_sync(&mut self, raw: Vec<String>) -> ParserResult<either::Either<RawBody, Mail>> {
+        let ref_raw = raw.iter().map(String::as_str).collect::<Vec<&str>>();
+        self.parse_inner(&mut &ref_raw[..]).map(either::Right)
     }
 }
 

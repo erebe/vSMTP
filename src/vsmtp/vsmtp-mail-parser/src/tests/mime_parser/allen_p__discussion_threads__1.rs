@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::parser::MailMimeParser;
+use crate::MailMimeParser;
 use crate::{
     collection,
     message::{
@@ -30,7 +30,7 @@ const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 fn mime_parser() {
     pretty_assertions::assert_eq!(
         MailMimeParser::default()
-            .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+            .parse_sync(MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
             .unwrap()
             .unwrap_right(),
         Mail {

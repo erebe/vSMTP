@@ -1,15 +1,13 @@
-use crate::parser::MailMimeParser;
-use crate::{
-    message::mail::{BodyType, Mail, MailHeaders},
-    MailParser,
-};
+use crate::message::mail::{BodyType, Mail, MailHeaders};
+use crate::{MailMimeParser, MailParser};
 
 #[test]
 fn white_space_and_comments() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.5.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.5.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()

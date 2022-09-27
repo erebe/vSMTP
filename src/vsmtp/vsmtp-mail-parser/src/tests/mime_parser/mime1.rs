@@ -20,8 +20,7 @@ use crate::{
         mail::{BodyType, Mail, MailHeaders},
         mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
     },
-    parser::MailMimeParser,
-    MailParser,
+    MailMimeParser,
 };
 
 const MAIL: &str = include_str!("../mail/mime1.eml");
@@ -30,8 +29,7 @@ const MAIL: &str = include_str!("../mail/mime1.eml");
 #[test]
 fn mime_parser() {
     assert_eq!(
-        MailMimeParser::default()
-        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        crate::MailParser::parse_sync(&mut MailMimeParser::default(), MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
         .unwrap().unwrap_right(),
         Mail { headers:
             MailHeaders([

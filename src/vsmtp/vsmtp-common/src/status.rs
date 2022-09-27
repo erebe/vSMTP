@@ -41,9 +41,6 @@ pub enum Status {
     /// this status disable delivery to all recipients.
     Quarantine(String),
 
-    /// used to send data from .vsl to vsmtp's server
-    Packet(String),
-
     /// the email as been delegated to another service.
     #[serde(skip)]
     Delegated(SmtpConnection),

@@ -46,12 +46,6 @@ impl RawBody {
         self.headers.iter().map(String::as_str)
     }
 
-    /// Return an iterator over the body, line by line
-    #[must_use]
-    pub fn body_lines(&self) -> Option<impl Iterator<Item = &str>> {
-        self.body.as_ref().map(|s| s.lines())
-    }
-
     ///
     #[must_use]
     pub const fn body(&self) -> &Option<String> {

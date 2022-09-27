@@ -1,15 +1,13 @@
-use crate::parser::MailMimeParser;
-use crate::{
-    message::mail::{BodyType, Mail, MailHeaders},
-    MailParser,
-};
+use crate::message::mail::{BodyType, Mail, MailHeaders};
+use crate::{MailMimeParser, MailParser};
 
 #[test]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.2.a.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.2.a.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()
@@ -46,9 +44,10 @@ fn simple() {
 #[test]
 fn reply_simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.2.b.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.2.b.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()
@@ -91,9 +90,10 @@ fn reply_simple() {
 #[test]
 fn reply_reply() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.2.c.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.2.c.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()
