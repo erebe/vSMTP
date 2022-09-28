@@ -81,6 +81,7 @@ impl Transport for Maildir {
 }
 
 impl Maildir {
+    #[tracing::instrument(name = "create-maildir", level = "warn", fields(folder = ?path))]
     fn create_and_chown(
         path: &std::path::PathBuf,
         user: &users::User,
@@ -89,7 +90,7 @@ impl Maildir {
         tracing::debug!(to = %path.display(), "Creating folder.");
 
         if path.exists() {
-            tracing::debug!("Folder already exists.");
+            tracing::warn!("Folder already exists.");
         } else {
             std::fs::create_dir(path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
@@ -97,7 +98,6 @@ impl Maildir {
             tracing::trace!(
                 user = user.uid(),
                 group = group_local.map_or(u32::MAX, users::Group::gid),
-                to = %path.display(),
                 "Setting permissions.",
             );
 
