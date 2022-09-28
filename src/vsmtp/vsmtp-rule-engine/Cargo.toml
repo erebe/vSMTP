@@ -120,7 +120,7 @@ time = { version = "0.3.14", default-features = false, features = [
   "macros",
 ] }
 
-trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
+trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "tokio-runtime",
 ] }

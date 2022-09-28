@@ -296,13 +296,90 @@ mod tests {
             .server
             .queues
             .dirpath
-            .join("working/message_uid.json")
+            .join(QueueID::Working.to_string())
+            .join(format!("{msg_id}.json"))
             .exists());
         assert!(config
             .server
             .queues
             .dirpath
-            .join("dead/message_uid.json")
+            .join(QueueID::Dead.to_string())
+            .join(format!("{msg_id}.json"))
+            .exists());
+    }
+
+    #[tokio::test]
+    async fn quarantine() {
+        let mut config = local_test();
+        config.server.queues.dirpath = "./tmp/spool_quarantine".into();
+        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
+
+        let config = std::sync::Arc::new(config);
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+
+        let msg_id = "message_uid";
+
+        let mut ctx = local_ctx();
+        ctx.metadata.message_id = Some(msg_id.to_string());
+        queue_manager
+            .write_both(&QueueID::Working, &ctx, &local_msg())
+            .await
+            .unwrap();
+
+        let (delivery_sender, _delivery_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(10);
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+        handle_one_in_working_queue(
+            config.clone(),
+            std::sync::Arc::new(
+                RuleEngine::from_script(
+                    config.clone(),
+                    &format!(
+                        "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
+                        State::PostQ
+                    ),
+                )
+                .unwrap(),
+            ),
+            resolvers,
+            queue_manager,
+            ProcessMessage {
+                message_id: msg_id.to_string(),
+                delegated: false,
+            },
+            delivery_sender,
+        )
+        .await
+        .unwrap();
+
+        assert!(config
+            .app
+            .dirpath
+            .join(
+                QueueID::Quarantine {
+                    name: "unit-test".to_string()
+                }
+                .to_string()
+            )
+            .join(format!("{msg_id}.json"))
+            .exists());
+
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(QueueID::Working.to_string())
+            .join(format!("{msg_id}.json"))
+            .exists());
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(QueueID::Dead.to_string())
+            .join(format!("{msg_id}.json"))
             .exists());
     }
 }

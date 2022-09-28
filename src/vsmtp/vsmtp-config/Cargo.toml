@@ -68,7 +68,7 @@ rsa = { version = "0.6.1", default-features = false, features = [
 ] }
 
 hostname = { version = "0.3.1", default-features = false }
-trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
+trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
   "tokio-runtime",

@@ -45,7 +45,7 @@ addr = { version = "0.15.6", default-features = false, features = [
 ] }
 
 users = { version = "0.11.0", default-features = false }
-trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
+trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "dns-over-rustls",
   "dnssec-ring",
 ] }

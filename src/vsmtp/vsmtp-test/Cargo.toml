@@ -35,7 +35,7 @@ tokio-rustls = "0.23.4"
 rustls-pemfile = "1.0.1"
 
 
-rsasl = { version = "2.0.0-rc.1", default-features = false, features = [
+rsasl = { version = "=2.0.0-rc.1", default-features = false, features = [
   "provider",
   "config_builder",
   # "registry_static",
