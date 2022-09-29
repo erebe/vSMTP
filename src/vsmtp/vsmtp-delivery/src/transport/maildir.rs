@@ -109,20 +109,19 @@ impl Maildir {
     }
 
     // NOTE: see https://en.wikipedia.org/wiki/Maildir
-    // create and set rights for the MailDir & new folder if they don't exists.
+    // create and set rights for the MailDir & [new,cur,tmp] folder if they don't exists.
     fn create_maildir(
         user: &users::User,
         group_local: Option<&users::Group>,
         msg_id: &str,
     ) -> anyhow::Result<std::path::PathBuf> {
-        let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
+        let maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
         Self::create_and_chown(&maildir, user, group_local)?;
-        maildir.push("new");
+        for dir in ["new", "tmp", "cur"] {
+            Self::create_and_chown(&maildir.join(dir), user, group_local)?;
+        }
 
-        Self::create_and_chown(&maildir, user, group_local)?;
-        maildir.push(format!("{msg_id}.eml"));
-
-        Ok(maildir)
+        Ok(maildir.join(format!("new/{msg_id}.eml")))
     }
 
     fn write_to_maildir(
