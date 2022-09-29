@@ -237,10 +237,10 @@ where
         };
 
         while {
-            let (state, _) = session
+            session
                 .step(data.as_deref(), &mut writer)
-                .map_err(Error::Failed)?;
-            state.is_running()
+                .map_err(Error::Failed)?
+                .is_running()
         } {
             data = match writer.conn.read(READ_TIMEOUT).await {
                 Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
