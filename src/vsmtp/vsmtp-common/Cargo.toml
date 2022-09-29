@@ -30,9 +30,6 @@ vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.0" }
 
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }
-serde_json = { version = "1.0.85", default-features = false, features = [
-    "std",
-] }
 addr = { version = "0.15.6", default-features = false, features = [
     "std",
     # "serde", # TODO
@@ -71,6 +68,9 @@ either = { version = "1.8.0", default-features = false, features = ["serde"] }
 base64 = { version = "0.13.0", default-features = false }
 
 [dev-dependencies]
+serde_json = { version = "1.0.85", default-features = false, features = [
+    "std",
+] }
 users = { version = "0.11.0", features = [] }
 pretty_assertions = "1.3.0"
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
