@@ -39,7 +39,7 @@ strum = { version = "0.24.1", default-features = false, features = [
     "std",
     "derive",
 ] }
-libc = { version = "0.2.133", default-features = false, features = ["std"] }
+libc = { version = "0.2.134", default-features = false, features = ["std"] }
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
     "builder",
