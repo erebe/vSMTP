@@ -13,6 +13,27 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* `--stdout` flag, print logs to stdout. (#579)
+* Message size limit configuration. (#580)
+* Add the git commit hash to the version string `--version`. (#581)
+* Ed25519 support. (#600)
+
+### Changed
+
+* MSRV bumped to 1.62.1 (#601)
+* `--no-daemon` flag do not print logs to the standard output anymore. (#579)
+* Refactorization of services parsing. (#576)
+* `vsmtp` & `vqueue` `--version` flag display build commit. (#585)
+* `vqueue` display error if no subcommands are specified. (#585)
+* Updated logs to communicate better the state of vSMTP. (#587)
+* Remove config field (`server.smtp.required_extension`/`app.logs.format`) and prepare for the all .vsl config.
+
+### Unstable
+
+* Add a `Dockerfile` for the `vsmtp`.
+
 ## [1.3.0] - 2022-09-07
 
 ### Added

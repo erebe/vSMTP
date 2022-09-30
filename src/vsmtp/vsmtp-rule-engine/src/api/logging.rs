@@ -107,6 +107,7 @@ mod logging_rhai {
     /// ```
     #[rhai_fn(global, name = "log")]
     #[doc = "overloaded as `log(level, message)`"]
+    // TODO: inject rule name #[tracing::instrument(name = %rule_name, skip_all)]
     #[allow(clippy::cognitive_complexity)]
     pub fn log(level: &str, message: &str) {
         match <tracing::Level as std::str::FromStr>::from_str(level) {

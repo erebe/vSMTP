@@ -15,12 +15,13 @@
  *
 */
 
-use crate::message::{mail::Mail, raw_body::RawBody};
-
-///
-pub type ParserOutcome = anyhow::Result<either::Either<RawBody, Mail>>;
+use crate::{
+    message::{mail::Mail, raw_body::RawBody},
+    ParserResult,
+};
 
 /// An abstract mail parser
+#[async_trait::async_trait]
 pub trait MailParser: Default {
     /// From a buffer of strings, return either:
     ///
@@ -30,59 +31,34 @@ pub trait MailParser: Default {
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse_lines(&mut self, raw: &[&str]) -> ParserOutcome;
+    fn parse_sync(&mut self, raw: Vec<String>) -> ParserResult<either::Either<RawBody, Mail>>;
 
-    ///
-    /// # Errors
-    ///
-    /// * the input is not compliant
-    fn parse_raw(&mut self, raw: &RawBody) -> ParserOutcome {
-        let headers = raw
-            .headers_lines()
-            .into_iter()
-            .chain(std::iter::once("\r\n"));
-
-        self.parse_lines(
-            &if let Some(body) = raw.body_lines() {
-                headers.chain(body).collect::<Vec<_>>()
-            } else {
-                headers.collect::<Vec<_>>()
-            }[..],
-        )
-    }
-}
-
-/// An abstract async mail parser
-#[allow(clippy::module_name_repetitions)]
-#[async_trait::async_trait]
-pub trait MailParserOnFly: Default {
-    /// From a buffer of strings, return either:
-    ///
-    /// * a RFC valid [`Mail`] object
-    /// * a [`RawBody`] instance
     ///
     /// # Errors
     ///
     /// * the input is not compliant
     async fn parse<'a>(
         &'a mut self,
-        stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> ParserOutcome;
-}
+        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+    ) -> ParserResult<either::Either<RawBody, Mail>> {
+        let mut buffer = vec![];
 
-// #[async_trait::async_trait]
-// impl<T> MailParserOnFly for T
-// where
-//     T: MailParser + Send + Sync,
-// {
-//     async fn parse<'a>(
-//         &'a mut self,
-//         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-//     ) -> anyhow::Result<MessageBody> {
-//         let mut buffer = vec![];
-//         while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
-//             buffer.push(i);
-//         }
-//         self.parse(buffer)
-//     }
-// }
+        while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
+            buffer.push(i);
+        }
+
+        self.parse_sync(buffer)
+    }
+
+    ///
+    fn convert(mut self, input: &RawBody) -> ParserResult<Option<Mail>> {
+        // TODO(perf):
+        let raw = input.to_string();
+
+        self.parse_sync(raw.lines().map(String::from).collect())
+            .map(|either| match either {
+                either::Left(_) => None,
+                either::Right(mail) => Some(mail),
+            })
+    }
+}

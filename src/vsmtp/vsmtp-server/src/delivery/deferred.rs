@@ -18,233 +18,183 @@ use crate::{
     delivery::{send_mail, SenderOutcome},
     ProcessMessage,
 };
-use vsmtp_common::{
-    queue::Queue,
-    queue_path,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
-};
-use vsmtp_config::{Config, Resolvers};
+use anyhow::Context;
+use vqueue::{GenericQueueManager, QueueID};
+use vsmtp_config::{Config, DnsResolvers};
 
-pub async fn flush_deferred_queue(
+// TODO: what should be the procedure on failure here ?
+pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
-) -> anyhow::Result<()> {
-    let dir_entries =
-        std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deferred))?;
-    for path in dir_entries {
-        let process_message = ProcessMessage {
-            message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
-            delegated: false,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<Q>,
+) {
+    let queued = match queue_manager.list(&QueueID::Deferred) {
+        Ok(queued) => queued,
+        Err(error) => {
+            tracing::error!(%error, "Listing deferred queue failure.");
+            return;
+        }
+    };
+
+    for i in queued {
+        let msg_id = match i {
+            Ok(msg_id) => msg_id,
+            Err(error) => {
+                tracing::error!(%error, "Deferred message id missing.");
+                continue;
+            }
         };
 
-        if let Err(e) =
-            handle_one_in_deferred_queue(config.clone(), resolvers.clone(), process_message).await
+        if let Err(error) = handle_one_in_deferred_queue(
+            config.clone(),
+            resolvers.clone(),
+            queue_manager.clone(),
+            ProcessMessage {
+                message_id: msg_id,
+                delegated: false,
+            },
+        )
+        .await
         {
-            log::warn!("{}", e);
+            tracing::error!(%error, "Flushing deferred queue failure.");
         }
     }
-
-    Ok(())
 }
 
-#[tracing::instrument(skip(config, resolvers))]
-async fn handle_one_in_deferred_queue(
+#[tracing::instrument(name = "deferred", skip_all, fields(message_id = %process_message.message_id))]
+async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    log::debug!("processing email");
+    tracing::debug!("Processing email.");
 
-    let (mut mail_context, mail_message) = Queue::Deferred
-        .read(&config.server.queues.dirpath, &process_message.message_id)
-        .await?;
+    let (mut mail_context, mail_message) =
+        queue_manager.get_both(&QueueID::Deferred, &process_message.message_id)?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
-        SenderOutcome::MoveToDead => {
-            Queue::Deferred
-                .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
-                .with_context(|| {
-                    format!(
-                        "cannot move file from `{}` to `{}`",
-                        Queue::Deferred,
-                        Queue::Dead
-                    )
-                })?;
-        }
-        SenderOutcome::MoveToDeferred => {
-            Queue::Deferred
-                .write_to_queue(&config.server.queues.dirpath, &mail_context)
-                .with_context(|| format!("failed to update context in `{}`", Queue::Deferred))?;
-        }
+    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
+        SenderOutcome::MoveToDead => queue_manager
+            .move_to(&QueueID::Deferred, &QueueID::Dead, &mail_context)
+            .await
+            .with_context(|| {
+                format!(
+                    "cannot move file from `{}` to `{}`",
+                    QueueID::Deferred,
+                    QueueID::Dead
+                )
+            }),
+        SenderOutcome::MoveToDeferred => queue_manager
+            .write_ctx(&QueueID::Deferred, &mail_context)
+            .await
+            .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
         SenderOutcome::RemoveFromDisk => {
-            Queue::Deferred.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+            // TODO: remove both ?
+            queue_manager
+                .remove_ctx(&QueueID::Deferred, &process_message.message_id)
+                .await
         }
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vsmtp_common::{
-        addr,
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
-        rcpt::Rcpt,
-        re::tokio,
-        transfer::{EmailTransferStatus, Transfer, TransferErrors},
-        Envelop,
-    };
-    use vsmtp_config::build_resolvers;
-    use vsmtp_mail_parser::{MessageBody, RawBody};
-    use vsmtp_test::config;
+    use vsmtp_common::{rcpt::Rcpt, Address};
+    use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[allow(clippy::too_many_lines)]
     #[tokio::test]
-    async fn basic() {
-        let mut config = config::local_test();
-        config.server.queues.dirpath = "./tmp".into();
-        config.app.vsl.filepath = Some("./src/tests/empty_main.vsl".into());
+    async fn move_to_deferred() {
+        let mut config = local_test();
+        config.server.queues.dirpath = "./tmp/spool_deferred1".into();
+        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
 
-        let now = std::time::SystemTime::now();
+        let config = std::sync::Arc::new(config);
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
 
-        Queue::Deferred
-            .write_to_queue(
-                &config.server.queues.dirpath,
-                &MailContext {
-                    connection: ConnectionContext {
-                        timestamp: now,
-                        credentials: None,
-                        is_authenticated: false,
-                        is_secured: false,
-                        server_name: "testserver.com".to_string(),
-                        server_addr: "127.0.0.1:25".parse().unwrap(),
-                        client_addr: "127.0.0.1:80".parse().unwrap(),
-                        error_count: 0,
-                        authentication_attempt: 0,
-                    },
-                    envelop: Envelop {
-                        helo: "client.com".to_string(),
-                        mail_from: addr!("from@testserver.com"),
-                        rcpt: vec![
-                            Rcpt {
-                                address: addr!("to+1@client.com"),
-                                transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting {
-                                    timestamp: std::time::SystemTime::now(),
-                                },
-                            },
-                            Rcpt {
-                                address: addr!("to+2@client.com"),
-                                transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting {
-                                    timestamp: std::time::SystemTime::now(),
-                                },
-                            },
-                        ],
-                    },
-                    metadata: MessageMetadata {
-                        timestamp: Some(now),
-                        message_id: Some("test_deferred".to_string()),
-                        skipped: None,
-                        spf: None,
-                        dkim: None,
-                    },
-                },
-            )
+        let msg_id = "move_to_deferred";
+
+        let mut ctx = local_ctx();
+        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.envelop.rcpt.push(Rcpt::new(
+            <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
+        ));
+
+        queue_manager
+            .write_both(&QueueID::Deferred, &ctx, &local_msg())
+            .await
             .unwrap();
 
-        MessageBody::try_from(concat!(
-            "Date: bar\r\n",
-            "From: foo\r\n",
-            "\r\n",
-            "Hello world\r\n"
-        ))
-        .unwrap()
-        .write_to_mails(&config.server.queues.dirpath, "test_deferred")
-        .unwrap();
-
-        let resolvers = build_resolvers(&config).unwrap();
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_deferred_queue(
-            std::sync::Arc::new(config.clone()),
-            std::sync::Arc::new(resolvers),
+            config.clone(),
+            resolvers,
+            queue_manager,
             ProcessMessage {
-                message_id: "test_deferred".to_string(),
+                message_id: msg_id.to_string(),
                 delegated: false,
             },
         )
         .await
         .unwrap();
 
-        pretty_assertions::assert_eq!(
-            Queue::Deferred
-                .read_mail_context(&config.server.queues.dirpath, "test_deferred")
-                .await
-                .unwrap(),
-            MailContext {
-                connection: ConnectionContext {
-                    timestamp: now,
-                    credentials: None,
-                    is_authenticated: false,
-                    is_secured: false,
-                    server_name: "testserver.com".to_string(),
-                    server_addr: "127.0.0.1:25".parse().unwrap(),
-                    client_addr: "127.0.0.1:80".parse().unwrap(),
-                    error_count: 0,
-                    authentication_attempt: 0,
-                },
-                envelop: Envelop {
-                    helo: "client.com".to_string(),
-                    mail_from: addr!("from@testserver.com"),
-                    rcpt: vec![
-                        Rcpt {
-                            address: addr!("to+1@client.com"),
-                            transfer_method: Transfer::Maildir,
-                            email_status: EmailTransferStatus::HeldBack {
-                                errors: vec![(
-                                    std::time::SystemTime::now(),
-                                    TransferErrors::NoSuchMailbox {
-                                        name: "to+1".to_string()
-                                    }
-                                )]
-                            },
-                        },
-                        Rcpt {
-                            address: addr!("to+2@client.com"),
-                            transfer_method: Transfer::Maildir,
-                            email_status: EmailTransferStatus::HeldBack {
-                                errors: vec![(
-                                    std::time::SystemTime::now(),
-                                    TransferErrors::NoSuchMailbox {
-                                        name: "to+2".to_string()
-                                    }
-                                )]
-                            },
-                        },
-                    ],
-                },
-                metadata: MessageMetadata {
-                    timestamp: Some(now),
-                    message_id: Some("test_deferred".to_string()),
-                    skipped: None,
-                    spf: None,
-                    dkim: None,
-                },
-            }
-        );
-        pretty_assertions::assert_eq!(
-            *MessageBody::read_mail_message(&config.server.queues.dirpath, "test_deferred")
-                .await
-                .unwrap()
-                .inner(),
-            RawBody::new(
-                vec!["Date: bar".to_string(), "From: foo".to_string()],
-                "Hello world\r\n".to_string(),
-            )
-        );
+        assert!(config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
+            .exists());
+    }
+
+    #[tokio::test]
+    async fn move_to_dead() {
+        let mut config = local_test();
+        config.server.queues.dirpath = "./tmp/spool_deferred2".into();
+        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
+
+        let config = std::sync::Arc::new(config);
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+
+        let msg_id = "move_to_dead";
+
+        let mut ctx = local_ctx();
+        ctx.metadata.message_id = Some(msg_id.to_string());
+
+        queue_manager
+            .write_both(&QueueID::Deferred, &ctx, &local_msg())
+            .await
+            .unwrap();
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+        handle_one_in_deferred_queue(
+            config.clone(),
+            resolvers,
+            queue_manager,
+            ProcessMessage {
+                message_id: msg_id.to_string(),
+                delegated: false,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
+            .exists());
+
+        assert!(config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Dead, msg_id))
+            .exists());
     }
 }

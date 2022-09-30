@@ -14,7 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
 use vsmtp_mail_parser::MailHeaders;
@@ -38,6 +39,7 @@ async fn reset_helo() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
@@ -156,6 +158,7 @@ async fn reset_rcpt_to_ok() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
@@ -241,6 +244,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");

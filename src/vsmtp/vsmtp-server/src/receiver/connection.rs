@@ -15,11 +15,7 @@
  *
 */
 use super::AbstractIO;
-use vsmtp_common::{
-    mail_context::ConnectionContext,
-    re::{anyhow, log, tokio},
-    CodeID, ConnectionKind, Reply, ReplyOrCodeID,
-};
+use vsmtp_common::{mail_context::ConnectionContext, CodeID, ConnectionKind, Reply, ReplyOrCodeID};
 use vsmtp_config::Config;
 
 /// Instance containing connection to the server's information
@@ -124,7 +120,10 @@ where
         let soft_error = self.config.server.smtp.error.soft_count;
 
         if hard_error != -1 && self.context.error_count >= hard_error {
-            log::warn!("hard error count max reached `{hard_error}`, closing connection");
+            tracing::warn!(
+                max = hard_error,
+                "Hard error count max reached, closing connection."
+            );
             self.send(
                 &Reply::combine(
                     &reply,
@@ -146,7 +145,10 @@ where
         self.send(&reply.fold()).await?;
 
         if soft_error != -1 && self.context.error_count >= soft_error {
-            log::info!("soft error reached `{soft_error}`, delaying connection");
+            tracing::warn!(
+                max = soft_error,
+                "Soft error max count reached, delaying connection."
+            );
             tokio::time::sleep(self.config.server.smtp.error.delay).await;
         }
         Ok(())
@@ -158,7 +160,7 @@ where
     ///
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::trace!("sending=`{reply:?}`");
+        tracing::trace!(%reply);
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
         Ok(())
     }

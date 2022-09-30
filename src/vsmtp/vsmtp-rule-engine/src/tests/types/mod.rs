@@ -16,6 +16,7 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{state::State, status::Status, CodeID, ReplyOrCodeID};
+use vsmtp_config::DnsResolvers;
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_test::root_example;
@@ -23,8 +24,8 @@ use vsmtp_test::root_example;
 #[test]
 fn test_status() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["status", "main.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["status", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -38,8 +39,8 @@ fn test_status() {
 #[test]
 fn test_time_and_date() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["time", "main.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["time", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -53,8 +54,8 @@ fn test_time_and_date() {
 #[test]
 fn test_ip() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["ip", "main.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["ip", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -68,8 +69,8 @@ fn test_ip() {
 #[test]
 fn test_objects() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["objects", "main.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["objects", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -87,7 +88,7 @@ fn test_services() {
         .unwrap()
         .with_ipv4_localhost()
         .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .with_spool_dir_and_default_queues("./tmp/spool")
         .without_tls_support()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
@@ -101,9 +102,14 @@ fn test_services() {
         .validate()
         .unwrap();
 
-    let re = RuleEngine::new(&config, &Some(rules_path!["service", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
-    let mut state = RuleState::new(&config, resolvers, &re);
+    let config = std::sync::Arc::new(config);
+
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["service", "main.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     *state.message().write().unwrap() = MessageBody::default();
 
@@ -123,7 +129,7 @@ fn test_config_display() {
         .unwrap()
         .with_ipv4_localhost()
         .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .with_spool_dir_and_default_queues("./tmp/spool")
         .without_tls_support()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
@@ -133,7 +139,7 @@ fn test_config_display() {
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
         .with_system_dns()
-        .with_virtual_entries(&[VirtualEntry {
+        .with_virtual_entries(std::iter::once(VirtualEntry {
             domain: "domain@example.com".to_string(),
             tls: Some((
                 root_example!["config/tls/certificate.crt"]
@@ -146,14 +152,19 @@ fn test_config_display() {
                     .to_string(),
             )),
             dns: Some(FieldServerDNS::System),
-        }])
+        }))
         .unwrap()
         .validate()
         .unwrap();
 
-    let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
-    let mut state = RuleState::new(&config, resolvers, &re);
+    let config = std::sync::Arc::new(config);
+
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["objects", "main.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     *state.message().write().unwrap() = MessageBody::default();
 

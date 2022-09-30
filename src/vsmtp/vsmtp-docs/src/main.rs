@@ -173,7 +173,7 @@ fn generate_function_documentation_from_module(
 //         - wrap 'sys' api into rhai functions ?       => might be cumbersome.
 
 fn main() {
-    let mut engine = RuleEngine::new_compiler(&vsmtp_config::Config::default());
+    let mut engine = RuleEngine::new_compiler(std::sync::Arc::new(vsmtp_config::Config::default()));
     let vsl_native_module = StandardVSLPackage::new().as_shared_module();
 
     engine.register_static_module("sys", vsl_native_module);

@@ -5,15 +5,10 @@ on:
       - "main"
 
 jobs:
-  check-release:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}
+  check-bump:
+    runs-on: ubuntu-latest
     steps:
-      - name: Get bump method
-        id: get-bump-method
-        run: |
+      - run: |
           echo ${{ github.event.pull_request.labels.*.name }}
           if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
             echo '::set-output name=BUMP::rc'
@@ -28,20 +23,10 @@ jobs:
           else
             exit 1
           fi
+        id: get-bump-method
       - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            ./target
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -52,26 +37,42 @@ jobs:
   check-deb-pkg:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}
+        include:
+          - target: x86_64-unknown-linux-gnu
+            host_os: ubuntu-20.04
+          - target: x86_64-unknown-linux-gnu
+            host_os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            host_os: ubuntu-20.04
+    runs-on: ${{ matrix.host_os }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev lintian
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions/checkout@v3
+      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
       - run: |
           git clone https://github.com/viridIT/cargo-deb.git
           cd cargo-deb
           git checkout fix/changelog-path
           cargo build
           cd ..
-      - run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v
-      - run: lintian ./target/debian/*.deb
+      - run: rustup target add ${{ matrix.target }}
+      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+        run: |
+          cat > ~/.cargo/config <<EOF
+          [target.${{ matrix.target }}]
+          strip = { path = "aarch64-linux-gnu-strip" }
+          EOF
+          ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
+        env:
+          TARGET_CC: aarch64-linux-gnu-gcc
+          TARGET_AR: aarch64-linux-gnu-gcc-ar
+          RUSTFLAGS: "--cfg procmacro2_semver_exempt -C linker=aarch64-linux-gnu-gcc"
+      - if: ${{ matrix.target != 'aarch64-unknown-linux-gnu' }}
+        run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
+        env:
+          # see https://github.com/atanunq/viu/issues/68
+          RUSTFLAGS: "--cfg procmacro2_semver_exempt"
+      - run: sudo apt-get update && sudo apt-get install -y lintian
+      - run: lintian ./target/${{ matrix.target }}/debian/*.deb

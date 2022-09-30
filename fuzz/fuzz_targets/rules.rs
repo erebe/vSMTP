@@ -25,5 +25,7 @@ fuzz_target!(|data: &[u8]| {
         .validate()
         .unwrap();
 
-    let _ = std::str::from_utf8(data).map(|script| RuleEngine::from_script(&config, script));
+    let config = std::sync::Arc::new(config);
+
+    let _ = std::str::from_utf8(data).map(|script| RuleEngine::from_script(config, script));
 });

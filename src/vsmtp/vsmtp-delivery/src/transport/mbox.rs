@@ -16,13 +16,11 @@
 */
 
 use super::Transport;
-
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown,
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, log},
     transfer::{EmailTransferStatus, TransferErrors},
 };
 use vsmtp_config::Config;
@@ -65,25 +63,21 @@ impl Transport for MBox {
                 )
             }) {
                 Some(Ok(_)) => {
-                    log::info!("successfully delivered to {rcpt} as mbox");
+                    tracing::info!("Email delivered.");
 
                     rcpt.email_status = EmailTransferStatus::Sent {
                         timestamp: std::time::SystemTime::now(),
                     }
                 }
-                Some(Err(e)) => {
-                    log::error!(
-                        "failed to write email in {}'s mbox: {e}",
-                        rcpt.address.local_part(),
-                    );
+                Some(Err(error)) => {
+                    tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.email_status.held_back(e);
+                    rcpt.email_status.held_back(error);
                 }
                 None => {
-                    log::error!(
-                        "failed to write email in {}'s mbox: '{}' is not a user",
-                        rcpt.address.local_part(),
-                        rcpt.address.local_part(),
+                    tracing::error!(
+                        error = format!("user not found: {}", rcpt.address.local_part()),
+                        "Email delivery failure."
                     );
 
                     rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
@@ -121,15 +115,13 @@ fn write_content_to_mbox(
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&mbox)?;
+        .open(mbox)?;
 
     chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
         .with_context(|| format!("could not set owner for '{mbox:?}' mbox"))?;
 
     std::io::Write::write_all(&mut file, format!("Delivered-To: {rcpt}\n").as_bytes())?;
     std::io::Write::write_all(&mut file, content.as_bytes())?;
-
-    log::debug!("{} bytes written to {mbox:?}", content.len());
 
     Ok(())
 }

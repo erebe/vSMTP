@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{re::anyhow, state::State};
+use vsmtp_common::state::State;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -117,6 +117,40 @@ pub enum RuntimeError {
         r#type: &'static str,
         source: anyhow::Error,
     },
+    #[error("vsl runtime error: `{message}`")]
+    Generic { message: String },
+}
+
+#[macro_export]
+/// An error formatting macro for rhai context similar to the [`anyhow::anyhow`] macro.
+macro_rules! vsl_err {
+    ($message:expr) => {
+        Err(RuntimeError::Generic {
+            message: format!($message),
+        }
+        .into::<Box<rhai::EvalAltResult>>())
+    };
+}
+
+#[macro_export]
+/// A bail macro for rhai context similar to [`anyhow::bail`] macro.
+macro_rules! vsl_bail {
+    ($message:expr) => {
+        return vsl_err!(message);
+    };
+}
+
+#[macro_export]
+/// Transforms a generic error in a result into the rhai boxed eval alt result.
+macro_rules! vsl_ok {
+    ($result:expr) => {
+        $result.map_err::<Box<rhai::EvalAltResult>, _>(|err| {
+            RuntimeError::Generic {
+                message: err.to_string(),
+            }
+            .into()
+        })?
+    };
 }
 
 #[macro_export]
@@ -125,7 +159,7 @@ macro_rules! vsl_guard_ok {
     ($guard:expr) => {
         $guard.map_err::<Box<rhai::EvalAltResult>, _>(|e| {
             $crate::error::RuntimeError::PoisonedGuard {
-                source: vsmtp_common::re::anyhow::anyhow!("{e}"),
+                source: anyhow::anyhow!("{e}"),
             }
             .into()
         })?

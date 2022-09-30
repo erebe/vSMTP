@@ -24,7 +24,7 @@ pub enum Status {
     /// informational data needs to be sent to the client.
     Info(ReplyOrCodeID),
 
-    /// accepts the current [`crate::state::StateSMTP`] value, skips all rules in the stage.
+    /// accepts the current [`crate::state::State`] value, skips all rules in the stage.
     Accept(ReplyOrCodeID),
 
     /// continue to the next rule / stage.
@@ -40,9 +40,6 @@ pub enum Status {
     /// the String parameter is the path to the quarantine folder.
     /// this status disable delivery to all recipients.
     Quarantine(String),
-
-    /// used to send data from .vsl to vsmtp's server
-    Packet(String),
 
     /// the email as been delegated to another service.
     #[serde(skip)]

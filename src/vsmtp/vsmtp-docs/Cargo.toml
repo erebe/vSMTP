@@ -5,20 +5,31 @@ name = "vsmtp-docs"
 version = "1.3.0"
 license = "GPL-3.0-only"
 
-rust-version = "1.60"
+rust-version = "1.62.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 
 publish = false
 
-[dependencies]
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
-vsmtp-config = { path = "../vsmtp-config" }
+readme = "../../../README.md"
+keywords = ["vsmtp"]
+categories = ["docs, rhai"]
 
-rhai = { version = "1.9.1", features = [
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
+]
+
+[dependencies]
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.3.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.3.0" }
+
+rhai = { version = "1.10.1", features = [
     "unchecked",
     "sync",
     "internals",

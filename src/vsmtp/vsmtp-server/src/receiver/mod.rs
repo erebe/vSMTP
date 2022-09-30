@@ -15,15 +15,13 @@
  *
 */
 use self::transaction::{Transaction, TransactionResult};
+use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
-    mail_context::{ConnectionContext, MAIL_CAPACITY},
-    re::{anyhow, either, log, tokio},
-    state::State,
-    status::Status,
-    CodeID, ConnectionKind,
+    mail_context::ConnectionContext, state::State, status::Status, CodeID, ConnectionKind,
 };
-use vsmtp_config::{re::rustls, Resolvers};
-use vsmtp_mail_parser::{MailParserOnFly, MessageBody, ParserOutcome, RawBody};
+use vsmtp_config::DnsResolvers;
+use vsmtp_mail_parser::{BasicParser, MailParser, MessageBody};
 use vsmtp_rule_engine::RuleEngine;
 
 mod connection;
@@ -35,36 +33,8 @@ mod rsasl_exchange;
 pub use io::AbstractIO;
 pub mod transaction;
 pub use connection::Connection;
-pub use on_mail::{MailHandler, MailHandlerError, OnMail};
+pub use on_mail::{MailHandler, OnMail};
 pub use rsasl_callback::Callback;
-
-#[derive(Default)]
-struct NoParsing;
-
-#[async_trait::async_trait]
-impl MailParserOnFly for NoParsing {
-    async fn parse<'a>(
-        &'a mut self,
-        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> ParserOutcome {
-        let mut headers = Vec::with_capacity(20);
-        let mut body = String::with_capacity(MAIL_CAPACITY);
-
-        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            if line.is_empty() {
-                break;
-            }
-            headers.push(line);
-        }
-
-        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            body.push_str(&line);
-            body.push_str("\r\n");
-        }
-
-        Ok(either::Left(RawBody::new(headers, body)))
-    }
-}
 
 impl<S> Connection<S>
 where
@@ -77,12 +47,13 @@ where
     /// * server failed to send a message
     /// * a transaction failed
     /// * the pre-queue processing of the mail failed
-    #[tracing::instrument(skip(tls_config, rule_engine, resolvers, mail_handler))]
+    #[tracing::instrument(name = "transaction", skip_all)]
     pub async fn receive<M>(
         &mut self,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -91,7 +62,13 @@ where
         if self.kind == ConnectionKind::Tunneled {
             if let Some(tls_config) = tls_config {
                 return self
-                    .upgrade_to_secured(tls_config, rule_engine, resolvers, mail_handler)
+                    .upgrade_to_secured(
+                        tls_config,
+                        rule_engine,
+                        resolvers,
+                        queue_manager,
+                        mail_handler,
+                    )
                     .await;
             }
             anyhow::bail!("config ill-formed, handling a secured connection without valid config")
@@ -102,35 +79,58 @@ where
         self.send_code(CodeID::Greetings).await?;
 
         loop {
-            let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
+            let mut transaction = Transaction::new(
+                self,
+                &helo_domain,
+                rule_engine.clone(),
+                resolvers.clone(),
+                queue_manager.clone(),
+            );
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
+                    tracing::info!("SMTP handshake initiated.");
+
                     self.send_code(CodeID::DataStart).await?;
 
                     if !self
-                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .handle_stream(
+                            mail_handler,
+                            transaction,
+                            &mut helo_domain,
+                            queue_manager.clone(),
+                        )
                         .await?
                     {
                         return Ok(());
                     }
                 }
                 TransactionResult::HandshakeTLS => {
+                    tracing::debug!("TLS handshake initiated");
+
                     if let Some(tls_config) = tls_config {
                         return self
-                            .upgrade_to_secured(tls_config, rule_engine, resolvers, mail_handler)
+                            .upgrade_to_secured(
+                                tls_config,
+                                rule_engine,
+                                resolvers,
+                                queue_manager,
+                                mail_handler,
+                            )
                             .await;
                     }
                     self.send_code(CodeID::TlsNotAvailable).await?;
                     anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
                 }
                 TransactionResult::HandshakeSASL(helo_pre_auth, mechanism, initial_response) => {
+                    tracing::debug!("SASL handshake initiated");
+
                     if let Some(auth_config) = &self.config.server.smtp.auth {
                         self.handle_auth(
                             auth_config.clone(),
                             rule_engine.clone(),
                             resolvers.clone(),
+                            queue_manager.clone(),
                             &mut helo_domain,
                             (mechanism, initial_response),
                             helo_pre_auth,
@@ -141,6 +141,8 @@ where
                     }
                 }
                 TransactionResult::SessionEnded(code) => {
+                    tracing::info!("The session just ended. (due to QUIT command or EOF)");
+
                     self.send_reply_or_code(code).await?;
                     return Ok(());
                 }
@@ -151,12 +153,12 @@ where
     // NOTE: the implementation of `receive` and `receive_secured` are very similar,
     // but need to be distinct (and thus not called in a recursion fashion) because of
     // `rustc --explain E0275`
-    // TODO: could keep the `parent` to produce better logs
-    #[tracing::instrument(parent = None, skip( rule_engine, resolvers, mail_handler))]
+    #[tracing::instrument(parent = None, name = "receive secured transaction", skip_all)]
     async fn receive_secured<M>(
         &mut self,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -169,15 +171,25 @@ where
         let mut helo_domain = None;
 
         loop {
-            let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone());
+            let mut transaction = Transaction::new(
+                self,
+                &helo_domain,
+                rule_engine.clone(),
+                resolvers.clone(),
+                queue_manager.clone(),
+            );
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
                     self.send_code(CodeID::DataStart).await?;
 
                     if !self
-                        .handle_stream(mail_handler, transaction, &mut helo_domain)
+                        .handle_stream(
+                            mail_handler,
+                            transaction,
+                            &mut helo_domain,
+                            queue_manager.clone(),
+                        )
                         .await?
                     {
                         return Ok(());
@@ -192,6 +204,7 @@ where
                             auth_config.clone(),
                             rule_engine.clone(),
                             resolvers.clone(),
+                            queue_manager.clone(),
                             &mut helo_domain,
                             (mechanism, initial_response),
                             helo_pre_auth,
@@ -213,7 +226,8 @@ where
         &mut self,
         tls_config: std::sync::Arc<rustls::ServerConfig>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
     where
@@ -255,7 +269,7 @@ where
         };
 
         secured_conn
-            .receive_secured(rule_engine, resolvers, mail_handler)
+            .receive_secured(rule_engine, resolvers, queue_manager, mail_handler)
             .await
     }
 
@@ -264,17 +278,18 @@ where
         mail_handler: &mut M,
         mut transaction: Transaction,
         helo_domain: &mut Option<String>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<bool>
     where
         M: OnMail + Send,
     {
         // fetching the email using the transaction's stream.
         {
-            log::info!("SMTP handshake completed, fetching email");
+            tracing::info!("SMTP handshake completed, fetching email.");
             let mut body = {
                 let stream = Transaction::stream(self);
                 tokio::pin!(stream);
-                NoParsing::default().parse(stream).await?
+                MailParser::parse(&mut BasicParser::default(), stream).await?
             };
 
             let handle = transaction.rule_state.message();
@@ -323,7 +338,7 @@ where
 
         let helo = mail_context.envelop.helo.clone();
         let code = mail_handler
-            .on_mail(self, Box::new(mail_context), message)
+            .on_mail(self, Box::new(mail_context), message, queue_manager)
             .await;
         *helo_domain = Some(helo);
         self.send_code(code).await?;

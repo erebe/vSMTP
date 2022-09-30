@@ -24,14 +24,14 @@ use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
+use vqueue::GenericQueueManager;
 use vsmtp_common::mail_context::MessageMetadata;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::status::Status;
 use vsmtp_common::{
     mail_context::{ConnectionContext, MailContext},
     Envelop,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
 /// a state container that bridges rhai's & rust contexts.
@@ -64,14 +64,11 @@ impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
     pub fn new(
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
+        config: std::sync::Arc<Config>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
     ) -> Self {
-        let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
-            resolvers,
-        });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             // TODO: add `Default` trait to `ConnectionContext`.
             connection: ConnectionContext {
@@ -106,6 +103,12 @@ impl RuleState {
                 dkim: None,
             },
         }));
+        let server = std::sync::Arc::new(ServerAPI {
+            config,
+            resolvers,
+            queue_manager,
+        });
+
         let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
         let engine = Self::build_rhai_engine(
@@ -127,12 +130,13 @@ impl RuleState {
     /// create a new rule state with connection data.
     #[must_use]
     pub fn with_connection(
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
+        config: std::sync::Arc<Config>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let mut state = Self::new(config, resolvers, rule_engine);
+        let mut state = Self::new(config, resolvers, queue_manager, rule_engine);
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
@@ -163,15 +167,17 @@ impl RuleState {
     /// create a `RuleState` from an existing mail context (f.e. when deserializing a context)
     #[must_use]
     pub fn with_context(
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
+        config: std::sync::Arc<Config>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
         message: MessageBody,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
+            config,
             resolvers,
+            queue_manager,
         });
 
         // all rule are skipped until the designated rule
@@ -216,28 +222,45 @@ impl RuleState {
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
                 "MSG" => Ok(Some(rhai::Dynamic::from(message.clone()))),
                 _ => Ok(None),
-            })
-            .on_print(|msg| println!("{msg}"))
+            });
+
+        if cfg!(debug_assertions) {
+            engine.on_print(|msg| println!("{msg}"));
+            engine.on_debug(move |s, src, pos| {
+                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
+            });
+        }
+
+        engine
             .register_global_module(rule_engine.std_module.clone())
             .register_global_module(rule_engine.vsl_rhai_module.clone())
             .register_static_module("sys", rule_engine.vsl_native_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
             // FIXME: the following 4 lines should be remove for performance improvement.
             //        need to check out how to construct directives as a module.
-            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
-            .register_custom_syntax_raw("action", parse_action, true, create_action)
-            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
-            .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw(
+            .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_with_state_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_with_state_raw(
+                "delegate",
+                parse_delegation,
+                true,
+                create_delegation,
+            )
+            .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_with_state_raw(
                 "service",
                 parse_service,
                 true,
-                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+                      input: &[rhai::Expression<'_>],
+                      _state: &rhai::Dynamic| {
                     create_service(context, input, &config)
                 },
             )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
+
+        engine.set_fast_operators(false);
 
         engine
     }

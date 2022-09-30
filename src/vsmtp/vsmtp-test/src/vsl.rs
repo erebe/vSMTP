@@ -15,59 +15,26 @@
  *
 */
 
-use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext, MessageMetadata},
-    state::State,
-    Envelop,
-};
-use vsmtp_mail_parser::MessageBody;
+use crate::config::{local_ctx, local_msg, local_test};
+use vsmtp_common::state::State;
+use vsmtp_config::DnsResolvers;
 use vsmtp_rule_engine::RuleEngine;
 
 ///
-pub fn run(vsl: &str) {
-    let config = vsmtp_config::Config::default();
-    let rule_engine = RuleEngine::from_script(&config, vsl).expect("Cannot create rule engine");
+pub fn run(vsl: &'static str) {
+    let config = arc!(local_test());
+    let rule_engine = RuleEngine::from_script(config.clone(), vsl).expect("rule engine");
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            .expect("queue manager");
 
     let _output = rule_engine.just_run_when(
         State::Connect,
-        &config,
-        std::sync::Arc::new(vsmtp_common::collection! {}),
-        MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                server_name: "testserver.com".to_string(),
-                server_addr: "127.0.0.1:25".parse().expect(""),
-                client_addr: "127.0.0.1:5977".parse().expect(""),
-                is_authenticated: false,
-                is_secured: false,
-                error_count: 0,
-                authentication_attempt: 0,
-            },
-            envelop: Envelop {
-                helo: "client.testserver.com".to_string(),
-                mail_from: "client@client.testserver.com".parse().expect(""),
-                rcpt: vec![],
-            },
-            metadata: MessageMetadata {
-                timestamp: None,
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            },
-        },
-        MessageBody::new(
-            [
-                "From: NoBody <nobody@domain.tld>",
-                "Reply-To: Yuin <yuin@domain.tld>",
-                "To: Hei <hei@domain.tld>",
-                "Subject: Happy new year",
-            ]
-            .into_iter()
-            .map(str::to_string)
-            .collect(),
-            "Be happy!".to_string(),
-        ),
+        config,
+        std::sync::Arc::new(DnsResolvers::from_system_conf().expect("resolvers")),
+        queue_manager,
+        local_ctx(),
+        local_msg(),
     );
 }

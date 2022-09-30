@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{parser::MailMimeParser, MailParser};
+use crate::{MailMimeParser, MailParser};
 
 mod mime_parser {
 
@@ -76,7 +76,7 @@ fn test_parse_whole_folder() {
                 .unwrap();
 
             MailMimeParser::default()
-                .parse_lines(&mail.lines().collect::<Vec<_>>())
+                .parse_sync(mail.lines().map(ToString::to_string).collect::<Vec<_>>())
                 .map(|_| {
                     std::io::Write::write(
                         &mut output,

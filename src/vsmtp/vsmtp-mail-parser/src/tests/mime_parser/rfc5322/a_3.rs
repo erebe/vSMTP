@@ -1,15 +1,13 @@
-use crate::parser::MailMimeParser;
-use crate::{
-    message::mail::{BodyType, Mail, MailHeaders},
-    MailParser,
-};
+use crate::message::mail::{BodyType, Mail, MailHeaders};
+use crate::{MailMimeParser, MailParser};
 
 #[test]
 fn resent() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.3.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.3.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()

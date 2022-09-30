@@ -16,13 +16,15 @@ use vsmtp_config::Config;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::{cmd::parse_cmd_service, smtp::parse_smtp_service, Service};
 use crate::api::EngineResult;
+
+use super::{cmd::parsing::CmdParser, smtp::parsing::SmtpParser, Parser};
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
+    _state: &mut rhai::Dynamic,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
         // service keyword, then the name of it.
@@ -95,18 +97,23 @@ pub fn parse_service(
 
 /// parses the given syntax tree and construct a service from it.
 pub fn create_service(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
-    config: &Config,
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
+    // NOTE: not used right now, but could be used to configure
+    //       tls parameters for delegation (smtp service) separately from regular
+    //       sockets config.
+    //
+    //       to remove if configured using vsl.
+    _: &Config,
 ) -> EngineResult<rhai::Dynamic> {
     let service_name = input[0].get_string_value().unwrap().to_string();
     let service_type = input[1].get_string_value().unwrap().to_string();
 
     let service = match service_type.as_str() {
-        "db" => open_database(context, input, &service_name),
-        "cmd" => parse_cmd_service(context, input, &service_name),
-        "smtp" => parse_smtp_service(context, input, &service_name, config),
-        unknown => Err(format!("{unknown} service type does not exist").into()),
+        "db" => {
+            crate::dsl::service::databases::parse_database_service(context, input, &service_name)
+        }
+        _ => parse_regular_service(context, input, &service_name, &service_type),
     }?;
 
     let ptr = std::sync::Arc::new(service);
@@ -123,37 +130,27 @@ pub fn create_service(
 }
 
 /// open a file database using the csv crate.
-fn open_database(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+fn parse_regular_service(
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
     service_name: &str,
-) -> EngineResult<Service> {
-    let database_type = input[3].get_string_value().unwrap();
-    let options = context.eval_expression_tree(&input[4])?;
+    service_type: &str,
+) -> EngineResult<super::Service> {
+    let options: rhai::Map = context
+        .eval_expression_tree(&input[3])?
+        .try_cast()
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+            "service options must be declared with a rhai map `#{}`".into()
+        })?;
 
-    if options.is::<rhai::Map>() {
-        let mut options: rhai::Map = options
-            .try_cast()
-            .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                "database options must be declared with a map #{}".into()
-            })?;
+    let regular_service_parsers: Vec<Box<dyn Parser>> =
+        vec![Box::new(SmtpParser), Box::new(CmdParser)];
 
-        options.insert("name".into(), rhai::Dynamic::from(service_name.to_string()));
-
-        let service = match database_type {
-            "csv" => super::databases::csv::parse_csv_database(service_name, &options)?,
-            #[cfg(feature = "mysql")]
-            "mysql" => super::databases::mysql::parse_mysql_database(service_name, &options)?,
-            _ => unreachable!("database type has already been parsed"),
-        };
-
-        Ok(service)
-    } else {
-        Err(rhai::EvalAltResult::ErrorMismatchDataType(
-            "Map".to_string(),
-            options.type_name().to_string(),
-            rhai::Position::NONE,
-        )
-        .into())
-    }
+    regular_service_parsers
+        .iter()
+        .find(|parser| parser.service_type() == service_type)
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+            format!("The '{service_type}' service type does not exist").into()
+        })?
+        .parse_service(service_name, options)
 }

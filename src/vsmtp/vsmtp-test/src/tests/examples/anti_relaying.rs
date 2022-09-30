@@ -16,13 +16,13 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::re::tokio;
 
 // TODO: add more test cases for this example.
 #[tokio::test]
 async fn test_check_relay() {
     let toml = include_str!("../../../../../../examples/anti_relaying/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
+    let config = arc!(config);
 
     assert!(test_receiver! {
         with_config => config.clone(),

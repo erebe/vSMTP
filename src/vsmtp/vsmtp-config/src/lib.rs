@@ -46,6 +46,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -81,25 +82,16 @@ mod config;
 mod default;
 mod ensure;
 mod rustls_helper;
-mod trust_dns_helper;
 mod virtual_tls;
 
+mod dns_resolver;
+
+pub use dns_resolver::DnsResolvers;
+
 pub use config::{field, Config};
-
 pub use rustls_helper::get_rustls_config;
-pub use trust_dns_helper::{build_resolvers, Resolvers};
-
-/// Re-exported dependencies
-pub mod re {
-    pub use humantime_serde::re::humantime;
-    pub use rustls;
-    // NOTE: this one should not be re-exported (because tests only)
-    pub use rustls_pemfile;
-    pub use users;
-}
 
 use builder::{Builder, WantsVersion};
-use vsmtp_common::{libc_abstraction::chown, re::anyhow};
 
 impl Config {
     /// Create an instance of [`Builder`].
@@ -144,42 +136,4 @@ impl Config {
             .map(Self::ensure)
             .map_err(anyhow::Error::new)?
     }
-}
-
-#[doc(hidden)]
-pub fn create_app_folder(
-    config: &Config,
-    path: Option<&str>,
-) -> anyhow::Result<std::path::PathBuf> {
-    if !config.app.dirpath.exists() {
-        std::fs::create_dir_all(&config.app.dirpath)?;
-    }
-
-    let absolute_app_dirpath = config.app.dirpath.canonicalize()?;
-    let full_path = path.map_or_else(
-        || config.app.dirpath.clone(),
-        |path| config.app.dirpath.join(path),
-    );
-
-    if !full_path.exists() {
-        std::fs::create_dir_all(&full_path)?;
-        if option_env!("CI").is_none() {
-            chown(
-                &full_path,
-                Some(config.server.system.user.uid()),
-                Some(config.server.system.group.gid()),
-            )?;
-        }
-
-        // NOTE: `canonicalize` cannot be used before creating folders
-        //        because it checks if the result path exists or not.
-        // FIXME: Even if the path is invalid (`path` parameter uses
-        //        `..` or `/` to go out of the app dirpath) the folder
-        //        is created anyway.
-        if !full_path.canonicalize()?.starts_with(&absolute_app_dirpath) {
-            anyhow::bail!("Tried to create the app folder at {:?} but the root app directory {:?} is no longer the parent. All application output must be within the app directory path specified in the toml configuration.", full_path, config.app.dirpath)
-        }
-    }
-
-    Ok(full_path)
 }

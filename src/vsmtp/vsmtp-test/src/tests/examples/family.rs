@@ -15,8 +15,8 @@
  *
 */
 use crate::test_receiver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::tokio;
 use vsmtp_common::CodeID;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -36,6 +36,7 @@ async fn test_family_setup() {
             _: &mut Connection<S>,
             ctx: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             ctx.envelop
                 .rcpt
@@ -49,6 +50,8 @@ async fn test_family_setup() {
 
     let toml = include_str!("../../../../../../examples/family/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
+
+    let config = arc!(config);
 
     assert!(test_receiver! {
         with_config => config.clone(),

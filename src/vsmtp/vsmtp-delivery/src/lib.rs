@@ -21,6 +21,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -29,9 +30,7 @@
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::re::anyhow::Context;
-    use vsmtp_common::re::lettre;
-    use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow, Address};
+    use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, Address};
     use vsmtp_config::Config;
 
     ///
@@ -60,6 +59,7 @@ pub mod transport {
 
     /// no transfer will be made if this resolver is selected.
     pub struct NoTransfer;
+    use anyhow::Context;
 
     #[async_trait::async_trait]
     impl Transport for NoTransfer {

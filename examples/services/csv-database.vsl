@@ -1,0 +1,52 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+
+// A service to interface with a csv file.
+service my_database db:csv = #{
+    // The path to the csv database.
+    connector: "../../../examples/services/path-to-my_db.csv",
+    // The access mode of the database. Can be:
+    // `O_RDONLY`, `O_WRONLY` or `O_RDWR`. (Optional, "O_RDWR" by default)
+    access: "O_RDONLY",
+    // The refresh mode of the database.
+    // Can be "always" (database is always refreshed once queried)
+    // or "no" (database is readonly and never refreshed).
+    //
+    // WARNING: using the "always" option can make vsmtp really slow,
+    //          because it has to pull the whole database in memory every
+    //          time it is queried. Use it only if you have a small database.
+    //
+    // (Optional, "always" by default)
+    refresh: "always",
+    // The delimiter character used in the csv file. (Optional, ',' by default)
+    delimiter: ',',
+};
+
+// A service to interface with a greylist database.
+service greylist db:csv = #{
+    connector: "/tmp/greylist.csv",
+};
+
+rule "greylisting" || {
+    if greylist.get(mail_from()).is_empty() {
+        // update the greylist ...
+        // Checkout out the example at https://github.com/viridIT/vSMTP/blob/develop/examples/greylist/main.vsl
+        // to setup a greylist using a csv or mysql database.
+    }
+};
+
+#{}

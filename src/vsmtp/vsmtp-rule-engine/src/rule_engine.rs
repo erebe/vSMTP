@@ -29,16 +29,9 @@ use crate::dsl::{
 use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
-use vsmtp_common::re::serde_json;
-use vsmtp_common::{
-    mail_context::MailContext,
-    queue::Queue,
-    queue_path,
-    re::{anyhow, log},
-    state::State,
-    status::Status,
-};
-use vsmtp_config::{Config, Resolvers};
+use vqueue::{GenericQueueManager, QueueID};
+use vsmtp_common::{mail_context::MailContext, state::State, status::Status};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
 /// a sharable rhai engine.
@@ -59,6 +52,8 @@ pub struct RuleEngine {
     pub(super) toml_module: rhai::Shared<rhai::Module>,
 }
 
+type RuleEngineInput<'a> = either::Either<Option<std::path::PathBuf>, &'a str>;
+
 impl RuleEngine {
     /// creates a new instance of the rule engine, reading all files in the
     /// `script_path` parameter.
@@ -68,94 +63,102 @@ impl RuleEngine {
     /// # Errors
     /// * failed to register `script_path` as a valid module folder.
     /// * failed to compile or load any script located at `script_path`.
-    pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
-        log::debug!("building vsl compiler and modules ...");
-
-        let mut compiler = Self::new_compiler(config);
-
-        let std_module = rhai::packages::StandardPackage::new().as_shared_module();
-        let vsl_native_module = StandardVSLPackage::new().as_shared_module();
-        let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
-
-        compiler
-            .set_module_resolver(match script_path {
-                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
-                    script_path.parent().ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "file '{}' does not have a valid parent directory for rules",
-                            script_path.display()
-                        )
-                    })?,
-                    "vsl",
-                ),
-                None => FileModuleResolver::new_with_extension("vsl"),
-            })
-            .register_global_module(std_module.clone())
-            .register_static_module("sys", vsl_native_module.clone())
-            .register_static_module("toml", toml_module.clone());
-
-        log::debug!("compiling rhai scripts ...");
-
-        let vsl_rhai_module =
-            rhai::Shared::new(Self::compile_api(&compiler).context("failed to compile vsl's api")?);
-        compiler.register_global_module(vsl_rhai_module.clone());
-
-        let ast = if let Some(script_path) = &script_path {
-            compiler
-                .compile_into_self_contained(
-                    &rhai::Scope::new(),
-                    &std::fs::read_to_string(&script_path)
-                        .context(format!("failed to read file: '{}'", script_path.display()))?,
-                )
-                .map_err(|err| anyhow::anyhow!("failed to compile your scripts: {err}"))
-        } else {
-            log::warn!(
-                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default."
-            );
-
-            compiler
-                .compile(include_str!("../api/default_rules.rhai"))
-                .map_err(|err| anyhow::anyhow!("failed to compile default rules: {err}"))
-        }?;
-
-        let directives = Self::extract_directives(&compiler, &ast)?;
-
-        log::debug!("done.");
-
-        Ok(Self {
-            ast,
-            directives,
-            vsl_native_module,
-            vsl_rhai_module,
-            std_module,
-            toml_module,
-        })
+    pub fn new(
+        config: std::sync::Arc<Config>,
+        input: Option<std::path::PathBuf>,
+    ) -> anyhow::Result<Self> {
+        Self::new_inner(config, &either::Left(input))
     }
 
+    // NOTE: since a single engine instance is created for each postq emails
+    //       no instrument attribute are placed here.
     /// create a rule engine instance from a script.
     ///
     /// # Errors
     ///
     /// * failed to compile the script.
-    pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
+    pub fn from_script(config: std::sync::Arc<Config>, input: &str) -> anyhow::Result<Self> {
+        Self::new_inner(config, &either::Right(input))
+    }
+
+    #[tracing::instrument(name = "building-rules", skip_all)]
+    fn new_inner(
+        config: std::sync::Arc<Config>,
+        input: &RuleEngineInput<'_>,
+    ) -> anyhow::Result<Self> {
+        let (server_config, app_config) = (
+            serde_json::to_string(&config.server)
+                .context("failed to convert the server configuration to json")?,
+            serde_json::to_string(&config.app)
+                .context("failed to convert the app configuration to json")?,
+        );
+
+        tracing::debug!("Building vSL compiler ...");
+
         let mut compiler = Self::new_compiler(config);
 
-        let vsl_native_module = StandardVSLPackage::new().as_shared_module();
+        let toml_module = {
+            let mut toml_module = rhai::Module::new();
+            toml_module
+                .set_var("server", compiler.parse_json(server_config, true)?)
+                .set_var("app", compiler.parse_json(app_config, true)?);
+            rhai::Shared::new(toml_module)
+        };
+
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
-        let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
+        let vsl_native_module = StandardVSLPackage::new().as_shared_module();
 
         compiler
             .register_global_module(std_module.clone())
             .register_static_module("sys", vsl_native_module.clone())
             .register_static_module("toml", toml_module.clone());
 
+        compiler.set_module_resolver(match &input {
+            // TODO: handle canonicalization.
+            either::Either::Left(Some(path)) => FileModuleResolver::new_with_path_and_extension(
+                path.parent().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "file '{}' does not have a valid parent directory for rules",
+                        path.display()
+                    )
+                })?,
+                "vsl",
+            ),
+            either::Either::Left(None) | either::Either::Right(_) => {
+                FileModuleResolver::new_with_extension("vsl")
+            }
+        });
+
+        tracing::debug!("Compiling vSL api ...");
+
         let vsl_rhai_module =
             rhai::Shared::new(Self::compile_api(&compiler).context("failed to compile vsl's api")?);
 
         compiler.register_global_module(vsl_rhai_module.clone());
 
-        let ast = compiler.compile_into_self_contained(&rhai::Scope::new(), script)?;
+        let main_vsl = match &input {
+            either::Either::Left(Some(path)) => {
+                tracing::info!("Analyzing vSL rules at {path:?}");
+
+                std::fs::read_to_string(path)
+                    .context(format!("failed to read file: '{}'", path.display()))?
+            }
+            either::Either::Left(None) => {
+                tracing::warn!(
+                    "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default."
+                );
+                include_str!("../api/default_rules.rhai").to_string()
+            }
+            either::Either::Right(script) => (*script).to_string(),
+        };
+
+        let ast = compiler
+            .compile_into_self_contained(&rhai::Scope::new(), &main_vsl)
+            .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;
+
         let directives = Self::extract_directives(&compiler, &ast)?;
+
+        tracing::info!("Done.");
 
         Ok(Self {
             ast,
@@ -175,13 +178,14 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
+    #[tracing::instrument(name = "rule", skip_all, fields(stage = %smtp_state))]
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: State) -> Status {
-        let directive_set =
-            if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-                directive_set
-            } else {
-                return Status::Next;
-            };
+        let directive_set = if let Some(directive_set) = self.directives.get(&smtp_state) {
+            directive_set
+        } else {
+            tracing::debug!("No rules for the current state, skipping.");
+            return Status::Next;
+        };
 
         // check if we need to skip directive execution or resume because of a delegation.
         let directive_set = match rule_state.skipped() {
@@ -194,16 +198,16 @@ impl RuleEngine {
                 {
                     let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
-                    let (stage, directive_name, message_id) = match (
-                        header.args.get("stage"),
-                        header.args.get("directive"),
-                        header.args.get("id"),
-                    ) {
-                        (Some(stage), Some(directive_name), Some(message_id)) => {
+                    let (stage, directive_name, message_id) =
+                        if let (Some(stage), Some(directive_name), Some(message_id)) = (
+                            header.args.get("stage"),
+                            header.args.get("directive"),
+                            header.args.get("id"),
+                        ) {
                             (stage, directive_name, message_id)
-                        }
-                        _ => return Status::DelegationResult,
-                    };
+                        } else {
+                            return Status::DelegationResult;
+                        };
 
                     if *stage == smtp_state.to_string() {
                         if let Some(d) = directive_set
@@ -218,21 +222,24 @@ impl RuleEngine {
                             // There is however no need to discard the old email because it
                             // will be overridden by the results once it's time to write
                             // in the 'mail' queue.
-                            let path_to_context = queue_path!(
-                                &rule_state.server.config.server.queues.dirpath,
-                                Queue::Delegated,
-                                message_id
-                            );
 
                             // FIXME: this is only useful for preq, the other processes
                             //        already fetch the old context.
-                            match MailContext::from_file_path_sync(&path_to_context) {
+                            match rule_state
+                                .server
+                                .queue_manager
+                                .get_ctx(&QueueID::Delegated, message_id)
+                            {
                                 Ok(mut context) => {
                                     context.metadata.skipped = None;
                                     *rule_state.context().write().unwrap() = context;
-                                },
-                                Err(err) => log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}")
-                            };
+                                }
+                                Err(error) => {
+                                    tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
+                                }
+                            }
+
+                            tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
 
                             rule_state.resume();
                             &directive_set[d..]
@@ -253,22 +260,24 @@ impl RuleEngine {
         #[allow(clippy::single_match_else)]
         match self.execute_directives(rule_state, directive_set, smtp_state) {
             Ok(status) => {
+                tracing::debug!(?status);
+
                 if status.is_finished() {
-                    log::debug!(
-                        "[{smtp_state}] the rule engine will skip all rules because of the previous result."
+                    tracing::debug!(
+                        "The rule engine will skip all rules because of the previous result."
                     );
                     rule_state.skipping(status.clone());
                 }
 
                 status
             }
-            Err(_) => {
-                // TODO: keep the error for the `deferred` info
+            Err(error) => {
+                tracing::error!(%error);
+                // TODO: keep the error for the `deferred` info.
 
                 // if an error occurs, the engine denies the connection by default.
-                let state_if_error = deny();
-                rule_state.skipping(state_if_error.clone());
-                state_if_error
+                rule_state.skipping(deny());
+                deny()
             }
         }
     }
@@ -282,13 +291,20 @@ impl RuleEngine {
     pub fn just_run_when(
         &self,
         state: State,
-        config: &Config,
-        resolvers: std::sync::Arc<Resolvers>,
+        config: std::sync::Arc<Config>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         mail_context: MailContext,
         mail_message: MessageBody,
     ) -> (MailContext, MessageBody, Status, Option<Status>) {
-        let mut rule_state =
-            RuleState::with_context(config, resolvers, self, mail_context, mail_message);
+        let mut rule_state = RuleState::with_context(
+            config,
+            resolvers,
+            queue_manager,
+            self,
+            mail_context,
+            mail_message,
+        );
 
         let result = self.run_when(&mut rule_state, state);
 
@@ -309,6 +325,7 @@ impl RuleEngine {
         let mut status = Status::Next;
 
         for directive in directives {
+            tracing::debug!("Executing {} '{}'", directive.as_ref(), directive.name());
             status = directive.execute(state, &self.ast, stage)?;
 
             if status != Status::Next {
@@ -321,38 +338,54 @@ impl RuleEngine {
 
     /// create a rhai engine to compile all scripts with vsl's configuration.
     #[must_use]
-    pub fn new_compiler(config: &Config) -> rhai::Engine {
+    pub fn new_compiler(config: std::sync::Arc<Config>) -> rhai::Engine {
         let mut engine = Engine::new();
-        let config = config.clone();
 
         // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
+        engine.on_parse_token(|token, _, _| {
+            match token {
+                // remap 'is' operator to '==', it's easier than creating a new operator.
+                // NOTE: warning => "is" is a reserved keyword in rhai's tokens, maybe change to "eq" ?
+                rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
+                rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
+                // Pass through all other tokens unchanged
+                _ => token,
+            }
+        });
+
+        if cfg!(debug_assertions) {
+            engine.on_print(|msg| println!("{msg}"));
+            engine.on_debug(move |s, src, pos| {
+                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
+            });
+        }
+
         engine
             .disable_symbol("eval")
-            .on_parse_token(|token, _, _| {
-                match token {
-                    // remap 'is' operator to '==', it's easier than creating a new operator.
-                    // NOTE: warning => "is" is a reserved keyword in rhai's tokens, maybe change to "eq" ?
-                    rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
-                    rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
-                    // Pass through all other tokens unchanged
-                    _ => token,
-                }
-            })
-            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
-            .register_custom_syntax_raw("action", parse_action, true, create_action)
-            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
-            .register_custom_syntax_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_raw(
+            .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_with_state_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_with_state_raw(
+                "delegate",
+                parse_delegation,
+                true,
+                create_delegation,
+            )
+            .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_with_state_raw(
                 "service",
                 parse_service,
                 true,
-                move |context: &mut rhai::EvalContext, input: &[rhai::Expression]| {
+                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+                      input: &[rhai::Expression<'_>],
+                      _state: &rhai::Dynamic| {
                     create_service(context, input, &config)
                 },
             )
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<SharedObject>>();
+
+        engine.set_fast_operators(false);
 
         engine
     }
@@ -466,7 +499,7 @@ impl RuleEngine {
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
 
-            directives.insert(stage.to_string(), directive_set);
+            directives.insert(stage, directive_set);
         }
 
         let names = directives
@@ -485,21 +518,5 @@ impl RuleEngine {
         }
 
         Ok(directives)
-    }
-
-    fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
-        let server_config = serde_json::to_string(&config.server)
-            .context("failed to convert the server configuration to json")?;
-
-        let app_config = serde_json::to_string(&config.app)
-            .context("failed to convert the app configuration to json")?;
-
-        let mut toml_module = rhai::Module::new();
-
-        toml_module
-            .set_var("server", engine.parse_json(server_config, true)?)
-            .set_var("app", engine.parse_json(app_config, true)?);
-
-        Ok(toml_module)
     }
 }

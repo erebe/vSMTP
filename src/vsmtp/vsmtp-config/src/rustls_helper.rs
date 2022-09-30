@@ -15,14 +15,13 @@
  *
 */
 use rustls::ALL_CIPHER_SUITES;
-use vsmtp_common::re::{anyhow, log};
 
 use crate::field::{FieldServerTls, FieldServerVirtual};
 
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {
     fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
-        log::trace!("{} {:?} {:?}", label, client_random, secret);
+        tracing::trace!(label, ?client_random, ?secret);
     }
 }
 
@@ -34,7 +33,7 @@ struct CertResolver {
 impl rustls::server::ResolvesServerCert for CertResolver {
     fn resolve(
         &self,
-        client_hello: rustls::server::ClientHello,
+        client_hello: rustls::server::ClientHello<'_>,
     ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
         self.sni_resolver
             .resolve(client_hello)
@@ -111,7 +110,9 @@ pub fn get_rustls_config(
                                 sct_list: None,
                             },
                         )
-                        .map_err(|e| anyhow::anyhow!("cannot add sni to resolver: {e}"))?;
+                        .map_err(|e| {
+                            anyhow::anyhow!("cannot add sni to resolver '{domain}': {e}")
+                        })?;
 
                     Ok(sni_resolver)
                 },

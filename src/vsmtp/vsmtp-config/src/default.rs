@@ -21,12 +21,11 @@ use crate::{
         FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
-        TlsSecurityLevel,
+        SyslogSocket, TlsSecurityLevel,
     },
-    field::SyslogSocket,
     Config,
 };
-use vsmtp_common::{auth::Mechanism, collection, re::strum, CodeID, Reply, ReplyCode};
+use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
 
 impl Default for Config {
     fn default() -> Self {
@@ -39,7 +38,7 @@ impl Default for Config {
                     major: current_version.major,
                     minor: Some(current_version.minor),
                     patch: Some(current_version.patch),
-                    pre: current_version.pre,
+                    pre: semver::Prerelease::EMPTY,
                 },
                 semver::Comparator {
                     op: semver::Op::Less,
@@ -61,6 +60,7 @@ impl Default for FieldServer {
         Self {
             domain: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
+            message_size_limit: Self::default_message_size_limit(),
             system: FieldServerSystem::default(),
             interfaces: FieldServerInterfaces::default(),
             logs: FieldServerLogs::default(),
@@ -81,6 +81,10 @@ impl FieldServer {
 
     pub(crate) const fn default_client_count_max() -> i64 {
         16
+    }
+
+    pub(crate) const fn default_message_size_limit() -> usize {
+        10_000_000
     }
 }
 
@@ -157,7 +161,6 @@ impl Default for FieldServerLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
-            format: Self::default_format(),
             level: Self::default_level(),
             system: None,
         }
@@ -167,10 +170,6 @@ impl Default for FieldServerLogs {
 impl FieldServerLogs {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
         "/var/log/vsmtp/vsmtp.log".into()
-    }
-
-    pub(crate) fn default_format() -> String {
-        "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}".to_string()
     }
 
     pub(crate) fn default_level() -> Vec<tracing_subscriber::filter::Directive> {
@@ -190,9 +189,11 @@ impl SyslogSocket {
     pub(crate) fn default_tcp_server() -> std::net::SocketAddr {
         "127.0.0.1:601".parse().expect("valid")
     }
+}
 
-    pub(crate) fn default_unix_path() -> std::path::PathBuf {
-        "/var/run/syslog".into()
+impl Default for SyslogSocket {
+    fn default() -> Self {
+        Self::Unix { path: None }
     }
 }
 
@@ -315,7 +316,6 @@ impl Default for FieldServerSMTP {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
             disable_ehlo: Self::default_disable_ehlo(),
-            required_extension: Self::default_required_extension(),
             error: FieldServerSMTPError::default(),
             timeout_client: FieldServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
@@ -331,13 +331,6 @@ impl FieldServerSMTP {
 
     pub(crate) const fn default_disable_ehlo() -> bool {
         false
-    }
-
-    pub(crate) fn default_required_extension() -> Vec<String> {
-        ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
-            .into_iter()
-            .map(str::to_string)
-            .collect()
     }
 
     // TODO: should be const and compile time checked
@@ -387,6 +380,9 @@ impl FieldServerSMTP {
             ),
             CodeID::BadSequence => Reply::new(
                 ReplyCode::Code{ code: 503 }, "Bad sequence of commands"
+            ),
+            CodeID::MessageSizeExceeded => Reply::new(
+                ReplyCode::Enhanced { code: 552, enhanced: "4.3.1".to_string() }, "Message size exceeds fixed maximum message size"
             ),
             CodeID::TlsGoAhead => Reply::new(
                 ReplyCode::Code{ code: 220 }, "TLS go ahead"
@@ -547,7 +543,6 @@ impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
-            format: Self::default_format(),
         }
     }
 }
@@ -555,9 +550,5 @@ impl Default for FieldAppLogs {
 impl FieldAppLogs {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
         "/var/log/vsmtp/app.log".into()
-    }
-
-    pub(crate) fn default_format() -> String {
-        "{d} - {m}{n}".to_string()
     }
 }

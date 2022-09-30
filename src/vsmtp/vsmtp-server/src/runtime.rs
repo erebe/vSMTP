@@ -15,14 +15,8 @@
  *
 */
 use crate::{delivery, processing, ProcessMessage, Server};
-use vsmtp_common::{
-    queue::Queue,
-    re::{
-        anyhow::{self, Context},
-        log, strum, tokio,
-    },
-};
-use vsmtp_config::Config;
+use anyhow::Context;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
@@ -47,7 +41,7 @@ where
         .spawn(move || {
             let name_rt = name.clone();
             runtime.block_on(async move {
-                log::info!("Runtime '{name_rt}' started successfully");
+                tracing::info!(name = name_rt, "Runtime started successfully.");
 
                 match timeout {
                     Some(duration) => {
@@ -77,9 +71,7 @@ pub fn start_runtime(
     ),
     timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<()> {
-    <Queue as strum::IntoEnumIterator>::iter()
-        .map(|q| vsmtp_common::queue_path!(create_if_missing => &config.server.queues.dirpath, q))
-        .collect::<anyhow::Result<Vec<_>>>()?;
+    let config = std::sync::Arc::new(config);
 
     let mut error_handler = tokio::sync::mpsc::channel::<()>(3);
 
@@ -88,23 +80,27 @@ pub fn start_runtime(
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size),
     );
 
-    let rule_engine =
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone())?);
+    let rule_engine = std::sync::Arc::new(RuleEngine::new(
+        config.clone(),
+        config.app.vsl.filepath.clone(),
+    )?);
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
 
     let resolvers = std::sync::Arc::new(
-        vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+        DnsResolvers::from_config(&config).context("could not initialize dns")?,
     );
-
-    let config_arc = std::sync::Arc::new(config);
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
         "delivery",
-        config_arc.server.system.thread_pool.delivery,
+        config.server.system.thread_pool.delivery,
         delivery::start(
-            config_arc.clone(),
+            config.clone(),
             rule_engine.clone(),
             resolvers.clone(),
+            queue_manager.clone(),
             delivery_channel.1,
         ),
         timeout,
@@ -113,11 +109,12 @@ pub fn start_runtime(
     let _tasks_processing = init_runtime(
         error_handler.0.clone(),
         "processing",
-        config_arc.server.system.thread_pool.processing,
+        config.server.system.thread_pool.processing,
         processing::start(
-            config_arc.clone(),
+            config.clone(),
             rule_engine.clone(),
             resolvers.clone(),
+            queue_manager.clone(),
             working_channel.1,
             delivery_channel.0.clone(),
         ),
@@ -127,30 +124,31 @@ pub fn start_runtime(
     let _tasks_receiver = init_runtime(
         error_handler.0.clone(),
         "receiver",
-        config_arc.server.system.thread_pool.receiver,
+        config.server.system.thread_pool.receiver,
         async move {
             let server = match Server::new(
-                config_arc.clone(),
+                config.clone(),
                 rule_engine.clone(),
                 resolvers.clone(),
+                queue_manager.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             ) {
                 Ok(server) => server,
                 Err(error) => {
-                    log::error!("{}", error);
+                    tracing::error!(%error, "Receiver build failure.");
                     return;
                 }
             };
             if let Err(error) = server.listen_and_serve(sockets).await {
-                log::error!("{}", error);
+                tracing::error!(%error, "Receiver failure.");
             }
         },
         timeout,
     );
 
     let error_handler_sig = error_handler.0.clone();
-    let mut signals = signal_hook::iterator::Signals::new(&[
+    let mut signals = signal_hook::iterator::Signals::new([
         // Send by `systemctl stop` (and then sending `SIGKILL`)
         signal_hook::consts::SIGTERM,
         // Ctrl+C on a terminal
@@ -158,8 +156,7 @@ pub fn start_runtime(
     ])?;
     let _signal_handler = std::thread::spawn(move || {
         for sig in signals.forever() {
-            log::info!("Received signal '{}'", sig);
-            log::warn!("Stopping vSMTP server");
+            tracing::warn!(signal = sig, "Stopping vSMTP server.");
             error_handler_sig
                 .blocking_send(())
                 .expect("failed to send terminating instruction");

@@ -43,7 +43,7 @@ impl<'de> serde::Deserialize<'de> for Reply {
         impl<'de> serde::de::Visitor<'de> for ReplyVisitor {
             type Value = Reply;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("[...]")
             }
 
@@ -94,10 +94,10 @@ impl<'de> serde::Deserialize<'de> for Reply {
                 }
                 let code = code.ok_or_else(|| serde::de::Error::missing_field("code"))?;
                 Ok(Reply::new(
-                    match enhanced {
-                        Some(enhanced) => ReplyCode::Enhanced { code, enhanced },
-                        None => ReplyCode::Code { code },
-                    },
+                    enhanced.map_or(ReplyCode::Code { code }, |enhanced| ReplyCode::Enhanced {
+                        code,
+                        enhanced,
+                    }),
                     text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
                 ))
             }
@@ -110,12 +110,10 @@ impl<'de> serde::Deserialize<'de> for Reply {
 impl Reply {
     ///
     pub fn new(code: ReplyCode, text: impl Into<String>) -> Self {
-        let text = text.into();
-        if text.contains("\r\n") {
-            log::info!("found a '\\r\\n' in your {code:?}, this is not required as they will be inserted automatically");
+        Self {
+            code,
+            text: text.into(),
         }
-
-        Self { code, text }
     }
 
     ///
@@ -326,7 +324,7 @@ mod tests {
                 Reply::parse_str("250 ").unwrap(),
                 Reply {
                     code: ReplyCode::Code { code: 250 },
-                    text: "".to_string()
+                    text: String::new()
                 }
             );
         }

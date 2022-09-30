@@ -16,14 +16,13 @@
 */
 use super::get_tls_config;
 use crate::{test_receiver, tests::tls::test_starttls};
-use vsmtp_common::re::{anyhow, tokio};
 use vsmtp_config::field::TlsSecurityLevel;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
     let (client, server) = test_starttls(
         "testserver.com",
-        std::sync::Arc::new(get_tls_config()),
+        arc!(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
         &[
             "EHLO client.com\r\n",
@@ -63,7 +62,7 @@ async fn simple() {
 async fn double_starttls() {
     let (client, server) = test_starttls(
         "testserver.com",
-        std::sync::Arc::new(get_tls_config()),
+        arc!(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
         &["EHLO secured.client.com\r\n", "STARTTLS\r\n", "QUIT\r\n"],
         &[
@@ -118,7 +117,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
             .concat(),
         [
@@ -141,7 +140,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
 async fn config_ill_formed() {
     let (client, server) = test_starttls(
         "testserver.com",
-        std::sync::Arc::new(get_tls_config()),
+        arc!(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
         &["EHLO secured.client.com\r\n", "QUIT\r\n"],
         &[

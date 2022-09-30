@@ -21,6 +21,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -89,9 +90,6 @@ pub mod status;
 /// rcpt data structure.
 pub mod rcpt;
 
-/// queues
-pub mod queue;
-
 /// transfer method for delivery / forwarding.
 pub mod transfer;
 
@@ -112,20 +110,6 @@ mod tests {
     mod event;
 
     mod libc_abstraction;
-}
-
-///
-pub mod re {
-    pub use addr;
-    pub use anyhow;
-    pub use base64;
-    pub use either;
-    pub use lettre;
-    pub use libc;
-    pub use log;
-    pub use serde_json;
-    pub use strum;
-    pub use tokio;
 }
 
 #[doc(hidden)]

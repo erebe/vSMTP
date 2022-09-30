@@ -25,6 +25,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -32,7 +33,7 @@
 //
 #![allow(clippy::use_self)] // false positive with enums
 
-/// The implementation follow the RFC 7208 & 8301
+/// The implementation follow the RFC 7208
 ///
 /// ```txt
 /// Email on the Internet can be forged in a number of ways.  In
@@ -46,7 +47,7 @@
 /// ```
 pub mod spf;
 
-/// The implementation follow the RFC 6376
+/// The implementation follow the RFC 6376 & 8301 & 8463
 ///
 /// ```txt
 /// DomainKeys Identified Mail (DKIM) permits a person, role, or
@@ -98,6 +99,7 @@ pub enum ParseError {
     },
 }
 
+// FIXME: remove me (only used for strum::EnumIter)
 impl Default for ParseError {
     fn default() -> Self {
         ParseError::InvalidArgument {
@@ -113,12 +115,9 @@ impl Default for ParseError {
 /// * could not parse the `domain`
 /// * could not retrieve the root of the domain
 pub fn get_root_domain(domain: &str) -> anyhow::Result<String> {
-    if let Ok(domain) = addr::parse_domain_name(domain) {
-        Ok(domain
-            .root()
-            .ok_or_else(|| anyhow::anyhow!("could not retrieve root of domain `{domain}`"))?
-            .to_string())
-    } else {
-        anyhow::bail!("failed to parse as domain `{domain}`")
-    }
+    addr::parse_domain_name(domain)
+        .map_err(|_| anyhow::anyhow!("could not parse domain name: `{domain}`"))?
+        .root()
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!("could not retrieve root of domain `{domain}`"))
 }

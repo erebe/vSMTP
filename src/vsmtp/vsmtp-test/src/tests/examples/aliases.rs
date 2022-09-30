@@ -16,7 +16,8 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
@@ -35,6 +36,7 @@ async fn test_aliases() {
             _: &mut Connection<S>,
             ctx: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(
                 ctx.envelop.rcpt,
@@ -54,7 +56,7 @@ async fn test_aliases() {
 
     assert!(test_receiver! {
         on_mail => &mut MailHandler { },
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "HELO foo\r\n",
             "MAIL FROM: <someone@example.com>\r\n",

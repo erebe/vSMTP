@@ -15,12 +15,11 @@
  *
 */
 use crate::api::{EngineResult, Server, SharedObject};
+use anyhow::Context;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::re::anyhow::Context;
-use vsmtp_common::re::lettre;
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
@@ -110,10 +109,7 @@ mod utils_rhai {
     #[rhai_fn(global)]
     #[must_use]
     pub fn get_root_domain(domain: &str) -> String {
-        match vsmtp_auth::get_root_domain(domain) {
-            Ok(root) => root,
-            Err(_) => domain.to_string(),
-        }
+        vsmtp_auth::get_root_domain(domain).map_or_else(|_| domain.to_string(), |root| root)
     }
 
     /// Get the root domain (the registrable part)
@@ -172,7 +168,7 @@ mod utils_rhai {
 
 // TODO: use UsersCache to optimize user lookup.
 fn user_exist(name: &str) -> bool {
-    vsmtp_config::re::users::get_user_by_name(name).is_some()
+    users::get_user_by_name(name).is_some()
 }
 
 // NOTE: should lookup & rlookup return an error if no record was found ?
@@ -183,13 +179,10 @@ fn user_exist(name: &str) -> bool {
 /// * Root resolver was not found.
 /// * Lookup failed.
 pub fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
-    let resolver = server
-        .resolvers
-        .get(&server.config.server.domain)
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
+    let resolver = server.resolvers.get_resolver_root();
 
-    Ok(vsmtp_common::re::tokio::task::block_in_place(move || {
-        vsmtp_common::re::tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
+    Ok(tokio::task::block_in_place(move || {
+        tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
     })
     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
     .into_iter()
@@ -208,13 +201,10 @@ pub fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
         <std::net::IpAddr as std::str::FromStr>::from_str(ip)
             .context("fail to parse ip address in rlookup")
     );
-    let resolver = server
-        .resolvers
-        .get(&server.config.server.domain)
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| "root resolver not found".into())?;
+    let resolver = server.resolvers.get_resolver_root();
 
-    Ok(vsmtp_common::re::tokio::task::block_in_place(move || {
-        vsmtp_common::re::tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))
+    Ok(tokio::task::block_in_place(move || {
+        tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))
     })
     .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
     .into_iter()

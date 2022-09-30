@@ -58,8 +58,6 @@ where
 #[cfg(test)]
 mod tests {
 
-    use vsmtp_common::re::serde_json;
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct S {
         #[serde(

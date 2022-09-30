@@ -176,11 +176,4 @@ mod rule_state {
 
         Ok(Status::Quarantine(queue.to_string()))
     }
-
-    /// Return a [`Status::Packet`] with `buffer`
-    #[rhai_fn(global)]
-    #[must_use]
-    pub const fn packet(buffer: String) -> Status {
-        Status::Packet(buffer)
-    }
 }

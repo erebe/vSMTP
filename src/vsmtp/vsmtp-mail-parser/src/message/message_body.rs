@@ -15,8 +15,14 @@
  *
 */
 
-use crate::{traits::mail_parser::ParserOutcome, Mail, MailParser, RawBody};
+use crate::{implementation::basic_parser::BasicParser, Mail, MailParser, RawBody};
 
+// NOTE: should it be a tristate enum?
+// enum {
+//   Raw(Vec<u8>),
+//   Fast { raw: Vec<u8>, headers: Vec<String>, body: Vec<u8> },
+//   Parsed { raw: Vec<u8>, mail: Mail },
+// }
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MessageBody {
@@ -37,42 +43,19 @@ impl TryFrom<&str> for MessageBody {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        #[derive(Default)]
-        struct NoParsing;
+        let mut lines = value
+            .split("\r\n")
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
 
-        impl MailParser for NoParsing {
-            fn parse_lines(&mut self, raw: &[&str]) -> ParserOutcome {
-                let mut headers = Vec::<String>::new();
-                let mut body = String::new();
-
-                let mut stream = raw.iter();
-
-                for line in stream.by_ref() {
-                    if line.is_empty() {
-                        break;
-                    }
-                    headers.push((*line).to_string());
-                }
-
-                for line in stream {
-                    body.push_str(line);
-                    body.push_str("\r\n");
-                }
-
-                Ok(either::Left(RawBody::new(headers, body)))
+        if let Some(last) = lines.last() {
+            if last.is_empty() {
+                lines.pop();
             }
         }
 
-        let lines = value.split("\r\n").collect::<Vec<_>>();
-
         Ok(MessageBody {
-            raw: NoParsing::default()
-                .parse_lines(if lines.last().map_or(false, |i| i.is_empty()) {
-                    &lines[..lines.len() - 1]
-                } else {
-                    &lines
-                })?
-                .unwrap_left(),
+            raw: BasicParser::default().parse_sync(lines)?.unwrap_left(),
             parsed: None,
         })
     }
@@ -94,64 +77,10 @@ impl MessageBody {
         &self.raw
     }
 
-    /// Does the instance contains a parsed part ?
+    /// Get the parsed part
     #[must_use]
-    pub const fn has_parsed(&self) -> bool {
-        self.parsed.is_some()
-    }
-
-    /// # Errors
-    ///
-    /// * failed to create the folder in `queues_dirpath`
-    pub fn write_to_mails(
-        &self,
-        queues_dirpath: impl Into<std::path::PathBuf>,
-        message_id: &str,
-    ) -> std::io::Result<()> {
-        let mails = queues_dirpath.into().join("mails");
-        if !mails.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&mails)?;
-        }
-        {
-            let mails_eml = mails.join(format!("{message_id}.eml"));
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&mails_eml)?;
-            std::io::Write::write_all(&mut file, self.raw.to_string().as_bytes())?;
-        }
-        if let Some(parsed) = &self.parsed {
-            let mails_json = mails.join(format!("{message_id}.json"));
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&mails_json)?;
-            std::io::Write::write_all(&mut file, serde_json::to_string(parsed)?.as_bytes())?;
-        }
-
-        Ok(())
-    }
-
-    /// # Errors
-    pub async fn read_mail_message(
-        dirpath: &std::path::Path,
-        id: &str,
-    ) -> anyhow::Result<MessageBody> {
-        use anyhow::Context;
-
-        let message_filepath = std::path::PathBuf::from_iter([
-            dirpath.to_path_buf(),
-            "mails".into(),
-            format!("{id}.eml").into(),
-        ]);
-
-        let content = tokio::fs::read_to_string(&message_filepath)
-            .await
-            .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
-
-        Self::try_from(content.as_str())
+    pub const fn get_parsed(&self) -> &Option<Mail> {
+        &self.parsed
     }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
@@ -226,13 +155,12 @@ impl MessageBody {
     /// * the value produced by the [`MailParser`] was not a parsed [`Mail`]
     /// * Fail to parse using the provided [`MailParser`]
     pub fn parse<P: MailParser>(&mut self) -> anyhow::Result<()> {
-        match P::default().parse_raw(&self.raw)? {
-            either::Left(_) => anyhow::bail!("the parser did not produced a `Mail` part."),
-            either::Right(parsed) => {
-                self.parsed = Some(parsed);
-                Ok(())
-            }
-        }
+        self.parsed = Some(
+            P::default()
+                .convert(&self.raw)?
+                .ok_or_else(|| anyhow::anyhow!("the parser did not produced a `Mail` part."))?,
+        );
+        Ok(())
     }
 
     /// # Errors

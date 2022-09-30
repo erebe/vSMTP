@@ -121,25 +121,27 @@ pub enum Event {
     // Message size declaration // https://datatracker.ietf.org/doc/html/rfc1870
 }
 
+// 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
+const LINE_SIZE_LIMIT: usize = 88;
+
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
     /// See <https://datatracker.ietf.org/doc/html/rfc5321#section-4.1>
     ///
     /// # Errors
     pub fn parse_cmd(input: &str) -> Result<Self, CodeID> {
-        // 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
-        if input.len() > 88 || input.is_empty() {
+        if input.len() > LINE_SIZE_LIMIT || input.is_empty() {
             return Err(CodeID::UnrecognizedCommand);
         }
 
         let words = input
             .split_whitespace()
-            // .inspect(|x| log::trace!(target: RECEIVER, "word:{}", x))
+            // .inspect(|x| tracing::trace!(word = x))
             .collect::<Vec<&str>>();
 
         let mut smtp_args = words.iter();
         let smtp_verb = match smtp_args.next() {
-            // TODO: verify rfc about that..
+            // TODO: verify rfc.
             // NOTE: if the first word is not the beginning of the input (whitespace before)
             Some(fist_word) if &input[..fist_word.len()] != *fist_word => {
                 return Err(CodeID::SyntaxErrorParams);
@@ -211,22 +213,20 @@ impl Event {
     }
 
     fn parse_arg_ehlo(args: &[&str]) -> Result<Self, CodeID> {
-        match Self::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Self::EhloCmd(out)),
-            Err(_) => Err(CodeID::SyntaxErrorParams),
-        }
+        Self::parse_domain_or_address_literal(args)
+            .map_or(Err(CodeID::SyntaxErrorParams), |out| Ok(Self::EhloCmd(out)))
     }
 
     pub(super) fn from_path(input: &str, may_be_empty: bool) -> Result<String, CodeID> {
         if input.starts_with('<') && input.ends_with('>') {
             match &input[1..input.len() - 1] {
-                "" if may_be_empty => Ok("".to_string()),
+                "" if may_be_empty => Ok(String::new()),
                 // TODO: should accept and ignore A-d-l ("source route")
                 // https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.2
-                mailbox => match addr::parse_email_address(mailbox) {
-                    Ok(mailbox) => Ok(mailbox.to_string()),
-                    Err(_) => Err(CodeID::SyntaxErrorParams),
-                },
+                mailbox => addr::parse_email_address(mailbox)
+                    .map_or(Err(CodeID::SyntaxErrorParams), |mailbox| {
+                        Ok(mailbox.to_string())
+                    }),
             }
         } else {
             Err(CodeID::SyntaxErrorParams)

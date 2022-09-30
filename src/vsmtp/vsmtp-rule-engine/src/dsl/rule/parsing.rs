@@ -19,6 +19,7 @@ use crate::{api::EngineResult, error::CompilationError};
 pub fn parse_rule(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
+    _state: &mut rhai::Dynamic,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
         // rule keyword ...
@@ -40,8 +41,9 @@ pub fn parse_rule(
 }
 
 pub fn create_rule(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
+    _state: &rhai::Dynamic,
 ) -> EngineResult<rhai::Dynamic> {
     let name = input[0]
         .get_literal_value::<rhai::ImmutableString>()

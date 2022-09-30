@@ -1,0 +1,51 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+
+// A simple smtp service.
+service my_delegation smtp = #{
+    // vSMTP socket where delegation results will be received.
+    receiver: "127.0.0.1:10025",
+
+    // Delegation parameters
+    delegator: #{
+        // Delegation server address.
+        address: "127.0.0.1:10026",
+        // Timeout between each SMTP commands. (Optional, 30 seconds by default)
+        timeout: "60s",
+    },
+};
+
+// A smtp service that will send emails to clamsmtpd.
+service clamsmtpd smtp = #{
+    receiver: "127.0.0.1:10025",
+    delegator: #{
+        address: "127.0.0.1:10026",
+    },
+};
+
+
+// Use the service to delegate the email to another server.
+// The delegation process works like this:
+// 1. `my_delegation` sends the email to "127.0.0.1:10026".
+// 2. The email is processed by a third party software.
+// 3. vSMTP receives the email back on 127.0.0.1:10025.
+// 4. vSMTP executes the body of the rule below.
+delegate clamsmtpd "delegate email to clamsmtpd" || {
+    // execute code here after the email has been processed by clamsmtpd...
+};
+
+#{}

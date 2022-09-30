@@ -15,12 +15,12 @@
  *
 */
 
-use crate::test_receiver;
-use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::{serde_json, tokio};
-use vsmtp_mail_parser::{MessageBody, RawBody};
-use vsmtp_server::ProcessMessage;
+// use crate::test_receiver;
+// use vsmtp_common::mail_context::MailContext;
+// use vsmtp_mail_parser::{MessageBody, RawBody};
+// use vsmtp_server::ProcessMessage;
 
+/*
 #[tokio::test]
 #[ignore]
 async fn test_quarantine() {
@@ -35,7 +35,7 @@ async fn test_quarantine() {
     let (working_sender, _w) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-    assert!(test_receiver! {
+    let queue_manger = test_receiver! {
         on_mail => &mut vsmtp_server::MailHandler::new(working_sender, delivery_sender),
         with_config => config.clone(),
         [
@@ -60,7 +60,7 @@ async fn test_quarantine() {
         ]
         .concat()
     }
-    .is_ok());
+    .unwrap();
 
     let message = std::fs::read_dir("./tmp/tests/rules/quarantine/john/")
         .unwrap()
@@ -88,3 +88,4 @@ async fn test_quarantine() {
         )
     );
 }
+*/

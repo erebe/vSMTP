@@ -15,11 +15,7 @@
  *
 */
 use crate::{config::field::FieldServerSMTP, Config};
-use vsmtp_common::{
-    auth::Mechanism,
-    re::{anyhow, strum},
-    CodeID, Reply, ReplyCode,
-};
+use vsmtp_common::{auth::Mechanism, CodeID, Reply, ReplyCode};
 
 fn mech_list_to_code(list: &[Mechanism]) -> String {
     format!(

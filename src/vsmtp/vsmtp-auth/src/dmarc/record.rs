@@ -23,8 +23,9 @@ pub enum Version {
     Dmarc1,
 }
 
-#[derive(Debug, Clone, strum::EnumString, strum::Display)]
+#[derive(Debug, Default, Clone, strum::EnumString, strum::Display)]
 enum AlignmentMode {
+    #[default]
     #[strum(serialize = "r")]
     Relaxed,
     #[strum(serialize = "s")]
@@ -51,8 +52,9 @@ enum ReceiverPolicy {
     Reject,
 }
 
-#[derive(Debug, Clone, strum::EnumString, strum::Display)]
+#[derive(Debug, Default, Clone, strum::EnumString, strum::Display)]
 enum ReportFailure {
+    #[default]
     #[strum(serialize = "afrf")]
     AuthReportFailureFormat,
 }
@@ -93,14 +95,14 @@ impl Record {
                     match get_root_domain(rfc5322_from) {
                         Ok(root_rfc5322_from) => root_rfc5322_from,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
                     match get_root_domain(dkim_domain) {
                         Ok(root_domain_used) => root_domain_used,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
@@ -121,14 +123,14 @@ impl Record {
                     match get_root_domain(rfc5322_from) {
                         Ok(root_rfc5322_from) => root_rfc5322_from,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
                     match get_root_domain(spf_domain) {
                         Ok(root_spf_domain) => root_spf_domain,
                         Err(e) => {
-                            tracing::info!("{}", e);
+                            tracing::warn!("{e}");
                             return false;
                         }
                     },
@@ -146,14 +148,14 @@ impl std::str::FromStr for Record {
 
     #[allow(clippy::too_many_lines)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut adkim = AlignmentMode::Relaxed;
-        let mut aspf = AlignmentMode::Relaxed;
+        let mut adkim = AlignmentMode::default();
+        let mut aspf = AlignmentMode::default();
         let mut failure_report_options = vec![FailureReportOption::All];
         let mut receiver_policy = None;
         let mut receiver_policy_subdomain = None;
         let mut percentage = 100u8;
         let mut version = None;
-        let mut report_failure = ReportFailure::AuthReportFailureFormat;
+        let mut report_failure = ReportFailure::default();
         let mut report_interval = 86400;
         let mut report_aggregate_feedback = vec![];
         let mut report_specific_message = vec![];

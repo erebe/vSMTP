@@ -17,47 +17,45 @@
 use crate::{
     delegate,
     delivery::{add_trace_information, send_mail, SenderOutcome},
-    receiver::MailHandlerError,
     ProcessMessage,
 };
-use vsmtp_common::{
-    queue::Queue,
-    queue_path,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
-    state::State,
-    status::Status,
-    transfer::EmailTransferStatus,
-};
-use vsmtp_config::{create_app_folder, Config, Resolvers};
+use vqueue::{GenericQueueManager, QueueID};
+use vsmtp_common::{state::State, status::Status, transfer::EmailTransferStatus};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
-pub async fn flush_deliver_queue(
+pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<Q>,
     rule_engine: std::sync::Arc<RuleEngine>,
-) -> anyhow::Result<()> {
-    log::info!("Flushing deliver queue");
+) {
+    // FIXME: add span on the function.
+    tracing::info!("Flushing deliver queue.");
 
-    let dir_entries =
-        std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
-    for path in dir_entries {
-        let process_message = ProcessMessage {
-            message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
-            delegated: false,
-        };
-        handle_one_in_delivery_queue(
+    let queued = match queue_manager.list(&QueueID::Deliver) {
+        Ok(queued) => queued,
+        Err(error) => {
+            tracing::error!(%error, "Flushing failed");
+            todo!("what should we do on flushing error ? stop the server, simply log the error ?")
+        }
+    };
+
+    for i in queued {
+        let msg_id = i.map_or_else(|_| todo!(), |msg_id| msg_id);
+
+        let _err = handle_one_in_delivery_queue(
             config.clone(),
             resolvers.clone(),
-            process_message,
+            queue_manager.clone(),
+            ProcessMessage {
+                message_id: msg_id,
+                delegated: false,
+            },
             rule_engine.clone(),
         )
         .await;
     }
-
-    Ok(())
 }
 
 /// handle and send one email pulled from the delivery queue.
@@ -70,98 +68,71 @@ pub async fn flush_deliver_queue(
 /// * rule engine mutex is poisoned.
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
-pub async fn handle_one_in_delivery_queue(
-    config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
-    process_message: ProcessMessage,
-    rule_engine: std::sync::Arc<RuleEngine>,
-) {
-    log::info!(
-        "handling message in delivery queue {}",
-        process_message.message_id
-    );
-
-    if let Err(e) =
-        handle_one_in_delivery_queue_inner(config, resolvers, process_message, rule_engine).await
-    {
-        log::warn!("failed to handle one email in delivery queue: {e}");
-    }
-}
-
+#[tracing::instrument(name = "delivery", skip_all)]
 #[allow(clippy::too_many_lines)]
-async fn handle_one_in_delivery_queue_inner(
+pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
-    log::debug!("processing email '{}'", process_message.message_id);
-
     let queue = if process_message.delegated {
-        Queue::Delegated
+        QueueID::Delegated
     } else {
-        Queue::Deliver
+        QueueID::Deliver
     };
 
-    let (mail_context, mail_message) = queue
-        .read(&config.server.queues.dirpath, &process_message.message_id)
-        .await?;
+    let (mail_context, mail_message) =
+        queue_manager.get_both(&queue, &process_message.message_id)?;
 
     let (mut mail_context, mut mail_message, result, skipped) = rule_engine.just_run_when(
         State::Delivery,
-        config.as_ref(),
+        config.clone(),
         resolvers.clone(),
+        queue_manager.clone(),
         mail_context,
         mail_message,
     );
 
     match &skipped {
-        Some(Status::Quarantine(path)) => {
-            let mut path = create_app_folder(&config, Some(path))
-                .map_err(MailHandlerError::CreateAppFolder)?;
+        Some(status @ Status::Quarantine(path)) => {
+            queue_manager
+                .move_to(
+                    &queue,
+                    &QueueID::Quarantine { name: path.into() },
+                    &mail_context,
+                )
+                .await?;
 
-            path.push(format!("{}.json", process_message.message_id));
+            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
 
-            Queue::write_to_quarantine(&path, &mail_context)
-                .await
-                .map_err(MailHandlerError::WriteQuarantineFile)?;
-
-            // after processing the email is removed from the delivery queue.
-            queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
-
-            mail_message
-                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
-                .map_err(MailHandlerError::WriteMessageBody)?;
-
-            log::warn!("skipped due to quarantine.");
+            tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
             return Ok(());
         }
-        Some(Status::Delegated(delegator)) => {
+        Some(status @ Status::Delegated(delegator)) => {
             mail_context.metadata.skipped = Some(Status::DelegationResult);
 
-            queue.move_to(
-                &Queue::Delegated,
-                &config.server.queues.dirpath,
-                &mail_context,
-            )?;
+            queue_manager
+                .move_to(&queue, &QueueID::Delegated, &mail_context)
+                .await?;
 
-            mail_message
-                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
-                .map_err(MailHandlerError::WriteMessageBody)?;
+            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
-            delegate(delegator, &mail_context, &mail_message)
-                .map_err(MailHandlerError::DelegateMessage)?;
+            delegate(delegator, &mail_context, &mail_message)?;
 
-            log::warn!("skipped due to delegation.");
+            tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
             return Ok(());
         }
-        Some(Status::DelegationResult) => unreachable!(
-            "delivery is the last stage, delegation results cannot travel down any further."
-        ),
+        Some(Status::DelegationResult) => {
+            anyhow::bail!(
+                "delivery is the last stage, delegation results cannot travel down any further."
+            )
+        }
         Some(Status::Deny(code)) => {
             for rcpt in &mut mail_context.envelop.rcpt {
                 rcpt.email_status = EmailTransferStatus::Failed {
@@ -170,162 +141,164 @@ async fn handle_one_in_delivery_queue_inner(
                 };
             }
 
-            queue.move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)?;
+            queue_manager
+                .move_to(&queue, &QueueID::Dead, &mail_context)
+                .await?;
 
-            mail_message
-                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
-                .map_err(MailHandlerError::WriteMessageBody)?;
-
-            log::warn!("mail has been denied and moved to the `dead` queue.");
+            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
 
             return Ok(());
         }
         Some(reason) => {
-            log::warn!("skipped due to '{}'.", reason.as_ref());
+            tracing::warn!(status = ?reason, "Rules skipped.");
         }
         None => {}
     };
 
     add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
         SenderOutcome::MoveToDead => {
-            queue
-                .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
-                .with_context(|| {
-                    format!("cannot move file from `{}` to `{}`", queue, Queue::Dead)
-                })?;
+            queue_manager
+                .move_to(&queue, &QueueID::Dead, &mail_context)
+                .await?;
 
-            mail_message
-                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
-                .map_err(MailHandlerError::WriteMessageBody)?;
+            queue_manager.write_msg(&process_message.message_id, &mail_message)
         }
         SenderOutcome::MoveToDeferred => {
-            queue
-                .move_to(
-                    &Queue::Deferred,
-                    &config.server.queues.dirpath,
-                    &mail_context,
-                )
-                .with_context(|| {
-                    format!("cannot move file from `{}` to `{}`", queue, Queue::Deferred)
-                })?;
+            queue_manager
+                .move_to(&queue, &QueueID::Deferred, &mail_context)
+                .await?;
 
-            mail_message
-                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
-                .map_err(MailHandlerError::WriteMessageBody)?;
+            queue_manager.write_msg(&process_message.message_id, &mail_message)
         }
         SenderOutcome::RemoveFromDisk => {
-            queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
-            Queue::remove_mail(&config.server.queues.dirpath, &process_message.message_id)?;
+            queue_manager
+                .remove_both(&queue, &process_message.message_id)
+                .await
         }
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vsmtp_common::{
-        addr,
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
-        rcpt::Rcpt,
-        re::tokio,
-        transfer::{EmailTransferStatus, Transfer},
-        Envelop,
-    };
-    use vsmtp_config::build_resolvers;
-    use vsmtp_mail_parser::MessageBody;
-    use vsmtp_rule_engine::RuleEngine;
-    use vsmtp_test::config;
+    use vsmtp_common::{rcpt::Rcpt, Address};
+    use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
-    async fn basic() {
-        let mut config = config::local_test();
-        config.server.queues.dirpath = "./tmp".into();
+    async fn move_to_deferred() {
+        let mut config = local_test();
+        config.server.queues.dirpath = "./tmp/spool_deliver1".into();
+        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
 
-        let now = std::time::SystemTime::now();
+        let config = std::sync::Arc::new(config);
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
 
-        Queue::Deliver
-            .write_to_queue(
-                &config.server.queues.dirpath,
-                &MailContext {
-                    connection: ConnectionContext {
-                        timestamp: now,
-                        credentials: None,
-                        is_authenticated: false,
-                        is_secured: false,
-                        server_name: "testserver.com".to_string(),
-                        server_addr: "127.0.0.1:25".parse().unwrap(),
-                        client_addr: "127.0.0.1:80".parse().unwrap(),
-                        error_count: 0,
-                        authentication_attempt: 0,
-                    },
-                    envelop: Envelop {
-                        helo: "client.com".to_string(),
-                        mail_from: addr!("from@testserver.com"),
-                        rcpt: vec![
-                            Rcpt {
-                                address: addr!("to+1@client.com"),
-                                transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting {
-                                    timestamp: std::time::SystemTime::now(),
-                                },
-                            },
-                            Rcpt {
-                                address: addr!("to+2@client.com"),
-                                transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting {
-                                    timestamp: std::time::SystemTime::now(),
-                                },
-                            },
-                        ],
-                    },
-                    metadata: MessageMetadata {
-                        timestamp: Some(now),
-                        message_id: Some("message_from_deliver_to_deferred".to_string()),
-                        skipped: None,
-                        spf: None,
-                        dkim: None,
-                    },
-                },
-            )
+        let msg_id = "move_to_deferred";
+
+        let mut ctx = local_ctx();
+        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.timestamp = Some(std::time::SystemTime::now());
+        ctx.envelop.rcpt.push(Rcpt::new(
+            <Address as std::str::FromStr>::from_str("test@foobar.com").unwrap(),
+        ));
+
+        queue_manager
+            .write_both(&QueueID::Deliver, &ctx, &local_msg())
+            .await
             .unwrap();
-
-        MessageBody::try_from(concat!(
-            "Date: bar\r\n",
-            "From: foo\r\n",
-            "\r\n",
-            "Hello world\r\n"
-        ))
-        .unwrap()
-        .write_to_mails(
-            &config.server.queues.dirpath,
-            "message_from_deliver_to_deferred",
-        )
-        .unwrap();
-
-        let rule_engine = std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap());
-
-        let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_delivery_queue(
-            std::sync::Arc::new(config.clone()),
+            config.clone(),
             resolvers,
+            queue_manager,
             ProcessMessage {
-                message_id: "message_from_deliver_to_deferred".to_string(),
+                message_id: msg_id.to_string(),
                 delegated: false,
             },
-            rule_engine,
+            std::sync::Arc::new(RuleEngine::from_script(config.clone(), "#{}").unwrap()),
         )
-        .await;
-
-        std::fs::remove_file(queue_path!(
-            &config.server.queues.dirpath,
-            Queue::Deferred,
-            "message_from_deliver_to_deferred"
-        ))
+        .await
         .unwrap();
+
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deliver, msg_id))
+            .exists());
+        assert!(config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
+            .exists());
+    }
+
+    #[tokio::test]
+    async fn denied() {
+        let mut config = local_test();
+        config.server.queues.dirpath = "./tmp/spool_deliver_denied".into();
+        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
+
+        let config = std::sync::Arc::new(config);
+        let queue_manager =
+            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+
+        let msg_id = "message_uid";
+
+        let mut ctx = local_ctx();
+        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.timestamp = Some(std::time::SystemTime::now());
+
+        queue_manager
+            .write_both(&QueueID::Deliver, &ctx, &local_msg())
+            .await
+            .unwrap();
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+        handle_one_in_delivery_queue(
+            config.clone(),
+            resolvers,
+            queue_manager,
+            ProcessMessage {
+                message_id: msg_id.to_string(),
+                delegated: false,
+            },
+            std::sync::Arc::new(
+                RuleEngine::from_script(
+                    config.clone(),
+                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::Delivery),
+                )
+                .unwrap(),
+            ),
+        )
+        .await
+        .unwrap();
+
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deliver, msg_id))
+            .exists());
+
+        assert!(!config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
+            .exists());
+        assert!(config
+            .server
+            .queues
+            .dirpath
+            .join(format!("{}/{}.json", QueueID::Dead, msg_id))
+            .exists());
     }
 }

@@ -1,0 +1,67 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+
+// All parameters available for the `cmd` service.
+service my_command cmd = #{
+    // The command to execute.
+    command: "echo",
+    // Arguments to pass to the command. (Optional)
+    args: [ "-n", "executing a command from vSMTP!" ],
+    // Timeout in case the command takes to long to complete. (Optional, 30 seconds by default)
+    timeout: "15s",
+    // A user to run the command with. (Optional)
+    user: "vsmtp",
+    // A group to run the command with. (Optional)
+    group: "vsmtp",
+};
+
+// A simple command that executes `echo` with the given arguments.
+service echo cmd = #{
+    // The command to execute.
+    command: "echo",
+    // Arguments to pass to the command. (Optional)
+    args: [ "-n", "executing a command from vSMTP!" ],
+};
+
+// Running the command in rules.
+action "run echo command" || echo.run();
+
+// Executing the clamscan antivirus on the mail queue.
+// See https://linux.die.net/man/1/clamscan
+service execute_clamscan cmd = #{
+    command: "clamscan",
+    timeout: "1m",
+
+    // Using a specific user to check for viruses.
+    user: "clamscan",
+    group: "clamscan",
+};
+
+// Run clamscan on the current email stored in the email queue
+// using dynamic arguments.
+action "scan email" || {
+    let result = execute_clamscan.run([
+        "--database",
+        "/tmp/newclamdb",
+        "-r",
+        `/var/spool/vsmtp/mails/${message_id()}.eml`
+    ]);
+
+    // use result.has_code and result.code to check for the return code of clamscan ...
+};
+
+#{}

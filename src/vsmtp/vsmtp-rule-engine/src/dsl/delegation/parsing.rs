@@ -19,6 +19,7 @@ use crate::{api::EngineResult, error::CompilationError};
 pub fn parse_delegation(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
+    _state: &mut rhai::Dynamic,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
         // the delegate keyword and the name of the delegation ...
@@ -39,8 +40,9 @@ pub fn parse_delegation(
 }
 
 pub fn create_delegation(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    input: &[rhai::Expression<'_>],
+    _state: &rhai::Dynamic,
 ) -> EngineResult<rhai::Dynamic> {
     let service = context.eval_expression_tree(&input[0])?;
     let name = input[1]

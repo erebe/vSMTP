@@ -16,7 +16,6 @@
 */
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
-use vsmtp_common::re::tokio;
 use vsmtp_config::{
     field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel},
     get_rustls_config,
@@ -28,10 +27,12 @@ async fn simple() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = arc!(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         [
             "NOOP\r\n",
             "HELO client.com\r\n",
@@ -59,13 +60,11 @@ async fn simple() {
         .collect::<Vec<_>>(),
         20466,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )
@@ -81,10 +80,12 @@ async fn starttls_under_tunnel() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = arc!(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)
@@ -100,13 +101,11 @@ async fn starttls_under_tunnel() {
         .collect::<Vec<_>>(),
         20467,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )
@@ -122,10 +121,12 @@ async fn config_ill_formed() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
+    let config = arc!(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "testserver.com",
-        std::sync::Arc::new(config),
+        config,
         vec!["NOOP\r\n".to_string()],
         vec![],
         20461,
@@ -159,10 +160,12 @@ async fn sni() {
         },
     );
 
+    let config = arc!(config);
+
     let (client, server) = test_tls_tunneled(
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
         "second.testserver.com",
-        std::sync::Arc::new(config),
+        config,
         ["NOOP\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)
@@ -177,13 +180,11 @@ async fn sni() {
         .collect::<Vec<_>>(),
         20469,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )

@@ -20,7 +20,6 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, lettre, log},
     transfer::{EmailTransferStatus, ForwardTarget},
 };
 use vsmtp_config::Config;
@@ -117,6 +116,7 @@ impl<'r> Forward<'r> {
 
 #[async_trait::async_trait]
 impl<'r> Transport for Forward<'r> {
+    #[tracing::instrument(name = "forward", skip_all)]
     async fn deliver(
         mut self,
         config: &Config,
@@ -127,7 +127,7 @@ impl<'r> Transport for Forward<'r> {
     ) -> Vec<Rcpt> {
         match self.deliver_inner(config, from, &to, content).await {
             Ok(_) => {
-                log::info!("email successfully forwarded");
+                tracing::info!("Email delivered.");
 
                 for i in &mut to {
                     i.email_status = EmailTransferStatus::Sent {
@@ -136,7 +136,8 @@ impl<'r> Transport for Forward<'r> {
                 }
             }
             Err(error) => {
-                log::error!("failed to forward email: {error}");
+                tracing::error!(%error, "Email delivery failure.");
+
                 for i in &mut to {
                     i.email_status.held_back(error.to_string());
                 }

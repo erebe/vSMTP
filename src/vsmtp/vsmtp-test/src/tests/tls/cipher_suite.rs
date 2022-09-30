@@ -15,9 +15,8 @@
  *
 */
 use crate::tests::tls::{get_tls_config, test_tls_tunneled};
-use vsmtp_common::re::tokio;
+use tokio_rustls::rustls;
 use vsmtp_config::get_rustls_config;
-use vsmtp_config::re::rustls;
 use vsmtp_rule_engine::RuleEngine;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
@@ -39,12 +38,12 @@ async fn test_all_cipher_suite() {
         config.server.tls.as_mut().unwrap().protocol_version = vec![i.version().version];
         config.server.tls.as_mut().unwrap().cipher_suite = vec![i.suite()];
 
+        let config = arc!(config);
+
         let (client, server) = test_tls_tunneled(
-            std::sync::Arc::new(
-                RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
-            ),
+            arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
             "testserver.com",
-            std::sync::Arc::new(config),
+            config,
             vec!["QUIT\r\n".to_string()],
             [
                 "220 testserver.com Service ready",
@@ -55,13 +54,11 @@ async fn test_all_cipher_suite() {
             .collect::<Vec<_>>(),
             19980 + u32::from(i.suite().get_u16()) % 100,
             |config| {
-                Some(std::sync::Arc::new(
-                    get_rustls_config(
-                        config.server.tls.as_ref().unwrap(),
-                        &config.server.r#virtual,
-                    )
-                    .unwrap(),
-                ))
+                Some(arc!(get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap()))
             },
             |io: &tokio_rustls::client::TlsStream<tokio::net::TcpStream>| {
                 assert_eq!(

@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use serde_with::serde_as;
 use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 
 /// This structure contains all the field to configure the server at the startup.
@@ -29,7 +28,7 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 ///
 /// You can find examples of configuration files in
 /// <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     /// vSMTP's version requirement to parse this configuration file.
@@ -45,11 +44,11 @@ pub struct Config {
 /// The inner field of the `vSMTP`'s configuration.
 #[allow(clippy::module_name_repetitions)]
 pub mod field {
-    use super::{serde_as, CodeID, Mechanism, Reply};
-    use vsmtp_common::re::{log, strum};
+    use super::{CodeID, Mechanism, Reply};
+    use vsmtp_auth::dkim;
 
     /// This structure contains all the field to configure the server at the startup.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServer {
         /// Name of the server.
@@ -66,6 +65,9 @@ pub mod field {
         /// If this value is `-1`, then the server will accept any number of client.
         #[serde(default = "FieldServer::default_client_count_max")]
         pub client_count_max: i64,
+        /// Maximum size in bytes of the message.
+        #[serde(default = "FieldServer::default_message_size_limit")]
+        pub message_size_limit: usize,
         /// see [`FieldServerSystem`]
         #[serde(default)]
         pub system: FieldServerSystem,
@@ -96,15 +98,15 @@ pub mod field {
     }
 
     /// Readonly configuration for the dkim module.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldDkim {
         /// The private key used to sign the mail.
-        pub private_key: SecretFile<rsa::RsaPrivateKey>,
+        pub private_key: SecretFile<dkim::PrivateKey>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
-    #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSystem {
         /// User running the server after the drop of privileges using `setuid`.
@@ -146,7 +148,7 @@ pub mod field {
     impl Eq for FieldServerSystem {}
 
     /// The field related to the thread allocation.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSystemThreadPool {
         /// Number of thread used by the pool `receiver`.
@@ -163,12 +165,12 @@ pub mod field {
         pub processing: usize,
         /// Number of thread used by the pool `delivery`.
         ///
-        /// This pool send the mails to the recipient, and handle the [`vsmtp_common::queue::Queue`]
+        /// This pool send the mails to the recipient, and handle the delivery side.
         pub delivery: usize,
     }
 
     /// Address served by `vSMTP`. Either ipv4 or ipv6.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerInterfaces {
         /// List of address for the protocol SMTP. see [`vsmtp_common::ConnectionKind::Relay`]
@@ -186,7 +188,7 @@ pub mod field {
     }
 
     /// The field related to the logs.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerLogs {
         /// Filepath of the server's log.
@@ -194,11 +196,6 @@ pub mod field {
         /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
         #[serde(default = "FieldServerLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
-        /// Unused
-        // Format of the output, see [`log4rs::encode::pattern`]
-        // FIXME: UNUSED
-        #[serde(default = "FieldServerLogs::default_format")]
-        pub format: String,
         /// Customize the log level of the different part of the program.
         ///
         /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
@@ -215,6 +212,7 @@ pub mod field {
     ///
     #[derive(
         Debug,
+        Default,
         Copy,
         Clone,
         PartialEq,
@@ -229,6 +227,7 @@ pub mod field {
         #[strum(serialize = "3164")]
         Rfc3164,
         ///
+        #[default]
         #[strum(serialize = "5424")]
         Rfc5424,
     }
@@ -237,7 +236,7 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
     pub enum SyslogSocket {
-        ///
+        /// Send logs using udp.
         Udp {
             /// Local address for the UDP stream.
             #[serde(default = "SyslogSocket::default_udp_local")]
@@ -246,69 +245,73 @@ pub mod field {
             #[serde(default = "SyslogSocket::default_udp_server")]
             server: std::net::SocketAddr,
         },
-        ///
+        /// Send logs using tcp.
         Tcp {
             ///
             #[serde(default = "SyslogSocket::default_tcp_server")]
             server: std::net::SocketAddr,
         },
-        ///
+        /// Send logs using a unix socket with a custom path.
         Unix {
-            ///
-            #[serde(default = "SyslogSocket::default_unix_path")]
-            path: std::path::PathBuf,
+            /// Path to the unix socket.
+            path: Option<std::path::PathBuf>,
         },
     }
 
     /// The configuration of the `system logging module`.
     ///
     /// The implementation is backended for `syslogd` or `journald`.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde_with::serde_as]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
     #[serde(deny_unknown_fields, tag = "backend", rename_all = "lowercase")]
     pub enum FieldServerLogSystem {
         /// Parameters for the `syslogd` backend.
         Syslogd {
             ///
-            level: log::LevelFilter,
+            #[serde_as(as = "serde_with::DisplayFromStr")]
+            level: tracing::Level,
             ///
+            #[serde(default)]
             format: SyslogFormat,
             ///
+            #[serde(default)]
             socket: SyslogSocket,
         },
         ///
         Journald {
             ///
-            level: log::LevelFilter,
+            #[serde_as(as = "serde_with::DisplayFromStr")]
+            level: tracing::Level,
         },
     }
 
-    /// The configuration of the [`vsmtp_common::queue::Queue::Working`]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    /// The configuration of the `working queue`.
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueWorking {
-        /// Size of the [`vsmtp_common::re::tokio::sync::mpsc::channel`]
+        /// Size of the channel queue communicating the mails from the `receiver` pool to the `processing` pool.
         #[serde(default = "FieldQueueWorking::default_channel_size")]
         pub channel_size: usize,
     }
 
-    /// The configuration of the [`vsmtp_common::queue::Queue::Deliver`] and the [`vsmtp_common::queue::Queue::Deferred`]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    /// The configuration of the `vqueue`
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldQueueDelivery {
-        /// Size of the [`vsmtp_common::re::tokio::sync::mpsc::channel`]
+        /// Size of the channel queue communicating the mails from the `processing` pool to the `delivery` pool.
         #[serde(default = "FieldQueueDelivery::default_channel_size")]
         pub channel_size: usize,
-        /// Maximum number of attempt to deliver the mail before moving it to the [`vsmtp_common::queue::Queue::Dead`]
+        /// Maximum number of attempt to deliver the mail before being considered dead.
         #[serde(default = "FieldQueueDelivery::default_deferred_retry_max")]
         pub deferred_retry_max: usize,
-        /// The mail in the  [`vsmtp_common::queue::Queue::Deferred`] are resend in a clock with this period.
+        /// The mail in the `deferred` are resend in a clock with this period.
         #[serde(with = "humantime_serde")]
         #[serde(default = "FieldQueueDelivery::default_deferred_retry_period")]
         pub deferred_retry_period: std::time::Duration,
     }
 
-    /// The configuration of the filesystem for the [`vsmtp_common::queue::Queue`].
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    /// The configuration of the filesystem for the mail queuer.
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerQueues {
         /// Path of the spool folder.
@@ -336,7 +339,7 @@ pub mod field {
     }
 
     /// The configuration of one virtual entry for the server.
-    #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtual {
         /// see [`FieldServerVirtualTls`]
@@ -348,7 +351,7 @@ pub mod field {
     }
 
     /// The TLS parameter for the **OUTGOING SIDE** of the virtual entry.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtualTls {
         /// TLS protocol supported
@@ -367,13 +370,14 @@ pub mod field {
     }
 
     /// The policy of security for the TLS connection.
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     pub enum TlsSecurityLevel {
         /// Connection **MAY stay in plain text** for theirs transaction
         ///
         /// Connection **MAY UPGRADE** at any moment with a TLS tunnel (using STARTTLS mechanism)
         May,
         /// Connection **MUST BE UNDER TLS** tunnel (using STARTTLS mechanism or using port 465)
+        #[default]
         Encrypt,
         /// DANE protocol using TLSA dns records to establish a secure connection with a distant server.
         Dane {
@@ -382,14 +386,8 @@ pub mod field {
         },
     }
 
-    impl Default for TlsSecurityLevel {
-        fn default() -> Self {
-            TlsSecurityLevel::Encrypt
-        }
-    }
-
     #[doc(hidden)]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
     pub struct SecretFile<T> {
         #[serde(skip_serializing)]
@@ -399,7 +397,7 @@ pub mod field {
 
     /// The TLS parameter for the **INCOMING SIDE** of the server (common with the virtual entry).
     // TODO: should use [`FieldServerVirtualTls`] flattened ?
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
         /// Policy of security for the TLS connection.
@@ -433,7 +431,7 @@ pub mod field {
     }
 
     /// Configuration of the client's error handling.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTPError {
         /// The maximum number of errors before the client is delay between each response.
@@ -451,7 +449,7 @@ pub mod field {
     }
 
     /// Configuration of the receiver timeout between each message.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTPTimeoutClient {
         /// Delay between the connection and the first `HELO/EHLO`
@@ -495,8 +493,8 @@ pub mod field {
     }
 
     /// Parameters of the SMTP.
-    #[serde_as]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde_with::serde_as]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTP {
         /// Maximum number of recipients received in the envelop, extra recipient will produce an [`CodeID::TooManyRecipients`].
@@ -507,12 +505,6 @@ pub mod field {
         /// default: `false`
         #[serde(default = "FieldServerSMTP::default_disable_ehlo")]
         pub disable_ehlo: bool,
-        /// List of extension required to run the server, producing an error if not supported.
-        ///
-        /// UNUSED
-        // TODO: parse extension enum
-        #[serde(default = "FieldServerSMTP::default_required_extension")]
-        pub required_extension: Vec<String>,
         /// SMTP's error policy.
         #[serde(default)]
         pub error: FieldServerSMTPError,
@@ -529,7 +521,7 @@ pub mod field {
     }
 
     /// Configuration of the DNS resolver.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[allow(clippy::large_enum_variant)]
     #[serde(tag = "type", deny_unknown_fields)]
     pub enum FieldServerDNS {
@@ -563,7 +555,7 @@ pub mod field {
 
     /// Parameter for the DNS resolver.
     // TODO: remove that and use serde_with
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[allow(clippy::struct_excessive_bools)]
     #[serde(deny_unknown_fields)]
     pub struct ResolverOptsWrapper {
@@ -598,7 +590,7 @@ pub mod field {
     }
 
     /// Configuration of the application run by `vSMTP`.
-    #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Default, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldAppVSL {
         /// Entry point of the vsl application.
@@ -606,20 +598,16 @@ pub mod field {
     }
 
     /// Application's parameter of the logs, same properties than [`FieldServerLogs`].
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldAppLogs {
         ///
         #[serde(default = "FieldAppLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
-        ///
-        // FIXME: UNUSED
-        #[serde(default = "FieldAppLogs::default_format")]
-        pub format: String,
     }
 
     /// Configuration of the application run by `vSMTP`.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldApp {
         /// Folder under which artifact will be stored.

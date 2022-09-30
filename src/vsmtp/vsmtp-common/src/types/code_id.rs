@@ -76,6 +76,8 @@ pub enum CodeID {
     Unimplemented,
     ///
     BadSequence,
+    ///
+    MessageSizeExceeded,
     //
     // TLS extension
     //

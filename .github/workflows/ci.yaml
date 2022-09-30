@@ -6,88 +6,41 @@ name: CI
       - "!doc/**"
 
 env:
-  RUST_MSRV: 1.60.0
+  RUST_MSRV: 1.62.1
+  CARGO_TERM_COLOR: always
 
 jobs:
-  msrv:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-msrv-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_MSRV }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
   check:
+    strategy:
+      matrix:
+        include:
+          # Workspace stable
+          - toolchain: stable
+            path: ./Cargo.toml
+            # Workspace MSRV
+          - toolchain: 1.62.1
+            path: ./Cargo.toml
+            # Fuzz crate
+          - toolchain: nightly
+            path: ./fuzz/Cargo.toml
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+          key: ${{ matrix.toolchain }}-${{ matrix.path }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           override: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
-  check-fuzz:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --manifest-path ./fuzz/Cargo.toml
+          args: --manifest-path ${{ matrix.path }}
   cargo-udeps:
     runs-on: ubuntu-latest
     needs: check
@@ -96,18 +49,10 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
         with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}"
-      - run: cargo install cargo-udeps --locked
+          crate: cargo-udeps
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -121,11 +66,39 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-deny
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          rust-version: "1.60.0"
+          rust-version: ${{ env.RUST_MSRV }}
           command: check
           arguments: ""
+  nextest:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-nextest
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: nextest
+          args: run --workspace --all-features
   test:
     runs-on: ubuntu-latest
     needs: check
@@ -134,17 +107,7 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-nightly-test-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2022-08-08
@@ -167,17 +130,7 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -200,17 +153,7 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -220,3 +163,5 @@ jobs:
         with:
           command: doc
           args: "--workspace --no-deps --all-features"
+        env:
+          RUSTDOCFLAGS: -D warnings

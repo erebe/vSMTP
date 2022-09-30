@@ -14,25 +14,25 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::rule_engine::RuleEngine;
 use crate::rule_state::RuleState;
-use crate::tests::helpers::get_default_config;
-use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
+use crate::tests::helpers::{get_default_config, get_default_state};
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::re::{addr, serde_json, tokio};
 use vsmtp_common::transfer::ForwardTarget;
+use vsmtp_common::{addr, CodeID, ReplyOrCodeID};
 use vsmtp_common::{
     mail_context::MessageMetadata, state::State, status::Status, transfer::Transfer,
 };
-use vsmtp_common::{CodeID, ReplyOrCodeID};
-use vsmtp_config::build_resolvers;
 use vsmtp_config::field::FieldServerVirtual;
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{MailMimeParser, MessageBody};
+use vsmtp_test::config::local_test;
 
 #[test]
 fn test_logs() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "logs.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "logs.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -45,8 +45,8 @@ fn test_logs() {
 #[test]
 fn test_users() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "utils.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "utils.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -59,9 +59,10 @@ fn test_users() {
 
 #[test]
 fn test_context_write() {
+    let config = local_test();
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "write.vsl"]),
+        std::sync::Arc::new(config),
+        Some(rules_path!["actions", "write.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -73,10 +74,6 @@ fn test_context_write() {
         spf: None,
         dkim: None,
     };
-    assert_eq!(
-        re.run_when(&mut state, State::MailFrom),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
         "From: john doe <john@doe.com>\r\n",
         "To: green@foo.net\r\n",
@@ -85,6 +82,11 @@ fn test_context_write() {
         "This is a raw email.\r\n",
     ))
     .unwrap();
+
+    assert_eq!(
+        re.run_when(&mut state, State::MailFrom),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
+    );
     assert_eq!(
         re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
@@ -95,10 +97,11 @@ fn test_context_write() {
     );
 
     // raw mail should have been written on disk.
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.eml")
             .expect("could not read 'test_message_id'"),
         [
+            "X-VSMTP-INIT: done.\r\n",
             "From: john doe <john@doe.com>\r\n",
             "To: green@foo.net\r\n",
             "Subject: test email\r\n",
@@ -115,8 +118,8 @@ fn test_context_write() {
 #[test]
 fn test_context_dump() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "dump.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "dump.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -169,8 +172,8 @@ fn test_context_dump() {
 #[test]
 fn test_quarantine() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "quarantine.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "quarantine.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -222,8 +225,8 @@ fn test_quarantine() {
 #[test]
 fn test_transports() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "transports.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "transports.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -286,8 +289,8 @@ fn test_transports() {
 #[allow(clippy::too_many_lines)]
 fn test_transports_all() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "transports_all.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "transports_all.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -316,8 +319,8 @@ fn test_transports_all() {
 #[test]
 fn test_hostname() {
     let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["actions", "utils.vsl"]),
+        std::sync::Arc::new(vsmtp_config::Config::default()),
+        Some(rules_path!["actions", "utils.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -330,10 +333,17 @@ fn test_hostname() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_lookup() {
-    let config = vsmtp_config::Config::default();
-    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
-    let mut state = RuleState::new(&config, resolvers, &re);
+    let mut config = vsmtp_config::Config::default();
+    config.server.queues.dirpath = "./tmp/spool".into();
+    config.app.dirpath = "./tmp/app".into();
+
+    let config = std::sync::Arc::new(config);
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["actions", "utils.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
     state.context().write().unwrap().envelop.rcpt = vec![
         Rcpt::new(addr!("john.doe@example.com")),
         Rcpt::new(addr!("foo.bar@localhost")),
@@ -348,7 +358,7 @@ async fn test_lookup() {
 #[test]
 fn test_in_domain_and_server_name() {
     let (mut state, config) = get_default_state("./tmp/app");
-    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
+    let re = RuleEngine::new(config, Some(rules_path!["actions", "utils.vsl"])).unwrap();
 
     assert_eq!(
         re.run_when(&mut state, State::Connect),
@@ -364,10 +374,13 @@ fn test_in_domain_and_server_name_sni() {
         ("doe.com".to_string(), FieldServerVirtual::default()),
         ("green.com".to_string(), FieldServerVirtual::default()),
     ]);
+    let config = std::sync::Arc::new(config);
 
-    let re = RuleEngine::new(&config, &Some(rules_path!["actions", "utils.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
-    let mut state = RuleState::new(&config, resolvers, &re);
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["actions", "utils.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     assert_eq!(
         re.run_when(&mut state, State::PreQ),

@@ -17,13 +17,9 @@
 
 use super::Connection;
 use super::{rsasl_callback::ValidationVSL, Callback};
-use vsmtp_common::{
-    auth::Mechanism,
-    mail_context::ConnectionContext,
-    re::{anyhow, base64, log, tokio},
-    CodeID,
-};
-use vsmtp_config::{field::FieldServerSMTPAuth, Resolvers};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{auth::Mechanism, mail_context::ConnectionContext, CodeID};
+use vsmtp_config::{field::FieldServerSMTPAuth, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
@@ -100,7 +96,8 @@ where
         &mut self,
         _auth_config: FieldServerSMTPAuth,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         helo_domain: &mut Option<String>,
         args: (Mechanism, Option<Vec<u8>>),
         helo_pre_auth: String,
@@ -113,13 +110,14 @@ where
                 resolvers,
                 config: self.config.clone(),
                 conn_ctx: self.context.clone(),
+                queue_manager,
             })
             .map_err(|e| anyhow::anyhow!("Failed to initialize SASL config: {e}"))?;
 
-        if let Err(e) = self.on_authentication(rsasl_config, args).await {
-            log::warn!("SASL exchange produced an error: {e}");
+        if let Err(error) = self.on_authentication(rsasl_config, args).await {
+            tracing::warn!(%error, "SASL exchange failure.");
 
-            match e {
+            match error {
                 Error::Failed(e) => {
                     self.send_code(CodeID::AuthInvalidCredentials).await?;
                     anyhow::bail!("{e} - {}", CodeID::AuthInvalidCredentials)
@@ -180,9 +178,10 @@ where
                 .as_ref()
                 .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
             {
-                log::warn!(
-                "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted selfection!"
-            );
+                tracing::warn!(
+                    %mechanism,
+                    "Unsecured AUTH mechanism used on a non-encrypted connection."
+                );
             } else {
                 self.send_code(CodeID::AuthMechanismMustBeEncrypted)
                     .await
@@ -216,37 +215,32 @@ where
 
         let mut data = if session.are_we_first() {
             None
+        } else if let Some(data) = data {
+            Some(base64::decode(data).map_err(Error::InvalidBase64)?)
         } else {
-            match data {
-                Some(data) => Some(base64::decode(data).map_err(Error::InvalidBase64)?),
-                None => {
-                    writer.conn.send("334 \r\n").await.unwrap();
+            writer.conn.send("334 \r\n").await.unwrap();
 
-                    match writer.conn.read(READ_TIMEOUT).await {
-                        Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
-                        Ok(Some(buffer)) => {
-                            Some(base64::decode(buffer).map_err(Error::InvalidBase64)?)
-                        }
-                        Err(timeout) if timeout.kind() == std::io::ErrorKind::TimedOut => {
-                            return Err(Error::Timeout(timeout));
-                        }
-                        Ok(None) => {
-                            return Err(Error::ReadingMessage(std::io::Error::new(
-                                std::io::ErrorKind::UnexpectedEof,
-                                "connection closed",
-                            )))
-                        }
-                        Err(e) => return Err(Error::ReadingMessage(e)),
-                    }
+            match writer.conn.read(READ_TIMEOUT).await {
+                Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),
+                Ok(Some(buffer)) => Some(base64::decode(buffer).map_err(Error::InvalidBase64)?),
+                Err(timeout) if timeout.kind() == std::io::ErrorKind::TimedOut => {
+                    return Err(Error::Timeout(timeout));
                 }
+                Ok(None) => {
+                    return Err(Error::ReadingMessage(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        "connection closed",
+                    )))
+                }
+                Err(e) => return Err(Error::ReadingMessage(e)),
             }
         };
 
         while {
-            let (state, _) = session
+            session
                 .step(data.as_deref(), &mut writer)
-                .map_err(Error::Failed)?;
-            state.is_running()
+                .map_err(Error::Failed)?
+                .is_running()
         } {
             data = match writer.conn.read(READ_TIMEOUT).await {
                 Ok(Some(buffer)) if buffer == "*" => return Err(Error::Canceled),

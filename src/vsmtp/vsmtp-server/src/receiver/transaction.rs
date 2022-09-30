@@ -15,18 +15,12 @@
  *
 */
 use super::connection::Connection;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
-    addr,
-    auth::Mechanism,
-    event::Event,
-    mail_context::MessageMetadata,
-    rcpt::Rcpt,
-    re::{anyhow, either, log, tokio},
-    state::State,
-    status::Status,
-    Address, CodeID, Envelop, ReplyOrCodeID,
+    addr, auth::Mechanism, event::Event, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
+    status::Status, Address, CodeID, Envelop, ReplyOrCodeID,
 };
-use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
+use vsmtp_config::{field::TlsSecurityLevel, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -62,7 +56,6 @@ pub enum TransactionResult {
 }
 
 impl Transaction {
-    #[tracing::instrument(skip(connection, client_message))]
     fn parse_and_apply_and_get_reply<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
@@ -72,7 +65,7 @@ impl Transaction {
     ) -> either::Either<ProcessedEvent, TransactionResult> {
         let command_or_code = Event::parse_cmd(client_message);
 
-        log::trace!("received={client_message:?}; parsed=`{command_or_code:?}`");
+        tracing::trace!(message = %client_message, parsed = ?command_or_code);
 
         command_or_code.map_or_else(
             |c| either::Left((ReplyOrCodeID::Left(c), None)),
@@ -229,8 +222,7 @@ impl Transaction {
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
-                    | Status::Quarantine(_)
-                    | Status::Packet(_) => {
+                    | Status::Quarantine(_) => {
                         either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::MailFrom)))
                     }
                 }
@@ -256,8 +248,7 @@ impl Transaction {
                     Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
-                    | Status::Quarantine(_)
-                    | Status::Packet(_) => {
+                    | Status::Quarantine(_) => {
                         either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::RcptTo)))
                     }
                 }
@@ -361,11 +352,13 @@ impl Transaction {
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> Transaction {
         let rule_state = RuleState::with_connection(
-            conn.config.as_ref(),
+            conn.config.clone(),
             resolvers,
+            queue_manager,
             &rule_engine,
             conn.context.clone(),
         );
@@ -388,11 +381,21 @@ impl Transaction {
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = connection.config.server.smtp.timeout_client.data;
         async_stream::stream! {
+            let mut message_size = 0;
             loop {
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
+
+                        message_size += client_message.len();
+
+                        if message_size >= connection.config.server.message_size_limit {
+                            return match connection.send_code(CodeID::MessageSizeExceeded).await {
+                                Ok(_) => (),
+                                Err(_) => () // TODO:
+                            }
+                        }
+
                         let command_or_code = Event::parse_data(client_message);
-                        log::trace!("parsed=`{command_or_code:?}`");
 
                         match command_or_code {
                             Ok(Some(line)) => yield line,
@@ -411,6 +414,7 @@ impl Transaction {
         }
     }
 
+    #[tracing::instrument(name = "smtp", skip_all)]
     pub async fn receive<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin + std::fmt::Debug,
     >(
@@ -452,12 +456,13 @@ impl Transaction {
                     match parsed_message {
                         either::Left((reply_to_send, new_state)) => {
                             if let Some(new_state) = new_state {
-                                log::info!(
-                                    "STATE: {old_state} => {new_state}",
-                                    old_state = self.state,
+                                tracing::debug!(
+                                    old = %self.state,
+                                    new = %new_state,
+                                    "State changed."
                                 );
-                                self.state = new_state;
 
+                                self.state = new_state;
                                 read_timeout =
                                     get_timeout_for_state(&connection.config, self.state);
                             }

@@ -54,7 +54,7 @@ impl From<viaspf::QueryResult> for Result {
 
 ///
 pub async fn evaluate(
-    resolver: &impl viaspf::lookup::Lookup,
+    resolver: &trust_dns_resolver::TokioAsyncResolver,
     ip: std::net::IpAddr,
     sender: &viaspf::Sender,
 ) -> Result {

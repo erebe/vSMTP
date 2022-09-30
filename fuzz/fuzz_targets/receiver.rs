@@ -1,7 +1,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
+use vqueue::GenericQueueManager;
 use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind};
-use vsmtp_config::Config;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
@@ -18,6 +19,7 @@ impl OnMail for FuzzOnMail {
         _: &mut Connection<S>,
         _: Box<MailContext>,
         _: MessageBody,
+        _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -59,15 +61,18 @@ fuzz_target!(|data: &[u8]| {
         &mut mock,
     );
 
-    let re =
-        std::sync::Arc::new(RuleEngine::new(&config, &None).expect("failed to build rule engine"));
+    let re = std::sync::Arc::new(
+        RuleEngine::new(config.clone(), None).expect("failed to build rule engine"),
+    );
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+    let dns_resolvers = std::sync::Arc::new(
+        DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),
+    );
 
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(conn.receive(
-            None,
-            re,
-            std::sync::Arc::new(std::collections::HashMap::new()),
-            &mut FuzzOnMail,
-        ));
+        .block_on(conn.receive(None, re, dns_resolvers, queue_manager, &mut FuzzOnMail));
 });

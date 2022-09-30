@@ -17,10 +17,7 @@
 
 pub mod parsing;
 use crate::api::SharedObject;
-use vsmtp_common::{
-    re::{addr, anyhow, log, strum},
-    Address, Reply, ReplyCode,
-};
+use vsmtp_common::{Address, Reply, ReplyCode};
 
 const FILE_CAPACITY: usize = 20;
 
@@ -115,14 +112,12 @@ impl Object {
             )),
 
             "rg4" => Ok(Self::Rg4(
-                [Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?]
-                    .into_iter()
+                std::iter::once(Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?)
                     .collect(),
             )),
 
             "rg6" => Ok(Self::Rg6(
-                [Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?]
-                    .into_iter()
+                std::iter::once(Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?)
                     .collect(),
             )),
 
@@ -184,7 +179,9 @@ impl Object {
                             )),
                             _ => {}
                         },
-                        Err(error) => log::error!("couldn't read line in '{}': {}", path, error),
+                        Err(error) => {
+                            tracing::error!(?path, %error, "Could not read line in file.");
+                        }
                     };
                 }
 
@@ -221,11 +218,10 @@ impl Object {
                     let code = u16::try_from(Self::value::<S, i64>(map, "code")?)?;
 
                     Ok(Self::Code(Reply::new(
-                        if let Ok(enhanced) = Self::value::<S, String>(map, "enhanced") {
-                            ReplyCode::Enhanced { code, enhanced }
-                        } else {
-                            ReplyCode::Code { code }
-                        },
+                        Self::value::<S, String>(map, "enhanced").map_or(
+                            ReplyCode::Code { code },
+                            |enhanced| ReplyCode::Enhanced { code, enhanced },
+                        ),
                         Self::value::<S, String>(map, "text")?,
                     )))
                 }
@@ -340,8 +336,7 @@ mod test {
             ]))
             .unwrap(),
             Object::Rg4(
-                ["192.168.0.0/24"]
-                    .into_iter()
+                std::iter::once("192.168.0.0/24")
                     .map(|x| x.parse().unwrap())
                     .collect()
             )
@@ -359,8 +354,7 @@ mod test {
         assert_eq!(
             rg6,
             Object::Rg6(
-                ["2001:db8:1234::/48"]
-                    .into_iter()
+                std::iter::once("2001:db8:1234::/48")
                     .map(|x| x.parse().unwrap())
                     .collect()
             )
@@ -445,9 +439,9 @@ mod test {
         //     ]))
         //     .unwrap(),
         //     Object::File(vec![
-        //         Object::Address(addr!("foo@bar.net")),
-        //         Object::Address(addr!("nested@address.com")),
-        //         Object::Address(addr!("john@doe.com"))
+        //         Object::Address(new_addr!("foo@bar.net")),
+        //         Object::Address(new_addr!("nested@address.com")),
+        //         Object::Address(new_addr!("john@doe.com"))
         //     ])
         // );
 
@@ -468,8 +462,7 @@ mod test {
             Object::Group(vec![
                 std::sync::Arc::new(Object::Ip4(Ipv4Addr::new(127, 0, 0, 1))),
                 std::sync::Arc::new(Object::Rg6(
-                    ["2001:db8:1234::/48"]
-                        .into_iter()
+                    std::iter::once("2001:db8:1234::/48")
                         .map(|x| x.parse().unwrap())
                         .collect()
                 )),

@@ -21,13 +21,12 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_auth::dkim::{
-    Canonicalization, CanonicalizationAlgorithm, PublicKey, Signature, SigningAlgorithm,
-    VerifierError,
+    sign, verify, Canonicalization, PublicKey, Signature, VerificationResult, VerifierError,
 };
-use vsmtp_common::{mail_context::MailContext, re::tokio};
+use vsmtp_common::mail_context::MailContext;
+use vsmtp_mail_parser::MessageBody;
 
 pub use dkim_rhai::*;
-use vsmtp_mail_parser::MessageBody;
 
 #[rhai::plugin::export_module]
 mod dkim_rhai {
@@ -61,7 +60,7 @@ mod dkim_rhai {
     #[rhai_fn(global, pure, return_raw)]
     pub fn store_dkim(ctx: &mut Context, result: rhai::Map) -> EngineResult<()> {
         let mut guard = vsl_guard_ok!(ctx.write());
-        let result = vsmtp_auth::dkim::Result {
+        let result = VerificationResult {
             status: result
                 .get("status")
                 .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
@@ -280,8 +279,7 @@ impl Impl {
         signature: Signature,
         key: PublicKey,
     ) -> Result<(), DkimErrors> {
-        signature
-            .verify(message.inner(), &key)
+        verify(&signature, message.inner(), &key)
             .map_err(|inner| DkimErrors::SignatureMismatch { inner })
     }
 
@@ -300,7 +298,7 @@ impl Impl {
             });
         }
 
-        let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
+        let resolver = server.resolvers.get_resolver_root();
 
         let txt_record = tokio::task::block_in_place(move || {
             tokio::runtime::Handle::current()
@@ -330,10 +328,7 @@ impl Impl {
             .map_err(|inner| DkimErrors::KeyParsingFailed { inner })?;
 
         Ok(if on_multiple_key_records == "first" {
-            match keys.into_iter().next() {
-                Some(i) => vec![i],
-                None => vec![],
-            }
+            keys.into_iter().next().map_or_else(Vec::new, |i| vec![i])
         } else {
             keys
         })
@@ -348,26 +343,6 @@ impl Impl {
         headers_field: &rhai::Array,
         canonicalization: &str,
     ) -> Result<String, DkimErrors> {
-        let (header, body) =
-            canonicalization
-                .split_once('/')
-                .ok_or_else(|| DkimErrors::InvalidArgument {
-                    inner: "invalid canonicalization: expected `header/body`".to_string(),
-                })?;
-
-        let (header, body) = (
-            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(header).map_err(|e| {
-                DkimErrors::InvalidArgument {
-                    inner: format!("got error for canonicalization of headers: `{e}`"),
-                }
-            })?,
-            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(body).map_err(|e| {
-                DkimErrors::InvalidArgument {
-                    inner: format!("got error for canonicalization of body: `{e}`"),
-                }
-            })?,
-        );
-
         let sdid = &context.connection.server_name;
         let dkim_params = server
             .config
@@ -381,13 +356,16 @@ impl Impl {
                 inner: format!("dkim params are empty for this `{sdid}`"),
             }),
             Some(dkim_params) => {
-                let signature = Signature::new(
+                let signature = sign(
                     message.inner(),
                     &dkim_params.private_key.inner,
-                    SigningAlgorithm::RsaSha256,
                     sdid.to_string(),
                     selector.to_string(),
-                    Canonicalization { header, body },
+                    <Canonicalization as std::str::FromStr>::from_str(canonicalization).map_err(
+                        |e| DkimErrors::InvalidArgument {
+                            inner: e.to_string(),
+                        },
+                    )?,
                     headers_field.iter().map(ToString::to_string).collect(),
                 )
                 .map_err(|e| DkimErrors::InvalidArgument {

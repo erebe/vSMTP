@@ -15,7 +15,7 @@ const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
 #[ignore]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .parse_sync(MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
         .unwrap()
         .unwrap_right();
     pretty_assertions::assert_eq!(
@@ -101,7 +101,7 @@ fn simple() {
                                 },
                             },],
                             content: MimeBodyType::Multipart(MimeMultipart {
-                                preamble: "".to_string(),
+                                preamble: String::new(),
                                 parts: vec![
                                     Mime {
                                         headers: vec![
@@ -148,7 +148,7 @@ fn simple() {
                                         )
                                     }
                                 ],
-                                epilogue: "".to_string()
+                                epilogue: String::new()
                             })
                         },
                         Mime {
@@ -199,7 +199,7 @@ fn simple() {
                             })
                         }
                     ],
-                    epilogue: "".to_string(),
+                    epilogue: String::new(),
                 })
             }))
         }

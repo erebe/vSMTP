@@ -18,14 +18,11 @@ use crate::{
     channel_message::ProcessMessage,
     receiver::{Connection, MailHandler},
 };
-use vsmtp_common::{
-    re::{
-        anyhow::{self, Context},
-        log, tokio,
-    },
-    CodeID, ConnectionKind,
-};
-use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
+use anyhow::Context;
+use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
+use vsmtp_common::{CodeID, ConnectionKind};
+use vsmtp_config::{get_rustls_config, Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -33,7 +30,8 @@ pub struct Server {
     config: std::sync::Arc<Config>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
@@ -81,7 +79,8 @@ impl Server {
     pub fn new(
         config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
@@ -102,13 +101,14 @@ impl Server {
             },
             rule_engine,
             resolvers,
+            queue_manager,
             config,
             working_sender,
             delivery_sender,
         })
     }
 
-    #[tracing::instrument(skip(self, stream))]
+    #[tracing::instrument(name = "handle-client", skip_all, fields(client = %client_addr, server = %server_addr))]
     async fn handle_client(
         &self,
         client_counter: std::sync::Arc<std::sync::atomic::AtomicI64>,
@@ -117,18 +117,18 @@ impl Server {
         client_addr: std::net::SocketAddr,
         server_addr: std::net::SocketAddr,
     ) {
-        log::info!("Connection accepted");
+        tracing::info!(%kind, "Connection accepted.");
 
         if self.config.server.client_count_max != -1
             && client_counter.load(std::sync::atomic::Ordering::SeqCst)
                 >= self.config.server.client_count_max
         {
-            log::info!(
-                "Connection count max reached ({}), rejecting connection",
-                self.config.server.client_count_max
+            tracing::warn!(
+                max = self.config.server.client_count_max,
+                "Connection count max reached, rejecting connection.",
             );
 
-            if let Err(e) = tokio::io::AsyncWriteExt::write_all(
+            if let Err(error) = tokio::io::AsyncWriteExt::write_all(
                 &mut stream,
                 self.config
                     .server
@@ -141,11 +141,11 @@ impl Server {
             )
             .await
             {
-                log::error!("{e}");
+                tracing::error!(%error, "Code delivery failure.");
             }
 
-            if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
-                log::warn!("{e}");
+            if let Err(error) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
+                tracing::error!(%error, "Closing connection failure.");
             }
             return;
         }
@@ -163,13 +163,14 @@ impl Server {
             self.tls_config.clone(),
             self.rule_engine.clone(),
             self.resolvers.clone(),
+            self.queue_manager.clone(),
             self.working_sender.clone(),
             self.delivery_sender.clone(),
         );
         let client_counter_copy = client_counter.clone();
         tokio::spawn(async move {
-            if let Err(e) = session.await {
-                log::warn!("{e}");
+            if let Err(error) = session.await {
+                tracing::error!(%error, "Run session failure.");
             }
 
             client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -181,7 +182,7 @@ impl Server {
     /// # Errors
     ///
     /// * failed to convert sockets to `[tokio::net::TcpListener]`
-    #[tracing::instrument(skip(self, sockets))]
+    #[tracing::instrument(name = "serve", skip_all)]
     pub async fn listen_and_serve(
         self,
         sockets: (
@@ -199,7 +200,7 @@ impl Server {
         }
 
         if self.config.server.tls.is_none() && !sockets.2.is_empty() {
-            log::warn!(
+            tracing::warn!(
                 "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
             );
         }
@@ -229,9 +230,9 @@ impl Server {
             }
         }
 
-        log::info!(
-            "Listening for clients on: {:?}",
-            map.keys().collect::<Vec<_>>()
+        tracing::info!(
+            interfaces = ?map.keys().collect::<Vec<_>>(),
+            "Listening for clients.",
         );
 
         while let Some((server_addr, (kind, client))) =
@@ -253,19 +254,12 @@ impl Server {
 
     ///
     /// # Errors
-    #[tracing::instrument(skip(
-        conn,
-        tls_config,
-        rule_engine,
-        resolvers,
-        working_sender,
-        delivery_sender
-    ))]
     pub async fn run_session(
         mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<Resolvers>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
@@ -274,6 +268,7 @@ impl Server {
                 tls_config,
                 rule_engine,
                 resolvers,
+                queue_manager,
                 &mut MailHandler {
                     working_sender,
                     delivery_sender,
@@ -283,10 +278,10 @@ impl Server {
 
         match &connection_result {
             Ok(_) => {
-                log::info!("Connection closed cleanly");
+                tracing::info!("Connection closed cleanly.");
             }
             Err(error) => {
-                log::warn!("Connection closed with an error: `{error}`");
+                tracing::warn!(%error, "Connection closing failure.");
             }
         }
         connection_result
@@ -296,8 +291,8 @@ impl Server {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
     use crate::{socket_bind_anyhow, ProcessMessage, Server};
+    use vsmtp_config::DnsResolvers;
     use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
@@ -312,6 +307,10 @@ mod tests {
                 config
             });
 
+            let queue_manager =
+                <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                    .unwrap();
+
             let delivery = tokio::sync::mpsc::channel::<ProcessMessage>(
                 config.server.queues.delivery.channel_size,
             );
@@ -322,8 +321,9 @@ mod tests {
 
             let s = Server::new(
                 config.clone(),
-                std::sync::Arc::new(RuleEngine::new(&config, &None).unwrap()),
-                std::sync::Arc::new(std::collections::HashMap::new()),
+                std::sync::Arc::new(RuleEngine::new(config.clone(), None).unwrap()),
+                std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap()),
+                queue_manager,
                 working.0,
                 delivery.0,
             )

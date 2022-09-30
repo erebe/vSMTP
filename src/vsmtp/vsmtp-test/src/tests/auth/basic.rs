@@ -18,12 +18,8 @@ use crate::{
     test_receiver,
     tests::auth::{safe_auth_config, unsafe_auth_config},
 };
-use vsmtp_common::{
-    addr,
-    mail_context::MailContext,
-    re::{base64, tokio},
-    CodeID,
-};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
@@ -33,7 +29,7 @@ async fn plain_in_clair_secured() {
     let config = safe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "EHLO foo\r\n",
             "AUTH PLAIN\r\n"
@@ -64,6 +60,7 @@ async fn plain_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -72,7 +69,7 @@ async fn plain_in_clair_unsecured() {
         }
     }
 
-    let config = unsafe_auth_config();
+    let config = arc!(unsafe_auth_config());
     assert!(test_receiver! {
         with_auth,
         with_config => config.clone(),
@@ -117,6 +114,7 @@ async fn login_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -128,7 +126,7 @@ async fn login_in_clair_unsecured() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -174,6 +172,7 @@ async fn anonymous_in_clair_unsecured() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -185,7 +184,7 @@ async fn anonymous_in_clair_unsecured() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -227,6 +226,7 @@ async fn plain_in_clair_unsecured_utf8() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -238,7 +238,7 @@ async fn plain_in_clair_unsecured_utf8() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -269,7 +269,7 @@ async fn plain_in_clair_unsecured_utf8() {
 
 #[tokio::test]
 async fn plain_in_clair_invalid_credentials() {
-    let config = unsafe_auth_config();
+    let config = arc!(unsafe_auth_config());
     assert!(test_receiver! {
         with_auth,
         with_config => config.clone(),
@@ -302,7 +302,7 @@ async fn plain_in_clair_unsecured_cancel() {
 
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
@@ -339,7 +339,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN foobar\r\n",
@@ -374,6 +374,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
@@ -385,7 +386,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -429,7 +430,7 @@ async fn no_auth_with_authenticated_policy() {
         .must_be_authenticated = true;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "MAIL FROM:<foo@bar>\r\n",
@@ -454,7 +455,7 @@ async fn client_must_not_start() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth,
-        with_config => config.clone(),
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "AUTH LOGIN foobar\r\n",

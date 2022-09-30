@@ -15,11 +15,10 @@
  *
 */
 
-use vsmtp_common::{
-    re::{anyhow, tokio},
-    CodeID, ConnectionKind,
-};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{CodeID, ConnectionKind};
 use vsmtp_config::Config;
+use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
@@ -87,6 +86,7 @@ impl OnMail for DefaultMailHandler {
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
         _: MessageBody,
+        _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -106,7 +106,7 @@ pub async fn test_receiver_inner<M>(
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
-) -> anyhow::Result<()>
+) -> anyhow::Result<std::sync::Arc<dyn vqueue::GenericQueueManager>>
 where
     M: OnMail + Send,
 {
@@ -120,13 +120,23 @@ where
         &mut mock,
     );
 
-    let rule_engine =
-        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
+    let rule_engine = std::sync::Arc::new(
+        RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+    );
 
-    let receivers = std::sync::Arc::new(vsmtp_config::build_resolvers(&config).unwrap());
+    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+    let queue_manager =
+        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let result = conn
-        .receive(None, rule_engine, receivers, mail_handler)
+        .receive(
+            None,
+            rule_engine,
+            resolvers,
+            queue_manager.clone(),
+            mail_handler,
+        )
         .await;
     tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
         .await
@@ -137,7 +147,9 @@ where
         std::str::from_utf8(&written_data),
     );
 
-    result
+    result?;
+
+    Ok(queue_manager)
 }
 
 /// Call `test_receiver_inner`
@@ -147,7 +159,7 @@ macro_rules! test_receiver {
     ($input:expr, $output:expr) => {
         test_receiver! {
             on_mail => &mut $crate::receiver::DefaultMailHandler {},
-            with_config => $crate::config::local_test(),
+            with_config => std::sync::Arc::new($crate::config::local_test()),
             $input,
             $output
         }
@@ -155,7 +167,7 @@ macro_rules! test_receiver {
     (on_mail => $resolver:expr, $input:expr, $output:expr) => {
         test_receiver! {
             on_mail => $resolver,
-            with_config => $crate::config::local_test(),
+            with_config => std::sync::Arc::new($crate::config::local_test()),
             $input,
             $output
         }
@@ -173,7 +185,7 @@ macro_rules! test_receiver {
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
-            std::sync::Arc::new($config),
+            $config,
         )
         .await
     };
@@ -191,7 +203,7 @@ macro_rules! test_receiver {
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
-            std::sync::Arc::new($config),
+            $config,
         )
         .await
     };

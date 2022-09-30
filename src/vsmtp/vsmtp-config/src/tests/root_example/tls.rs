@@ -47,36 +47,39 @@ fn parse() {
             .with_default_vsl_settings()
             .with_default_app_logs()
             .with_system_dns()
-            .with_virtual_entries(&[
-                VirtualEntry {
-                    domain: "testserver1.com".to_string(),
-                    tls: None,
-                    dns: None,
-                },
-                VirtualEntry {
-                    domain: "testserver2.com".to_string(),
-                    tls: None,
-                    dns: Some(FieldServerDNS::System),
-                },
-                VirtualEntry {
-                    domain: "testserver3.com".to_string(),
-                    tls: Some((
-                        "../../../examples/config/tls/certificate.crt".to_string(),
-                        "../../../examples/config/tls/private_key.key".to_string()
-                    )),
-                    dns: None,
-                },
-                VirtualEntry {
-                    domain: "testserver4.com".to_string(),
-                    tls: Some((
-                        "../../../examples/config/tls/certificate.crt".to_string(),
-                        "../../../examples/config/tls/private_key.key".to_string()
-                    )),
-                    dns: Some(FieldServerDNS::Google {
-                        options: ResolverOptsWrapper::default()
-                    }),
-                },
-            ])
+            .with_virtual_entries(
+                [
+                    VirtualEntry {
+                        domain: "testserver1.com".to_string(),
+                        tls: None,
+                        dns: None,
+                    },
+                    VirtualEntry {
+                        domain: "testserver2.com".to_string(),
+                        tls: None,
+                        dns: Some(FieldServerDNS::System),
+                    },
+                    VirtualEntry {
+                        domain: "testserver3.com".to_string(),
+                        tls: Some((
+                            "../../../examples/config/tls/certificate.crt".to_string(),
+                            "../../../examples/config/tls/private_key.key".to_string()
+                        )),
+                        dns: None,
+                    },
+                    VirtualEntry {
+                        domain: "testserver4.com".to_string(),
+                        tls: Some((
+                            "../../../examples/config/tls/certificate.crt".to_string(),
+                            "../../../examples/config/tls/private_key.key".to_string()
+                        )),
+                        dns: Some(FieldServerDNS::Google {
+                            options: ResolverOptsWrapper::default()
+                        }),
+                    },
+                ]
+                .into_iter()
+            )
             .unwrap()
             .validate()
             .unwrap()

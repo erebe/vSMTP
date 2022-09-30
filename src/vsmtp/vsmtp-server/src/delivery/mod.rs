@@ -23,16 +23,15 @@ use crate::{
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
-use trust_dns_resolver::TokioAsyncResolver;
+use vqueue::GenericQueueManager;
+use vsmtp_common::transfer::EmailTransferStatus;
 use vsmtp_common::{
     mail_context::MailContext,
     rcpt::Rcpt,
-    re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
 };
-use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
@@ -42,17 +41,20 @@ mod deliver;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
-pub async fn start(
+pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<Resolvers>,
+    resolvers: std::sync::Arc<DnsResolvers>,
+    queue_manager: std::sync::Arc<Q>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {
-    if let Err(e) =
-        flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
-    {
-        log::error!("flushing queue failed: `{e}`");
-    }
+    flush_deliver_queue(
+        config.clone(),
+        resolvers.clone(),
+        queue_manager.clone(),
+        rule_engine.clone(),
+    )
+    .await;
 
     // NOTE: emails stored in the deferred queue are likely to slow down the process.
     //       the pickup process of this queue should be slower than pulling from the delivery queue.
@@ -67,15 +69,22 @@ pub async fn start(
                     handle_one_in_delivery_queue(
                         config.clone(),
                         resolvers.clone(),
+                        queue_manager.clone(),
                         pm,
                         rule_engine.clone(),
                     )
                 );
             }
             _ = flush_deferred_interval.tick() => {
-                log::info!("cronjob delay elapsed `{}s`, flushing queue.",
+                tracing::info!("cronjob delay elapsed `{}s`, flushing queue.",
                     config.server.queues.delivery.deferred_retry_period.as_secs());
-                tokio::spawn(flush_deferred_queue(config.clone(), resolvers.clone()));
+                tokio::spawn(
+                    flush_deferred_queue(
+                        config.clone(),
+                        resolvers.clone(),
+                        queue_manager.clone(),
+                    )
+                );
             }
         };
     }
@@ -88,12 +97,13 @@ pub enum SenderOutcome {
     RemoveFromDisk,
 }
 
+#[tracing::instrument(name = "send", skip_all)]
 #[allow(clippy::too_many_lines)]
 pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: std::sync::Arc<DnsResolvers>,
 ) -> SenderOutcome {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
@@ -108,14 +118,11 @@ pub async fn send_mail(
     }
 
     if acc.is_empty() {
+        tracing::warn!("No recipients to send to.");
         return SenderOutcome::MoveToDead;
     }
 
     let message_content = message_body.inner().to_string();
-
-    let root_server_resolver = resolvers
-        .get(&config.server.domain)
-        .expect("root server's resolver is missing");
 
     let from = &message_ctx.envelop.mail_from;
 
@@ -125,10 +132,11 @@ pub async fn send_mail(
         .map(|(key, to)| match key {
             Transfer::Forward(forward_target) => {
                 let resolver = match &forward_target {
-                    ForwardTarget::Domain(domain) => resolvers.get(domain),
-                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => None,
-                }
-                .unwrap_or(root_server_resolver);
+                    ForwardTarget::Domain(domain) => resolvers.get_resolver_or_root(domain),
+                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
+                        resolvers.get_resolver_root()
+                    }
+                };
 
                 Forward::new(forward_target.clone(), resolver).deliver(
                     config,
@@ -139,14 +147,12 @@ pub async fn send_mail(
                 )
             }
             Transfer::Deliver => Deliver::new({
-                resolvers
-                    .get(
-                        to.get(0)
-                            .expect("at least one element in the group")
-                            .address
-                            .domain(),
-                    )
-                    .unwrap_or(root_server_resolver)
+                resolvers.get_resolver_or_root(
+                    to.get(0)
+                        .expect("at least one element in the group")
+                        .address
+                        .domain(),
+                )
             })
             .deliver(config, &message_ctx.metadata, from, to, &message_content),
             Transfer::Mbox => {
@@ -155,17 +161,18 @@ pub async fn send_mail(
             Transfer::Maildir => {
                 Maildir.deliver(config, &message_ctx.metadata, from, to, &message_content)
             }
-            Transfer::None => unreachable!(),
+            Transfer::None => unreachable!("at this stage all transfer methods should be set."),
         })
         .collect::<Vec<_>>();
 
-    message_ctx.envelop.rcpt = futures::future::join_all(futures)
+    message_ctx.envelop.rcpt = futures_util::future::join_all(futures)
         .await
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
 
-    log::trace!("the recipients are: `{:#?}`", message_ctx.envelop.rcpt);
+    tracing::debug!(rcpt = ?message_ctx.envelop.rcpt.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(),  "Sending.");
+    tracing::trace!(rcpt = ?message_ctx.envelop.rcpt);
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut message_ctx.envelop.rcpt {
@@ -182,7 +189,6 @@ pub async fn send_mail(
         }
     }
 
-    // If there is no recipient, or no transfer method for each of them
     if message_ctx.envelop.rcpt.is_empty()
         || message_ctx
             .envelop
@@ -190,40 +196,44 @@ pub async fn send_mail(
             .iter()
             .all(|rcpt| matches!(rcpt.transfer_method, Transfer::None))
     {
+        tracing::warn!("No recipients to send to, or all transfer method are set to none.");
         return SenderOutcome::MoveToDead;
     }
 
-    // If all has been successfully sent
     if message_ctx
         .envelop
         .rcpt
         .iter()
         .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
     {
+        tracing::info!("Send operation successful.");
         return SenderOutcome::RemoveFromDisk;
     }
 
-    // If there is no more sendable recipient
     if message_ctx
         .envelop
         .rcpt
         .iter()
         .all(|rcpt| !rcpt.email_status.is_sendable())
     {
+        tracing::warn!("No more sendable recipients.");
         return SenderOutcome::MoveToDead;
     }
 
-    for i in &mut message_ctx.envelop.rcpt {
-        if matches!(&i.email_status, EmailTransferStatus::Waiting { .. }) {
-            i.email_status
+    for rcpt in &mut message_ctx.envelop.rcpt {
+        if matches!(&rcpt.email_status, EmailTransferStatus::Waiting { .. }) {
+            rcpt.email_status
                 .held_back("ignored by delivery transport".to_string());
         }
     }
 
+    tracing::warn!("Some send operations failed, email deferred.");
+    tracing::debug!(failed = ?message_ctx.envelop.rcpt.iter().filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. })).map(|r| (r.address.to_string(), r.email_status.clone())).collect::<Vec<_>>());
+
     SenderOutcome::MoveToDeferred
 }
 
-/// prepend trace informations to headers.
+/// prepend trace information to headers.
 /// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
     config: &Config,

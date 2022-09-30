@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    error::{ParserError, ParserResult},
     message::mime_type::MimeHeader,
+    {ParserError, ParserResult},
 };
 
 #[inline]
@@ -76,6 +76,7 @@ pub fn get_mime_type<'a>(
             }
         }
         None if parent.is_some() => {
+            #[allow(clippy::option_if_let_else)]
             match parent.unwrap().iter().find(|h| h.name == "content-type") {
                 Some(content_type) if content_type.value == "multipart/digest" => {
                     Ok(("message", "rfc822"))

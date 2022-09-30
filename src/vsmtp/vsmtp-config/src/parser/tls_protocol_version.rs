@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::anyhow;
 
 const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
     rustls::ProtocolVersion::TLSv1_2,
@@ -74,7 +73,7 @@ where
     impl<'de> serde::de::Visitor<'de> for ProtocolVersionVisitor {
         type Value = Vec<ProtocolVersion>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             formatter.write_str("[...]")
         }
 

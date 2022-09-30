@@ -15,21 +15,23 @@
  *
  */
 use anyhow::Context;
+use clap::{crate_name, crate_version};
 use vsmtp::{Args, Commands};
-use vsmtp_common::{
-    libc_abstraction::{daemon, initgroups},
-    re::{anyhow, log, serde_json},
-};
+use vsmtp_common::libc_abstraction::{daemon, initgroups};
 use vsmtp_config::Config;
 use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
-        eprintln!("vSMTP terminating error: '{err}'");
-        log::error!("vSMTP terminating error: '{err}'");
+        let error = format!("vSMTP terminating error: '{err}'");
+
+        eprintln!("{error}");
+        tracing::error!(error);
         err.chain().skip(1).for_each(|cause| {
-            eprintln!("because: {cause}");
-            log::error!("because: {cause}");
+            let reason = format!("because: {cause}");
+
+            eprintln!("{reason}");
+            tracing::error!(reason);
         });
         std::process::exit(1);
     }
@@ -45,10 +47,20 @@ fn bind_sockets(addr: &[std::net::SocketAddr]) -> anyhow::Result<Vec<std::net::T
 fn try_main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
+    if args.version {
+        println!(
+            "{} v{}\ncommit: {}",
+            crate_name!(),
+            crate_version!(),
+            env!("GIT_HASH")
+        );
+        return Ok(());
+    }
+
     let config = args.config.as_ref().map_or_else(
         || Ok(Config::default()),
         |config| {
-            std::fs::read_to_string(&config)
+            std::fs::read_to_string(config)
                 .context(format!("Cannot read file '{}'", config))
                 .and_then(|f| Config::from_toml(&f).context("File contains format error"))
                 .context("Cannot parse the configuration")
@@ -77,13 +89,26 @@ fn try_main() -> anyhow::Result<()> {
         }
     }
 
+    vsmtp::tracing_subscriber::initialize(&args, &config)?;
+
+    tracing::info!(
+        server = ?config.server.logs.filepath,
+        app = ?config.app.logs.filepath,
+        syslog = config
+        .server
+        .logs
+        .system
+        .as_ref()
+        .map(|sys| sys.to_string())
+        .unwrap_or_else(|| "None".to_string()),
+        "vSMTP logs initialized: ",
+    );
+
     let sockets = (
         bind_sockets(&config.server.interfaces.addr)?,
         bind_sockets(&config.server.interfaces.addr_submission)?,
         bind_sockets(&config.server.interfaces.addr_submissions)?,
     );
-
-    vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
     if !args.no_daemon {
         daemon(false, false)?;

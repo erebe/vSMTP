@@ -15,7 +15,8 @@
  *
 */
 use crate::{config, test_receiver};
-use vsmtp_common::{addr, mail_context::MailContext, re::tokio, CodeID};
+use vqueue::GenericQueueManager;
+use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
 use vsmtp_mail_parser::MailHeaders;
@@ -39,6 +40,7 @@ async fn test_receiver_1() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             _: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
@@ -223,7 +225,7 @@ async fn test_receiver_12() {
     config.server.smtp.disable_ehlo = true;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         ["EHLO postmaster\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
@@ -241,7 +243,7 @@ async fn max_rcpt_reached() {
     config.server.smtp.rcpt_count_max = 5;
 
     assert!(test_receiver! {
-        with_config => config,
+        with_config => arc!(config),
         [
             "EHLO client.com\r\n",
             "MAIL FROM:<foo@bar.com>\r\n",
@@ -288,6 +290,7 @@ async fn test_receiver_13() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -379,6 +382,7 @@ async fn test_receiver_14() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             mut message: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(
@@ -464,7 +468,7 @@ async fn test_receiver_9() {
     config.server.smtp.error.soft_count = 5;
     config.server.smtp.error.hard_count = 10;
 
-    let config = config;
+    let config = std::sync::Arc::new(config);
 
     let before_test = std::time::Instant::now();
     assert!(test_receiver! {

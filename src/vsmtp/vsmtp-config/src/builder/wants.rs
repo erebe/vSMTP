@@ -37,6 +37,7 @@ pub struct WantsServerSystem {
     pub(crate) parent: WantsServer,
     pub(super) domain: String,
     pub(super) client_count_max: i64,
+    pub(super) message_size_limit: usize,
 }
 
 ///
@@ -62,7 +63,6 @@ pub struct WantsServerLogs {
 pub struct WantsServerQueues {
     pub(crate) parent: WantsServerLogs,
     pub(super) filepath: std::path::PathBuf,
-    pub(super) format: String,
     pub(super) level: Vec<tracing_subscriber::filter::Directive>,
 }
 
@@ -85,7 +85,6 @@ pub struct WantsServerSMTPConfig2 {
     pub(crate) parent: WantsServerSMTPConfig1,
     pub(super) rcpt_count_max: usize,
     pub(super) disable_ehlo: bool,
-    pub(super) required_extension: Vec<String>,
 }
 
 ///
@@ -123,7 +122,6 @@ pub struct WantsAppLogs {
 pub struct WantsServerDNS {
     pub(crate) parent: WantsAppLogs,
     pub(super) filepath: std::path::PathBuf,
-    pub(super) format: String,
 }
 
 ///

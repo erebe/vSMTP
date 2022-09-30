@@ -15,182 +15,71 @@
  *
 */
 
-use super::{Canonicalization, SigningAlgorithm, MINIMUM_ACCEPTABLE_KEY_SIZE};
+use super::{Canonicalization, SigningAlgorithm};
 use crate::ParseError;
 use vsmtp_mail_parser::RawBody;
 
-// NOTE: currently "dns/txt" is the only format supported (by signers and verifiers)
-// but others might be added in the future
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct QueryMethod {
-    // r#type: String,
-    // options: String,
-}
-
-impl std::fmt::Display for QueryMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "dns/txt")
-    }
-}
-
-impl std::str::FromStr for QueryMethod {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "dns/txt" {
-            Ok(Self::default())
-        } else {
-            Err(ParseError::InvalidArgument {
-                reason: format!("`{s}` is not a valid query method"),
-            })
-        }
-    }
-}
-
-#[must_use]
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(
-        "invalid key size: {0} bits, was expecting at least {} bits",
-        MINIMUM_ACCEPTABLE_KEY_SIZE
-    )]
-    InvalidSize(usize),
-    #[error("rsa error: {0}")]
-    Rsa(rsa::errors::Error),
+#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display, Default)]
+pub enum QueryMethod {
+    #[default]
+    #[strum(serialize = "dns/txt")]
+    DnsTxt,
 }
 
 /// Representation of the "DKIM-Signature" header
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Signature {
     /// tag "v="
-    version: usize,
+    pub(super) version: usize,
     /// tag "a="
-    pub signing_algorithm: SigningAlgorithm,
+    pub(super) signing_algorithm: SigningAlgorithm,
     /// Signing Domain Identifier (SDID)
     /// tag "d="
     pub sdid: String,
     /// tag "s="
-    pub selector: String,
+    pub(super) selector: String,
     /// tag "c="
-    pub canonicalization: Canonicalization,
+    pub(super) canonicalization: Canonicalization,
     /// tag "q="
-    pub query_method: Vec<QueryMethod>,
+    pub(super) query_method: Vec<QueryMethod>,
     /// Agent or User Identifier (AUID)
     /// tag "i=", or "@d" is "i" is missing
     pub auid: String,
     /// tag "t="
-    pub signature_timestamp: Option<std::time::Duration>,
+    pub(super) signature_timestamp: Option<std::time::Duration>,
     /// tag "x="
-    pub expire_time: Option<std::time::Duration>,
+    pub(super) expire_time: Option<std::time::Duration>,
     /// tag "l="
-    pub body_length: Option<usize>,
+    pub(super) body_length: Option<usize>,
     /// tag "h="
-    pub headers_field: Vec<String>,
+    pub(super) headers_field: Vec<String>,
     /// tag "z="
-    pub copy_header_fields: Option<Vec<(String, String)>>,
+    pub(super) copy_header_fields: Option<Vec<(String, String)>>,
     /// tag "bh="
-    pub body_hash: String,
+    pub(super) body_hash: String,
     /// tag "b="
-    pub signature: String,
-    pub(crate) raw: String,
+    pub(super) signature: String,
+    pub(super) raw: String,
 }
 
 impl Signature {
-    /// Construct a new Signature
-    ///
-    /// # Errors
-    ///
-    /// * the signature with the `private_key` failed
-    pub fn new(
-        message: &RawBody,
-        private_key: &rsa::RsaPrivateKey,
-        signing_algorithm: SigningAlgorithm,
-        sdid: String,
-        selector: String,
-        canonicalization: Canonicalization,
-        headers_field: Vec<String>,
-        // TODO:
-        // auid: String,
-        // signature_timestamp: Option<std::time::Duration>,
-        // expire_time: Option<std::time::Duration>,
-        // body_length: Option<usize>,
-        // copy_header_fields: Option<Vec<(String, String)>>,
-    ) -> Result<Self, Error> {
-        let size = rsa::PublicKeyParts::size(&private_key) * 8;
-        if size < MINIMUM_ACCEPTABLE_KEY_SIZE {
-            return Err(Error::InvalidSize(size));
-        }
-
-        let mut signature = Self {
-            version: 1,
-            signing_algorithm,
-            sdid,
-            selector,
-            canonicalization,
-            query_method: vec![QueryMethod::default()],
-            auid: String::default(),
-            signature_timestamp: None,
-            expire_time: None,
-            body_length: None,
-            headers_field,
-            copy_header_fields: None,
-            body_hash: base64::encode(
-                signing_algorithm.hash(
-                    canonicalization.body.canonicalize_body(
-                        &message
-                            .body()
-                            .as_ref()
-                            .map(ToString::to_string)
-                            .unwrap_or_default(),
-                    ),
-                ),
-            ),
-            signature: String::default(),
-            raw: String::default(),
-        };
-        signature.raw = signature.to_string();
-
-        signature.signature = base64::encode(
-            private_key
-                .sign(
-                    rsa::PaddingScheme::PKCS1v15Sign {
-                        hash: Some(match signature.signing_algorithm {
-                            #[cfg(feature = "historic")]
-                            SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
-                            SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
-                        }),
-                    },
-                    &signature.get_header_hash(message),
-                )
-                .map_err(Error::Rsa)?,
-        );
-
-        signature.raw.push_str(&signature.signature);
-
-        Ok(signature)
-    }
-
     ///
     #[must_use]
     pub fn has_expired(&self, epsilon: u64) -> bool {
-        match self.expire_time {
-            Some(expire_time) => {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_secs();
+        self.expire_time.map_or(false, |expire_time| {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs();
 
-                let expire_time = expire_time.as_secs();
+            let expire_time = expire_time.as_secs();
 
-                // `now - x` or `x - now`, to get +/-
-                now.checked_sub(expire_time)
-                    .or_else(|| expire_time.checked_sub(now))
-                    .expect("cannot have 2 overflow")
-                    > epsilon
-            }
-            // expiration date is undefined
-            None => false,
-        }
+            // `now - x` or `x - now`, to get +/-
+            now.checked_sub(expire_time)
+                .or_else(|| expire_time.checked_sub(now))
+                .expect("cannot have 2 overflow")
+                > epsilon
+        })
     }
 
     ///
@@ -225,7 +114,7 @@ impl Signature {
         out
     }
 
-    pub(crate) fn get_header_for_hash(&self, message: &RawBody) -> String {
+    pub(super) fn get_header_for_hash(&self, message: &RawBody) -> String {
         let mut last_index = std::collections::HashMap::<&str, usize>::new();
 
         let headers = message.headers(true);
@@ -249,25 +138,24 @@ impl Signature {
             }
         }
 
-        let mut output = self.canonicalization.header.canonicalize_headers(&output);
+        let mut output = self.canonicalization.canonicalize_headers(&output);
 
         output.push_str(
             &self
                 .canonicalization
-                .header
                 .canonicalize_header(&self.signature_without_headers()),
         );
         output
     }
 
-    ///
-    #[must_use]
-    pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
+    pub(super) fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
         let header = self.get_header_for_hash(message);
 
-        tracing::debug!("header before hash={:?}", header);
+        tracing::debug!("header before hash={header:?}");
 
-        self.signing_algorithm.hash(header)
+        self.signing_algorithm
+            .get_preferred_hash_algo()
+            .hash(header)
     }
 }
 
@@ -339,7 +227,10 @@ impl std::str::FromStr for Signature {
                     query_method = p_query_method
                         .split(':')
                         .map(QueryMethod::from_str)
-                        .collect::<Result<Vec<_>, ParseError>>()?;
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| ParseError::InvalidArgument {
+                            reason: format!("when parsing `query_method`, got: `{e}`"),
+                        })?;
                 }
                 ("i", p_auid) => auid = Some(p_auid.to_string()),
                 ("t", p_signature_timestamp) => {
@@ -497,226 +388,5 @@ impl std::fmt::Display for Signature {
         ))?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Canonicalization, QueryMethod, Signature, SigningAlgorithm};
-    use crate::dkim::CanonicalizationAlgorithm;
-
-    #[test]
-    fn from_str_wikipedia() {
-        let signature = [
-            "DKIM-Signature: v=1; a=rsa-sha256; d=example.net; s=brisbane;",
-            "    c=relaxed/simple; q=dns/txt; i=foo@eng.example.net;",
-            "    t=1117574938; x=1118006938; l=200;",
-            "    h=from:to:subject:date:keywords:keywords;",
-            "    z=From:foo@eng.example.net|To:joe@example.com|",
-            "      Subject:demo=20run|Date:July=205,=202005=203:44:08=20PM=20-0700;",
-            "    bh=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=;",
-            "    b=dzdVyOfAKCdLXdJOc9G2q8LoXSlEniSbav+yuU4zGeeruD00lszZ",
-            "             VoG4ZHRNiYzR",
-        ]
-        .concat();
-
-        let sign = <Signature as std::str::FromStr>::from_str(&signature).unwrap();
-        pretty_assertions::assert_eq!(
-            sign,
-            Signature {
-                version: 1,
-                signing_algorithm: SigningAlgorithm::RsaSha256,
-                sdid: "example.net".to_string(),
-                selector: "brisbane".to_string(),
-                canonicalization: Canonicalization {
-                    header: CanonicalizationAlgorithm::Relaxed,
-                    body: CanonicalizationAlgorithm::Simple
-                },
-                query_method: vec![QueryMethod::default()],
-                auid: "foo@eng.example.net".to_string(),
-                signature_timestamp: Some(std::time::Duration::from_secs(1_117_574_938)),
-                expire_time: Some(std::time::Duration::from_secs(1_118_006_938)),
-                body_length: Some(200),
-                headers_field: ["from", "to", "subject", "date", "keywords", "keywords"]
-                    .into_iter()
-                    .map(str::to_string)
-                    .collect(),
-                copy_header_fields: Some(
-                    [
-                        ("From", "foo@eng.example.net"),
-                        ("To", "joe@example.com"),
-                        ("Subject", "demo=20run"),
-                        ("Date", "July=205,=202005=203:44:08=20PM=20-0700"),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect()
-                ),
-                body_hash: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=".to_string(),
-                signature: "dzdVyOfAKCdLXdJOc9G2q8LoXSlEniSbav+yuU4zGeeruD00lszZVoG4ZHRNiYzR"
-                    .to_string(),
-                raw: signature.clone()
-            }
-        );
-
-        pretty_assertions::assert_eq!(
-            sign.get_signature_value(),
-            signature["DKIM-Signature:".len()..]
-        );
-
-        assert!(sign.has_expired(100));
-        assert!(!sign.has_expired(1_000_000_000));
-
-        assert_eq!(sign.get_dns_query(), "brisbane._domainkey.example.net");
-    }
-
-    mod error {
-        use super::*;
-
-        #[test]
-        fn not_right_header() {
-            let _err = <Signature as std::str::FromStr>::from_str("From: yes").unwrap_err();
-        }
-
-        #[test]
-        fn not_tag_based_syntax() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: yes").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_version() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: v=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_sign_algo() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: a=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_canonicalization() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: c=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_query_method() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: q=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_sign_timestamp() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: t=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_expire_timestamp() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: x=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_body_len() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: l=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn not_right_header_copy() {
-            let _err = <Signature as std::str::FromStr>::from_str("DKIM-Signature: z=From\\x")
-                .unwrap_err();
-        }
-
-        #[test]
-        fn not_right_body_hash() {
-            let _err = <Signature as std::str::FromStr>::from_str("DKIM-Signature: bh=foobar")
-                .unwrap_err();
-        }
-
-        #[test]
-        fn not_right_signature_hash() {
-            let _err =
-                <Signature as std::str::FromStr>::from_str("DKIM-Signature: b=foobar").unwrap_err();
-        }
-
-        #[test]
-        fn missing_version() {
-            let _err =   <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: d=example.net; a=rsa-sha256; s=toto; h=From; bh=b2theQ==; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_sdid() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; a=rsa-sha256; s=toto; h=From; bh=b2theQ==; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_sign_algo() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; d=example.net; s=toto; h=From; bh=b2theQ==; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_selector() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; d=example.net; a=rsa-sha256; h=From; bh=b2theQ==; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_headers() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; d=example.net; a=rsa-sha256; s=toto; bh=b2theQ==; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_body_hash() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; d=example.net; a=rsa-sha256; s=toto;  h=From; b=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn missing_signature() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-                "DKIM-Signature: v=1; d=example.net; a=rsa-sha256; s=toto;  h=From; bh=b2theQ==",
-            )
-            .unwrap_err();
-        }
-
-        #[test]
-        fn invalid_auid() {
-            let _err = <Signature as std::str::FromStr>::from_str(
-            "DKIM-Signature: v=1; i=user@example.com; d=example.net; a=rsa-sha256; s=toto; h=From; bh=b2theQ==; b=b2theQ==").unwrap_err();
-        }
-
-        #[test]
-        fn invalid_header_empty() {
-            let _err =    <Signature as std::str::FromStr>::from_str(
-            "DKIM-Signature: v=1; d=example.net; a=rsa-sha256; s=toto; h=; bh=b2theQ==; b=b2theQ==").unwrap_err();
-        }
-    }
-
-    // FIXME: okay ?
-    #[test]
-    fn not_right_version_v2() {
-        let _sign = <Signature as std::str::FromStr>::from_str(
-            "DKIM-Signature: v=2; d=example.net; a=rsa-sha256; s=toto; h=From; bh=b2theQ==; b=b2theQ==").unwrap();
     }
 }

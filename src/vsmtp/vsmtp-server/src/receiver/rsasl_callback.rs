@@ -15,13 +15,14 @@
  *
 */
 
+use vqueue::GenericQueueManager;
 use vsmtp_common::{
     auth::{Credentials, Mechanism},
     mail_context::ConnectionContext,
     state::State,
     status::Status,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 #[derive(Debug, thiserror::Error)]
@@ -46,7 +47,9 @@ pub struct Callback {
     ///
     pub rule_engine: std::sync::Arc<RuleEngine>,
     ///
-    pub resolvers: std::sync::Arc<Resolvers>,
+    pub resolvers: std::sync::Arc<DnsResolvers>,
+    ///
+    pub queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ///
     pub config: std::sync::Arc<Config>,
     ///
@@ -59,8 +62,9 @@ impl Callback {
         credentials: &Credentials,
     ) -> Result<<ValidationVSL as rsasl::validate::Validation>::Value, Error> {
         let mut rule_state = RuleState::with_connection(
-            &self.config,
+            self.config.clone(),
             self.resolvers.clone(),
+            self.queue_manager.clone(),
             &self.rule_engine,
             ConnectionContext {
                 credentials: Some(credentials.clone()),
@@ -88,8 +92,8 @@ impl rsasl::callback::SessionCallback for Callback {
     fn callback(
         &self,
         session_data: &rsasl::callback::SessionData,
-        context: &rsasl::callback::Context,
-        request: &mut rsasl::callback::Request,
+        context: &rsasl::callback::Context<'_>,
+        request: &mut rsasl::callback::Request<'_>,
     ) -> Result<(), rsasl::prelude::SessionError> {
         let _ = (session_data, context, request);
         todo!()
@@ -98,7 +102,7 @@ impl rsasl::callback::SessionCallback for Callback {
     fn validate(
         &self,
         session_data: &rsasl::callback::SessionData,
-        context: &rsasl::callback::Context,
+        context: &rsasl::callback::Context<'_>,
         validate: &mut rsasl::validate::Validate<'_>,
     ) -> Result<(), rsasl::validate::ValidationError> {
         let credentials = match session_data.mechanism().mechanism {

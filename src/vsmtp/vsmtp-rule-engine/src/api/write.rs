@@ -19,8 +19,6 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::re::serde_json;
-use vsmtp_config::create_app_folder;
 
 pub use write_rhai::*;
 
@@ -65,15 +63,13 @@ mod write_rhai {
     }
 }
 
+// TODO: handle canonicalization
 fn write(srv: &mut Server, ctx: &mut Context, message: &Message, dir: &str) -> EngineResult<()> {
-    let mut dir =
-        create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
-            format!(
-                "failed to write email at {}/{dir}: {err}",
-                srv.config.app.dirpath.display()
-            )
-            .into()
-        })?;
+    let mut dir = srv.config.app.dirpath.join(dir);
+    std::fs::create_dir_all(&dir).map_err::<Box<EvalAltResult>, _>(|err| {
+        format!("cannot create folder '{}': {err}", dir.display()).into()
+    })?;
+
     dir.push(format!("{}.eml", message_id(ctx)?));
 
     let file = std::fs::OpenOptions::new()
@@ -81,7 +77,7 @@ fn write(srv: &mut Server, ctx: &mut Context, message: &Message, dir: &str) -> E
         .write(true)
         .open(&dir)
         .map_err::<Box<EvalAltResult>, _>(|err| {
-            format!("failed to write email at {dir:?}: {err}").into()
+            format!("failed to write email at {}: {err}", dir.display()).into()
         })?;
     let mut writer = std::io::LineWriter::new(file);
 
@@ -94,14 +90,11 @@ fn write(srv: &mut Server, ctx: &mut Context, message: &Message, dir: &str) -> E
 }
 
 fn dump(srv: &mut Server, ctx: &mut Context, dir: &str) -> EngineResult<()> {
-    let mut dir =
-        create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
-            format!(
-                "failed to dump email at {}/{dir}: {err}",
-                srv.config.app.dirpath.display()
-            )
-            .into()
-        })?;
+    let mut dir = srv.config.app.dirpath.join(dir);
+    std::fs::create_dir_all(&dir).map_err::<Box<EvalAltResult>, _>(|err| {
+        format!("cannot create folder '{}': {err}", dir.display()).into()
+    })?;
+
     dir.push(format!("{}.json", message_id(ctx)?));
 
     let mut file = std::fs::OpenOptions::new()
@@ -109,7 +102,7 @@ fn dump(srv: &mut Server, ctx: &mut Context, dir: &str) -> EngineResult<()> {
         .write(true)
         .open(&dir)
         .map_err::<Box<EvalAltResult>, _>(|err| {
-            format!("failed to dump email at {dir:?}: {err}").into()
+            format!("failed to dump email at {}: {err}", dir.display()).into()
         })?;
 
     std::io::Write::write_all(

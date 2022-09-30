@@ -1,15 +1,13 @@
-use crate::parser::MailMimeParser;
-use crate::{
-    message::mail::{BodyType, Mail, MailHeaders},
-    MailParser,
-};
+use crate::message::mail::{BodyType, Mail, MailHeaders};
+use crate::{MailMimeParser, MailParser};
 
 #[test]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.1.1.a.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.1.1.a.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()
@@ -47,9 +45,10 @@ fn simple() {
 #[test]
 fn forward() {
     let parsed = MailMimeParser::default()
-        .parse_lines(
-            &include_str!("../../mail/rfc5322/A.1.1.b.eml")
+        .parse_sync(
+            include_str!("../../mail/rfc5322/A.1.1.b.eml")
                 .lines()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
         .unwrap()

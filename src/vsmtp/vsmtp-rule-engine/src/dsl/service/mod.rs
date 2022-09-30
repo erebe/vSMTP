@@ -19,6 +19,8 @@ use vsmtp_common::transfer::SmtpConnection;
 
 use crate::api::EngineResult;
 
+use self::databases::csv::{access::AccessMode, refresh::Refresh};
+
 pub mod cmd;
 pub mod databases;
 pub mod parsing;
@@ -47,11 +49,11 @@ pub enum Service {
         /// A path to the file to open.
         path: std::path::PathBuf,
         /// Access mode to the database.
-        access: databases::AccessMode,
+        access: AccessMode,
         /// Delimiter character to separate fields in records.
-        delimiter: u8,
+        delimiter: char,
         /// Database refresh mode.
-        refresh: databases::Refresh,
+        refresh: Refresh,
         /// Raw content of the database.
         fd: std::fs::File,
     },
@@ -59,10 +61,12 @@ pub enum Service {
     #[cfg(feature = "mysql")]
     /// A database connector based on MySQL.
     MySQLDatabase {
+        /// Name of the service.
+        name: String,
         /// The url to the database.
         url: String,
         /// connection pool for the database.
-        pool: r2d2::Pool<self::databases::mysql::MySQLConnectionManager>,
+        pool: r2d2::Pool<self::databases::mysql::connection_manager::MySQLConnectionManager>,
     },
 
     /// A service that handles smtp transactions.
@@ -90,34 +94,28 @@ impl std::fmt::Display for Service {
     }
 }
 
-/// extract a value from a `rhai::Map`, optionally inserting a default value.
-pub fn get_or_default<T: Clone + Send + Sync + 'static>(
-    map_name: &str,
-    map: &rhai::Map,
-    key: &str,
-    default: Option<T>,
-) -> EngineResult<T> {
-    fn try_cast<T: Clone + Send + Sync + 'static>(
-        name: &str,
-        value: &rhai::Dynamic,
-    ) -> EngineResult<T> {
-        value
-            .clone()
-            .try_cast::<T>()
-            .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                format!(
-                    "the {name} parameter for a smtp service must be a {}",
-                    std::any::type_name::<T>()
-                )
-                .into()
-            })
-    }
+/// Implement this trait on the service to deserialize.
+pub trait Parser {
+    /// Get the type of the service for log message.
+    fn service_type(&self) -> &'static str;
+    /// Parsing implementation of the service from a rhai map.
+    fn parse_service(&self, service: &str, parameters: rhai::Map) -> EngineResult<Service>;
+}
 
-    match (map.get(key), default) {
-        (Some(value), _) => try_cast(key, value),
-        (mut value, Some(default)) => {
-            try_cast(key, value.get_or_insert(&rhai::Dynamic::from(default)))
-        }
-        _ => Err(format!("key {key} was not found in {map_name}").into()),
-    }
+/// Deserialize a rhai map to a specific type.
+///
+/// # Errors
+/// * The parsing failed.
+pub fn deserialize_rhai_map<T: serde::de::DeserializeOwned>(
+    service_name: &str,
+    service_type: &str,
+    map: rhai::Map,
+) -> EngineResult<T> {
+    rhai::serde::from_dynamic::<T>(&map.into()).map_err::<Box<rhai::EvalAltResult>, _>(|err| {
+        format!(
+            "failed to parse parameters for the '{}' service of type '{}': {}",
+            service_name, service_type, err
+        )
+        .into()
+    })
 }

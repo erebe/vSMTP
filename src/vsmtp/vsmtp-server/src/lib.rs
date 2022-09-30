@@ -21,6 +21,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
@@ -45,14 +46,8 @@ pub use receiver::{AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
-use vsmtp_common::{
-    mail_context::MailContext,
-    re::{
-        anyhow::{self, Context},
-        lettre, strum,
-    },
-    transfer::SmtpConnection,
-};
+use anyhow::Context;
+use vsmtp_common::{mail_context::MailContext, transfer::SmtpConnection};
 use vsmtp_mail_parser::MessageBody;
 
 /// tag for a specific email process.

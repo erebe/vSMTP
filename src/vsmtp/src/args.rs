@@ -15,9 +15,6 @@
  *
 */
 
-use vsmtp_common::re::anyhow;
-use vsmtp_config::re::humantime;
-
 ///
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timeout(pub std::time::Duration);
@@ -34,21 +31,29 @@ impl std::str::FromStr for Timeout {
 
 ///
 #[derive(Debug, clap::Parser, PartialEq, Eq)]
-#[clap(about, version, author)]
+#[clap(about, author)]
 pub struct Args {
-    /// Path of the vSMTP configuration file (toml format)
+    /// Print the version and exit.
+    #[clap(short, long, action)]
+    pub version: bool,
+
+    /// Path of the vSMTP configuration file. (toml format)
     #[clap(short, long, action)]
     pub config: Option<String>,
 
-    /// Commands
+    /// Commands.
     #[clap(subcommand)]
     pub command: Option<Commands>,
 
-    /// Do not run the program as a daemon
+    /// Do not run the program as a daemon.
     #[clap(short, long, action)]
     pub no_daemon: bool,
 
-    /// Make the server stop after a delay (human readable format)
+    /// Output to stdout.
+    #[clap(long, action)]
+    pub stdout: bool,
+
+    /// Make the server stop after a delay. (human readable format)
     #[clap(short, long, action)]
     pub timeout: Option<Timeout>,
 }
@@ -69,60 +74,83 @@ mod tests {
 
     #[test]
     fn parse_arg() {
-        assert!(<Args as clap::StructOpt>::try_parse_from(&[""]).is_ok());
+        assert!(<Args as clap::StructOpt>::try_parse_from([""]).is_ok());
 
         assert_eq!(
             Args {
+                version: false,
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path"]).unwrap()
+            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 command: Some(Commands::ConfigShow),
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"]).unwrap()
+            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "config-show"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 command: Some(Commands::ConfigDiff),
                 config: Some("path".to_string()),
                 no_daemon: false,
+                stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"]).unwrap()
+            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "config-diff"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: true,
                 command: None,
-                config: Some("path".to_string()),
-                no_daemon: true,
+                config: None,
+                no_daemon: false,
+                stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "--no-daemon"]).unwrap()
+            <Args as clap::StructOpt>::try_parse_from(["", "--version"]).unwrap()
         );
 
         assert_eq!(
             Args {
+                version: false,
                 command: None,
                 config: Some("path".to_string()),
                 no_daemon: true,
+                stdout: false,
+                timeout: None
+            },
+            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "--no-daemon"]).unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                version: false,
+                command: None,
+                config: Some("path".to_string()),
+                no_daemon: true,
+                stdout: true,
                 timeout: Some(Timeout(std::time::Duration::from_secs(1)))
             },
-            <Args as clap::StructOpt>::try_parse_from(&[
+            <Args as clap::StructOpt>::try_parse_from([
                 "",
                 "-c",
                 "path",
                 "--no-daemon",
+                "--stdout",
                 "--timeout",
                 "1s"
             ])

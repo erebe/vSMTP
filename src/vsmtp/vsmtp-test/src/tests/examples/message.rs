@@ -15,9 +15,9 @@
  *
 */
 use crate::test_receiver;
+use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::tokio;
 use vsmtp_common::CodeID;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -37,6 +37,7 @@ async fn test_message() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
             body: MessageBody,
+            _: std::sync::Arc<dyn GenericQueueManager>,
         ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "john.doe@example.com");
@@ -64,6 +65,8 @@ async fn test_message() {
 
     let toml = include_str!("../../../../../../examples/message/vsmtp.toml");
     let config = vsmtp_config::Config::from_toml(toml).unwrap();
+
+    let config = arc!(config);
 
     // testing the forward rule.
     assert!(test_receiver! {

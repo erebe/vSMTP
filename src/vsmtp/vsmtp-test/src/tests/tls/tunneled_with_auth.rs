@@ -15,7 +15,6 @@
  *
 */
 use super::{test_tls_tunneled_with_auth, TEST_SERVER_CERT, TEST_SERVER_KEY};
-use vsmtp_common::re::{base64, tokio};
 use vsmtp_config::{get_rustls_config, Config};
 
 fn get_tls_auth_config() -> Config {
@@ -27,14 +26,14 @@ fn get_tls_auth_config() -> Config {
         .unwrap()
         .with_ipv4_localhost()
         .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .with_spool_dir_and_default_queues("./tmp/spool")
         .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)
         .unwrap()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
         .with_safe_auth(true, -1)
-        .with_default_app()
+        .with_app_at_location("./tmp/app")
         .with_vsl("./src/tests/empty_main.vsl")
         .with_default_app_logs()
         .with_system_dns()
@@ -50,7 +49,7 @@ async fn simple() {
 
     let (client, server) = test_tls_tunneled_with_auth(
         "testserver.com",
-        std::sync::Arc::new(config),
+        arc!(config),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
@@ -83,13 +82,11 @@ async fn simple() {
         .collect::<Vec<_>>(),
         20456,
         |config| {
-            Some(std::sync::Arc::new(
-                get_rustls_config(
-                    config.server.tls.as_ref().unwrap(),
-                    &config.server.r#virtual,
-                )
-                .unwrap(),
-            ))
+            Some(arc!(get_rustls_config(
+                config.server.tls.as_ref().unwrap(),
+                &config.server.r#virtual,
+            )
+            .unwrap()))
         },
         |_| (),
     )
