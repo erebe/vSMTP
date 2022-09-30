@@ -19,7 +19,10 @@ keywords = ["vsmtp"]
 categories = ["email", "parsing"]
 
 [dependencies]
-tracing = { version = "0.1.36", default-features = false, features = ["std"] }
+tracing = { version = "0.1.36", default-features = false, features = [
+    "std",
+    "attributes",
+] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 async-trait = { version = "0.1.57", default-features = false }
 serde = { version = "1.0.145", default-features = false, features = [

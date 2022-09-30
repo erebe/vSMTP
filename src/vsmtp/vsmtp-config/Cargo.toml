@@ -32,7 +32,10 @@ anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.15", default-features = false, features = [
   "env-filter",
 ] }
-tracing = { version = "0.1.36", default-features = false, features = ["std"] }
+tracing = { version = "0.1.36", default-features = false, features = [
+  "std",
+  "attributes",
+] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }
 
 users = { version = "0.11.0", default-features = false }
