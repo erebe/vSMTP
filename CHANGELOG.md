@@ -22,7 +22,7 @@ release. They will however *never* happen in a patch release.
 
 ### Changed
 
-* MSRV bumped to 1.62.1 (#601)
+* MSRV bumped to 1.63.0 (#638)
 * `--no-daemon` flag do not print logs to the standard output anymore. (#579)
 * Refactorization of services parsing. (#576)
 * `vsmtp` & `vqueue` `--version` flag display build commit. (#585)
