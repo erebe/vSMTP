@@ -5,7 +5,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     - `--stdout` flag, print logs to stdout. (#579)
     - Message size limit configuration. (#580)
   * Changed
-    - BREAKING: MSRV bumped to 1.62.1 (#601)
+    - BREAKING: MSRV bumped to 1.63.0 (#638)
     - `--no-daemon` flag do not print logs to
       the standard output anymore. (#579)
     - Refactorization of services parsing. (#576)

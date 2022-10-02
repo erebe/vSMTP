@@ -6,7 +6,7 @@ name: CI
       - "!doc/**"
 
 env:
-  RUST_MSRV: 1.62.1
+  RUST_MSRV: 1.63.0
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
           - toolchain: stable
             path: ./Cargo.toml
             # Workspace MSRV
-          - toolchain: 1.62.1
+          - toolchain: 1.63.0
             path: ./Cargo.toml
             # Fuzz crate
           - toolchain: nightly
