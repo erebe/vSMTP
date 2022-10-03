@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - "main"
+      - "develop"
 
 jobs:
   check-bump:
@@ -34,6 +35,29 @@ jobs:
           override: true
       - run: cargo install cargo-release
       - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --allow-branch "HEAD"
+  check-cargo-pkg:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - path: "src/vsmtp/vsmtp-mail-parser"
+          - path: "src/vsmtp/vsmtp-auth"
+          - path: "src/vsmtp/vsmtp-common"
+          - path: "src/vqueue"
+          - path: "src/vsmtp/vsmtp-rule-engine"
+          - path: "src/vsmtp/vsmtp-delivery"
+          - path: "src/vsmtp/vsmtp-server"
+          - path: "."
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo package --manifest-path ${{ matrix.path }}/Cargo.toml
   check-deb-pkg:
     strategy:
       matrix:
