@@ -3347,7 +3347,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-docs"
-version = "1.3.0"
+version = "1.3.3"
 dependencies = [
  "rhai",
  "vsmtp-config",
