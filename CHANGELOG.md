@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.3.3] - 2022-10-03
+
 ### Added
 
 * `--stdout` flag, print logs to stdout. (#579)
