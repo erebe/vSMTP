@@ -20,7 +20,7 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", prerelease = true, search = "[dependencies.vsmtp-mail-parser]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"{{version}}\" }" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"{{version}}\" }" },
 ]
 
 [dependencies.vsmtp-mail-parser]
