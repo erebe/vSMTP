@@ -34,10 +34,10 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.3.0" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.3.0" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.1" }
-vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.0" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.3.2" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.3.2" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.2" }
+vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.2" }
 vqueue = { path = "../../vqueue", version = "1.3.0" }
 
 tracing = { version = "0.1.36", default-features = false, features = [
