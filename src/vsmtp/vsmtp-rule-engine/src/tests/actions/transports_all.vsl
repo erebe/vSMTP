@@ -27,7 +27,7 @@
         // Forwarding directly sends all recipients to the target
         // given as the argument of the `forward_all` function.
         action "forward everything" || {
-            object example fqdn = "example.com";
+            const example = fqdn("example.com");
 
             // this function can be used using objects
             // or strings.

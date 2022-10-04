@@ -19,7 +19,7 @@ use crate::{
         transports::disable_delivery_all,
         EngineResult, {Context, SharedObject},
     },
-    dsl::object::Object,
+    dsl::objects::Object,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,

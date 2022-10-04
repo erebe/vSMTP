@@ -30,7 +30,7 @@ pub use utils_rhai::*;
 
 #[rhai::plugin::export_module]
 mod utils_rhai {
-    use crate::dsl::object::Object;
+    use crate::dsl::objects::Object;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
@@ -116,7 +116,7 @@ mod utils_rhai {
     #[rhai_fn(global, name = "get_root_domain", pure, return_raw)]
     pub fn get_root_domain_obj(domain: &mut SharedObject) -> EngineResult<String> {
         match domain.as_ref() {
-            Object::Fqdn(domain) | Object::Str(domain) => Ok(get_root_domain(domain)),
+            Object::Fqdn(domain) => Ok(get_root_domain(domain)),
             _ => Err(format!("type `{}` is not a domain", domain.as_ref()).into()),
         }
     }

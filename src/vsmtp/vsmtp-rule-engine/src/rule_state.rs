@@ -19,7 +19,6 @@ use crate::api::{Context, Message, Server, SharedObject};
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
-use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 // use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::rule_engine::RuleEngine;
@@ -242,16 +241,6 @@ impl RuleState {
                 true,
                 create_delegation,
             )
-            .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
-            // .register_custom_syntax_raw(
-            //     "service",
-            //     parse_service,
-            //     true,
-            //     move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-            //           input: &[rhai::Expression<'_>]| {
-            //         create_service(context, input, &config)
-            //     },
-            // )
             .register_iterator::<Vec<SharedObject>>();
 
         engine.set_fast_operators(false);

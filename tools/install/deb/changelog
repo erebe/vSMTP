@@ -4,8 +4,10 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   * Added
     - A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
   * Changed
-    - Moved the csv database to an external plugin. (#625)
-    - Moved the mysql database to an external plugin. (#625)
+    - BREAKING: refactored vSL object syntax. (#647)
+    - BREAKING: Moved the csv database to an external plugin. (#625)
+    - BREAKING: Moved the mysql database
+      to an external plugin. (#625)
 
  -- ltabis <l.tabis@viridit.com>  Tue, 04 Oct 2022 11:49:23 +0200
 

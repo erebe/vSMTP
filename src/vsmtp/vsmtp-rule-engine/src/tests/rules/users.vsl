@@ -1,11 +1,11 @@
-object john identifier = "johndoe";
-object bar fqdn = "example.com";
-object someone address = "staff@example.com";
+export const john = identifier("johndoe");
+export const bar = fqdn("example.com");
+export const someone = address("staff@example.com");
 
-object staff group = [
+export const staff = group([
   john,
-  object green address = "green@personal.eu",
-  object steven address = "steven@personal.fr",
-  object staff address = "staff@example.com",
-  object ruben address = "ruben@email.ru",
-];
+  address("green@personal.eu"),
+  address("steven@personal.fr"),
+  address("staff@example.com"),
+  address("ruben@email.ru"),
+]);

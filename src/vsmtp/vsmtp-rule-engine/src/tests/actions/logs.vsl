@@ -10,14 +10,14 @@
 
         action "incoming transaction" || {
 
-            object message string = "incoming transaction.";
+            const message = "incoming transaction.";
 
             // You can use objects as arguments.
             log("info", message);
 
             // Use global objects as levels to easly change multiple
             // log level with one variable.
-            object connect_level string = "trace";
+            const connect_level = "trace";
 
             // Use string interpolation to format information that you
             // would want to log.

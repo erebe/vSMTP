@@ -134,7 +134,7 @@ impl Reply {
     }
 
     ///
-    // TODO: should be private and called only when the object is construct,
+    // TODO: should be private and called only when the object is constructed,
     // the result should be cached
     #[must_use]
     pub fn fold(&self) -> String {

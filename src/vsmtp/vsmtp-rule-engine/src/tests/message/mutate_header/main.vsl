@@ -17,22 +17,22 @@
 
 fn mutate_headers() {
 
-    object header_name string = "X-New-Header";
-    object header_value string = "value of header";
-    object another_header_value string = "value of header";
-    object from_header string = "From";
-    object green address = "green@foo.net";
+    const header_name = "X-New-Header";
+    const header_value = "value of header";
+    const another_header_value = "value of header";
+    const from_header = "From";
+    const green = address("green@foo.net");
 
     append_header(header_name, header_value);
     append_header("X-Another-Header", another_header_value);
     append_header(from_header, "<john@doe.com>");
     append_header("To", green);
 
-    object status string = "X-VSMTP-STATUS";
-    object status_delivered string = "delivered";
+    const status = "X-VSMTP-STATUS";
+    const status_delivered = "delivered";
 
-    object tracing string = "X-VSMTP-TRACING";
-    object default_sender fqdn = "example.com";
+    const tracing = "X-VSMTP-TRACING";
+    const default_sender = fqdn("example.com");
 
     prepend_header(status, status_delivered);
     prepend_header(tracing, "empty");
@@ -49,7 +49,7 @@ fn mutate_headers() {
         return deny();
     }
 
-    object new_value string = "blah blah blah";
+    const new_value = "blah blah blah";
 
     set_header(header_name, header_value);
     set_header(header_name, "new value!");

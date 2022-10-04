@@ -19,7 +19,6 @@ use vsmtp_common::state::State;
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum CompilationError {
-    Object,
     Rule,
     Action,
     Stage,
@@ -28,25 +27,6 @@ pub enum CompilationError {
 impl CompilationError {
     pub const fn as_str(&self) -> &'static str {
         match self {
-            Self::Object => {
-                r#"failed to parse an object.
-    use the extended syntax:
-
-    obj "type" "name" "value";
-
-    or
-
-    obj "type" "name" #{
-        value: ...,
-        ..., // any field are accepted using the extended syntax.
-    };
-
-    or use the inline syntax:
-
-    obj "type" "name" "value";
-"#
-            }
-
             Self::Rule => {
                 r#"failed to parse a rule.
     use the following syntax:
@@ -154,6 +134,14 @@ macro_rules! vsl_ok {
 }
 
 #[macro_export]
+/// Transforms a generic error into the rhai boxed eval alt result.
+macro_rules! vsl_generic_ok {
+    ($result:expr) => {
+        $result.map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?
+    };
+}
+
+#[macro_export]
 /// checks if the mutex is poisoned & return a rhai runtime error if it is.
 macro_rules! vsl_guard_ok {
     ($guard:expr) => {
@@ -214,7 +202,6 @@ mod test {
 
     #[test]
     fn test_error_formatting() {
-        println!("{}", CompilationError::Object);
         println!("{}", CompilationError::Rule);
         println!("{}", CompilationError::Action);
         println!("{}", CompilationError::Stage);

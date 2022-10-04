@@ -11,7 +11,7 @@
 
     preq: [
         action "write to disk preq" || {
-            object path string = "tests/generated";
+            const path = "tests/generated";
 
             write("tests/generated");
             write(path);
@@ -22,7 +22,7 @@
 
     postq: [
         action "write to disk postq" || {
-            object path string = "tests/generated";
+            const path = "tests/generated";
 
             // will override the email written in preq.
             write("tests/generated");

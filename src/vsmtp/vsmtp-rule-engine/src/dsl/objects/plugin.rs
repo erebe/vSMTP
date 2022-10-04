@@ -14,6 +14,24 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-object my_object unknown;
-object file:addr = #{};
-object invalid_file file;
+
+use vsmtp_plugins::plugins::{vsl::native::Native, Plugin};
+
+pub struct Objects;
+
+impl Plugin for Objects {
+    fn name(&self) -> &'static str {
+        "objects"
+    }
+}
+
+impl Native for Objects {
+    fn register(
+        &self,
+        mut builder: vsmtp_plugins::plugins::vsl::native::Builder<'_>,
+    ) -> anyhow::Result<()> {
+        builder.register_global_module(rhai::exported_module!(super::api::objects));
+
+        Ok(())
+    }
+}

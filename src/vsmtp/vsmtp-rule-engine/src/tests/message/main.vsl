@@ -125,57 +125,42 @@
         },
 
         action "rewrite envelop" || {
-            // available parameters types for `add_rcpt`.
-            // object added2 address = "added2@example.com";
-            // object added3 string = "added3@example.com";
-            // object failadd ip = "127.0.0.1";
             add_rcpt_envelop("added@example.com");
-            // add_rcpt(added2);
-            // add_rcpt(added3);
-            // try { add_rcpt(failadd); return deny(); } catch { }
-
-            // available parameters types for `remove_rcpt`.
-            // object remove2 address = "toremove1@example.com";
-            // object remove3 string = "toremove2@example.com";
-            // object failremove fqdn = "example.com";
             remove_rcpt_envelop("rcpt@toremove.org");
-            // remove_rcpt("rcpt@toremove.org");
-            // remove_rcpt("rcpt@toremove.org");
-
             rewrite_rcpt_envelop("rcpt@torewrite.net", "new@rcpt.net");
             rewrite_mail_from_envelop("new@mailfrom.eu");
         },
 
         action "rewrite message headers" || {
             // available parameters types for `add_rcpt_message`.
-            object added1 address = "added1@example.com";
-            object added2 string = "added2@example.com";
+            const added1 = address("added1@example.com");
+            const added2 = "added2@example.com";
             add_rcpt_message(added1);
             add_rcpt_message(added2);
             add_rcpt_message("added3@example.com");
 
-            object fail ip4 = "127.0.0.1";
+            const fail = ip4("127.0.0.1");
             try { add_rcpt_message(fail); return deny(); } catch (e) { print(e) }
 
             // available parameters types for `remove_rcpt_message`.
-            object removed1 address = "removed1@example.com";
-            object removed2 string = "removed2@example.com";
+            const removed1 = address("removed1@example.com");
+            const removed2 = "removed2@example.com";
             remove_rcpt_message(removed1);
             remove_rcpt_message(removed2);
             remove_rcpt_message("removed3@example.org");
 
-            object fail ip4 = "127.0.0.1";
+            const fail = ip4("127.0.0.1");
             try { remove_rcpt_message(fail); return deny(); } catch (e) { print(e) }
 
             // available parameters types for `rewrite_rcpt_message`.
-            object rewrite1 address = "rewrite1@example.com";
-            object rewrite2 string = "rewrite2@example.com";
+            const rewrite1 = address("rewrite1@example.com");
+            const rewrite2 = "rewrite2@example.com";
             rewrite_rcpt_message(rewrite1, "rewrite3@example.org");
             rewrite_rcpt_message("rewrite3@example.org", rewrite2);
             rewrite_rcpt_message("rewrite3@example.org", "rewrite4@example.org");
             rewrite_rcpt_message(rewrite1, rewrite2);
 
-            object fail ip4 = "127.0.0.1";
+            const fail = ip4("127.0.0.1");
             try { rewrite_rcpt_message(fail, "rewrite3@example.com"); return deny(); } catch (e) { print(e) }
 
             remove_rcpt_message(added1);

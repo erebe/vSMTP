@@ -24,7 +24,7 @@
         // to the recipient using its domain. It is the default
         // method used.
         action "setup deliver" || {
-            object bar address = "bar@example.com";
+            const bar = address("bar@example.com");
 
             deliver(bar);
             deliver("foo@example.com");
@@ -36,14 +36,14 @@
         // the target can be an ip4/6, a string or a domain. (that
         // the dns will lookup)
         action "setup forwarding" || {
-            object forward_local string = "localhost";
-            object forward_ip6 ip6 = "::1";
-            object forward_fqdn fqdn = "test.eu";
+            const forward_local = "localhost";
+            const forward_ip6 = ip6("::1");
+            const forward_fqdn = fqdn("test.eu");
 
             // those objects are used to check what parameters
             // can be passed down the `forward` function.
-            object john address = "john@example.com";
-            object green address = "green@example.com";
+            const john = address("john@example.com");
+            const green = address("green@example.com");
 
             forward(john, "localhost");
             forward("doe@example.com", "127.0.0.1");
@@ -57,7 +57,7 @@
         // The "mbox" method delivers the email localy
         // using the mailbox protocol.
         action "setup mailbox" || {
-            object doe address = "doe@example.com";
+            const doe = address("doe@example.com");
 
             mbox(doe);
             mbox("a@example.com");
@@ -66,7 +66,7 @@
         // The "maildir" method delivers the email localy
         // using the maildir protocol.
         action "setup maildir" || {
-            object b address = "b@example.com";
+            const b = address("b@example.com");
 
             maildir(b);
             maildir("c@example.com");
@@ -78,7 +78,7 @@
         // as soon as their are no other recipient
         // to send the email to.
         action "disable delivery" || {
-            object d address = "d@example.com";
+            const d = address("d@example.com");
 
             disable_delivery(d);
             disable_delivery("a@example.com");

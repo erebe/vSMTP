@@ -19,6 +19,14 @@ release. They will however *never* happen in a patch release.
 
 ### Changed
 
+* Changed the API of objects to be simple rhai functions, removing implicit `export` of
+  objects. (#647)
+```js
+// Old syntax
+object localhost ip4 = "127.0.0.1";
+// New syntax
+const localhost = ip4("127.0.0.1");
+```
 * Moved the csv database to an external plugin. (#625)
 * Moved the mysql database to an external plugin. (#625)
 

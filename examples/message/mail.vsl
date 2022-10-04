@@ -1,5 +1,5 @@
-object info_header string = "X-Info";
-object info_value string = "email processed by me.";
+export const info_header = "X-Info";
+export const info_value = "email processed by me.";
 
-object anonymous address = "anonymous@example.com";
-object green string = "green@example.com";
+export const anonymous = address("anonymous@example.com");
+export const green = "green@example.com";

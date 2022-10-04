@@ -15,7 +15,7 @@
  *
 */
 use crate::api::{EngineResult, SharedObject};
-use crate::dsl::object::Object;
+use crate::dsl::objects::Object;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -157,10 +157,9 @@ mod types_rhai {
 
     /// Operator `contains`
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> EngineResult<bool> {
+    #[rhai_fn(global, name = "contains", pure)]
+    pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> bool {
         this.contains(&other)
-            .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     // vsmtp's rule engine obj syntax container (Vec<SharedObject>).
@@ -248,7 +247,7 @@ pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineRes
         Object::Regex(re) => Ok(re.is_match(this)),
         Object::Ip4(ip4) => Ok(this == ip4.to_string()),
         Object::Ip6(ip6) => Ok(this == ip6.to_string()),
-        Object::Str(s) | Object::Identifier(s) => Ok(this == s),
+        Object::Identifier(s) => Ok(this == s),
         _ => Err(format!("a {} object cannot be compared to a string", other).into()),
     }
 }
@@ -256,11 +255,14 @@ pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineRes
 // TODO: rg4, rg6, str handling.
 pub(crate) fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
     match other {
-        Object::Group(group) => Ok(group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
+        Object::Group(group) => Ok(group.iter().any(|obj| match obj {
+            either::Either::Left(object) => internal_string_is_object(this, object).unwrap_or(false),
+            either::Either::Right(dynamic) => dynamic.to_string() == this,
+        })),
         Object::File(file) => Ok(file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
         _ => {
              Err(format!(
-                "the 'in' operator can only be used with 'group' and 'file' object types, you used the string {} with the object {}",
+                "the 'in' operator can only be used with 'group' and 'file' object types, you used a string '{}' with the object {}",
                 this,
                 other
             )

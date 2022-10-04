@@ -18,7 +18,7 @@ use crate::{
     api::{
         EngineResult, {Context, Server, SharedObject},
     },
-    dsl::object::Object,
+    dsl::objects::Object,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,

@@ -15,15 +15,14 @@
  *
  */
 use crate::api::{rule_state::deny, EngineResult, SharedObject, StandardVSLPackage};
+use crate::dsl::objects::plugin::Objects;
 use crate::dsl::service::cmd::plugin::Cmd;
 use crate::dsl::service::smtp::{plugin, service};
 use crate::dsl::{
     action::parsing::{create_action, parse_action},
     delegation::parsing::{create_delegation, parse_delegation},
     directives::{Directive, Directives},
-    object::parsing::{create_object, parse_object},
     rule::parsing::{create_rule, parse_rule},
-    // service::parsing::{create_service, parse_service},
 };
 use crate::rule_state::RuleState;
 use anyhow::Context;
@@ -100,6 +99,10 @@ impl RuleEngine {
 
         let mut compiler = Self::new_compiler(config.clone());
 
+        tracing::info!("Loading plugins ...");
+
+        let vsl_service_plugin_manager = Self::load_plugins(&config, &mut compiler)?;
+
         let toml_module = {
             let mut toml_module = rhai::Module::new();
             toml_module
@@ -154,10 +157,6 @@ impl RuleEngine {
             }
             either::Either::Right(script) => (*script).to_string(),
         };
-
-        tracing::info!("Loading plugins ...");
-
-        let vsl_service_plugin_manager = Self::load_plugins(&config, &mut compiler)?;
 
         tracing::debug!("Building AST.");
 
@@ -383,16 +382,6 @@ impl RuleEngine {
                 true,
                 create_delegation,
             )
-            .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
-            // .register_custom_syntax_raw(
-            //     "service",
-            //     parse_service,
-            //     true,
-            //     move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-            //           input: &[rhai::Expression<'_>]| {
-            //         create_service(context, input, &config)
-            //     },
-            // )
             .register_iterator::<Vec<SharedObject>>();
 
         engine.set_fast_operators(false);
@@ -537,8 +526,8 @@ impl RuleEngine {
         // Registering native service plugins.
         vsl_plugin_manager
             .add_native_plugin("smtp", Box::new(plugin::Smtp {}))
-            .add_native_plugin("cmd", Box::new(Cmd {}));
-        //.add_native_plugin(Box::new(Csv {}));
+            .add_native_plugin("cmd", Box::new(Cmd {}))
+            .add_native_plugin("objects", Box::new(Objects {}));
 
         for (name, path) in &config.app.vsl.plugins {
             vsl_plugin_manager.load(name, path)?;

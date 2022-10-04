@@ -1,6 +1,6 @@
 /// an example with a code object accepting string interpolation.
 fn retry_helo(helo) {
-    object retry_helo code = `250 cannot identify with '${helo}'.`;
+    code(250, `cannot identify with '${helo}'.`);
 }
 
 #{
@@ -8,15 +8,15 @@ fn retry_helo(helo) {
         rule "helo must be foo.bar" || {
             if helo() == "foo" {
                 // using a code object to send an informative message.
-                object foo_invalid code = #{
-                    code: 250,
-                    enhanced: "2.0.0",
-                    text: "foo is not accepted as a helo value.",
-                };
+                const foo_invalid = code(
+                    250,
+                    "foo is not accepted as a helo value.",
+                    "2.0.0",
+                );
 
                 info(foo_invalid);
             } else if helo() == "bar" {
-                object bar_invalid code = "250 I do not accept this email, sorry";
+                const bar_invalid = code(250, "I do not accept this email, sorry");
 
                 info(bar_invalid);
             } else if helo() == "example.com" {

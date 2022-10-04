@@ -28,7 +28,7 @@
 /// If you just need a static address, you can use the [`address` vsl object](https://vsmtp.rs/reference/vSL/objects.html).
 ///
 /// ```js
-/// object my_static_address address = "john.doe@example.com";
+/// const my_static_address = address("john.doe@example.com");
 /// ```
 ///
 /// # Args

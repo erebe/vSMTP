@@ -47,7 +47,7 @@
 /// ```
 fn in_domain(rcpt) {
     switch rcpt.type_of() {
-        "alloc::sync::Arc<vsmtp_rule_engine::dsl::object::Object>" => {
+        "VSLObject" => {
             rcpt.domain in toml::server.virtual || rcpt.domain == toml::server.domain
         },
         "string" => {

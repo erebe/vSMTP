@@ -32,7 +32,7 @@ mod logging_rhai {
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/str)" || {
-    ///       object message string = "Hello world!";
+    ///       const message = "Hello world!";
     ///
     ///       log("error", message);
     ///     },
@@ -54,7 +54,7 @@ mod logging_rhai {
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/str)" || {
-    ///       object level string = "warn";
+    ///       const level = "warn";
     ///
     ///       log(level, "I love vsl!");
     ///     },
@@ -76,8 +76,8 @@ mod logging_rhai {
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/obj)" || {
-    ///       object level string = "trace";
-    ///       object message string = "connection established";
+    ///       const level = "trace";
+    ///       const message = "connection established";
     ///
     ///       log(level, message);
     ///     },

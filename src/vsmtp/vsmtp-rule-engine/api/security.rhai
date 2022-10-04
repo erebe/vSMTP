@@ -35,10 +35,10 @@
 /// ```js
 /// mail: [
 ///    rule "check mail relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
+///        const allowed_hosts = group([
+///            ip4("192.168.1.254"),
+///            fqdn("mta-internal.foobar.com")
+///        ]);
 ///        check_mail_relay(allowed_hosts)
 ///    }
 /// ]
@@ -71,10 +71,10 @@ fn check_mail_relay(allowed_hosts) {
 /// ```js
 /// rcpt: [
 ///    rule "check rcpt relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
+///        const allowed_hosts = group([
+///            ip4("192.168.1.254"),
+///            fqdn("mta-internal.foobar.com")
+///        ]);
 ///        check_rcpt_relay(allowed_hosts)
 ///    }
 /// ]

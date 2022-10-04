@@ -41,7 +41,7 @@ mod dsl {
     pub mod action;
     pub mod delegation;
     pub mod directives;
-    pub mod object;
+    pub mod objects;
     pub mod rule;
     pub mod service;
 }
@@ -72,11 +72,8 @@ pub mod api {
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     /// Alias for `srv()`
     pub type Server = std::sync::Arc<ServerAPI>;
-    /// Alias for any other object defined using the `object` keyword.
-    pub type SharedObject = std::sync::Arc<Object>;
-
-    pub use super::dsl::object::Object;
-
+    /// ``vSL`` object type implementation.
+    pub use super::dsl::objects::{Object, SharedObject};
     /// backend for DKIM functionality.
     pub mod dkim;
     /// backend for DMARC functionality.

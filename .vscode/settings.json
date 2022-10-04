@@ -49,6 +49,7 @@
     "indextoname",
     "inet",
     "initgroups",
+    "ipnet",
     "iprange",
     "itertools",
     "lettre",

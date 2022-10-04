@@ -319,7 +319,7 @@ mod test {
     use vsmtp_mail_parser::MessageBody;
 
     use super::*;
-    use crate::dsl::object::Object;
+    use crate::dsl::objects::Object;
 
     #[test]
     fn test_has_header_success() {
@@ -329,7 +329,7 @@ mod test {
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+            std::sync::Arc::new(Object::new_fqdn("example.com").unwrap()),
         )
         .unwrap();
 
@@ -346,7 +346,7 @@ mod test {
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+            std::sync::Arc::new(Object::new_fqdn("example.com").unwrap()),
         )
         .unwrap();
 
@@ -356,7 +356,7 @@ mod test {
         );
         assert_eq!(
             get_header_str(&mut message, "X-HEADER-2").unwrap(),
-            "VALUE-2"
+            "example.com"
         );
         assert_eq!(get_header_str(&mut message, "X-HEADER-3").unwrap(), "");
     }
@@ -369,7 +369,7 @@ mod test {
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+            std::sync::Arc::new(Object::new_fqdn("example.com").unwrap()),
         )
         .unwrap();
 
@@ -379,7 +379,7 @@ mod test {
         );
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER-2").unwrap(),
-            "VALUE-2"
+            "example.com"
         );
     }
 
@@ -391,7 +391,7 @@ mod test {
         prepend_header_str_obj(
             &mut message,
             "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+            std::sync::Arc::new(Object::new_fqdn("example.com").unwrap()),
         )
         .unwrap();
 
@@ -401,7 +401,7 @@ mod test {
         );
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER-2").unwrap(),
-            "VALUE-2"
+            "example.com"
         );
     }
 
@@ -418,13 +418,13 @@ mod test {
         set_header_str_obj(
             &mut message,
             "X-HEADER",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+            std::sync::Arc::new(Object::new_fqdn("example.com").unwrap()),
         )
         .unwrap();
 
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER").unwrap(),
-            "VALUE-2"
+            "example.com"
         );
 
         assert_eq!(count_header(&mut message, "X-HEADER").unwrap(), 1);

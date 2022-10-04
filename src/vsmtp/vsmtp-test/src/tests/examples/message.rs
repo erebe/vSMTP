@@ -87,7 +87,7 @@ async fn test_message() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "501  this server does not accept FWD messages\r\n"
+            "501 this server does not accept FWD messages\r\n"
         ]
         .concat()
     }

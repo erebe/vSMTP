@@ -2,14 +2,13 @@
     preq: [
         action "dump raw email to disk" || {
             try {
-                object path string = "tests/generated";
+                const path = "tests/generated";
 
                 dump("tests/generated");
                 dump(path);
                 next();
             } catch (e) {
-                print(e);
-                deny();
+                deny(code(000, e));
             }
         },
 
@@ -19,14 +18,13 @@
     postq: [
         action "dump parsed email to disk" || {
             try {
-                object path string = "tests/generated";
+                const path = "tests/generated";
 
                 dump("tests/generated");
                 dump(path);
         		next();
             } catch (e) {
-                print(e);
-                deny();
+                deny(code(000, e));
             }
         },
 
