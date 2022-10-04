@@ -68,7 +68,7 @@ signal-hook = { version = "0.3.14", default-features = false, features = [
 ] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
-time = { version = "0.3.14", default-features = false, features = [
+time = { version = "0.3.15", default-features = false, features = [
   "std",
   "formatting",
   "macros",
