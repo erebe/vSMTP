@@ -1,0 +1,115 @@
+[package]
+edition = "2021"
+
+name = "vsmtp"
+version = "1.3.3"
+license = "GPL-3.0-only"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "Next-gen MTA. Secured, Faster and Greener"
+
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp/"
+
+readme = "README.md"
+keywords = ["vsmtp", "mta", "smtp", "server", "mail"]
+categories = ["email"]
+
+rust-version = "1.63.0"
+
+build = "build.rs"
+
+[package.metadata.release]
+tag = true
+pre-release-replacements = [
+    { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
+    { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
+    { file = "CHANGELOG.md", search = "<!-- next-header -->", replace = "<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly = 1, prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-server = \\{ path = \"../vsmtp-server\", version = .*", replace = "vsmtp-server = { path = \"../vsmtp-server\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", version = \"{{version}}\" }", prerelease = true },
+]
+
+[dependencies]
+vsmtp-common = { path = "../vsmtp-common", version = "1.3.3" }
+vsmtp-server = { path = "../vsmtp-server", version = "1.3.3" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.3.3" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.3.3" }
+
+clap = { version = "3.2.22", default-features = false, features = [
+    "std",
+    "derive",
+    "cargo",
+] }
+diff = { version = "0.1.13", default-features = false }
+serde_json = { version = "1.0.85", default-features = false, features = [
+    "std",
+] }
+
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+either = { version = "1.8.0", default-features = false, features = ["use_std"] }
+humantime = { version = "2.1.0", default-features = false }
+
+console-subscriber = { version = "0.1.7", optional = true, default-features = false }
+
+tracing = { version = "0.1.36", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.15", default-features = false, features = [
+    "smallvec",
+    "fmt",
+    "ansi",
+    "std",
+] }
+tracing-appender = { version = "0.2.2", default-features = false }
+tracing-journald = { version = "0.3.0", default-features = false }
+syslog = { version = "6.0.1", default-features = false }
+
+[features]
+default = []
+tokio_console = ["console-subscriber"]
+
+#
+# DEBIAN PACKAGING
+#
+# Note that as the postinst script uses the adduser there's a
+# dependency on the adduser package to keep the lintian tool happy.
+#
+[package.metadata.deb]
+name = "vsmtp"
+maintainer = "Pag <pag@viridit.com>"
+copyright = "Copyright (c) 2022, viridIT SAS. All rights reserved."
+extended-description = "A high performance MTA written in RUST."
+changelog = "./tools/install/deb/changelog"
+depends = "$auto, adduser"
+section = "mail"
+priority = "optional"
+assets = [
+    [
+        "target/release/vsmtp",
+        "usr/sbin/",
+        "755",
+    ],
+    [
+        "target/release/vqueue",
+        "usr/sbin/",
+        "755",
+    ],
+    [
+        "tools/install/man/*",
+        "usr/share/man/man1",
+        "644",
+    ],
+    [
+        "README.md",
+        "usr/share/doc/vsmtp/README",
+        "644",
+    ],
+]
+maintainer-scripts = "./tools/install/deb/"
+systemd-units = { unit-name = "vsmtp", enable = true, start = false }
+
+#
+# RPM PACKAGING
+#
+#

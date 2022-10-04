@@ -1,6 +1,6 @@
 // Here are examples of a csv database service setup.
 
-service csv_greylist db:csv = #{
+export const csv_greylist = csv(#{
     // the location of the database on disk.
     connector: "../../../examples/greylist/greylist.csv",
     // the access flags used to query the database.
@@ -10,4 +10,4 @@ service csv_greylist db:csv = #{
     // the delimiter character between each line's record
     // in the csv file.
     delimiter: ',',
-};
+});

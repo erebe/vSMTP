@@ -15,7 +15,6 @@
  *
  */
 
-use super::service::Service;
 use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::State, status::Status};
 
@@ -36,7 +35,7 @@ pub enum Directive {
     Delegation {
         name: String,
         pointer: rhai::FnPtr,
-        service: std::sync::Arc<Service>,
+        service: std::sync::Arc<super::service::smtp::service::Smtp>,
     },
 }
 
@@ -84,49 +83,42 @@ impl Directive {
                 service,
                 name,
             } => {
-                if let Service::Smtp { delegator, .. } = &**service {
-                    let args = vsl_guard_ok!(rule_state.message().read())
-                        .get_header("X-VSMTP-DELEGATION")
-                        .and_then(|header| {
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
-                                .args
-                                .get("directive")
-                                .cloned()
-                        });
+                let args = vsl_guard_ok!(rule_state.message().read())
+                    .get_header("X-VSMTP-DELEGATION")
+                    .and_then(|header| {
+                        vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
+                            .args
+                            .get("directive")
+                            .cloned()
+                    });
 
-                    // FIXME: This check is made twice (once in RuleEngine::run_when).
-                    //
-                    // If the 'directive' field set in the header matches the name
-                    // of the current directive, we pull old context from the working
-                    // queue and run the block of code.
-                    // Otherwise, we add the X-VSMTP-DELEGATION to the message.
-                    return match args {
-                        Some(header_directive) if header_directive == *name => rule_state
-                            .engine()
-                            .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
-                        _ => {
-                            // FIXME: fold this header.
-                            vsl_guard_ok!(rule_state.message().write()).prepend_header(
-                                "X-VSMTP-DELEGATION",
-                                &format!(
-                                    "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
-                                    vsl_guard_ok!(rule_state.context().read())
-                                        .metadata
-                                        .message_id
-                                        .as_ref()
-                                        .unwrap()
-                                ),
-                            );
+                // FIXME: This check is made twice (once in RuleEngine::run_when).
+                //
+                // If the 'directive' field set in the header matches the name
+                // of the current directive, we pull old context from the working
+                // queue and run the block of code.
+                // Otherwise, we add the X-VSMTP-DELEGATION to the message.
+                match args {
+                    Some(header_directive) if header_directive == *name => rule_state
+                        .engine()
+                        .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
+                    _ => {
+                        // FIXME: fold this header.
+                        vsl_guard_ok!(rule_state.message().write()).prepend_header(
+                            "X-VSMTP-DELEGATION",
+                            &format!(
+                                "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
+                                vsl_guard_ok!(rule_state.context().read())
+                                    .metadata
+                                    .message_id
+                                    .as_ref()
+                                    .unwrap()
+                            ),
+                        );
 
-                            Ok(Status::Delegated(delegator.clone()))
-                        }
-                    };
+                        Ok(Status::Delegated(service.delegator.clone()))
+                    }
                 }
-
-                Err(format!(
-                    "cannot delegate security using a '{service}' service in {stage}: '{name}'.",
-                )
-                .into())
             }
         }
     }

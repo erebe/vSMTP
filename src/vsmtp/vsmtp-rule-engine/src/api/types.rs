@@ -22,6 +22,8 @@ use rhai::plugin::{
 };
 use vsmtp_common::status::Status;
 
+pub use types_rhai::*;
+
 #[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 mod types_rhai {
@@ -232,7 +234,7 @@ mod types_rhai {
     }
 }
 
-pub use types_rhai::*;
+pub use rhai::*;
 
 // the following methods are used to compare recursively deep objects
 // using refs instead of shared rhai objects.

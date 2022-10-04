@@ -13,16 +13,21 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-*/
+ */
 
-/// the access mode to the database.
-#[derive(Debug, serde::Deserialize, strum::EnumString, strum::Display)]
-#[allow(clippy::module_name_repetitions)]
-pub enum AccessMode {
-    #[serde(rename = "O_RDONLY")]
-    Read,
-    #[serde(rename = "O_WRONLY")]
-    Write,
-    #[serde(rename = "O_RDWR")]
-    ReadWrite,
+pub mod native;
+
+const PLUGIN_ENTRYPOINT: &str = "plugin_constructor";
+
+/// Implement different kinds of plugin managers.
+pub trait PluginManager {
+    /// Load a plugin.
+    fn load(
+        &mut self,
+        name: impl AsRef<str>,
+        path: impl AsRef<std::ffi::OsStr>,
+    ) -> anyhow::Result<()>;
+
+    /// Apply plugins to the rhai engine.
+    fn apply(&self, engine: &mut rhai::Engine) -> anyhow::Result<()>;
 }

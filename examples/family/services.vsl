@@ -1,4 +1,4 @@
-service clamsmtpd smtp = #{
+export const clamsmtpd = smtp(#{
     // the service will send messages to "192.168.1.254:25:10026".
     delegator: #{
         address: "192.168.1.254:10026",
@@ -6,4 +6,4 @@ service clamsmtpd smtp = #{
     },
     // the service will receive delegation results on "192.168.1.254:25:10025".
     receiver: "192.168.1.254:10025",
-};
+});

@@ -16,7 +16,7 @@
  */
 
 // All parameters available for the `cmd` service.
-service my_command cmd = #{
+export const my_command = cmd(#{
     // The command to execute.
     command: "echo",
     // Arguments to pass to the command. (Optional)
@@ -27,29 +27,29 @@ service my_command cmd = #{
     user: "vsmtp",
     // A group to run the command with. (Optional)
     group: "vsmtp",
-};
+});
 
 // A simple command that executes `echo` with the given arguments.
-service echo cmd = #{
+export const echo = cmd(#{
     // The command to execute.
     command: "echo",
     // Arguments to pass to the command. (Optional)
     args: [ "-n", "executing a command from vSMTP!" ],
-};
+});
 
 // Running the command in rules.
 action "run echo command" || echo.run();
 
 // Executing the clamscan antivirus on the mail queue.
 // See https://linux.die.net/man/1/clamscan
-service execute_clamscan cmd = #{
+export const execute_clamscan = cmd(#{
     command: "clamscan",
     timeout: "1m",
 
     // Using a specific user to check for viruses.
     user: "clamscan",
     group: "clamscan",
-};
+});
 
 // Run clamscan on the current email stored in the email queue
 // using dynamic arguments.

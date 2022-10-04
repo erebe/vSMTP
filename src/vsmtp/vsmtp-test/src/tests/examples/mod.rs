@@ -18,6 +18,5 @@ mod aliases;
 mod anti_relaying;
 mod dnsbl;
 mod family;
-mod greylist;
 mod message;
 mod services;

@@ -100,13 +100,13 @@ fn auth() { ctx().auth }
 fn authenticate() {
     switch ctx().auth.type {
         "Verify" => {
-            service authd cmd = #{
+            let authd = cmd(#{
                 timeout: "1s",
                 command: "testsaslauthd",
                 args: ["-u", ctx().auth.authid, "-p", ctx().auth.authpass]
-            };
+            });
 
-            let result = authd.cmd_run();
+            let result = authd.run();
 
             if result.has_signal {
                 return false;

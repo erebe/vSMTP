@@ -106,6 +106,7 @@ impl Builder<WantsValidate> {
                 dirpath: app.dirpath,
                 vsl: FieldAppVSL {
                     filepath: app_vsl.filepath,
+                    plugins: app_vsl.plugins,
                 },
                 logs: FieldAppLogs {
                     filepath: app_logs.filepath,

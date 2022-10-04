@@ -108,12 +108,12 @@ and much more.
 // -- database.vsl
 // here we declare our services.
 // connect to a database with the csv format.
-service greylist db:csv = #{
+export const greylist = csv(#{
   connector: "/db/greylist.csv",
   access: "O_RDWR",
   refresh: "always",
   delimiter: ',',
-};
+});
 ```
 
 ```js

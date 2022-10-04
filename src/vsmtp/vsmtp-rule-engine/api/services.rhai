@@ -15,6 +15,8 @@
  *
 */
 
+// TODO: move this file into it's designated plugin.
+
 //! ### Services
 //!
 //! Services are external programs that can be used via the functions available in this module.
@@ -123,9 +125,9 @@ fn rm(key) { this.db_rm(key.to_string()) }
 /// ### Example
 ///
 /// ```js
-/// service my_db db:mysql = #{
+/// export const my_db = mysql(#{
 ///     url: "mysql://localhost/?user=guest",
-/// };
+/// });
 /// ```
 ///
 /// ```js

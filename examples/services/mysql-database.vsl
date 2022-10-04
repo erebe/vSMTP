@@ -16,20 +16,20 @@
 */
 
 // A service to interface with a MySQL database.
-service mysql_database db:mysql = #{
+export const mysql_database = mysql(#{
     // the url to connect to your database.
     url: "mysql://localhost/",
     // the number of connections to open on your database. (Optional, 4 by default)
     connections: 4,
     // the time allowed to connect to the database.  (Optional, 30s by default)
     timeout: "1s",
-};
+});
 
 // A service to interface with a spam database using MySQL.
-service spam_database db:mysql = #{
+export const spam_database = mysql(#{
     url: "mysql://localhost/",
     timeout: "1s",
-};
+});
 
 rule "check for spam" || {
     let records = spam_database.query(`SELECT * FROM spam.ips where ip = ${client_ip()};`);

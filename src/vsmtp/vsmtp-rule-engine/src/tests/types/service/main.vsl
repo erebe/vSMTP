@@ -25,14 +25,9 @@ import "services" as svc;
 
             let result1 = svc::echo.run();
             let result2 = svc::echo.run(["-e", "with custom arguments\r\n"]);
-            let result1 = svc::echo.cmd_run();
-            let result2 = svc::echo.cmd_run(["-e", "with custom arguments\r\n"]);
 
-            print(`string: ${result1.to_string()}`);
-            print(`debug: ${result1.to_debug()}`);
-
-            print(`custom args string: ${result2.to_string()}`);
-            print(`custom args debug: ${result2.to_debug()}`);
+            print(`debug: ${result1}`);
+            print(`custom args string: ${result2}`);
 
             if result1.has_code
             && result1.code == 0
@@ -41,9 +36,11 @@ import "services" as svc;
                 if result1.signal == () {
                     return next();
                 } else {
+                    debug("a signal was found");
                     return deny();
                 }
             } else {
+                debug(`${result1.has_code} | ${result1.code} | ${result1.has_signal}`);
                 deny()
             }
         },

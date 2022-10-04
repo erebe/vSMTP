@@ -37,6 +37,7 @@ fn test_smtp_service() {
 }
 
 #[test]
+#[ignore = "csv service has been moved to a plugin."]
 fn test_csv_service() {
     RuleEngine::new(
         arc!(vsmtp_config::Config::default()),
@@ -46,7 +47,7 @@ fn test_csv_service() {
 }
 
 #[test]
-#[ignore = "mysql service automatically connects to the desired address, which does not exists when testing. To mock."]
+#[ignore = "mysql service has been moved to a plugin."]
 fn test_mysql_service() {
     RuleEngine::new(
         arc!(vsmtp_config::Config::default()),

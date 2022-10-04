@@ -15,5 +15,19 @@
  *
 */
 
-pub mod cmd;
-pub mod smtp;
+use vsmtp_common::transfer::SmtpConnection;
+
+/// A service used to communicate with a third-party program using SMTP.
+#[derive(Debug, Clone)]
+pub struct Smtp {
+    /// A transport to handle transactions to the delegate.
+    pub delegator: SmtpConnection,
+    /// Delegation results address.
+    pub receiver: std::net::SocketAddr,
+}
+
+impl std::fmt::Display for Smtp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "smtp")
+    }
+}

@@ -21,8 +21,7 @@ use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
-use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::dsl::service::Service;
+// use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::rule_engine::RuleEngine;
 use vqueue::GenericQueueManager;
 use vsmtp_common::mail_context::MessageMetadata;
@@ -145,10 +144,7 @@ impl RuleState {
             .iter()
             .flat_map(|(_, d)| d)
             .any(|d| match d {
-                Directive::Delegation { service, .. } => match &**service {
-                    Service::Smtp { receiver, .. } => *receiver == conn.server_addr,
-                    _ => false,
-                },
+                Directive::Delegation { service, .. } => service.receiver == conn.server_addr,
                 _ => false,
             })
         {
@@ -210,7 +206,7 @@ impl RuleState {
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
-        let config = server.config.clone();
+        // let config = server.config.clone();
 
         // NOTE: on_var is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
@@ -247,20 +243,25 @@ impl RuleState {
                 create_delegation,
             )
             .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_with_state_raw(
-                "service",
-                parse_service,
-                true,
-                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-                      input: &[rhai::Expression<'_>],
-                      _state: &rhai::Dynamic| {
-                    create_service(context, input, &config)
-                },
-            )
-            .register_iterator::<Vec<vsmtp_common::Address>>()
+            // .register_custom_syntax_raw(
+            //     "service",
+            //     parse_service,
+            //     true,
+            //     move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+            //           input: &[rhai::Expression<'_>]| {
+            //         create_service(context, input, &config)
+            //     },
+            // )
             .register_iterator::<Vec<SharedObject>>();
 
         engine.set_fast_operators(false);
+
+        // FIXME: No need to re-apply that.
+        vsmtp_plugins::managers::PluginManager::apply(
+            &*rule_engine.vsl_service_plugin_manager,
+            &mut engine,
+        )
+        .expect("plugins should already have been analyser by the main engine.");
 
         engine
     }

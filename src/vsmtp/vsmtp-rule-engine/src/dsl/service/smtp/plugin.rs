@@ -15,5 +15,22 @@
  *
 */
 
-pub mod cmd;
-pub mod smtp;
+use vsmtp_plugins::plugins::vsl;
+use vsmtp_plugins::plugins::vsl::native::Native;
+use vsmtp_plugins::plugins::Plugin;
+
+pub struct Smtp;
+
+impl Plugin for Smtp {
+    fn name(&self) -> &'static str {
+        "smtp"
+    }
+}
+
+impl Native for Smtp {
+    fn register(&self, mut builder: vsl::native::Builder<'_>) -> anyhow::Result<()> {
+        builder.register_global_module(rhai::exported_module!(super::api::smtp));
+
+        Ok(())
+    }
+}

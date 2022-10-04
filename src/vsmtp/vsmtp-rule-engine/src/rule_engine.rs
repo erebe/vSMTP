@@ -15,16 +15,15 @@
  *
  */
 use crate::api::{rule_state::deny, EngineResult, SharedObject, StandardVSLPackage};
+use crate::dsl::service::cmd::plugin::Cmd;
+use crate::dsl::service::smtp::{plugin, service};
 use crate::dsl::{
     action::parsing::{create_action, parse_action},
     delegation::parsing::{create_delegation, parse_delegation},
     directives::{Directive, Directives},
     object::parsing::{create_object, parse_object},
     rule::parsing::{create_rule, parse_rule},
-    service::{
-        parsing::{create_service, parse_service},
-        Service,
-    },
+    // service::parsing::{create_service, parse_service},
 };
 use crate::rule_state::RuleState;
 use anyhow::Context;
@@ -33,6 +32,8 @@ use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{mail_context::MailContext, state::State, status::Status};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_plugins::managers::native::NativeVSL;
+use vsmtp_plugins::managers::PluginManager;
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
@@ -50,6 +51,8 @@ pub struct RuleEngine {
     pub(super) std_module: rhai::Shared<rhai::Module>,
     /// a translation of the toml configuration as a rhai Map.
     pub(super) toml_module: rhai::Shared<rhai::Module>,
+    /// Handle to vSL plugins.
+    pub(super) vsl_service_plugin_manager: rhai::Shared<NativeVSL>,
 }
 
 type RuleEngineInput<'a> = either::Either<Option<std::path::PathBuf>, &'a str>;
@@ -95,7 +98,7 @@ impl RuleEngine {
 
         tracing::debug!("Building vSL compiler ...");
 
-        let mut compiler = Self::new_compiler(config);
+        let mut compiler = Self::new_compiler(config.clone());
 
         let toml_module = {
             let mut toml_module = rhai::Module::new();
@@ -152,13 +155,21 @@ impl RuleEngine {
             either::Either::Right(script) => (*script).to_string(),
         };
 
+        tracing::info!("Loading plugins ...");
+
+        let vsl_service_plugin_manager = Self::load_plugins(&config, &mut compiler)?;
+
+        tracing::debug!("Building AST.");
+
         let ast = compiler
             .compile_into_self_contained(&rhai::Scope::new(), &main_vsl)
             .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;
 
+        tracing::debug!("Extracting directives.");
+
         let directives = Self::extract_directives(&compiler, &ast)?;
 
-        tracing::info!("Done.");
+        tracing::info!("Rule engine initialized.");
 
         Ok(Self {
             ast,
@@ -167,6 +178,7 @@ impl RuleEngine {
             vsl_rhai_module,
             std_module,
             toml_module,
+            vsl_service_plugin_manager,
         })
     }
 
@@ -338,7 +350,7 @@ impl RuleEngine {
 
     /// create a rhai engine to compile all scripts with vsl's configuration.
     #[must_use]
-    pub fn new_compiler(config: std::sync::Arc<Config>) -> rhai::Engine {
+    pub fn new_compiler(_: std::sync::Arc<Config>) -> rhai::Engine {
         let mut engine = Engine::new();
 
         // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
@@ -372,17 +384,15 @@ impl RuleEngine {
                 create_delegation,
             )
             .register_custom_syntax_with_state_raw("object", parse_object, true, create_object)
-            .register_custom_syntax_with_state_raw(
-                "service",
-                parse_service,
-                true,
-                move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
-                      input: &[rhai::Expression<'_>],
-                      _state: &rhai::Dynamic| {
-                    create_service(context, input, &config)
-                },
-            )
-            .register_iterator::<Vec<vsmtp_common::Address>>()
+            // .register_custom_syntax_raw(
+            //     "service",
+            //     parse_service,
+            //     true,
+            //     move |context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+            //           input: &[rhai::Expression<'_>]| {
+            //         create_service(context, input, &config)
+            //     },
+            // )
             .register_iterator::<Vec<SharedObject>>();
 
         engine.set_fast_operators(false);
@@ -396,30 +406,27 @@ impl RuleEngine {
     /// * Failed to compile the API.
     /// * Failed to create a module from the API.
     pub fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
-        let ast = engine
-            .compile_scripts_with_scope(
-                &rhai::Scope::new(),
-                [
-                    // objects.
-                    include_str!("../api/codes.rhai"),
-                    include_str!("../api/networks.rhai"),
-                    // functions.
-                    include_str!("../api/auth.rhai"),
-                    include_str!("../api/connection.rhai"),
-                    include_str!("../api/delivery.rhai"),
-                    include_str!("../api/envelop.rhai"),
-                    include_str!("../api/getters.rhai"),
-                    include_str!("../api/internal.rhai"),
-                    include_str!("../api/message.rhai"),
-                    include_str!("../api/security.rhai"),
-                    include_str!("../api/services.rhai"),
-                    include_str!("../api/status.rhai"),
-                    include_str!("../api/transaction.rhai"),
-                    include_str!("../api/types.rhai"),
-                    include_str!("../api/utils.rhai"),
-                ],
-            )
-            .context("failed to compile vsl's api")?;
+        let ast = engine.compile_scripts_with_scope(
+            &rhai::Scope::new(),
+            [
+                // objects.
+                include_str!("../api/codes.rhai"),
+                include_str!("../api/networks.rhai"),
+                // functions.
+                include_str!("../api/auth.rhai"),
+                include_str!("../api/connection.rhai"),
+                include_str!("../api/delivery.rhai"),
+                include_str!("../api/envelop.rhai"),
+                include_str!("../api/getters.rhai"),
+                include_str!("../api/internal.rhai"),
+                include_str!("../api/message.rhai"),
+                include_str!("../api/security.rhai"),
+                include_str!("../api/status.rhai"),
+                include_str!("../api/transaction.rhai"),
+                include_str!("../api/types.rhai"),
+                include_str!("../api/utils.rhai"),
+            ],
+        )?;
 
         rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, engine)
             .context("failed to create a module from vsl's api.")
@@ -487,7 +494,7 @@ impl RuleEngine {
                                     .get("service")
                                     .ok_or_else(|| anyhow::anyhow!("the delegation '{name}' in stage '{stage}' does not have a service to delegate processing to"))?
                                     .clone()
-                                    .try_cast::<std::sync::Arc<Service>>()
+                                    .try_cast::<std::sync::Arc<service::Smtp>>()
                                     .ok_or_else(|| anyhow::anyhow!("the field after the 'delegate' keyword in the directive '{name}' in stage '{stage}' must be a smtp service"))?;
 
                                 Directive::Delegation { name, pointer, service }
@@ -518,5 +525,30 @@ impl RuleEngine {
         }
 
         Ok(directives)
+    }
+
+    /// Load vsl service plugins from the configuration paths and apply them to the rhai engine.
+    fn load_plugins(
+        config: &std::sync::Arc<Config>,
+        compiler: &mut rhai::Engine,
+    ) -> anyhow::Result<rhai::Shared<NativeVSL>> {
+        let mut vsl_plugin_manager = NativeVSL::default();
+
+        // Registering native service plugins.
+        vsl_plugin_manager
+            .add_native_plugin("smtp", Box::new(plugin::Smtp {}))
+            .add_native_plugin("cmd", Box::new(Cmd {}));
+        //.add_native_plugin(Box::new(Csv {}));
+
+        for (name, path) in &config.app.vsl.plugins {
+            vsl_plugin_manager.load(name, path)?;
+            tracing::debug!(%name, ?path, "vSL plugin loaded.");
+        }
+
+        vsl_plugin_manager.apply(compiler)?;
+
+        tracing::debug!("Plugins applied to vSL.");
+
+        Ok(rhai::Shared::new(vsl_plugin_manager))
     }
 }

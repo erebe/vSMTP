@@ -28,7 +28,6 @@
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 //
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
@@ -77,7 +76,6 @@ pub mod api {
     pub type SharedObject = std::sync::Arc<Object>;
 
     pub use super::dsl::object::Object;
-    pub use super::dsl::service::Service;
 
     /// backend for DKIM functionality.
     pub mod dkim;
@@ -94,8 +92,6 @@ pub mod api {
     pub mod message_parsed;
     /// State Engine & filtering backend.
     pub mod rule_state;
-    /// API for [`crate::api::Service`]
-    pub mod services;
     /// backend for SPF functionality.
     pub mod spf;
     /// API for the delivery methods.
@@ -118,7 +114,6 @@ pub mod api {
                 .combine(rhai::exported_module!(dmarc))
                 .combine(rhai::exported_module!(rule_state))
                 .combine(rhai::exported_module!(spf))
-                .combine(rhai::exported_module!(services))
                 .combine(rhai::exported_module!(transports))
                 .combine(rhai::exported_module!(utils))
                 .combine(rhai::exported_module!(write))

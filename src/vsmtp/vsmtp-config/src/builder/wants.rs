@@ -116,6 +116,7 @@ pub struct WantsAppVSL {
 pub struct WantsAppLogs {
     pub(crate) parent: WantsAppVSL,
     pub(super) filepath: Option<std::path::PathBuf>,
+    pub(super) plugins: std::collections::BTreeMap<String, std::path::PathBuf>,
 }
 
 ///

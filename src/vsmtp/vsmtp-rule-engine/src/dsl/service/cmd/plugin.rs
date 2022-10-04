@@ -15,47 +15,42 @@
  *
 */
 
-use crate::{
-    api::EngineResult,
-    dsl::service::{deserialize_rhai_map, Parser, Service},
+use vsmtp_plugins::plugins::{
+    vsl::native::{Builder, Native},
+    Plugin,
 };
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CmdParameters {
     /// The command to execute in the subprocess
-    command: String,
+    pub command: String,
     /// Optional: parameters directly given to the executed program (argc, argv)
-    args: Option<Vec<String>>,
+    pub args: Option<Vec<String>>,
     /// A duration after which the subprocess will be forced-kill
     #[serde(default = "default_timeout", with = "humantime_serde")]
-    timeout: std::time::Duration,
+    pub timeout: std::time::Duration,
     /// Optional: a user to run the subprocess under
-    user: Option<String>,
+    pub user: Option<String>,
     /// Optional: a group to run the subprocess under
-    group: Option<String>,
+    pub group: Option<String>,
 }
 
 const fn default_timeout() -> std::time::Duration {
     std::time::Duration::from_secs(30)
 }
 
-pub struct CmdParser;
+pub struct Cmd;
 
-impl Parser for CmdParser {
-    fn service_type(&self) -> &'static str {
+impl Plugin for Cmd {
+    fn name(&self) -> &'static str {
         "cmd"
     }
+}
 
-    fn parse_service(&self, service: &str, parameters: rhai::Map) -> EngineResult<Service> {
-        let parameters: CmdParameters =
-            deserialize_rhai_map(service, self.service_type(), parameters)?;
+impl Native for Cmd {
+    fn register(&self, mut builder: Builder<'_>) -> anyhow::Result<()> {
+        builder.register_global_module(rhai::exported_module!(super::api::cmd));
 
-        Ok(Service::Cmd {
-            timeout: parameters.timeout,
-            user: parameters.user,
-            group: parameters.group,
-            command: parameters.command,
-            args: parameters.args,
-        })
+        Ok(())
     }
 }

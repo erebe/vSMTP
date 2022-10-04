@@ -15,10 +15,7 @@
  *
 */
 
-/// refresh rate of the database.
-#[derive(Debug, serde::Deserialize, strum::EnumString, strum::Display)]
-#[serde(rename_all = "lowercase")]
-pub enum Refresh {
-    Always,
-    No,
-}
+pub mod managers;
+pub mod plugins;
+
+pub use rhai;
