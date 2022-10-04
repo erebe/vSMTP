@@ -13,6 +13,15 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
+
+### Changed
+
+* Moved the csv database to an external plugin. (#625)
+* Moved the mysql database to an external plugin. (#625)
+
 ## [1.3.3] - 2022-10-03
 
 ### Added
