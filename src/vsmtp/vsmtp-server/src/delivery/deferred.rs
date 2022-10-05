@@ -28,7 +28,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
 ) {
-    let queued = match queue_manager.list(&QueueID::Deferred) {
+    let queued = match queue_manager.list(&QueueID::Deferred).await {
         Ok(queued) => queued,
         Err(error) => {
             tracing::error!(%error, "Listing deferred queue failure.");
@@ -70,8 +70,9 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 ) -> anyhow::Result<()> {
     tracing::debug!("Processing email.");
 
-    let (mut mail_context, mail_message) =
-        queue_manager.get_both(&QueueID::Deferred, &process_message.message_id)?;
+    let (mut mail_context, mail_message) = queue_manager
+        .get_both(&QueueID::Deferred, &process_message.message_id)
+        .await?;
 
     match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
         SenderOutcome::MoveToDead => queue_manager
@@ -104,20 +105,15 @@ mod tests {
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
+    #[function_name::named]
     async fn move_to_deferred() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deferred1".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "move_to_deferred";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         ctx.envelop.rcpt.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
         ));
@@ -132,38 +128,40 @@ mod tests {
         handle_one_in_deferred_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
         )
         .await
         .unwrap();
 
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deliver, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap_err();
+
+        queue_manager
+            .get_ctx(&QueueID::Deferred, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn move_to_dead() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deferred2".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "move_to_dead";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -174,27 +172,23 @@ mod tests {
         handle_one_in_deferred_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
         )
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deferred, function_name!())
+            .await
+            .unwrap_err();
 
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Dead, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap();
     }
 }

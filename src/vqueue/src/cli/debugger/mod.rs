@@ -50,7 +50,7 @@ impl Commands {
 
             Commands::Msg { msg, command } => match command {
                 MessageCommand::Show { format } => {
-                    Self::message_show(&msg, &queue_manager, &format, &mut std::io::stdout())
+                    Self::message_show(&msg, &queue_manager, &format, &mut std::io::stdout()).await
                 }
                 MessageCommand::Move { queue } => {
                     Self::message_move(&msg, &queue, queue_manager).await

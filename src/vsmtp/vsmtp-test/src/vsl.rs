@@ -26,7 +26,7 @@ pub fn run(vsl: &'static str) {
     let rule_engine = RuleEngine::from_script(config.clone(), vsl).expect("rule engine");
 
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
             .expect("queue manager");
 
     let _output = rule_engine.just_run_when(

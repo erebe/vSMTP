@@ -308,7 +308,7 @@ mod tests {
             });
 
             let queue_manager =
-                <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                     .unwrap();
 
             let delivery = tokio::sync::mpsc::channel::<ProcessMessage>(

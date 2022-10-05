@@ -44,7 +44,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                     config.clone(),
                     rule_engine.clone(),
                     resolvers.clone(),
-     <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap(),
+     <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap(),
                     working_channel.0.clone(),
                     delivery_channel.0.clone(),
                 )

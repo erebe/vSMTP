@@ -66,7 +66,7 @@ fuzz_target!(|data: &[u8]| {
     );
 
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let dns_resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),

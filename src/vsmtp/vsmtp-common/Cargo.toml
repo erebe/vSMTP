@@ -20,13 +20,19 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"{{version}}\" }", prerelease = true },
-    { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"{{version}}\"" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"{{version}}\"" },
 ]
 
+[dependencies.vsmtp-auth]
+version = "1.3.3"
+path = "../vsmtp-auth"
+
+[dependencies.vsmtp-mail-parser]
+version = "1.3.3"
+path = "../vsmtp-mail-parser"
+
 [dependencies]
-vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.3" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.3" }
 
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }

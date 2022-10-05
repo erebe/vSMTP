@@ -47,7 +47,7 @@ pub struct DetailedMailContext {
     pub(crate) modified_at: std::time::SystemTime,
 }
 
-///
+/// CRUB operation for mail in queues.
 #[async_trait::async_trait]
 pub trait GenericQueueManager
 where
@@ -59,13 +59,13 @@ where
         Self: Sized;
 
     ///
-    async fn get_config(&self) -> &Config;
+    fn get_config(&self) -> &Config;
 
     ///
     async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext) -> anyhow::Result<()>;
 
     ///
-    fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
+    async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
 
     ///
     async fn write_both(
@@ -84,7 +84,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?;
 
         self.write_ctx(queue, ctx).await?;
-        self.write_msg(msg_id, msg)?;
+        self.write_msg(msg_id, msg).await?;
         Ok(())
     }
 
@@ -105,28 +105,34 @@ where
     }
 
     /// Get the list of message IDs in the queue.
-    fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
+    async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
 
     ///
-    fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext>;
+    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext>;
 
     ///
-    fn get_detailed_ctx(
+    async fn get_detailed_ctx(
         &self,
         queue: &QueueID,
         msg_id: &str,
     ) -> anyhow::Result<DetailedMailContext>;
 
     ///
-    fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody>;
+    async fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody>;
 
     ///
-    fn get_both(
+    async fn get_both(
         &self,
         queue: &QueueID,
         msg_id: &str,
-    ) -> anyhow::Result<(MailContext, MessageBody)> {
-        Ok((self.get_ctx(queue, msg_id)?, self.get_msg(msg_id)?))
+    ) -> anyhow::Result<(MailContext, MessageBody)>
+    where
+        Self: Sized,
+    {
+        Ok((
+            self.get_ctx(queue, msg_id).await?,
+            self.get_msg(msg_id).await?,
+        ))
     }
 
     ///
@@ -141,7 +147,7 @@ where
     {
         anyhow::ensure!(before != after, "Queues are the same: `{before}`");
 
-        let ctx = self.get_ctx(before, msg_id)?;
+        let ctx = self.get_ctx(before, msg_id).await?;
         self.move_to(before, after, &ctx).await?;
 
         Ok(())

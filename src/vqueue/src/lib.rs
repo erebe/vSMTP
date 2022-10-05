@@ -38,11 +38,19 @@ pub mod cli {
 }
 
 mod api;
+mod extension;
 pub use api::{GenericQueueManager, QueueID};
+pub use extension::FilesystemQueueManagerExt;
 
 mod implementation {
     ///
     pub mod fs;
+
+    ///
+    #[cfg(feature = "testing")]
+    pub mod temp;
 }
 
 pub use implementation::fs;
+#[cfg(feature = "testing")]
+pub use implementation::temp;

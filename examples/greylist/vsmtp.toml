@@ -25,10 +25,10 @@ certificate = "../../../examples/config/tls/certificate.crt"
 private_key = "../../../examples/config/tls/private_key.key"
 
 [server.queues]
-dirpath = "../../../examples/greylist/spool"
+dirpath = "examples/greylist/spool"
 
 [app]
-dirpath = "../../../examples/greylist/app"
+dirpath = "examples/greylist/app"
 
 [app.vsl]
 filepath = "../../../examples/greylist/main.vsl"

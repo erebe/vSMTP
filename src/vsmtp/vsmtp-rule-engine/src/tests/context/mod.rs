@@ -29,7 +29,7 @@ fn test_context() {
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     state.context().write().unwrap().envelop.mail_from = addr!("replace@example.com");

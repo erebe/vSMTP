@@ -22,10 +22,21 @@ impl Commands {
         queue: &QueueID,
         queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
     ) -> anyhow::Result<()> {
-        let old_queue = <QueueID as strum::IntoEnumIterator>::iter()
-            .find(|q| queue_manager.get_ctx(q, msg_id).is_ok());
+        let old_queue = futures_util::future::join_all(
+            <QueueID as strum::IntoEnumIterator>::iter()
+                .map(|q| (q, queue_manager.clone()))
+                .map(|(q, queue_manager)| async move {
+                    (q.clone(), queue_manager.get_ctx(&q, msg_id).await)
+                }),
+        )
+        .await
+        .into_iter()
+        .find_map(|(q, ctx)| match ctx {
+            Ok(_) => Some(q),
+            Err(_) => None,
+        });
 
-        match (old_queue, queue_manager.get_msg(msg_id)) {
+        match (old_queue, queue_manager.get_msg(msg_id).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }

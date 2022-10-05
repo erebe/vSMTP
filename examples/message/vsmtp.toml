@@ -24,10 +24,10 @@ certificate = "../../../examples/config/tls/certificate.crt"
 private_key = "../../../examples/config/tls/private_key.key"
 
 [server.queues]
-dirpath = "../../../examples/message/spool"
+dirpath = "examples/message/spool"
 
 [app]
-dirpath = "../../../examples/message/app"
+dirpath = "examples/message/app"
 
 [app.vsl]
 filepath = "../../../examples/message/main.vsl"

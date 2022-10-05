@@ -55,7 +55,7 @@ where
     conn: &'a mut Connection<S>,
 }
 
-macro_rules! await_ {
+macro_rules! block_on {
     ($future:expr) => {
         tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
     };
@@ -67,7 +67,7 @@ where
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         use tokio::io::AsyncWriteExt;
-        await_! { async move {
+        block_on! { async move {
             self.conn.inner.inner.write_all(b"334 ").await?;
             self.conn
                 .inner
@@ -81,7 +81,7 @@ where
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        await_! {
+        block_on! {
             tokio::io::AsyncWriteExt::flush(&mut self.conn.inner.inner)
         }
     }

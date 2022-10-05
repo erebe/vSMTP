@@ -33,7 +33,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     // FIXME: add span on the function.
     tracing::info!("Flushing deliver queue.");
 
-    let queued = match queue_manager.list(&QueueID::Deliver) {
+    let queued = match queue_manager.list(&QueueID::Deliver).await {
         Ok(queued) => queued,
         Err(error) => {
             tracing::error!(%error, "Flushing failed");
@@ -83,8 +83,9 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         QueueID::Deliver
     };
 
-    let (mail_context, mail_message) =
-        queue_manager.get_both(&queue, &process_message.message_id)?;
+    let (mail_context, mail_message) = queue_manager
+        .get_both(&queue, &process_message.message_id)
+        .await?;
 
     let (mut mail_context, mut mail_message, result, skipped) = rule_engine.just_run_when(
         State::Delivery,
@@ -105,7 +106,9 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 )
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await?;
 
             tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
@@ -118,7 +121,9 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .move_to(&queue, &QueueID::Delegated, &mail_context)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -145,7 +150,9 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .move_to(&queue, &QueueID::Dead, &mail_context)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await?;
 
             return Ok(());
         }
@@ -163,14 +170,18 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .move_to(&queue, &QueueID::Dead, &mail_context)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await
         }
         SenderOutcome::MoveToDeferred => {
             queue_manager
                 .move_to(&queue, &QueueID::Deferred, &mail_context)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await
         }
         SenderOutcome::RemoveFromDisk => {
             queue_manager
@@ -187,20 +198,15 @@ mod tests {
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
+    #[function_name::named]
     async fn move_to_deferred() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deliver1".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "move_to_deferred";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         ctx.metadata.timestamp = Some(std::time::SystemTime::now());
         ctx.envelop.rcpt.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@foobar.com").unwrap(),
@@ -215,9 +221,9 @@ mod tests {
         handle_one_in_delivery_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             std::sync::Arc::new(RuleEngine::from_script(config.clone(), "#{}").unwrap()),
@@ -225,35 +231,27 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deliver, msg_id))
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deliver, function_name!())
+            .await
+            .unwrap_err();
+
+        queue_manager
+            .get_ctx(&QueueID::Deferred, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn denied() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deliver_denied".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         ctx.metadata.timestamp = Some(std::time::SystemTime::now());
 
         queue_manager
@@ -265,9 +263,9 @@ mod tests {
         handle_one_in_delivery_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             std::sync::Arc::new(
@@ -281,24 +279,19 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deliver, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deliver, function_name!())
+            .await
+            .unwrap_err();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Dead, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deferred, function_name!())
+            .await
+            .unwrap_err();
+
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap();
     }
 }

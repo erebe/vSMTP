@@ -86,7 +86,7 @@ pub fn start_runtime(
     )?);
 
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
 
     let resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).context("could not initialize dns")?,

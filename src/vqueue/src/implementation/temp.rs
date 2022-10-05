@@ -14,57 +14,49 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
+
 use crate::{FilesystemQueueManagerExt, QueueID};
 use anyhow::Context;
 use vsmtp_config::Config;
 
 ///
-// TODO: handle canonicalization of path (& chown)
 pub struct QueueManager {
     config: std::sync::Arc<Config>,
+    pub(crate) tempdir: tempfile::TempDir,
 }
 
 impl std::fmt::Debug for QueueManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("QueueManager").finish_non_exhaustive()
+        f.debug_struct("TempQueueManager").finish_non_exhaustive()
     }
 }
 
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
     fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>> {
-        <QueueID as strum::IntoEnumIterator>::iter()
-            .map(|q| {
-                let dir = Self::get_root_folder(&config, &q).join(q.to_string());
-                std::fs::create_dir_all(&dir).with_context(|| {
-                    format!("could not create `{q}` directory at `{}`", dir.display())
-                })
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let this = std::sync::Arc::new(Self {
+            config,
+            tempdir: tempfile::tempdir()?,
+        });
 
-        Ok(std::sync::Arc::new(Self { config }))
+        for i in <QueueID as strum::IntoEnumIterator>::iter() {
+            let (cpy, q) = (this.clone(), i.clone());
+            let dir = cpy.get_queue_path(&q);
+            std::fs::create_dir_all(&dir).with_context(|| {
+                format!("could not create `{i}` directory at `{}`", dir.display())
+            })?;
+        }
+
+        Ok(this)
     }
 
     fn get_config(&self) -> &Config {
         &self.config
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use vsmtp_test::config::local_test;
-
-    #[test]
-    fn debug() {
-        assert_eq!(
-            "QueueManager { .. }",
-            format!(
-                "{:?}",
-                <super::QueueManager as crate::GenericQueueManager>::init(std::sync::Arc::new(
-                    local_test()
-                ))
-                .unwrap()
-            )
-        );
+    fn get_queue_path(&self, queue: &QueueID) -> std::path::PathBuf {
+        self.tempdir
+            .path()
+            .join(Self::get_root_folder(&self.config, queue).join(queue.to_string()))
     }
 }

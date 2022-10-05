@@ -94,7 +94,7 @@ pub mod helpers {
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
         (

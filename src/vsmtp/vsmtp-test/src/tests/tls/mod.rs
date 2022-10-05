@@ -99,8 +99,10 @@ async fn test_starttls(
             )
             .unwrap()),
             std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap()),
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(server_config.clone())
-                .unwrap(),
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+                server_config.clone(),
+            )
+            .unwrap(),
             working_sender,
             delivery_sender,
         )

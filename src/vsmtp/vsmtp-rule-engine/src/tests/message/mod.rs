@@ -33,7 +33,7 @@ fn test_email_context_empty() {
 
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
@@ -50,7 +50,7 @@ fn test_email_context_raw() {
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
@@ -72,7 +72,7 @@ fn test_email_context_mail() {
     let re = RuleEngine::new(config.clone(), Some(rules_path!["main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
     {
@@ -134,7 +134,7 @@ fn test_email_bcc() {
     let re = RuleEngine::new(config.clone(), Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
@@ -156,7 +156,7 @@ fn test_email_add_get_set_header() {
     .unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
     assert_eq!(

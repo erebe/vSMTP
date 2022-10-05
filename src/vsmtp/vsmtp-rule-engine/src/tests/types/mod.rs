@@ -107,7 +107,7 @@ fn test_services() {
     let re = RuleEngine::new(config.clone(), Some(rules_path!["service", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 
@@ -162,7 +162,7 @@ fn test_config_display() {
     let re = RuleEngine::new(config.clone(), Some(rules_path!["objects", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let mut state = RuleState::new(config, resolvers, queue_manager, &re);
 

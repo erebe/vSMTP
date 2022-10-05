@@ -67,7 +67,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
         QueueID::Working
     };
 
-    let (ctx, mail_message) = queue_manager.get_both(&queue, &process_message.message_id)?;
+    let (ctx, mail_message) = queue_manager
+        .get_both(&queue, &process_message.message_id)
+        .await?;
 
     let (mut ctx, mail_message, _, skipped) = rule_engine.just_run_when(
         State::PostQ,
@@ -101,7 +103,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 .move_to(&queue, &QueueID::Delegated, &ctx)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -139,7 +143,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     if write_email {
-        queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+        queue_manager
+            .write_msg(&process_message.message_id, &mail_message)
+            .await?;
     }
 
     if let Some(next_queue) = move_to_queue {
@@ -174,7 +180,7 @@ mod tests {
 
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
         assert!(handle_one_in_working_queue(
@@ -193,20 +199,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn basic() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_basic".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -220,9 +221,9 @@ mod tests {
             config.clone(),
             std::sync::Arc::new(RuleEngine::from_script(config.clone(), "#{}").unwrap()),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -232,37 +233,28 @@ mod tests {
 
         assert_eq!(
             delivery_receiver.recv().await.unwrap().message_id,
-            "message_uid"
+            function_name!()
         );
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join("working/message_uid.json")
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join("deliver/message_uid.json")
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Deliver, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn denied() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_denied".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -282,9 +274,9 @@ mod tests {
                 .unwrap(),
             ),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -292,37 +284,26 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Working.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Dead.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn quarantine() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_quarantine".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -345,9 +326,9 @@ mod tests {
                 .unwrap(),
             ),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -355,31 +336,23 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(config
-            .app
-            .dirpath
-            .join(
-                QueueID::Quarantine {
-                    name: "unit-test".to_string()
-                }
-                .to_string()
+        queue_manager
+            .get_ctx(
+                &QueueID::Quarantine {
+                    name: "unit-test".to_string(),
+                },
+                function_name!(),
             )
-            .join(format!("{msg_id}.json"))
-            .exists());
+            .await
+            .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Working.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Dead.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap_err();
     }
 }

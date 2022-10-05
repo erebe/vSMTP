@@ -39,7 +39,7 @@ fn run_benchmark(body_size: u64, port: u16) {
 
                 let resolvers = std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap());
 
-                let queue_manger = <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap()     ;
+                let queue_manger = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap()     ;
 
                 Server::new(
                     config.clone(),

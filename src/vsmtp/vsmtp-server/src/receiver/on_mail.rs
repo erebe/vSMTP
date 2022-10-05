@@ -142,6 +142,7 @@ impl MailHandler {
 
         queue_manager
             .write_msg(&message_id, &mail_message)
+            .await
             .map_err(|e| MailHandlerError::WriteMessageBody(e.downcast().unwrap()))?;
 
         if let Some(queue) = write_to_queue {

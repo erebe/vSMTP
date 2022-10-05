@@ -34,6 +34,12 @@ use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugins::managers::native::NativeVSL;
 use vsmtp_plugins::managers::PluginManager;
 
+macro_rules! block_on {
+    ($future:expr) => {
+        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
+    };
+}
+
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
@@ -236,11 +242,11 @@ impl RuleEngine {
 
                             // FIXME: this is only useful for preq, the other processes
                             //        already fetch the old context.
-                            match rule_state
+                            let mut ctx = rule_state
                                 .server
                                 .queue_manager
-                                .get_ctx(&QueueID::Delegated, message_id)
-                            {
+                                .get_ctx(&QueueID::Delegated, message_id);
+                            match block_on!(&mut ctx) {
                                 Ok(mut context) => {
                                     context.metadata.skipped = None;
                                     *rule_state.context().write().unwrap() = context;

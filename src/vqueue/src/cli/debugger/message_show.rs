@@ -20,16 +20,21 @@ use crate::{
 };
 
 impl Commands {
-    pub(crate) fn message_show<OUT: std::io::Write + Send + Sync>(
+    pub(crate) async fn message_show<OUT: std::io::Write + Send + Sync>(
         msg_id: &str,
         queue_manager: &std::sync::Arc<impl GenericQueueManager + Send + Sync>,
         format: &MessageShowFormat,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
-        let ctx = <QueueID as strum::IntoEnumIterator>::iter()
-            .find_map(|q| queue_manager.get_ctx(&q, msg_id).ok());
+        let ctx = futures_util::future::join_all(
+            <QueueID as strum::IntoEnumIterator>::iter()
+                .map(|q| async move { queue_manager.get_ctx(&q, msg_id).await }),
+        )
+        .await
+        .into_iter()
+        .find_map(Result::ok);
 
-        match (ctx, queue_manager.get_msg(msg_id)) {
+        match (ctx, queue_manager.get_msg(msg_id).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }
@@ -66,21 +71,16 @@ mod tests {
     use super::*;
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
+    #[function_name::named]
     async fn show1_json() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/show1_json".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "my_message";
+        let config = std::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
 
         let timestamp = ctx.connection.timestamp;
 
@@ -90,11 +90,12 @@ mod tests {
             .unwrap();
 
         Commands::message_show(
-            msg_id,
+            function_name!(),
             &queue_manager,
             &MessageShowFormat::Json,
             &mut output,
         )
+        .await
         .unwrap();
 
         pretty_assertions::assert_eq!(
@@ -120,7 +121,7 @@ mod tests {
   }},
   "metadata": {{
     "timestamp": null,
-    "message_id": "my_message",
+    "message_id": "show1_json",
     "skipped": null,
     "spf": null,
     "dkim": null
@@ -147,21 +148,16 @@ Message body:
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
+    #[function_name::named]
     async fn show1_eml() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/show1_eml".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "my_message";
+        let config = std::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.metadata.message_id = Some(function_name!().to_string());
 
         let timestamp = ctx.connection.timestamp;
 
@@ -170,8 +166,14 @@ Message body:
             .await
             .unwrap();
 
-        Commands::message_show(msg_id, &queue_manager, &MessageShowFormat::Eml, &mut output)
-            .unwrap();
+        Commands::message_show(
+            function_name!(),
+            &queue_manager,
+            &MessageShowFormat::Eml,
+            &mut output,
+        )
+        .await
+        .unwrap();
 
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
@@ -196,7 +198,7 @@ Message body:
   }},
   "metadata": {{
     "timestamp": null,
-    "message_id": "my_message",
+    "message_id": "show1_eml",
     "skipped": null,
     "spf": null,
     "dkim": null
