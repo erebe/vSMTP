@@ -15,7 +15,8 @@
  *
 */
 use super::get_tls_config;
-use crate::{test_receiver, tests::tls::test_starttls};
+use crate::run_test;
+use crate::tests::tls::test_starttls;
 use vsmtp_config::field::TlsSecurityLevel;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
@@ -90,14 +91,13 @@ async fn double_starttls() {
 
 #[tokio::test]
 async fn test_receiver_7() {
-    assert!(test_receiver! {
-        [
+    run_test! {
+        input = [
             "EHLO foobar\r\n",
             "STARTTLS\r\n",
             "QUIT\r\n"
-        ]
-        .concat(),
-        [
+        ].concat(),
+        expected = [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
             "250-STARTTLS\r\n",
@@ -105,22 +105,20 @@ async fn test_receiver_7() {
             "250 SMTPUTF8\r\n",
             "454 TLS not available due to temporary reason\r\n",
             "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
+        ].concat(),,,,,
     }
-    .is_ok());
+    .unwrap();
 }
 
 #[tokio::test]
-async fn test_receiver_8() -> anyhow::Result<()> {
-    let mut config = get_tls_config();
-    config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
-            .concat(),
-        [
+async fn test_receiver_8() {
+    run_test! {
+        input = [
+            "EHLO foobar\r\n",
+            "MAIL FROM: <foo@bar>\r\n",
+            "QUIT\r\n"
+        ].concat(),
+        expected = [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
             "250-STARTTLS\r\n",
@@ -128,12 +126,14 @@ async fn test_receiver_8() -> anyhow::Result<()> {
             "250 SMTPUTF8\r\n",
             "530 Must issue a STARTTLS command first\r\n",
             "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
+        ].concat(),
+        config = {
+            let mut config = get_tls_config();
+            config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
+            config
+        },,,,
     }
-    .is_ok());
-
-    Ok(())
+    .unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]

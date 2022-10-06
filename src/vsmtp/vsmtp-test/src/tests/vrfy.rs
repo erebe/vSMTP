@@ -14,9 +14,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod aliases;
-mod anti_relaying;
-mod dnsbl;
-mod family;
-mod message;
-mod services;
+
+use crate::run_test;
+
+run_test! {
+    fn vrfy_unimplemented,
+    input = concat![
+        "HELO foo\r\n",
+        "VRFY foobar\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "502 Command not implemented\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
+}

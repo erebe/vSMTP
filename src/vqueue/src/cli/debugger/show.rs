@@ -196,7 +196,6 @@ impl Commands {
 
             match queue_manager.list(q).await {
                 Ok(list) if !list.is_empty() => {
-                    dbg!(&list);
                     for i in list {
                         content.inner.push(match i {
                             Ok(msg_id) => queue_manager.get_detailed_ctx(q, &msg_id).await,

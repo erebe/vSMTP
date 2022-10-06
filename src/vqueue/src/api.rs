@@ -19,7 +19,7 @@ use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
 /// identifiers for all mail queues.
-#[derive(Debug, PartialEq, Eq, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
+#[derive(Debug, PartialEq, Eq, Clone, strum::IntoStaticStr, strum::EnumString, strum::EnumIter)]
 #[strum(serialize_all = "lowercase")]
 pub enum QueueID {
     /// Postq.
@@ -38,6 +38,45 @@ pub enum QueueID {
         /// or a time (ex: "2020-01-01"), or a domain ...
         name: String,
     },
+}
+
+impl std::fmt::Display for QueueID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueueID::Quarantine { name } => write!(f, "quarantine/{name}"),
+            _ => write!(f, "{}", Into::<&'static str>::into(self)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn queue_id_to_string() {
+        for (q, str) in [
+            QueueID::Working,
+            QueueID::Deliver,
+            QueueID::Delegated,
+            QueueID::Deferred,
+            QueueID::Dead,
+            QueueID::Quarantine {
+                name: "foobar".to_string(),
+            },
+        ]
+        .into_iter()
+        .zip([
+            "working",
+            "deliver",
+            "delegated",
+            "deferred",
+            "dead",
+            "quarantine/foobar",
+        ]) {
+            assert_eq!(q.to_string(), str);
+        }
+    }
 }
 
 ///

@@ -1,7 +1,3 @@
-use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext, MessageMetadata},
-    Envelop,
-};
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,6 +14,10 @@ use vsmtp_common::{
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use vsmtp_common::{
+    mail_context::{ConnectionContext, MailContext, MessageMetadata},
+    Envelop,
+};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 

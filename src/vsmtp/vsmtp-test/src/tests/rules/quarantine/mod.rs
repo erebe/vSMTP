@@ -15,19 +15,26 @@
  *
 */
 
-// use crate::test_receiver;
-// use vsmtp_common::mail_context::MailContext;
-// use vsmtp_mail_parser::{MessageBody, RawBody};
-// use vsmtp_server::ProcessMessage;
+use crate::run_test;
+use vsmtp_server::ProcessMessage;
 
-/*
+const QUARANTINE_RULE: &str = r#"
+#{
+    preq: [
+        rule "quarantine john" || {
+            if mail_from().local_part == "john.doe" {
+                quarantine("john")
+            } else {
+                accept()
+            }
+        }
+    ]
+}
+"#;
+
 #[tokio::test]
-#[ignore]
 async fn test_quarantine() {
-    let mut config = crate::config::local_test();
-    config.server.queues.dirpath = "./tmp/tests/rules/quarantine/spool".into();
-    config.app.dirpath = "./tmp/tests/rules/quarantine/".into();
-    config.app.vsl.filepath = Some("./src/tests/rules/quarantine/main.vsl".into());
+    let config = std::sync::Arc::new(crate::config::local_test());
 
     let (delivery_sender, _d) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
@@ -35,10 +42,8 @@ async fn test_quarantine() {
     let (working_sender, _w) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-    let queue_manger = test_receiver! {
-        on_mail => &mut vsmtp_server::MailHandler::new(working_sender, delivery_sender),
-        with_config => config.clone(),
-        [
+    let queue_manager = run_test! {
+        input = [
             "HELO foobar\r\n",
             "MAIL FROM:<john.doe@example.com>\r\n",
             "RCPT TO:<aa@bb>\r\n",
@@ -49,7 +54,7 @@ async fn test_quarantine() {
             "QUIT\r\n",
         ]
         .concat(),
-        [
+        expected = [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -58,34 +63,22 @@ async fn test_quarantine() {
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
         ]
-        .concat()
+        .concat(),,
+        config_arc = config.clone(),
+        mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
+        rule_script = QUARANTINE_RULE,
     }
     .unwrap();
 
-    let message = std::fs::read_dir("./tmp/tests/rules/quarantine/john/")
-        .unwrap()
-        .next()
-        .unwrap()
-        .unwrap()
-        .path();
-
-    println!("{}", message.display());
-
-    let ctx =
-        serde_json::from_str::<MailContext>(&std::fs::read_to_string(&message).unwrap()).unwrap();
-
     assert_eq!(
-        *MessageBody::read_mail_message(
-            &config.server.queues.dirpath,
-            &ctx.metadata.message_id.unwrap()
-        )
-        .await
+        std::fs::read_dir(vqueue::FilesystemQueueManagerExt::get_queue_path(
+            &*queue_manager,
+            &vqueue::QueueID::Quarantine {
+                name: "john".to_string()
+            }
+        ))
         .unwrap()
-        .inner(),
-        RawBody::new(
-            vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
-            "".to_string(),
-        )
+        .count(),
+        1
     );
 }
-*/

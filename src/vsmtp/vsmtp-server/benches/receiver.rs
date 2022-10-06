@@ -18,10 +18,11 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vqueue::GenericQueueManager;
-use vsmtp_common::{addr, mail_context::MailContext, CodeID};
+use vsmtp_common::{mail_context::MailContext, CodeID};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::{Connection, OnMail};
+use vsmtp_test::run_test;
 
 #[derive(Clone)]
 struct DefaultMailHandler;
@@ -67,49 +68,24 @@ fn get_test_config() -> std::sync::Arc<Config> {
     )
 }
 
-fn make_bench<M>(
-    mail_handler: M,
+fn make_bench(
     b: &mut Bencher<WallTime>,
     (input, output, config): &(String, String, std::sync::Arc<Config>),
-) where
-    M: OnMail + Clone + Send,
-{
+) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = vsmtp_test::receiver::test_receiver_inner(
-                &mut mail_handler.clone(),
-                input.as_bytes(),
-                output.as_bytes(),
-                config.clone(),
-            )
-            .await;
+            let _ = run_test! {
+                input = input,
+                expected = output,,
+                config_arc = config.clone(),
+                mail_handler = DefaultMailHandler,,
+            }
+            .unwrap();
         })
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     {
-        #[derive(Clone)]
-        struct T;
-
-        #[async_trait::async_trait]
-        impl OnMail for T {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
-                &mut self,
-                _: &mut Connection<S>,
-                mail: Box<MailContext>,
-                _: MessageBody,
-                _: std::sync::Arc<dyn GenericQueueManager>,
-            ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "foobar");
-                assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
-
-                CodeID::Ok
-            }
-        }
-
         c.bench_with_input(
             BenchmarkId::new("receiver", 0),
             &(
@@ -134,7 +110,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 .concat(),
                 get_test_config(),
             ),
-            |b, input| make_bench(T, b, input),
+            make_bench,
         );
     }
 
@@ -149,7 +125,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .concat(),
             get_test_config(),
         ),
-        |b, input| make_bench(DefaultMailHandler, b, input),
+        make_bench,
     );
 }
 

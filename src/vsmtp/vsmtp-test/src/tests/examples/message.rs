@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::test_receiver;
+use crate::run_test;
 use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
 use vsmtp_common::mail_context::MailContext;
@@ -23,101 +23,94 @@ use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
-#[tokio::test]
-async fn test_message() {
-    #[derive(Clone)]
-    struct T;
+const TOML: &str = include_str!("../../../../../../examples/message/vsmtp.toml");
 
-    #[async_trait::async_trait]
-    impl OnMail for T {
-        async fn on_mail<
-            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-        >(
-            &mut self,
-            _: &mut Connection<S>,
-            mail: Box<MailContext>,
-            body: MessageBody,
-            _: std::sync::Arc<dyn GenericQueueManager>,
-        ) -> CodeID {
-            assert_eq!(mail.envelop.helo, "foo");
-            assert_eq!(mail.envelop.mail_from.full(), "john.doe@example.com");
-            assert_eq!(mail.envelop.rcpt, vec![addr!("green@example.com").into()]);
+run_test! {
+    fn test_message_1,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@example.com>\r\n",
+        "RCPT TO: <someone@example.com>\r\n",
+        "DATA\r\n",
+        "Date: 0\r\n",
+        "From: john.doe@example.com\r\n",
+        "Subject: FWD: you account has been suspended\r\n",
+        ".\r\n",
+    ].concat(),
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "501 this server does not accept FWD messages\r\n"
+    ]
+    .concat(),
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+}
 
-            assert!(body.get_header("X-Connect").is_some());
-            assert_eq!(
-                body.get_header("X-Info"),
-                Some("email processed by me.".to_string())
-            );
+run_test! {
+    fn test_message_2,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@example.com>\r\n",
+        "RCPT TO: <green@example.com>\r\n",
+        "DATA\r\n",
+        "Date: 0\r\n",
+        "From: john.doe@example.com\r\n",
+        "To: green@example.com\r\n",
+        "Subject: you account has been suspended\r\n",
+        ".\r\n",
+        "QUIT\r\n",
+    ].concat(),
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n"
+    ]
+    .concat(),
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,
+    mail_handler = {
+        struct T;
 
-            assert_eq!(
-                body.get_header("From"),
-                Some("anonymous@example.com".to_string())
-            );
+        #[async_trait::async_trait]
+        impl OnMail for T {
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
+                &mut self,
+                _: &mut Connection<S>,
+                mail: Box<MailContext>,
+                body: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
+            ) -> CodeID {
+                assert_eq!(mail.envelop.helo, "foo");
+                assert_eq!(mail.envelop.mail_from.full(), "john.doe@example.com");
+                assert_eq!(mail.envelop.rcpt, vec![addr!("green@example.com").into()]);
 
-            assert_eq!(
-                body.get_header("To"),
-                Some("anonymous@example.com, john.doe@example.com".to_string())
-            );
+                assert!(body.get_header("X-Connect").is_some());
+                assert_eq!(
+                    body.get_header("X-Info"),
+                    Some("email processed by me.".to_string())
+                );
 
-            CodeID::Ok
+                assert_eq!(
+                    body.get_header("From"),
+                    Some("anonymous@example.com".to_string())
+                );
+
+                assert_eq!(
+                    body.get_header("To"),
+                    Some("anonymous@example.com, john.doe@example.com".to_string())
+                );
+
+                CodeID::Ok
+            }
         }
-    }
-
-    let toml = include_str!("../../../../../../examples/message/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
-
-    let config = arc!(config);
-
-    // testing the forward rule.
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@example.com>\r\n",
-            "RCPT TO: <someone@example.com>\r\n",
-            "DATA\r\n",
-            "Date: 0\r\n",
-            "From: john.doe@example.com\r\n",
-            "Subject: FWD: you account has been suspended\r\n",
-            ".\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "501 this server does not accept FWD messages\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
-
-    assert!(test_receiver! {
-        on_mail => &mut T { },
-        with_config => config,
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@example.com>\r\n",
-            "RCPT TO: <green@example.com>\r\n",
-            "DATA\r\n",
-            "Date: 0\r\n",
-            "From: john.doe@example.com\r\n",
-            "To: green@example.com\r\n",
-            "Subject: you account has been suspended\r\n",
-            ".\r\n",
-            "QUIT\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+        T
+    },,
 }

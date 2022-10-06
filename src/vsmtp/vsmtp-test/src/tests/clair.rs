@@ -1,5 +1,5 @@
 /*
- * vSMTP mail transfer agent
+* vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
@@ -13,8 +13,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-*/
-use crate::{config, test_receiver};
+ */
+use crate::config;
+use crate::run_test;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
@@ -27,438 +28,379 @@ use vsmtp_server::OnMail;
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
-#[tokio::test]
-async fn test_receiver_1() {
-    struct T;
+run_test! {
+    fn test_receiver_1,
+    input = concat![
+        "HELO foobar\r\n",
+        "MAIL FROM:<john@doe>\r\n",
+        "RCPT TO:<aa@bb>\r\n",
+        "DATA\r\n",
+        ".\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ],,,
+    mail_handler = {
+        struct T;
 
-    #[async_trait::async_trait]
-    impl OnMail for T {
-        async fn on_mail<
-            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-        >(
-            &mut self,
-            _: &mut Connection<S>,
-            mail: Box<MailContext>,
-            _: MessageBody,
-            _: std::sync::Arc<dyn GenericQueueManager>,
-        ) -> CodeID {
-            assert_eq!(mail.envelop.helo, "foobar");
-            assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-            assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
-            CodeID::Ok
+        #[async_trait::async_trait]
+        impl OnMail for T {
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
+                &mut self,
+                _: &mut Connection<S>,
+                mail: Box<MailContext>,
+                _: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
+            ) -> CodeID {
+                assert_eq!(mail.envelop.helo, "foobar");
+                assert_eq!(mail.envelop.mail_from.full(), "john@doe");
+                assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
+                CodeID::Ok
+            }
         }
-    }
 
-    assert!(test_receiver! {
-        on_mail => &mut T,
-        [
-            "HELO foobar\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "RCPT TO:<aa@bb>\r\n",
-            "DATA\r\n",
-            ".\r\n",
-            "QUIT\r\n",
-        ]
-        .concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+        T
+    },,
 }
 
-#[tokio::test]
-async fn test_receiver_2() {
-    assert!(test_receiver! {
-        ["foo\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+fn  test_receiver_2,
+    input = ["foo\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "501 Syntax error in parameters or arguments\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_3() {
-    assert!(test_receiver! {
-        ["MAIL FROM:<john@doe>\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "503 Bad sequence of commands\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_3,
+    input = ["MAIL FROM:<john@doe>\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "503 Bad sequence of commands\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_4() {
-    assert!(test_receiver! {
-        ["RCPT TO:<john@doe>\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "503 Bad sequence of commands\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_4,
+    input = ["RCPT TO:<john@doe>\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "503 Bad sequence of commands\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_5() {
-    assert!(test_receiver! {
-        ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "503 Bad sequence of commands\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_5,
+    input = ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "503 Bad sequence of commands\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_6() {
-    assert!(test_receiver! {
-        ["HELO foobar\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_6,
+    input = ["HELO foobar\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_10() {
-    assert!(test_receiver! {
-        ["HELP\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "214 joining us https://viridit.com/support\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_10,
+    input = ["HELP\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "214 joining us https://viridit.com/support\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_11() {
-    assert!(test_receiver! {
-        [
-            "HELO postmaster\r\n",
-            "MAIL FROM: <doe@foo>\r\n",
-            "RCPT TO: <doe@foo>\r\n",
-            "DATA\r\n",
-            ".\r\n",
-            "DATA\r\n",
-            "MAIL FROM:<b@b>\r\n",
-            "QUIT\r\n"
-        ]
-        .concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "503 Bad sequence of commands\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_11,
+    input = concat![
+        "HELO postmaster\r\n",
+        "MAIL FROM: <doe@foo>\r\n",
+        "RCPT TO: <doe@foo>\r\n",
+        "DATA\r\n",
+        ".\r\n",
+        "DATA\r\n",
+        "MAIL FROM:<b@b>\r\n",
+        "QUIT\r\n"
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "503 Bad sequence of commands\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_11_bis() {
-    assert!(test_receiver! {
-        [
-            "HELO postmaster\r\n",
-            "MAIL FROM: <doe@foo>\r\n",
-            "RCPT TO: <doe@foo>\r\n",
-            "DATA\r\n",
-            ".\r\n",
-            "DATA\r\n",
-            "RCPT TO:<b@b>\r\n",
-            "QUIT\r\n"
-        ]
-        .concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_11_bis,
+    input = concat![
+        "HELO postmaster\r\n",
+        "MAIL FROM: <doe@foo>\r\n",
+        "RCPT TO: <doe@foo>\r\n",
+        "DATA\r\n",
+        ".\r\n",
+        "DATA\r\n",
+        "RCPT TO:<b@b>\r\n",
+        "QUIT\r\n"
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "503 Bad sequence of commands\r\n",
+        "503 Bad sequence of commands\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],,,,,
 }
 
-#[tokio::test]
-async fn test_receiver_12() {
-    let mut config = config::local_test();
-    config.server.smtp.disable_ehlo = true;
-
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        ["EHLO postmaster\r\n", "QUIT\r\n"].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "502 Command not implemented\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_receiver_12,
+    input = ["EHLO postmaster\r\n", "QUIT\r\n"].concat(),
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "502 Command not implemented\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],
+    config = {
+        let mut config = config::local_test();
+        config.server.smtp.disable_ehlo = true;
+        config
+    },,,,
 }
 
-#[tokio::test]
-async fn max_rcpt_reached() {
-    let mut config = config::local_test();
-    config.server.smtp.rcpt_count_max = 5;
-
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        [
-            "EHLO client.com\r\n",
-            "MAIL FROM:<foo@bar.com>\r\n",
-            "RCPT TO:<foo+1@bar.com>\r\n",
-            "RCPT TO:<foo+2@bar.com>\r\n",
-            "RCPT TO:<foo+3@bar.com>\r\n",
-            "RCPT TO:<foo+4@bar.com>\r\n",
-            "RCPT TO:<foo+5@bar.com>\r\n",
-            "RCPT TO:<foo+6@bar.com>\r\n",
-            "QUIT\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250-testserver.com\r\n",
-            "250-STARTTLS\r\n",
-            "250-8BITMIME\r\n",
-            "250 SMTPUTF8\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "452 Requested action not taken: too many recipients\r\n",
-            "452 Requested action not taken: too many recipients\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn max_rcpt_reached,
+    input = concat![
+        "EHLO client.com\r\n",
+        "MAIL FROM:<foo@bar.com>\r\n",
+        "RCPT TO:<foo+1@bar.com>\r\n",
+        "RCPT TO:<foo+2@bar.com>\r\n",
+        "RCPT TO:<foo+3@bar.com>\r\n",
+        "RCPT TO:<foo+4@bar.com>\r\n",
+        "RCPT TO:<foo+5@bar.com>\r\n",
+        "RCPT TO:<foo+6@bar.com>\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250-testserver.com\r\n",
+        "250-STARTTLS\r\n",
+        "250-8BITMIME\r\n",
+        "250 SMTPUTF8\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "452 Requested action not taken: too many recipients\r\n",
+        "452 Requested action not taken: too many recipients\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],
+    config = {
+        let mut config = config::local_test();
+        config.server.smtp.rcpt_count_max = 5;
+        config
+    },,,,
 }
 
-#[tokio::test]
-async fn test_receiver_13() {
-    struct T {
-        count: u32,
-    }
+run_test! {
+    fn test_receiver_13,
+    input = concat![
+        "HELO foobar\r\n",
+        "MAIL FROM:<john1@doe>\r\n",
+        "RCPT TO:<aa1@bb>\r\n",
+        "DATA\r\n",
+        "from: john1 doe <john1@doe>\r\n",
+        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+        "\r\n",
+        "mail 1\r\n",
+        ".\r\n",
+        "MAIL FROM:<john2@doe>\r\n",
+        "RCPT TO:<aa2@bb>\r\n",
+        "DATA\r\n",
+        "from: john2 doe <john2@doe>\r\n",
+        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+        "\r\n",
+        "mail 2\r\n",
+        ".\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ],,,
+    mail_handler = {
+        struct T { count: u32, }
 
-    #[async_trait::async_trait]
-    impl OnMail for T {
-        async fn on_mail<
-            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-        >(
-            &mut self,
-            _: &mut Connection<S>,
-            mail: Box<MailContext>,
-            mut message: MessageBody,
-            _: std::sync::Arc<dyn GenericQueueManager>,
-        ) -> CodeID {
-            assert_eq!(mail.envelop.helo, "foobar");
-            assert_eq!(
-                mail.envelop.mail_from.full(),
-                format!("john{}@doe", self.count)
-            );
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![addr!(&format!("aa{}@bb", self.count)).into()]
-            );
-            pretty_assertions::assert_eq!(
-                *message.parsed::<MailMimeParser>().unwrap(),
-                Mail {
-                    headers: MailHeaders(
-                        [
-                            (
-                                "from",
-                                format!("john{} doe <john{}@doe>", self.count, self.count)
-                            ),
-                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.to_string(), v))
-                        .collect::<Vec<_>>()
-                    ),
-                    body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }
-            );
+        #[async_trait::async_trait]
+        impl OnMail for T {
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
+                &mut self,
+                _: &mut Connection<S>,
+                mail: Box<MailContext>,
+                mut message: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
+            ) -> CodeID {
+                assert_eq!(mail.envelop.helo, "foobar");
+                assert_eq!(
+                    mail.envelop.mail_from.full(),
+                    format!("john{}@doe", self.count)
+                );
+                assert_eq!(
+                    mail.envelop.rcpt,
+                    vec![addr!(&format!("aa{}@bb", self.count)).into()]
+                );
+                pretty_assertions::assert_eq!(
+                    *message.parsed::<MailMimeParser>().unwrap(),
+                    Mail {
+                        headers: MailHeaders(
+                            [
+                                ("from", format!("john{} doe <john{}@doe>", self.count, self.count)),
+                                ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                            ]
+                            .into_iter()
+                            .map(|(k, v)| (k.to_string(), v))
+                            .collect::<Vec<_>>()
+                        ),
+                         body: BodyType::Regular(vec![format!("mail {}", self.count)])
+                    }
+                );
 
-            self.count += 1;
-            CodeID::Ok
+                self.count += 1;
+                CodeID::Ok
+            }
         }
-    }
-
-    assert!(test_receiver! {
-        on_mail => &mut T { count: 1 },
-        [
-            "HELO foobar\r\n",
-            "MAIL FROM:<john1@doe>\r\n",
-            "RCPT TO:<aa1@bb>\r\n",
-            "DATA\r\n",
-            "from: john1 doe <john1@doe>\r\n",
-            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "\r\n",
-            "mail 1\r\n",
-            ".\r\n",
-            "MAIL FROM:<john2@doe>\r\n",
-            "RCPT TO:<aa2@bb>\r\n",
-            "DATA\r\n",
-            "from: john2 doe <john2@doe>\r\n",
-            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "\r\n",
-            "mail 2\r\n",
-            ".\r\n",
-            "QUIT\r\n",
-        ]
-        .concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+        T { count: 1 }
+    },,
 }
 
-#[allow(clippy::too_many_lines)]
-#[tokio::test]
-async fn test_receiver_14() {
-    struct T {
-        count: u32,
-    }
+run_test! {
+    fn test_receiver_14,
+    input = concat![
+        "HELO foobar1\r\n",
+        "MAIL FROM:<john1@doe>\r\n",
+        "RCPT TO:<aa1@bb>\r\n",
+        "DATA\r\n",
+        "from: john1 doe <john1@doe>\r\n",
+        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+        "\r\n",
+        "mail 1\r\n",
+        ".\r\n",
+        "HELO foobar2\r\n",
+        "MAIL FROM:<john2@doe>\r\n",
+        "RCPT TO:<aa2@bb>\r\n",
+        "DATA\r\n",
+        "from: john2 doe <john2@doe>\r\n",
+        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+        "\r\n",
+        "mail 2\r\n",
+        ".\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ],,,
+    mail_handler = {
+        struct T { count: u32, }
 
-    #[async_trait::async_trait]
-    impl OnMail for T {
-        async fn on_mail<
-            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-        >(
-            &mut self,
-            _: &mut Connection<S>,
-            mail: Box<MailContext>,
-            mut message: MessageBody,
-            _: std::sync::Arc<dyn GenericQueueManager>,
-        ) -> CodeID {
-            assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
-            assert_eq!(
-                mail.envelop.mail_from.full(),
-                format!("john{}@doe", self.count)
-            );
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![addr!(&format!("aa{}@bb", self.count)).into()]
-            );
-            pretty_assertions::assert_eq!(
-                *message.parsed::<MailMimeParser>().unwrap(),
-                Mail {
-                    headers: MailHeaders(
-                        [
-                            (
-                                "from",
-                                format!("john{} doe <john{}@doe>", self.count, self.count)
-                            ),
-                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.to_string(), v))
-                        .collect::<Vec<_>>()
-                    ),
-                    body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }
-            );
+        #[async_trait::async_trait]
+        impl OnMail for T {
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
+                &mut self,
+                _: &mut Connection<S>,
+                mail: Box<MailContext>,
+                mut message: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
+            ) -> CodeID {
+                assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
+                assert_eq!(
+                    mail.envelop.mail_from.full(),
+                    format!("john{}@doe", self.count)
+                );
+                assert_eq!(
+                    mail.envelop.rcpt,
+                    vec![addr!(&format!("aa{}@bb", self.count)).into()]
+                );
+                pretty_assertions::assert_eq!(
+                    *message.parsed::<MailMimeParser>().unwrap(),
+                    Mail {
+                        headers: MailHeaders(
+                            [
+                                (
+                                    "from",
+                                    format!("john{} doe <john{}@doe>", self.count, self.count)
+                                ),
+                                ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                            ]
+                            .into_iter()
+                            .map(|(k, v)| (k.to_string(), v))
+                            .collect::<Vec<_>>()
+                        ),
+                        body: BodyType::Regular(vec![format!("mail {}", self.count)])
+                    }
+                );
 
-            self.count += 1;
+                self.count += 1;
 
-            CodeID::Ok
+                CodeID::Ok
+            }
         }
-    }
-
-    assert!(test_receiver! {
-        on_mail => &mut T { count: 1 },
-        [
-            "HELO foobar1\r\n",
-            "MAIL FROM:<john1@doe>\r\n",
-            "RCPT TO:<aa1@bb>\r\n",
-            "DATA\r\n",
-            "from: john1 doe <john1@doe>\r\n",
-            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "\r\n",
-            "mail 1\r\n",
-            ".\r\n",
-            "HELO foobar2\r\n",
-            "MAIL FROM:<john2@doe>\r\n",
-            "RCPT TO:<aa2@bb>\r\n",
-            "DATA\r\n",
-            "from: john2 doe <john2@doe>\r\n",
-            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "\r\n",
-            "mail 2\r\n",
-            ".\r\n",
-            "QUIT\r\n",
-        ]
-        .concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+        T { count: 1 }
+    },,
 }
 
 #[tokio::test]
@@ -471,9 +413,8 @@ async fn test_receiver_9() {
     let config = std::sync::Arc::new(config);
 
     let before_test = std::time::Instant::now();
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
+    run_test! {
+        input = [
             "RCPT TO:<bar@foo>\r\n",
             "MAIL FROM: <foo@bar>\r\n",
             "EHLO\r\n",
@@ -488,7 +429,7 @@ async fn test_receiver_9() {
             "not a valid smtp command\r\n",
         ]
         .concat(),
-        [
+        expected = [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
             "503 Bad sequence of commands\r\n",
@@ -504,9 +445,10 @@ async fn test_receiver_9() {
             "451-Syntax error in parameters or arguments\r\n",
             "451 Too many errors from the client\r\n"
         ]
-        .concat()
+        .concat(),,
+        config_arc = config.clone(),,,
     }
-    .is_err());
+    .unwrap_err();
 
     assert!(
         before_test.elapsed().as_millis()

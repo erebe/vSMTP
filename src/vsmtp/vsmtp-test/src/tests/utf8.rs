@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::test_receiver;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
@@ -75,9 +74,8 @@ macro_rules! test_lang {
             }
         }
 
-        crate::test_receiver! {
-            on_mail => &mut T,
-            [
+        crate::run_test! {
+            input = [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",
                 "RCPT TO:<aa@bb>\r\n",
@@ -95,7 +93,7 @@ macro_rules! test_lang {
                 "QUIT\r\n",
             ]
             .concat(),
-            [
+            expected = [
                 "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -104,27 +102,28 @@ macro_rules! test_lang {
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
-            .concat()
+            .concat(),,,
+            mail_handler = T,,
         }
     }};
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_zh() {
-    assert!(test_lang!("mail/zh.txt").is_ok());
+    assert!(test_lang!("../template/mail/zh.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_el() {
-    assert!(test_lang!("mail/el.txt").is_ok());
+    assert!(test_lang!("../template/mail/el.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ar() {
-    assert!(test_lang!("mail/ar.txt").is_ok());
+    assert!(test_lang!("../template/mail/ar.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ko() {
-    assert!(test_lang!("mail/ko.txt").is_ok());
+    assert!(test_lang!("../template/mail/ko.txt").is_ok());
 }

@@ -14,44 +14,32 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::test_receiver;
+use crate::run_test;
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_dnsbl_1() {
-    let toml = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
+const TOML: &str = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
 
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        [
-            "EHLO [222.11.16.196]\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "554 permanent problems with the remote server\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    multi fn test_dnsbl_1,
+    input = concat![
+        "EHLO [222.11.16.196]\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "554 permanent problems with the remote server\r\n",
+    ],
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_dnsbl_2() {
-    let toml = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
-
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        [
-            "HELO foo\r\n",
-            "QUIT\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    multi fn test_dnsbl_2,
+    input = concat![
+        "HELO foo\r\n",
+        "QUIT\r\n",
+    ],
+    expected = concat![
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
 }

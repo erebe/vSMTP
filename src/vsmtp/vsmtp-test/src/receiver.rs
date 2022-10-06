@@ -16,11 +16,8 @@
 */
 
 use vqueue::GenericQueueManager;
-use vsmtp_common::{CodeID, ConnectionKind};
-use vsmtp_config::Config;
-use vsmtp_config::DnsResolvers;
+use vsmtp_common::CodeID;
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
@@ -75,7 +72,10 @@ impl<T: AsRef<[u8]> + Unpin> tokio::io::AsyncWrite for Mock<'_, T> {
 }
 
 /// used for testing, does not do anything once the email is received.
-pub struct DefaultMailHandler;
+#[derive(Default)]
+pub struct DefaultMailHandler {
+    _phantom: std::marker::PhantomData<u32>,
+}
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
@@ -93,118 +93,141 @@ impl OnMail for DefaultMailHandler {
 }
 
 /// run a connection and assert output produced by `vSMTP` and `expected_output`
-///
-/// # Errors
-///
-/// * the outcome of [`Connection::receive`]
-///
-/// # Panics
-///
-/// * argument provided are ill-formed
-pub async fn test_receiver_inner<M>(
-    mail_handler: &mut M,
-    smtp_input: &[u8],
-    expected_output: &[u8],
-    config: std::sync::Arc<Config>,
-) -> anyhow::Result<std::sync::Arc<dyn vqueue::GenericQueueManager>>
-where
-    M: OnMail + Send,
-{
-    let mut written_data = Vec::new();
-    let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
-    let mut conn = Connection::new(
-        ConnectionKind::Relay,
-        "127.0.0.1:53844".parse().unwrap(),
-        "127.0.0.1:53845".parse().unwrap(),
-        config.clone(),
-        &mut mock,
-    );
-
-    let rule_engine = std::sync::Arc::new(
-        RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
-    );
-
-    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
-
-    let queue_manager =
-        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
-
-    let result = conn
-        .receive(
-            None,
-            rule_engine,
-            resolvers,
-            queue_manager.clone(),
-            mail_handler,
-        )
-        .await;
-    tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
-        .await
-        .unwrap();
-
-    pretty_assertions::assert_eq!(
-        std::str::from_utf8(expected_output),
-        std::str::from_utf8(&written_data),
-    );
-
-    result?;
-
-    Ok(queue_manager)
-}
-
-/// Call `test_receiver_inner`
-#[allow(clippy::module_name_repetitions)]
+// TODO: handle trailing comma correctly
 #[macro_export]
-macro_rules! test_receiver {
-    ($input:expr, $output:expr) => {
-        test_receiver! {
-            on_mail => &mut $crate::receiver::DefaultMailHandler {},
-            with_config => std::sync::Arc::new($crate::config::local_test()),
-            $input,
-            $output
+macro_rules! run_test {
+    (
+        input = $input:expr,
+        expected = $expected:expr,
+        $(config = $config:expr)?,
+        $(config_arc = $config_arc:expr)?,
+        $(mail_handler = $mail_handler:expr)?,
+        $(rule_script = $rule_script:expr)?,
+    ) => {{
+        let expected: String = $expected.to_string();
+        let input: Vec<u8> = $input.as_bytes().to_vec();
+        let config: std::sync::Arc<vsmtp_config::Config> =  {
+            let _f = || std::sync::Arc::new($crate::config::local_test());  $(
+            let _f = || std::sync::Arc::new($config);                       )? $(
+            let _f = || $config_arc;                       )?
+            _f()
+        };
+        let mut mail_handler = { // Box<dyn OnMail + Send>
+            let _f = || $crate::receiver::DefaultMailHandler::default();    $(
+            let _f = || $mail_handler;                                      )?
+            Box::new(_f())
+        };
+
+        let mut written_data = Vec::new();
+        let mut mock = $crate::receiver::Mock::new(input, &mut written_data);
+        let mut conn = vsmtp_server::Connection::new(
+            vsmtp_common::ConnectionKind::Relay,
+            "127.0.0.1:53844".parse().expect("ip is valid"),
+            "127.0.0.1:53845".parse().expect("ip is valid"),
+            config.clone(),
+            &mut mock,
+        );
+
+        let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
+            let _f = || vsmtp_rule_engine::RuleEngine::new(
+                config.clone(), config.app.vsl.filepath.clone()
+            ).unwrap();                                         $(
+            let _f = || vsmtp_rule_engine::RuleEngine::from_script(
+                config.clone(), $rule_script
+            ).unwrap();                                         )?
+            std::sync::Arc::new(_f())
+        };
+        let resolvers = std::sync::Arc::new(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
+        let queue_manager =
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+        let result = conn
+            .receive(
+                None,
+                rule_engine,
+                resolvers,
+                queue_manager.clone(),
+                &mut *mail_handler,
+            )
+            .await;
+
+        tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
+            .await
+            .unwrap();
+
+        pretty_assertions::assert_eq!(
+            expected,
+            std::str::from_utf8(&written_data).unwrap(),
+        );
+
+        #[allow(clippy::question_mark)]
+        if let Err(e) = result {
+            Err(e)
+        } else {
+            Ok((queue_manager))
+        }
+    }};
+    (fn $name:ident,
+        input = $input:expr,
+        expected = $expected:expr,
+        $(config = $config:expr)?,
+        $(config_arc = $config_arc:expr)?,
+        $(mail_handler = $mail_handler:expr)?,
+        $(rule_script = $rule_script:expr)?,
+    ) => {
+        #[tokio::test]
+        async fn $name() {
+            run_test! {
+                input = $input,
+                expected = $expected,
+                $(config = $config)?,
+                $(config_arc = $config_arc)?,
+                $(mail_handler = $mail_handler)?,
+                $(rule_script = $rule_script)?,
+            }
+            .unwrap();
         }
     };
-    (on_mail => $resolver:expr, $input:expr, $output:expr) => {
-        test_receiver! {
-            on_mail => $resolver,
-            with_config => std::sync::Arc::new($crate::config::local_test()),
-            $input,
-            $output
+    (err fn $name:ident,
+        input = $input:expr,
+        expected = $expected:expr,
+        $(config = $config:expr)?,
+        $(config_arc = $config_arc:expr)?,
+        $(mail_handler = $mail_handler:expr)?,
+        $(rule_script = $rule_script:expr)?,
+    ) => {
+        #[tokio::test]
+        async fn $name() {
+            run_test! {
+                input = $input,
+                expected = $expected,
+                $(config = $config)?,
+                $(config_arc = $config_arc)?,
+                $(mail_handler = $mail_handler)?,
+                $(rule_script = $rule_script)?,
+            }
+            .unwrap_err();
         }
     };
-    (with_config => $config:expr, $input:expr, $output:expr) => {
-        test_receiver! {
-            on_mail => &mut $crate::receiver::DefaultMailHandler {},
-            with_config => $config,
-            $input,
-            $output
+    (multi fn $name:ident,
+        input = $input:expr,
+        expected = $expected:expr,
+        $(config = $config:expr)?,
+        $(config_arc = $config_arc:expr)?,
+        $(mail_handler = $mail_handler:expr)?,
+        $(rule_script = $rule_script:expr)?,
+    ) => {
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn $name() {
+            run_test! {
+                input = $input,
+                expected = $expected,
+                $(config = $config)?,
+                $(config_arc = $config_arc)?,
+                $(mail_handler = $mail_handler)?,
+                $(rule_script = $rule_script)?,
+            }
+            .unwrap();
         }
-    };
-    (on_mail => $resolver:expr, with_config => $config:expr, $input:expr, $output:expr) => {
-        $crate::receiver::test_receiver_inner(
-            $resolver,
-            $input.as_bytes(),
-            $output.as_bytes(),
-            $config,
-        )
-        .await
-    };
-    (with_auth, with_config => $config:expr, $input:expr, $output:expr) => {
-        test_receiver! {
-            with_auth,
-            with_config => $config,
-            on_mail => &mut $crate::receiver::DefaultMailHandler {},
-            $input,
-            $output
-        }
-    };
-    (with_auth, with_config => $config:expr, on_mail => $resolver:expr, $input:expr, $output:expr) => {
-        $crate::receiver::test_receiver_inner(
-            $resolver,
-            $input.as_bytes(),
-            $output.as_bytes(),
-            $config,
-        )
-        .await
     };
 }

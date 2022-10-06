@@ -15,65 +15,59 @@
  *
 */
 
-use crate::test_receiver;
+use crate::run_test;
 
 // TODO: add more test cases for this example.
-#[tokio::test]
-async fn test_check_relay() {
-    let toml = include_str!("../../../../../../examples/anti_relaying/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
-    let config = arc!(config);
 
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <satan@testserver.com>\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "554 5.7.1 Relay access denied\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+const TOML: &str = include_str!("../../../../../../examples/anti_relaying/vsmtp.toml");
 
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@mta-internal.foobar.com>\r\n",
-            "RCPT TO: <satan@example.com>\r\n",
-            "QUIT\r\n"
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "554 5.7.1 Relay access denied\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_check_relay_1,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <satan@testserver.com>\r\n",
+    ].concat(),
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "554 5.7.1 Relay access denied\r\n",
+    ]
+    .concat(),
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+}
 
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@mta-internal.foobar.com>\r\n",
-            "RCPT TO: <green@testserver.com>\r\n",
-            "QUIT\r\n"
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_check_relay_2,
+    input =  [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@mta-internal.foobar.com>\r\n",
+        "RCPT TO: <satan@example.com>\r\n",
+        "QUIT\r\n"
+    ].concat(),
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "554 5.7.1 Relay access denied\r\n",
+        "221 Service closing transmission channel\r\n"
+    ].concat(),
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+}
+
+run_test! {
+    fn test_check_relay_3,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@mta-internal.foobar.com>\r\n",
+        "RCPT TO: <green@testserver.com>\r\n",
+        "QUIT\r\n"
+    ].concat(),
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ].concat(),
+    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
 }

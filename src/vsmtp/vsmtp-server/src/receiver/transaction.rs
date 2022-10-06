@@ -32,15 +32,6 @@ pub struct Transaction {
     pub rule_engine: std::sync::Arc<RuleEngine>,
 }
 
-impl std::fmt::Debug for Transaction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Transaction")
-            .field("state", &self.state)
-            .field("rule_state", &self.rule_state)
-            .finish()
-    }
-}
-
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
     /// The SMTP handshake has been completed, `DATA` has been receive we are now

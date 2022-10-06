@@ -16,10 +16,21 @@
 */
 mod auth;
 mod clair;
-mod examples;
+mod examples {
+    mod aliases;
+    mod anti_relaying;
+    mod dnsbl;
+    mod family;
+    mod message;
+    mod services;
+}
 mod message_max_size;
 mod rset;
-mod rules;
+mod rules {
+    mod codes;
+    mod quarantine;
+}
 mod tls;
 mod utf8;
 mod vqueue;
+mod vrfy;

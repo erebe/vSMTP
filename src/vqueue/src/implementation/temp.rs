@@ -36,7 +36,7 @@ impl FilesystemQueueManagerExt for QueueManager {
     fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>> {
         let this = std::sync::Arc::new(Self {
             config,
-            tempdir: tempfile::tempdir()?,
+            tempdir: tempfile::Builder::new().rand_bytes(20).tempdir()?,
         });
 
         for i in <QueueID as strum::IntoEnumIterator>::iter() {

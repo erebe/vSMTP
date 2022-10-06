@@ -4,7 +4,7 @@ use crate::config::local_test;
 use vqueue::GenericQueueManager;
 use vqueue::QueueID;
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn init_success() {
     let config = arc!(local_test());
     let queue_manager =
@@ -13,7 +13,7 @@ async fn init_success() {
     pretty_assertions::assert_eq!(*queue_manager.get_config(), *config);
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn init_fail() {
     let mut config = local_test();
     config.server.queues.dirpath = "/var/spool/vsmtp".into(); // no write access
@@ -22,7 +22,7 @@ async fn init_fail() {
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config).unwrap_err();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn write_get_and_delete_ctx() {
     let config = arc!(local_test());
@@ -44,7 +44,7 @@ async fn write_get_and_delete_ctx() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn write_ctx_after_dir_deleted() {
     let config = arc!(local_test());
@@ -79,7 +79,7 @@ async fn write_msg_after_dir_deleted() {
     queue_manager.remove_msg(function_name!()).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn write_get_and_delete_msg() {
     let config = arc!(local_test());
@@ -95,7 +95,7 @@ async fn write_get_and_delete_msg() {
     queue_manager.remove_msg(function_name!()).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn write_get_and_delete_both() {
     let config = arc!(local_test());
@@ -123,7 +123,7 @@ async fn write_get_and_delete_both() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn move_same_queue() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
@@ -135,7 +135,7 @@ async fn move_same_queue() {
         .unwrap_err();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn move_to() {
     let config = arc!(local_test());
@@ -182,7 +182,7 @@ async fn move_to() {
         .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 #[function_name::named]
 async fn move_to_from_id() {
     let config = arc!(local_test());

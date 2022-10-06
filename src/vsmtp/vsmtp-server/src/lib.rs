@@ -39,10 +39,8 @@ mod receiver;
 mod runtime;
 mod server;
 
-pub use receiver::MailHandler;
-
 pub use channel_message::ProcessMessage;
-pub use receiver::{AbstractIO, Connection, OnMail};
+pub use receiver::{AbstractIO, Connection, MailHandler, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
