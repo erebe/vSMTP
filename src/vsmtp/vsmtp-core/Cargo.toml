@@ -55,7 +55,7 @@ humantime = { version = "2.1.0", default-features = false }
 console-subscriber = { version = "0.1.7", optional = true, default-features = false }
 
 tracing = { version = "0.1.37", default-features = false, features = ["std"] }
-tracing-subscriber = { version = "0.3.15", default-features = false, features = [
+tracing-subscriber = { version = "0.3.16", default-features = false, features = [
     "smallvec",
     "fmt",
     "ansi",
