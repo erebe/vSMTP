@@ -32,7 +32,7 @@ serde = { version = "1.0.145", default-features = false, features = [
     "std",
     "derive",
 ] }
-tracing = { version = "0.1.36", default-features = false, features = [
+tracing = { version = "0.1.37", default-features = false, features = [
     "std",
     "attributes",
 ] }
