@@ -10,8 +10,8 @@ fn retry_helo(helo) {
                 // using a code object to send an informative message.
                 const foo_invalid = code(
                     250,
-                    "foo is not accepted as a helo value.",
                     "2.0.0",
+                    "foo is not accepted as a helo value.",
                 );
 
                 info(foo_invalid);

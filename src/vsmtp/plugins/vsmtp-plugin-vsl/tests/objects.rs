@@ -71,7 +71,6 @@ test_build_object_err!(fqdn_err, fqdn, "bad@fqdn");
 test_build_object_err!(regex_err, regex, "^¨^^*zef");
 
 // test_build_object_ok!(file, "...", "...");
-// test_build_object_ok!(group, "...", "...");
 // test_build_object_ok!(code, "...", "...");
 // test_build_object_ok!(code, "...", "...");
 
@@ -99,8 +98,8 @@ eval_with_plugin!(object_file_declaration, vsmtp_plugin_vsl::plugin::Objects {},
         const custom_code = code(220, "this is a custom code.");
         const enhanced_code = code(
           220,
-          "this is a long message, a very very long message ... carriage return will be properly added automatically.",
-          "2.0.0"
+          "2.0.0",
+          "this is a long message, a very very long message ... carriage return will be properly added automatically."
         );
     }
 );

@@ -4,13 +4,13 @@
             if mail_from().domain == "satan.org" {
                 const deny_satan = code(
                     501,
-                    "satan is blacklisted on this server",
                     "4.7.1",
+                    "satan is blacklisted on this server",
                 );
 
                 deny(deny_satan)
             } else if mail_from().domain == "evil.com" {
-                const deny_evil = code(501, "evil is blacklisted on this server", "4.7.1");
+                const deny_evil = code(501, "4.7.1", "evil is blacklisted on this server");
 
                 deny(deny_evil)
             } else if mail_from().domain == "unpleasant.eu" {

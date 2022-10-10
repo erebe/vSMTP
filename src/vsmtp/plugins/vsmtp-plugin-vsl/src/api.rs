@@ -111,14 +111,14 @@ pub mod objects {
     #[rhai_fn(global, name = "code", return_raw)]
     pub fn code_enhanced(
         code: rhai::INT,
-        text: &str,
         enhanced: &str,
+        text: &str,
     ) -> Result<VSLObject, Box<rhai::EvalAltResult>> {
         Ok(rhai::Shared::new(Object::new_code_enhanced(
             u16::try_from(code)
                 .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
-            text,
             enhanced,
+            text,
         )))
     }
 }

@@ -177,7 +177,7 @@ impl Object {
     }
 
     /// Create a new code object with an enhanced code.
-    pub fn new_code_enhanced<T>(code: u16, text: T, enhanced: T) -> Object
+    pub fn new_code_enhanced<T>(code: u16, enhanced: T, text: T) -> Object
     where
         T: Into<String>,
     {
