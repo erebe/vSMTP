@@ -371,12 +371,12 @@ impl RuleEngine {
             }
         });
 
-        if cfg!(debug_assertions) {
-            engine.on_print(|msg| println!("{msg}"));
-            engine.on_debug(move |s, src, pos| {
+        #[cfg(debug_assertion)]
+        engine
+            .on_print(|msg| println!("{msg}"))
+            .on_debug(move |s, src, pos| {
                 println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
             });
-        }
 
         engine
             .disable_symbol("eval")
