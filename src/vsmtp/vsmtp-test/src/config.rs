@@ -20,7 +20,6 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
-
 /// find a file in root examples.
 #[macro_export]
 macro_rules! root_example {

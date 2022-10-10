@@ -16,11 +16,12 @@
 */
 
 use crate::run_test;
+use vsmtp_common::state::State;
 use vsmtp_server::ProcessMessage;
 
 const QUARANTINE_RULE: &str = r#"
 #{
-    preq: [
+    {stage}: [
         rule "quarantine john" || {
             if mail_from().local_part == "john.doe" {
                 quarantine("john")
@@ -32,8 +33,7 @@ const QUARANTINE_RULE: &str = r#"
 }
 "#;
 
-#[tokio::test]
-async fn test_quarantine() {
+async fn actual_test(stage: State) {
     let config = std::sync::Arc::new(crate::config::local_test());
 
     let (delivery_sender, _d) =
@@ -66,7 +66,7 @@ async fn test_quarantine() {
         .concat(),,
         config_arc = config.clone(),
         mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
-        rule_script = QUARANTINE_RULE,
+        rule_script = &QUARANTINE_RULE.replace("{stage}", &stage.to_string()),
     }
     .unwrap();
 
@@ -81,4 +81,20 @@ async fn test_quarantine() {
         .count(),
         1
     );
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn test_quarantine(
+    #[values(
+        // State::Connect,
+        // State::Helo,
+        // State::Authenticate,
+        State::MailFrom,
+        State::RcptTo,
+        State::PreQ
+    )]
+    stage: State,
+) {
+    actual_test(stage).await;
 }

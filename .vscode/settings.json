@@ -86,6 +86,7 @@
     "routable",
     "rsasl",
     "Rset",
+    "rstest",
     "Rustc",
     "RUSTDOCFLAGS",
     "RUSTFLAGS",
