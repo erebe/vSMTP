@@ -15,12 +15,8 @@
  *
 */
 use super::server_api::ServerAPI;
-use crate::api::{Context, Message, Server, SharedObject};
-use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::api::{Context, Message, Server};
 use crate::dsl::directives::Directive;
-use crate::dsl::rule::parsing::{create_rule, parse_rule};
-// use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::rule_engine::RuleEngine;
 use vqueue::GenericQueueManager;
 use vsmtp_common::mail_context::MessageMetadata;
@@ -31,6 +27,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_plugins::rhai;
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
@@ -138,6 +135,7 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
+        #[cfg(feature = "delegation")]
         if rule_engine
             .directives
             .iter()
@@ -231,17 +229,28 @@ impl RuleState {
             .register_global_module(rule_engine.vsl_rhai_module.clone())
             .register_static_module("sys", rule_engine.vsl_native_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
-            // FIXME: the following 4 lines should be remove for performance improvement.
+            // FIXME: the following lines should be remove for performance improvement.
             //        need to check out how to construct directives as a module.
-            .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)
-            .register_custom_syntax_with_state_raw("action", parse_action, true, create_action)
             .register_custom_syntax_with_state_raw(
-                "delegate",
-                parse_delegation,
+                "rule",
+                Directive::parse_directive,
                 true,
-                create_delegation,
+                crate::dsl::directives::rule::create,
             )
-            .register_iterator::<Vec<SharedObject>>();
+            .register_custom_syntax_with_state_raw(
+                "action",
+                Directive::parse_directive,
+                true,
+                crate::dsl::directives::action::create,
+            );
+
+        #[cfg(feature = "delegation")]
+        engine.register_custom_syntax_with_state_raw(
+            "delegate",
+            Directive::parse_directive,
+            true,
+            crate::dsl::directives::delegation::create,
+        );
 
         engine.set_fast_operators(false);
 

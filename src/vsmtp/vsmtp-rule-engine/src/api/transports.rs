@@ -14,6 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+use vsmtp_plugins::rhai;
+
 use crate::api::{Context, EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,

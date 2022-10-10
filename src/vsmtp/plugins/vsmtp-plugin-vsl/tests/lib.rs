@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
-pub mod cmd;
-pub mod smtp;
+#[cfg(test)]
+pub mod objects;
+#[cfg(test)]
+pub mod utils;

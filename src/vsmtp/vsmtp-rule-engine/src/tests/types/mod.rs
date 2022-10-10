@@ -52,34 +52,7 @@ fn test_time_and_date() {
 }
 
 #[test]
-fn test_ip() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["ip", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(
-        re.run_when(&mut state, State::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
-
-#[test]
-fn test_objects() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["objects", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(re.run_when(&mut state, State::Connect), Status::Next);
-}
-
-#[test]
-fn test_services() {
+fn test_cmd() {
     let config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
@@ -104,7 +77,7 @@ fn test_services() {
 
     let config = std::sync::Arc::new(config);
 
-    let re = RuleEngine::new(config.clone(), Some(rules_path!["service", "main.vsl"])).unwrap();
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["cmd", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
@@ -159,7 +132,7 @@ fn test_config_display() {
 
     let config = std::sync::Arc::new(config);
 
-    let re = RuleEngine::new(config.clone(), Some(rules_path!["objects", "main.vsl"])).unwrap();
+    let re = RuleEngine::new(config.clone(), Some(rules_path!["config", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
@@ -169,7 +142,7 @@ fn test_config_display() {
     *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
-        re.run_when(&mut state, State::Helo),
+        re.run_when(&mut state, State::Connect),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

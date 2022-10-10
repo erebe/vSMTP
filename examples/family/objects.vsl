@@ -13,7 +13,7 @@ export const jenny = address("jenny.doe@doe-family.com");
 export const fridge = address("IOT-fridge@doe-family.com");
 
 // A group to manipulate the mailboxes
-export const family_addr = group([john, jane, jimmy, jenny]);
+export const family_addr = [john, jane, jimmy, jenny];
 
 // A quarantine for unknown mailboxes
 export const unknown_quarantine = "doe/bad_user";

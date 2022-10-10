@@ -15,4 +15,15 @@
  *
 */
 
-pub mod parsing;
+//! This vSMTP plugin adds a superset of functions to the rhai scripting language,
+//! including regex, ip objects, ip ranges, email addresses and so on.
+//!
+//! The Rule Engine of vSMTP will always register this plugin, you can use the [`object.rs`]
+//! file to support vSL's types within your own plugin.
+
+/// The rhai plugin implementation.
+pub mod api;
+/// vSL objects and their implementation.
+pub mod objects;
+/// Plugin declaration.
+pub mod plugin;

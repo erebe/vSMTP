@@ -17,5 +17,8 @@
 
 pub mod managers;
 pub mod plugins;
+pub mod utils;
 
 pub use rhai;
+// TODO: replace anyhow by a custom error type.
+pub use anyhow;

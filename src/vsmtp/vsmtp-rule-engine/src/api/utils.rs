@@ -14,6 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+use vsmtp_plugin_vsl::objects::Object;
+use vsmtp_plugins::rhai;
+
 use crate::api::{EngineResult, Server, SharedObject};
 use anyhow::Context;
 use rhai::plugin::{
@@ -30,7 +34,6 @@ pub use utils_rhai::*;
 
 #[rhai::plugin::export_module]
 mod utils_rhai {
-    use crate::dsl::objects::Object;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.

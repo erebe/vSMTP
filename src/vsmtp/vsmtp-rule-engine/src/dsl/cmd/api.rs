@@ -15,6 +15,8 @@
  *
 */
 
+use vsmtp_plugins::rhai;
+
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
@@ -25,15 +27,15 @@ use rhai::Module;
 pub mod cmd {
     use crate::api::EngineResult;
 
-    type Cmd = rhai::Shared<crate::dsl::service::cmd::service::Cmd>;
+    type Cmd = rhai::Shared<crate::dsl::cmd::service::Cmd>;
 
     #[rhai_fn(global, return_raw)]
     pub fn cmd(parameters: rhai::Map) -> EngineResult<Cmd> {
-        let parameters: crate::dsl::service::cmd::plugin::CmdParameters =
+        let parameters: crate::dsl::cmd::plugin::CmdParameters =
             vsmtp_plugins::plugins::vsl::native::deserialize_rhai_map("cmd", parameters)
                 .map_err::<rhai::EvalAltResult, _>(|err| err.to_string().into())?;
 
-        Ok(rhai::Shared::new(crate::dsl::service::cmd::service::Cmd {
+        Ok(rhai::Shared::new(crate::dsl::cmd::service::Cmd {
             timeout: parameters.timeout,
             user: parameters.user,
             group: parameters.group,

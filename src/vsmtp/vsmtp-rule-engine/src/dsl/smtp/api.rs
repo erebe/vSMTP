@@ -15,12 +15,14 @@
  *
 */
 
+use vsmtp_common::transfer::SmtpConnection;
+use vsmtp_plugins::rhai;
+
 use lettre;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
 use rhai::Module;
-use vsmtp_common::transfer::SmtpConnection;
 
 #[derive(Debug, serde::Deserialize)]
 struct SmtpDelegatorParameters {
@@ -46,7 +48,7 @@ const fn default_timeout() -> std::time::Duration {
 #[rhai::plugin::export_module]
 pub mod smtp {
 
-    type Smtp = rhai::Shared<crate::dsl::service::smtp::service::Smtp>;
+    type Smtp = rhai::Shared<crate::dsl::smtp::service::Smtp>;
 
     /// Build a new SMTP service.
     #[rhai_fn(global, return_raw)]
@@ -55,19 +57,17 @@ pub mod smtp {
             vsmtp_plugins::plugins::vsl::native::deserialize_rhai_map("smtp", parameters)
                 .map_err::<rhai::EvalAltResult, _>(|err| err.to_string().into())?;
 
-        Ok(rhai::Shared::new(
-            crate::dsl::service::smtp::service::Smtp {
-                delegator: SmtpConnection(std::sync::Arc::new(std::sync::Mutex::new(
-                    lettre::SmtpTransport::builder_dangerous(
-                        parameters.delegator.address.ip().to_string(),
-                    )
-                    .port(parameters.delegator.address.port())
-                    .timeout(Some(parameters.delegator.timeout))
-                    .build(),
-                ))),
-                receiver: parameters.receiver,
-            },
-        ))
+        Ok(rhai::Shared::new(crate::dsl::smtp::service::Smtp {
+            delegator: SmtpConnection(std::sync::Arc::new(std::sync::Mutex::new(
+                lettre::SmtpTransport::builder_dangerous(
+                    parameters.delegator.address.ip().to_string(),
+                )
+                .port(parameters.delegator.address.port())
+                .timeout(Some(parameters.delegator.timeout))
+                .build(),
+            ))),
+            receiver: parameters.receiver,
+        }))
     }
 
     ///

@@ -14,12 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    api::{
-        transports::disable_delivery_all,
-        EngineResult, {Context, SharedObject},
-    },
-    dsl::objects::Object,
+
+use vsmtp_plugin_vsl::objects::Object;
+use vsmtp_plugins::rhai;
+
+use crate::api::{
+    transports::disable_delivery_all,
+    EngineResult, {Context, SharedObject},
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,

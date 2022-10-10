@@ -15,6 +15,8 @@
  *
 */
 
+use vsmtp_plugins::rhai;
+
 use crate::api::{Context, EngineResult, Message, Server};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,

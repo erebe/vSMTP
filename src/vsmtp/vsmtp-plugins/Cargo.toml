@@ -35,3 +35,7 @@ rhai = { version = "1.10.1", git = "https://github.com/schungx/rhai", features =
     "no_closure",
     "metadata",
 ] }
+
+[features]
+default = []
+testing = [] # Exposes helpers to test plugins.

@@ -14,33 +14,23 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 #{
-    connect: [
-        rule "test_socket" || {
-            print(client_ip().to_string());
-            print(client_ip().to_debug());
-            print(client_port());
+   connect: [
+        rule "dump configuration" || {
+            if toml::server.domain == "testserver.com"
+            && toml::server.system.user == "root"
+            && toml::server.system.group == "root"
+            && toml::server.virtual["domain@example.com"].tls.protocol_version == ["TLSv1.3"]
 
-            if client_ip().to_string() is "0.0.0.0"
-            && client_ip().to_debug() is "\"0.0.0.0\""
-            && client_port() is 0
-
-            && client_ip() is "0.0.0.0"
-            && "0.0.0.0" is client_ip()
-            && client_ip() == "0.0.0.0"
-            && "0.0.0.0" == client_ip()
-            && client_port() is 0
-            && client_port() == 0
-            && client_ip() not "127.0.0.1"
-            && client_ip() != "127.0.0.1"
-            && client_port() not 25
-            && client_port() != 25
-
-            {
-                accept()
+            && toml::app.dirpath == "./tmp/app"
+            && toml::app.vsl.filepath == "./tmp/nothing" {
+                next()
             } else {
                 deny()
             }
-        }
-    ]
+        },
+
+        rule "trailing" || accept(),
+   ],
 }

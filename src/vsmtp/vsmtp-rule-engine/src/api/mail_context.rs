@@ -14,11 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    api::{
-        EngineResult, {Context, Server, SharedObject},
-    },
-    dsl::objects::Object,
+
+use vsmtp_plugin_vsl::objects::Object;
+use vsmtp_plugins::rhai;
+
+use crate::api::{
+    EngineResult, {Context, Server, SharedObject},
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -179,12 +180,14 @@ mod mail_context_rhai {
 
     /// Get the `RcptTo` envelope.
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
-    pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<SharedObject>> {
+    pub fn rcpt_list(context: &mut Context) -> EngineResult<rhai::Array> {
         Ok(vsl_guard_ok!(context.read())
             .envelop
             .rcpt
             .iter()
-            .map(|rcpt| std::sync::Arc::new(Object::Address(rcpt.address.clone())))
+            .map(|rcpt| {
+                rhai::Dynamic::from(std::sync::Arc::new(Object::Address(rcpt.address.clone())))
+            })
             .collect())
     }
 

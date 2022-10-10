@@ -14,6 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+use vsmtp_plugins::rhai;
+
 use crate::api::{
     EngineResult, {Message, SharedObject},
 };
@@ -317,9 +320,9 @@ where
 #[cfg(test)]
 mod test {
     use vsmtp_mail_parser::MessageBody;
+    use vsmtp_plugin_vsl::objects::Object;
 
     use super::*;
-    use crate::dsl::objects::Object;
 
     #[test]
     fn test_has_header_success() {

@@ -16,6 +16,7 @@ release. They will however *never* happen in a patch release.
 ### Added
 
 * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
+* A delegation feature gate on `vsmtp-rule-engine`. (#660)
 
 ### Changed
 
@@ -29,6 +30,24 @@ const localhost = ip4("127.0.0.1");
 ```
 * Moved the csv database to an external plugin. (#625)
 * Moved the mysql database to an external plugin. (#625)
+* Moved vSL syntax to a crate for better reusability. (#660)
+* Remove Group object & function, replaced by Rhai arrays. (#660)
+```js
+const localhost = ip4("127.0.0.1");
+const john = identifier("john.doe");
+
+// declaration of a group.
+const group = [ localhost, john ];
+```
+* Remove File object, replaced by Rhai arrays. (#660)
+```js
+// This returns an Array of addresses.
+const whitelist = file("/etc/vsmtp/whitelist.txt", "address");
+
+for addr in whitelist {
+  // ...
+}
+```
 
 ## [1.3.3] - 2022-10-03
 

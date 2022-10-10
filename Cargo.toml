@@ -16,6 +16,8 @@ members = [
   "src/vsmtp/vsmtp-test",
 
   # Plugins.
+  "src/vsmtp/plugins/vsmtp-plugin-vsl",
+
   # "src/vsmtp/plugins/vsmtp-plugin-csv",
   # "src/vsmtp/plugins/vsmtp-plugin-mysql",
 ]

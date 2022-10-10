@@ -15,4 +15,29 @@
  *
 */
 
-pub mod parsing;
+use vsmtp_plugins::{
+    anyhow,
+    plugins::{vsl::native::Native, Plugin},
+    rhai,
+};
+
+pub struct Objects;
+
+impl Plugin for Objects {
+    fn name(&self) -> &'static str {
+        "objects"
+    }
+}
+
+impl Native for Objects {
+    fn register(
+        &self,
+        mut builder: vsmtp_plugins::plugins::vsl::native::Builder<'_>,
+    ) -> anyhow::Result<()> {
+        builder.register_global_module(rhai::exported_module!(super::api::objects));
+        builder.register_global_module(rhai::exported_module!(super::api::utils));
+        builder.register_global_module(rhai::exported_module!(super::api::comparisons));
+
+        Ok(())
+    }
+}

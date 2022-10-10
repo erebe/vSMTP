@@ -17,6 +17,12 @@
 
 use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::State, status::Status};
+use vsmtp_plugins::rhai;
+
+pub mod action;
+#[cfg(feature = "delegation")]
+pub mod delegation;
+pub mod rule;
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<State, Vec<Directive>>;
@@ -32,10 +38,11 @@ pub enum Directive {
     /// delegate a message to a service, and execute the
     /// inner rhai function when the message is forwarded
     /// to the service receive endpoint.
+    #[cfg(feature = "delegation")]
     Delegation {
         name: String,
         pointer: rhai::FnPtr,
-        service: std::sync::Arc<super::service::smtp::service::Smtp>,
+        service: std::sync::Arc<crate::dsl::smtp::service::Smtp>,
     },
 }
 
@@ -49,12 +56,47 @@ impl std::fmt::Debug for Directive {
 }
 
 impl Directive {
+    /// Parse any type of directive.
+    pub fn parse_directive(
+        symbols: &[rhai::ImmutableString],
+        look_ahead: &str,
+        state: &mut rhai::Dynamic,
+    ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
+        if symbols.len() == 1 {
+            *state = rhai::Dynamic::from(symbols[0].clone());
+        }
+
+        let directive_type = state.to_string();
+
+        match symbols.len() {
+            // In case of a delegation, we need to associate a smtp service.
+            1 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())), // 'delegate' -> service.
+            2 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$string$".into())), // service    -> directive name
+            3 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())), // dn         -> directive body
+            4 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(None),
+
+            // For any other directive ...
+            1 => Ok(Some("$string$".into())), // directive keyword -> directive name
+            2 => Ok(Some("$expr$".into())),   // directive name    -> directive body
+            3 => Ok(None),
+
+            _ => Err(rhai::ParseError(
+                Box::new(rhai::ParseErrorType::BadInput(
+                    rhai::LexError::UnexpectedInput(format!(
+                        "Improper {directive_type} declaration: the '{look_ahead}' keyword is unknown.",
+                    )),
+                )),
+                rhai::Position::NONE,
+            )),
+        }
+    }
+
     /// Get the name of the directive.
     pub fn name(&self) -> &str {
         match self {
-            Self::Delegation { name, .. } | Self::Rule { name, .. } | Self::Action { name, .. } => {
-                name
-            }
+            #[cfg(feature = "delegation")]
+            Self::Delegation { name, .. } => name,
+            Self::Rule { name, .. } | Self::Action { name, .. } => name,
         }
     }
 
@@ -78,6 +120,7 @@ impl Directive {
 
                 Ok(Status::Next)
             }
+            #[cfg(feature = "delegation")]
             Directive::Delegation {
                 pointer,
                 service,

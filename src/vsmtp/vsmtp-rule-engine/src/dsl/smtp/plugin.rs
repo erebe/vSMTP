@@ -15,22 +15,21 @@
  *
 */
 
-use vsmtp_plugins::plugins::{vsl::native::Native, Plugin};
+use vsmtp_plugins::plugins::vsl;
+use vsmtp_plugins::plugins::vsl::native::Native;
+use vsmtp_plugins::plugins::Plugin;
 
-pub struct Objects;
+pub struct Smtp;
 
-impl Plugin for Objects {
+impl Plugin for Smtp {
     fn name(&self) -> &'static str {
-        "objects"
+        "smtp"
     }
 }
 
-impl Native for Objects {
-    fn register(
-        &self,
-        mut builder: vsmtp_plugins::plugins::vsl::native::Builder<'_>,
-    ) -> anyhow::Result<()> {
-        builder.register_global_module(rhai::exported_module!(super::api::objects));
+impl Native for Smtp {
+    fn register(&self, mut builder: vsl::native::Builder<'_>) -> anyhow::Result<()> {
+        builder.register_global_module(vsmtp_plugins::rhai::exported_module!(super::api::smtp));
 
         Ok(())
     }

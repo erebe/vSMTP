@@ -15,32 +15,9 @@
  *
 */
 use crate::{api::EngineResult, error::CompilationError};
+use vsmtp_plugins::rhai;
 
-pub fn parse_action(
-    symbols: &[rhai::ImmutableString],
-    look_ahead: &str,
-    _state: &mut rhai::Dynamic,
-) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
-    match symbols.len() {
-        // action keyword ...
-        1 => Ok(Some("$string$".into())),
-        // name of the action ...
-        2 => Ok(Some("$expr$".into())),
-        // block, we are done parsing.
-        3 => Ok(None),
-        _ => Err(rhai::ParseError(
-            Box::new(rhai::ParseErrorType::BadInput(
-                rhai::LexError::UnexpectedInput(format!(
-                    "Improper action declaration: keyword '{}' unknown.",
-                    look_ahead
-                )),
-            )),
-            rhai::Position::NONE,
-        )),
-    }
-}
-
-pub fn create_action(
+pub fn create(
     context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
     input: &[rhai::Expression<'_>],
     _state: &rhai::Dynamic,

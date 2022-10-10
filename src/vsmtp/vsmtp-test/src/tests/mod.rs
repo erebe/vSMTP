@@ -22,7 +22,6 @@ mod examples {
     mod dnsbl;
     mod family;
     mod message;
-    mod services;
 }
 mod message_max_size;
 mod rset;

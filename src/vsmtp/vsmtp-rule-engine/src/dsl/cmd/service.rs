@@ -15,6 +15,8 @@
  *
 */
 
+use vsmtp_plugins::rhai;
+
 #[derive(Debug, Clone)]
 /// A service that executes commands.
 pub struct Cmd {

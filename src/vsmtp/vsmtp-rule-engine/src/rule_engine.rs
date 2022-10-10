@@ -14,16 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use crate::api::{rule_state::deny, EngineResult, SharedObject, StandardVSLPackage};
-use crate::dsl::objects::plugin::Objects;
-use crate::dsl::service::cmd::plugin::Cmd;
-use crate::dsl::service::smtp::{plugin, service};
-use crate::dsl::{
-    action::parsing::{create_action, parse_action},
-    delegation::parsing::{create_delegation, parse_delegation},
-    directives::{Directive, Directives},
-    rule::parsing::{create_rule, parse_rule},
-};
+use crate::api::{rule_state::deny, EngineResult, StandardVSLPackage};
+use crate::dsl::cmd::plugin::Cmd;
+use crate::dsl::directives::{Directive, Directives};
+use crate::dsl::smtp::{plugin, service};
 use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
@@ -31,8 +25,10 @@ use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{mail_context::MailContext, state::State, status::Status};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_plugin_vsl::plugin::Objects;
 use vsmtp_plugins::managers::native::NativeVSL;
 use vsmtp_plugins::managers::PluginManager;
+use vsmtp_plugins::rhai;
 
 macro_rules! block_on {
     ($future:expr) => {
@@ -290,6 +286,10 @@ impl RuleEngine {
             }
             Err(error) => {
                 tracing::error!(%error);
+
+                #[cfg(debug_assertions)]
+                println!("Rule engine error: {error:?}");
+
                 // TODO: keep the error for the `deferred` info.
 
                 // if an error occurs, the engine denies the connection by default.
@@ -380,15 +380,26 @@ impl RuleEngine {
 
         engine
             .disable_symbol("eval")
-            .register_custom_syntax_with_state_raw("rule", parse_rule, true, create_rule)
-            .register_custom_syntax_with_state_raw("action", parse_action, true, create_action)
             .register_custom_syntax_with_state_raw(
-                "delegate",
-                parse_delegation,
+                "rule",
+                Directive::parse_directive,
                 true,
-                create_delegation,
+                crate::dsl::directives::rule::create,
             )
-            .register_iterator::<Vec<SharedObject>>();
+            .register_custom_syntax_with_state_raw(
+                "action",
+                Directive::parse_directive,
+                true,
+                crate::dsl::directives::action::create,
+            );
+
+        #[cfg(feature = "delegation")]
+        engine.register_custom_syntax_with_state_raw(
+            "delegate",
+            Directive::parse_directive,
+            true,
+            crate::dsl::directives::delegation::create,
+        );
 
         engine.set_fast_operators(false);
 
@@ -479,6 +490,7 @@ impl RuleEngine {
                         match directive_type.as_str() {
                             "rule" => Directive::Rule { name, pointer },
                             "action" => Directive::Action { name, pointer },
+                            #[cfg(feature = "delegation")]
                             "delegate" => {
 
                                 if !stage.is_email_received() {
@@ -507,7 +519,7 @@ impl RuleEngine {
         let names = directives
             .iter()
             .flat_map(|(_, d)| d)
-            .map(crate::dsl::directives::Directive::name)
+            .map(Directive::name)
             .collect::<Vec<_>>();
 
         // TODO: refactor next loop with templated function 'find_duplicate'.

@@ -14,29 +14,32 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::api::{EngineResult, SharedObject};
-use crate::dsl::objects::Object;
+
+use vsmtp_plugins::rhai;
+
+use crate::api::EngineResult;
 use rhai::plugin::{
-    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, RhaiResult, TypeId,
+    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
+    RhaiResult, TypeId,
 };
 use vsmtp_common::status::Status;
 
 pub use types_rhai::*;
 
-#[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 mod types_rhai {
 
     // Status
 
     /// Operator `==` for `Status`
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
     }
 
     /// Operator `!=` for `Status`
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", pure)]
     pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
         !(*in1 == in2)
@@ -75,198 +78,5 @@ mod types_rhai {
             this.duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
         ))
-    }
-
-    /// Get the `local part` of an email address
-    #[rhai_fn(global, get = "local_part", return_raw, pure)]
-    pub fn local_part(addr: &mut SharedObject) -> EngineResult<String> {
-        match &**addr {
-            Object::Address(addr) => Ok(addr.local_part().to_string()),
-            other => Err(format!("cannot extract local part for {} object", other.as_ref()).into()),
-        }
-    }
-
-    /// Get the `domain` of an email address
-    #[rhai_fn(global, get = "domain", return_raw, pure)]
-    pub fn domain(addr: &mut SharedObject) -> EngineResult<String> {
-        match &**addr {
-            Object::Address(addr) => Ok(addr.domain().to_string()),
-            other => Err(format!("cannot extract domain for {} object", other.as_ref()).into()),
-        }
-    }
-
-    // vsmtp's rule engine obj syntax (SharedObject).
-
-    /// Convert a `SharedObject` to a `String`
-    #[rhai_fn(global, name = "to_string", pure)]
-    pub fn object_to_string(this: &mut SharedObject) -> String {
-        this.to_string()
-    }
-
-    /// Convert a `SharedObject` to a debug string
-    #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn object_to_debug(this: &mut SharedObject) -> String {
-        format!("{:#?}", **this)
-    }
-
-    /// Operator `==` for `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "==", pure)]
-    pub fn object_is_self(this: &mut SharedObject, other: SharedObject) -> bool {
-        **this == *other
-    }
-
-    /// Operator `!=` for `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "!=", pure)]
-    pub fn object_not_self(this: &mut SharedObject, other: SharedObject) -> bool {
-        **this != *other
-    }
-
-    /// Operator `==` for `SharedObject` and `&str`
-    #[rhai_fn(global, name = "==", return_raw, pure)]
-    pub fn object_is_string(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
-        internal_string_is_object(s, this)
-    }
-
-    /// Operator `!=` for `SharedObject` and `&str`
-    #[rhai_fn(global, name = "!=", return_raw, pure)]
-    pub fn object_not_string(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
-        internal_string_is_object(s, this).map(|res| !res)
-    }
-
-    /// Operator `==` for `&str` and `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "==", return_raw)]
-    pub fn string_is_object(this: &str, other: SharedObject) -> EngineResult<bool> {
-        internal_string_is_object(this, &other)
-    }
-
-    /// Operator `!=` for `&str` and `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "!=", return_raw)]
-    pub fn string_not_object(this: &str, other: SharedObject) -> EngineResult<bool> {
-        internal_string_is_object(this, &other).map(|res| !res)
-    }
-
-    /// Operator `contains`
-    #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn string_in_object(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
-        internal_string_in_object(s, this)
-    }
-
-    /// Operator `contains`
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "contains", pure)]
-    pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> bool {
-        this.contains(&other)
-    }
-
-    // vsmtp's rule engine obj syntax container (Vec<SharedObject>).
-
-    /// Convert a `Vec<SharedObject>` to a `String`
-    #[rhai_fn(global, name = "to_string", pure)]
-    pub fn object_vec_to_string(this: &mut Vec<SharedObject>) -> String {
-        format!("{this:?}")
-    }
-
-    /// Convert a `Vec<SharedObject>` to a debug string
-    #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn object_vec_to_debug(this: &mut Vec<SharedObject>) -> String {
-        format!("{this:#?}")
-    }
-
-    /// Operator `contains`
-    #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
-    #[rhai_fn(global, name = "contains", pure)]
-    pub fn string_in_object_vec(this: &mut Vec<SharedObject>, other: &str) -> bool {
-        this.iter().any(|obj| obj.to_string() == other)
-    }
-
-    /// Operator `contains`
-    #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
-    #[rhai_fn(global, name = "contains", pure)]
-    pub fn object_in_object_vec(this: &mut Vec<SharedObject>, other: SharedObject) -> bool {
-        this.iter().any(|obj| **obj == *other)
-    }
-
-    // rcpt container.
-
-    /// Get the `local parts` of an array of email address
-    #[allow(clippy::ptr_arg)]
-    #[rhai_fn(global, get = "local_parts", return_raw, pure)]
-    pub fn rcpt_local_parts(this: &mut Vec<SharedObject>) -> EngineResult<Vec<SharedObject>> {
-        this.iter()
-            .map(|rcpt| match &**rcpt {
-                Object::Address(addr) => Ok(std::sync::Arc::new(Object::Identifier(
-                    addr.local_part().to_string(),
-                ))),
-                other => Err(
-                    format!("cannot extract local part from a {} object", other.as_ref()).into(),
-                ),
-            })
-            .collect::<EngineResult<Vec<SharedObject>>>()
-    }
-
-    /// Get the `domains` of an array of email address
-    #[allow(clippy::ptr_arg)]
-    #[rhai_fn(global, get = "domains", return_raw, pure)]
-    pub fn rcpt_domains(this: &mut Vec<SharedObject>) -> EngineResult<Vec<SharedObject>> {
-        this.iter()
-            .map(|rcpt| match &**rcpt {
-                Object::Address(addr) => {
-                    Ok(std::sync::Arc::new(Object::Fqdn(addr.domain().to_string())))
-                }
-                other => {
-                    Err(format!("cannot extract domain from a {} object", other.as_ref()).into())
-                }
-            })
-            .collect::<EngineResult<Vec<SharedObject>>>()
-    }
-
-    /// Create a new address from a string.
-    #[rhai_fn(global, name = "new_address", return_raw)]
-    pub fn new_address(address: &str) -> EngineResult<SharedObject> {
-        Object::new_address(address)
-            .map_err(|err| format!("failed to parse {address}: {err}").into())
-            .map(std::convert::Into::into)
-    }
-}
-
-pub use rhai::*;
-
-// the following methods are used to compare recursively deep objects
-// using refs instead of shared rhai objects.
-// FIXME: using generics here should be a good idea.
-// TODO:  all comparison function should return an error in case of mismatching types.
-
-pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<bool> {
-    match other {
-        Object::Address(addr) => Ok(this == addr.full()),
-        Object::Fqdn(fqdn) => Ok(this == fqdn),
-        Object::Regex(re) => Ok(re.is_match(this)),
-        Object::Ip4(ip4) => Ok(this == ip4.to_string()),
-        Object::Ip6(ip6) => Ok(this == ip6.to_string()),
-        Object::Identifier(s) => Ok(this == s),
-        _ => Err(format!("a {} object cannot be compared to a string", other).into()),
-    }
-}
-
-// TODO: rg4, rg6, str handling.
-pub(crate) fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
-    match other {
-        Object::Group(group) => Ok(group.iter().any(|obj| match obj {
-            either::Either::Left(object) => internal_string_is_object(this, object).unwrap_or(false),
-            either::Either::Right(dynamic) => dynamic.to_string() == this,
-        })),
-        Object::File(file) => Ok(file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
-        _ => {
-             Err(format!(
-                "the 'in' operator can only be used with 'group' and 'file' object types, you used a string '{}' with the object {}",
-                this,
-                other
-            )
-            .into())
-        }
     }
 }

@@ -15,9 +15,12 @@
  *
 */
 
-use vsmtp_plugins::plugins::{
-    vsl::native::{Builder, Native},
-    Plugin,
+use vsmtp_plugins::{
+    plugins::{
+        vsl::native::{Builder, Native},
+        Plugin,
+    },
+    rhai,
 };
 
 #[derive(Debug, serde::Deserialize)]

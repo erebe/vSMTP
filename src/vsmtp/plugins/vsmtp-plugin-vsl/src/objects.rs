@@ -15,8 +15,9 @@
  *
 */
 
-pub mod api;
-pub mod plugin;
+use std::str::FromStr;
+
+use vsmtp_plugins::{anyhow, rhai};
 
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
@@ -40,10 +41,6 @@ pub enum Object {
     Fqdn(String),
     /// a regex (^[a-z0-9.]+@foo.com$)
     Regex(regex::Regex),
-    /// the content of a file.
-    File(Vec<Object>),
-    /// a group of vSL objects / any rhai type.
-    Group(Vec<either::Either<SharedObject, rhai::Dynamic>>),
     /// a user identifier.
     Identifier(String),
     /// a custom smtp reply code.
@@ -75,7 +72,6 @@ impl Object {
             "identifier" => Ok(Self::new_identifier(value)),
 
             // "file" => Ok(Self::new_file(value)),
-            // "group" => Ok(Self::new_ip4(value)),
             // "code" => Ok(()),
             _ => Err(anyhow::anyhow!("invalid object type: {}", s)),
         }
@@ -155,33 +151,13 @@ impl Object {
     pub fn new_file(
         path: impl AsRef<std::path::Path>,
         content_type: impl AsRef<str>,
-    ) -> anyhow::Result<Object> {
-        let objects = std::fs::read_to_string(path.as_ref())?
+    ) -> anyhow::Result<rhai::Array> {
+        std::fs::read_to_string(path.as_ref())?
             .lines()
             .map(str::trim)
             .filter(|line| !line.is_empty())
-            .map(|line| Self::from_str(content_type.as_ref(), line))
-            .collect::<anyhow::Result<Vec<Object>>>()?;
-
-        Ok(Object::File(objects))
-    }
-
-    /// Create a new group object.
-    ///
-    /// # Errors
-    /// * The value could not be converted.
-    #[must_use]
-    pub fn new_group(objects: rhai::Array) -> Object {
-        Object::Group(
-            objects
-                .into_iter()
-                .map(|o| {
-                    o.clone()
-                        .try_cast::<SharedObject>()
-                        .map_or_else(|| either::Right(o), either::Left)
-                })
-                .collect(),
-        )
+            .map(|line| Self::from_str(content_type.as_ref(), line).map(rhai::Dynamic::from))
+            .collect::<anyhow::Result<rhai::Array>>()
     }
 
     /// Create a new identifier object.
@@ -221,11 +197,6 @@ impl Object {
     #[must_use]
     pub fn contains(&self, other: &Self) -> bool {
         match (self, other) {
-            (Object::Group(group), other) => group.iter().any(|element| match element {
-                either::Left(object) => **object == *other,
-                either::Right(_) => false, // TODO: could be implemented.
-            }),
-            (Object::File(file), other) => file.iter().any(|element| *other == *element),
             (Object::Rg4(rg4), Object::Ip4(ip4)) => rg4.contains(ip4),
             (Object::Rg6(rg6), Object::Ip6(ip6)) => rg6.contains(ip6),
             (Object::Regex(regex), other) => regex.find(other.as_ref()).is_some(),
@@ -233,6 +204,23 @@ impl Object {
                 addr.local_part() == identifier.as_str()
             }
             (Object::Address(addr), Object::Fqdn(fqdn)) => addr.domain() == fqdn.as_str(),
+            _ => false,
+        }
+    }
+
+    /// check if the `other` string is contained in this object,
+    /// return false automatically if the item cannot be contained in this object.
+    #[must_use]
+    pub fn contains_str(&self, other: &str) -> bool {
+        match self {
+            Object::Rg4(rg4) => ipnet::Ipv4Net::from_str(other)
+                .map(|ip4| rg4.contains(&ip4))
+                .unwrap_or(false),
+            Object::Rg6(rg6) => ipnet::Ipv6Net::from_str(other)
+                .map(|ip6| rg6.contains(&ip6))
+                .unwrap_or(false),
+            Object::Regex(regex) => regex.find(other).is_some(),
+            Object::Address(addr) => addr.local_part() == other || addr.domain() == other,
             _ => false,
         }
     }
@@ -254,12 +242,12 @@ impl PartialEq for Object {
 
             // NOTE: do we want those two to be comparable ?
             // (Self::File(l0), Self::File(r0)) => l0 == r0,
-            // (Self::Group(l0), Self::Group(r0)) => l0 == r0,
             _ => false,
         }
     }
 }
 
+// Added to easily enable the user to print data of an object.
 impl std::fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -270,8 +258,6 @@ impl std::fmt::Display for Object {
             Object::Address(addr) => write!(f, "{addr}"),
             Object::Fqdn(fqdn) => write!(f, "{fqdn}"),
             Object::Regex(regex) => write!(f, "{regex}"),
-            Object::File(file) => write!(f, "{file:?}"),
-            Object::Group(group) => write!(f, "{group:?}"),
             Object::Identifier(ident) => write!(f, "{ident}"),
             Object::Code(reply) => write!(f, "{} {}", reply.code(), reply.text()),
         }

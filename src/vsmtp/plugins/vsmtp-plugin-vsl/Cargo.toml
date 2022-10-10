@@ -1,0 +1,54 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-plugin-vsl"
+version = "1.3.3"
+license = "GPL-3.0-only"
+
+rust-version = "1.63.0"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "The vSL (ViridIT Scripting Language) superset of Rhai for vSMTP"
+
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-rule-engine/"
+
+readme = "../../../README.md"
+keywords = ["vsmtp", "scripting-language", "scripting", "rhai"]
+categories = ["config"]
+
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "Cargo.toml", search = "vsmtp-plugins = \\{ path = \"../../vsmtp-plugins\", version = .*", replace = "vsmtp-plugins = { path = \"../../vsmtp-plugins\", version = \"{{version}}\" }", prerelease = true },
+]
+
+[dependencies]
+vsmtp-plugins = { path = "../../vsmtp-plugins", version = "1.3.3" }
+vsmtp-common = { path = "../../vsmtp-common", version = "1.3.3" }
+
+strum = { version = "0.24.1", default-features = false, features = [
+    "std",
+    "derive",
+] }
+regex = { version = "1.6.0", default-features = false, features = [
+    "std",
+    "perf",
+    "unicode",
+] }
+iprange = { version = "0.6.7", default-features = false, features = [
+    # "serde" # TODO
+] }
+ipnet = { version = "2.5.0", default-features = false, features = [
+    # "serde", # TODO
+] }
+either = { version = "1.8.0", default-features = false, features = ["use_std"] }
+addr = { version = "0.15.6", default-features = false, features = [
+    "std",
+    # "serde", # TODO
+] }
+
+[dev-dependencies]
+vsmtp-plugins = { path = "../../vsmtp-plugins", version = "1.3.3", features = [
+    "testing",
+] }
