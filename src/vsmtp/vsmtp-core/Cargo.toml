@@ -44,7 +44,7 @@ clap = { version = "3.2.22", default-features = false, features = [
     "cargo",
 ] }
 diff = { version = "0.1.13", default-features = false }
-serde_json = { version = "1.0.85", default-features = false, features = [
+serde_json = { version = "1.0.86", default-features = false, features = [
     "std",
 ] }
 
