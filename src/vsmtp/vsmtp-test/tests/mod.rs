@@ -96,7 +96,6 @@ fn tls_required(
 
 #[function_name::named]
 #[rstest]
-// TODO: REMOVE THE `trace` BEFORE INTEGRATION IN CI
 #[trace]
 #[ignore]
 fn staging(

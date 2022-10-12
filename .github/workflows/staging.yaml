@@ -1,0 +1,17 @@
+name: Staging
+
+on:
+  pull_request:
+    branches:
+      - "staging"
+
+jobs:
+  test-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PAT }}
+          repository: ${{ secrets.STAGING_REPO }}
+          event-type: test_staging
