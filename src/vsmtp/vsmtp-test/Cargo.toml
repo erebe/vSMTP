@@ -41,7 +41,7 @@ rustls-pemfile = "1.0.1"
 
 lazy_static = "1.4.0"
 
-rsasl = { version = "=2.0.0-rc.2", default-features = false, features = [
+rsasl = { version = "=2.0.0-rc.3", default-features = false, features = [
   "provider",
   "config_builder",
   # "registry_static",

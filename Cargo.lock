@@ -1860,9 +1860,9 @@ dependencies = [
 
 [[package]]
 name = "rsasl"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfc8cea07878f35b0f5d5cc39aa08d5c1abe92f7087abe856d8be8a327d53361"
+checksum = "103603eacc28423095a1366653d823e5d2f4bac86bf7874b8f370d320b671207"
 dependencies = [
  "acid_io",
  "serde_json",
