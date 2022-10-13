@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.3.3] - 2022-10-03
+
 ### Added
 
 * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
