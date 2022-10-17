@@ -50,7 +50,7 @@ check_dir() {
 check_toml() {
     if [ ! -f "${CONF_FILE}" ]; then
         cat >${CONF_FILE} <<EOF
-import "conf.d/config.vsl" as cfg;
+import "conf.d/config" as cfg;
 
 let config = cfg::config;
 
