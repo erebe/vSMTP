@@ -4,18 +4,18 @@ set -e
 VSMTP_USER="vsmtp"
 
 DPKG_NAME="vsmtp"
-DPKG_VER=`dpkg -s $DPKG_NAME | sed -n 's/^Version: //p'`
+DPKG_VER=$(dpkg -s $DPKG_NAME | sed -n 's/^Version: //p')
 
 CONF_DIR="/etc/vsmtp/"
-CONF_FILE=${CONF_DIR}"vsmtp.toml"
+CONF_FILE=${CONF_DIR}"vsmtp.vsl"
 
 LOG_DIR="/var/log/vsmtp/"
 SPOOL_DIR="/var/spool/vsmtp/"
 
 add_user() {
-    if id ${VSMTP_USER} > /dev/null 2>&1; then return; fi
+    if id ${VSMTP_USER} >/dev/null 2>&1; then return; fi
     adduser --system --shell /usr/sbin/nologin --no-create-home \
-    --group --disabled-password --disabled-login --no-create-home --home /noexistent ${VSMTP_USER}
+        --group --disabled-password --disabled-login --no-create-home --home /noexistent ${VSMTP_USER}
 }
 
 # TOCHECK : Automatic directory creation w/ systemd
@@ -49,12 +49,18 @@ check_dir() {
 
 check_toml() {
     if [ ! -f "${CONF_FILE}" ]; then
-        echo "version_requirement = \">=${DPKG_VER}\"" > ${CONF_FILE}
+        cat >${CONF_FILE} <<EOF
+import "conf.d/config.vsl" as cfg;
+
+let config = cfg::config;
+
+config.version_requirement = ">=${DPKG_VER}";
+EOF
+
         chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE}
         chmod 664 ${CONF_FILE}
     fi
 }
-
 
 case "$1" in
 configure)

@@ -19,7 +19,7 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 /// This structure contains all the field to configure the server at the startup.
 ///
 /// This structure will be loaded from a configuration file `-c, --config`
-/// argument of the program. See [`crate::Config::from_toml`].
+/// argument of the program. See [`crate::Config::from_vsl_file`].
 ///
 /// All field are optional and defaulted if missing.
 ///

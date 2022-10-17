@@ -99,7 +99,7 @@ impl RuleEngine {
 
         tracing::debug!("Building vSL compiler ...");
 
-        let mut compiler = Self::new_compiler(config.clone());
+        let mut compiler = Self::new_compiler();
 
         tracing::info!("Loading plugins ...");
 
@@ -355,7 +355,7 @@ impl RuleEngine {
 
     /// create a rhai engine to compile all scripts with vsl's configuration.
     #[must_use]
-    pub fn new_compiler(_: std::sync::Arc<Config>) -> rhai::Engine {
+    pub fn new_compiler() -> rhai::Engine {
         let mut engine = Engine::new();
 
         // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
@@ -474,7 +474,7 @@ impl RuleEngine {
                         .ok_or_else(|| anyhow::anyhow!("a directive in stage '{stage}' does not have a valid type"))?
                         .to_string();
 
-                        let name = map
+                    let name = map
                         .get("name")
                         .ok_or_else(|| anyhow::anyhow!("a directive in stage '{stage}' does not have a name"))?
                         .to_string();

@@ -16,7 +16,10 @@
 */
 use crate::run_test;
 
-const TOML: &str = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
+const CONFIG: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../examples/dnsbl/vsmtp.vsl"
+);
 
 run_test! {
     multi fn test_dnsbl_1,
@@ -27,7 +30,7 @@ run_test! {
         "220 testserver.com Service ready\r\n",
         "554 permanent problems with the remote server\r\n",
     ],
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
 }
 
 run_test! {
@@ -41,5 +44,5 @@ run_test! {
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
     ],
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
 }

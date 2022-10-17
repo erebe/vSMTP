@@ -1,0 +1,5 @@
+import "conf.d/config" as cfg;
+
+let config = cfg::config;
+
+config.version_requirement = ">=1.3.3, <2.0.0";

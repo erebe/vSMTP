@@ -163,30 +163,34 @@ mod tests {
 
     #[test]
     fn error() {
-        assert!(toml::from_str::<S>(r#"v = "SSL1.1""#).is_err());
-        assert!(toml::from_str::<S>(r#"v = ">=SSL1.2""#).is_err());
-        assert!(toml::from_str::<S>(r#"v = "^foobar""#).is_err());
-        assert!(toml::from_str::<S>(r#"v = "foobar""#).is_err());
-        assert!(toml::from_str::<S>(r#"v = 100"#).is_err());
+        assert!(serde_json::from_str::<S>(r#"{ "v": "SSL1.1" }"#).is_err());
+        assert!(serde_json::from_str::<S>(r#"{ "v": ">=SSL1.2" }"#).is_err());
+        assert!(serde_json::from_str::<S>(r#"{ "v": "^foobar" }"#).is_err());
+        assert!(serde_json::from_str::<S>(r#"{ "v": "foobar" }"#).is_err());
+        assert!(serde_json::from_str::<S>(r#"{ "v": 100 }"#).is_err());
     }
 
     #[test]
     fn one_string() {
         assert_eq!(
-            toml::from_str::<S>(r#"v = "TLSv1.2""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": "TLSv1.2" }"#)
+                .unwrap()
+                .v,
             vec![rustls::ProtocolVersion::TLSv1_2]
         );
         assert_eq!(
-            toml::from_str::<S>(r#"v = "0x0303""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": "0x0303" }"#).unwrap().v,
             vec![rustls::ProtocolVersion::TLSv1_2]
         );
 
         assert_eq!(
-            toml::from_str::<S>(r#"v = "TLSv1.3""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": "TLSv1.3" }"#)
+                .unwrap()
+                .v,
             vec![rustls::ProtocolVersion::TLSv1_3]
         );
         assert_eq!(
-            toml::from_str::<S>(r#"v = "0x0304""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": "0x0304" }"#).unwrap().v,
             vec![rustls::ProtocolVersion::TLSv1_3]
         );
     }
@@ -194,7 +198,7 @@ mod tests {
     #[test]
     fn array() {
         assert_eq!(
-            toml::from_str::<S>(r#"v = ["TLSv1.2", "TLSv1.3"]"#)
+            serde_json::from_str::<S>(r#"{ "v": ["TLSv1.2", "TLSv1.3"] }"#)
                 .unwrap()
                 .v,
             vec![
@@ -207,7 +211,9 @@ mod tests {
     #[test]
     fn pattern() {
         assert_eq!(
-            toml::from_str::<S>(r#"v = "^TLSv1.2""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": "^TLSv1.2" }"#)
+                .unwrap()
+                .v,
             vec![
                 rustls::ProtocolVersion::TLSv1_2,
                 rustls::ProtocolVersion::TLSv1_3,
@@ -215,7 +221,9 @@ mod tests {
         );
 
         assert_eq!(
-            toml::from_str::<S>(r#"v = ">=TLSv1.2""#).unwrap().v,
+            serde_json::from_str::<S>(r#"{ "v": ">=TLSv1.2" }"#)
+                .unwrap()
+                .v,
             vec![
                 rustls::ProtocolVersion::TLSv1_2,
                 rustls::ProtocolVersion::TLSv1_3,
@@ -226,17 +234,17 @@ mod tests {
     #[test]
     fn serialize() {
         assert_eq!(
-            toml::to_string(&S {
+            serde_json::to_string(&S {
                 v: vec![
                     rustls::ProtocolVersion::TLSv1_2,
                     rustls::ProtocolVersion::TLSv1_3,
                 ]
             })
             .unwrap(),
-            "v = [\"TLSv1.2\", \"TLSv1.3\"]\n"
+            r#"{"v":["TLSv1.2","TLSv1.3"]}"#
         );
 
-        assert!(toml::to_string(&S {
+        assert!(serde_json::to_string(&S {
             v: vec![rustls::ProtocolVersion::SSLv2,]
         })
         .is_err());

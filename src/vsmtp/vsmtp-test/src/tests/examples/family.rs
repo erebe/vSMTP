@@ -23,7 +23,10 @@ use vsmtp_server::OnMail;
 
 use crate::run_test;
 
-const TOML: &str = include_str!("../../../../../../examples/family/vsmtp.toml");
+const CONFIG: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../examples/family/vsmtp.vsl"
+);
 
 run_test! {
     fn test_family_setup1,
@@ -36,7 +39,7 @@ run_test! {
         "250 Ok\r\n",
         "554 permanent problems with the remote server\r\n",
     ],
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
 }
 
 run_test! {
@@ -66,7 +69,7 @@ run_test! {
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
     ],
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,
     mail_handler = {
         struct MailHandler;
 

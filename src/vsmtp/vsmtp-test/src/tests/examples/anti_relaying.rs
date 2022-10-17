@@ -19,8 +19,6 @@ use crate::run_test;
 
 // TODO: add more test cases for this example.
 
-const TOML: &str = include_str!("../../../../../../examples/anti_relaying/vsmtp.toml");
-
 run_test! {
     fn test_check_relay_1,
     input = [
@@ -33,7 +31,10 @@ run_test! {
         "554 5.7.1 Relay access denied\r\n",
     ]
     .concat(),
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/anti_relaying/vsmtp.vsl"
+    ])).unwrap(),,,,
 }
 
 run_test! {
@@ -51,7 +52,10 @@ run_test! {
         "554 5.7.1 Relay access denied\r\n",
         "221 Service closing transmission channel\r\n"
     ].concat(),
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/anti_relaying/vsmtp.vsl"
+    ])).unwrap(),,,,
 }
 
 run_test! {
@@ -69,5 +73,8 @@ run_test! {
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
     ].concat(),
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/anti_relaying/vsmtp.vsl"
+    ])).unwrap(),,,,
 }

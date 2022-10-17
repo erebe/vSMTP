@@ -5,6 +5,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     - A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
     - A delegation feature gate on `vsmtp-rule-engine`. (#660)
   * Changed
+    - BREAKING: Configuration is written using Rhai. (#685)
     - BREAKING: refactored vSL object syntax. (#647)
     - BREAKING: Moved the csv database to an external plugin. (#625)
     - BREAKING: Moved the mysql database

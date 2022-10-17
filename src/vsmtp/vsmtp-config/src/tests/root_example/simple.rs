@@ -18,11 +18,14 @@ use crate::Config;
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../../../examples/config/simple.toml");
     pretty_assertions::assert_eq!(
-        Config::from_toml(toml).unwrap(),
+        Config::from_vsl_file(std::path::PathBuf::from_iter([
+            env!("CARGO_MANIFEST_DIR"),
+            "../../../examples/config/simple.vsl"
+        ]))
+        .unwrap(),
         Config::builder()
-            .with_version_str(">=1.3.0-rc.0, <2.0.0")
+            .with_version_str(">=1.3.3, <2.0.0")
             .unwrap()
             .with_server_name("my.fqdn.com")
             .with_user_group_and_default_system("root", "root")

@@ -1,0 +1,79 @@
+let config = new_config();
+
+config.version_requirement = ">=1.3.3, <2.0.0";
+
+config.server.client_count_max = 8;
+
+config.server.system.thread_pool = #{
+    receiver: 3,
+    processing: 3,
+    delivery: 3,
+};
+
+config.server.queues.dirpath = "/var/spool/vsmtp";
+config.server.queues.working.channel_size = 16;
+config.server.queues.delivery = #{
+    channel_size: 16,
+    deferred_retry_max: 10,
+    deferred_retry_period: "600s"
+};
+
+config.server.dns.type = "custom";
+
+config.server.dns.config = #{
+    domain: "example.dns.com",
+    search: ["example.dns.com"],
+    name_servers: [],
+};
+
+config.server.dns.options = #{
+    // Sets the number of dots that must appear (unless it's a final dot representing the root)
+    //  that must appear before a query is assumed to include the TLD. The default is one, which
+    //  means that `www` would never be assumed to be a TLD, and would always be appended to either
+    //  the search
+    //// ndots = 1
+    // Number of retries after lookup failure before giving up. Defaults to 2
+    attempts: 2,
+    // Rotate through the resource records in the response (if there is more than one for a given name)
+    rotate: false,
+    // Enable edns, for larger records
+    //// edns0 = false
+    // Use DNSSec to validate the request
+    //// validate = false
+    // The ip_strategy for the Resolver to use when lookup Ipv4 or Ipv6 addresses
+    ip_strategy: "Ipv4thenIpv6",
+    // Cache size is in number of records (some records can be large)
+    cache_size: 32,
+    // Check /ect/hosts file before dns requery (only works for unix like OS)
+    use_hosts_file: true,
+    // Number of concurrent requests per query
+    //
+    // Where more than one nameserver is configured, this configures the resolver to send queries
+    // to a number of servers in parallel. Defaults to 2; 0 or 1 will execute requests serially.
+    num_concurrent_reqs: 2,
+    // Preserve all intermediate records in the lookup response, suchas CNAME records
+    //// preserve_intermediates = true
+    // Try queries over TCP if they fail over UDP.
+    //// try_tcp_on_error = false
+};
+
+config.server.smtp = #{
+    rcpt_count_max: 25,
+    disable_ehlo: false
+};
+
+config.server.smtp.error = #{
+    soft_count: 5,
+    hard_count: 10,
+    delay: "50000ms",
+};
+
+config.server.smtp.timeout_client = #{
+    connect: "50ms",
+    helo: "100ms",
+    mail_from: "200ms",
+    rcpt_to: "400ms",
+    data: "1000ms"
+};
+
+config.app.dirpath = "/var/spool/vsmtp/app";

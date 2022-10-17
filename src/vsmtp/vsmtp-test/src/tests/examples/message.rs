@@ -23,7 +23,10 @@ use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
-const TOML: &str = include_str!("../../../../../../examples/message/vsmtp.toml");
+const CONFIG: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../examples/message/vsmtp.vsl"
+);
 
 run_test! {
     fn test_message_1,
@@ -46,7 +49,7 @@ run_test! {
         "501 this server does not accept FWD messages\r\n"
     ]
     .concat(),
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
 }
 
 run_test! {
@@ -73,7 +76,7 @@ run_test! {
         "221 Service closing transmission channel\r\n"
     ]
     .concat(),
-    config = vsmtp_config::Config::from_toml(TOML).unwrap(),,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,
     mail_handler = {
         struct T;
 

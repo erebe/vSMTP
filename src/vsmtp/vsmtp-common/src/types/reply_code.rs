@@ -15,6 +15,8 @@
  *
 */
 
+use anyhow::Context;
+
 /// Codes as the start of each lines of a reply
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
@@ -55,15 +57,20 @@ impl ReplyCode {
                 let enhanced = enhanced
                     .splitn(3, '.')
                     .map(|s| {
-                        s.parse::<u16>()?;
+                        s.parse::<u16>().with_context(|| {
+                            format!("The '{s}' enhanced code part is not a number")
+                        })?;
                         Ok(s.to_string())
                     })
-                    .collect::<anyhow::Result<Vec<_>>>()?
+                    .collect::<anyhow::Result<Vec<_>>>()
+                    .context("failed to parse enhanced code")?
                     .join(".");
 
                 Ok((
                     Self::Enhanced {
-                        code: code.parse::<u16>()?,
+                        code: code
+                            .parse::<u16>()
+                            .with_context(|| format!("'{code}' code is not a number"))?,
                         enhanced,
                     },
                     {
@@ -77,7 +84,9 @@ impl ReplyCode {
             }
             (Self::Code { .. }, [code, ..]) => Ok((
                 Self::Code {
-                    code: code.parse::<u16>()?,
+                    code: code
+                        .parse::<u16>()
+                        .with_context(|| format!("'{code}' code is not a number"))?,
                 },
                 {
                     let mut line = &line[code.len()..];
@@ -87,7 +96,7 @@ impl ReplyCode {
                     line
                 },
             )),
-            _ => anyhow::bail!("invalid data {line}"),
+            _ => anyhow::bail!("reply code invalid data {line}"),
         }
     }
 
@@ -111,7 +120,7 @@ impl ReplyCode {
                 return output;
             }
         }
-        anyhow::bail!("invalid format {words:?}");
+        anyhow::bail!("reply code invalid format {words:?}");
     }
 }
 

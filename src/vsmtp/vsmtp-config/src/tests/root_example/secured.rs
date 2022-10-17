@@ -22,11 +22,14 @@ use vsmtp_common::{collection, state::State};
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../../../examples/config/secured.toml");
     pretty_assertions::assert_eq!(
-        Config::from_toml(toml).unwrap(),
+        Config::from_vsl_file(std::path::PathBuf::from_iter([
+            env!("CARGO_MANIFEST_DIR"),
+            "../../../examples/config/secured.vsl"
+        ]))
+        .unwrap(),
         Config::builder()
-            .with_version_str(">=1.3.0-rc.0, <2.0.0")
+            .with_version_str(">=1.3.3, <2.0.0")
             .unwrap()
             .with_hostname_and_client_count_max(8)
             .with_default_user_and_thread_pool(3, 3, 3)

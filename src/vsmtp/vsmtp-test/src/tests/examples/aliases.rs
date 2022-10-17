@@ -53,7 +53,11 @@ run_test! {
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
     ],
-    config = vsmtp_config::Config::from_toml(include_str!("../../../../../../examples/alias/vsmtp.toml")).unwrap(),,
+    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/alias/vsmtp.vsl"
+    ]))
+    .unwrap(),,
     mail_handler = {
         struct MailHandler;
 

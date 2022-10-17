@@ -13,14 +13,32 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [1.3.3] - 2022-10-03
-
 ### Added
 
 * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
 * A delegation feature gate on `vsmtp-rule-engine`. (#660)
 
 ### Changed
+
+* Configuration is written using Rhai. (#685)
+```rust
+let config = new_config();
+
+config.version_requirement = ">=1.3.3, <2.0.0";
+
+config.server.domain = "my.fqdn.com";
+
+config.server.system = #{
+    user: "root",
+    group: "root",
+};
+
+config.server.interfaces = #{
+    addr: ["127.0.0.1:25"],
+    addr_submission: ["127.0.0.1:587"],
+    addr_submissions: ["127.0.0.1:465"],
+};
+```
 
 * Changed the API of objects to be simple rhai functions, removing implicit `export` of
   objects. (#647)
