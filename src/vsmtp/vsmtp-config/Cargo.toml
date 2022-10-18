@@ -56,7 +56,7 @@ ring-compat = { version = "0.4.1", default-features = false, features = [
   "signature",
 ] }
 
-rustls = { version = "0.20.6", default-features = false, features = [
+rustls = { version = "0.20.7", default-features = false, features = [
   "tls12",
   "logging",
 ] }
