@@ -17,6 +17,7 @@
 use crate::QueueID;
 
 ///
+#[allow(clippy::exhaustive_structs)]
 #[derive(clap::Parser)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[clap(about, author)]
@@ -35,6 +36,7 @@ pub struct Args {
 }
 
 ///
+#[allow(clippy::exhaustive_enums)]
 #[derive(clap::Subcommand)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum Commands {
@@ -59,6 +61,7 @@ pub enum Commands {
 }
 
 ///
+#[allow(clippy::exhaustive_enums)]
 #[derive(Clone, clap::Subcommand)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageCommand {
@@ -85,6 +88,7 @@ pub enum MessageCommand {
 }
 
 ///
+#[allow(clippy::exhaustive_enums)]
 #[derive(Clone, clap::ValueEnum)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageShowFormat {
@@ -170,7 +174,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Json
                     }
@@ -185,7 +189,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Json
                     }
@@ -200,7 +204,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Show {
                         format: MessageShowFormat::Eml
                     }
@@ -218,7 +222,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Move {
                         queue: QueueID::Dead
                     }
@@ -236,7 +240,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Remove { yes: false }
                 })
             },
@@ -249,7 +253,7 @@ mod tests {
 
                 config: None,
                 command: Some(Commands::Msg {
-                    msg: "foobar".to_string(),
+                    msg: "foobar".to_owned(),
                     command: MessageCommand::Remove { yes: true }
                 })
             },

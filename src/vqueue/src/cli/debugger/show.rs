@@ -15,6 +15,7 @@
  *
  */
 use crate::{api::DetailedMailContext, cli::args::Commands, GenericQueueManager, QueueID};
+extern crate alloc;
 
 type Domain = String;
 
@@ -33,7 +34,7 @@ type MessageByLifetime = std::collections::HashMap<u64, Vec<DetailedMailContext>
 
 impl Content {
     fn lifetimes() -> Vec<u64> {
-        (0..9)
+        (0i32..9i32)
             .into_iter()
             .scan(5, |state, _| {
                 let out = *state;
@@ -47,12 +48,14 @@ impl Content {
         let mut out = MessageByLifetime::new();
 
         for lifetime in Self::lifetimes() {
+            #[allow(clippy::expect_used)]
             let split_index = itertools::partition(&mut values, |i| {
                 self.now
                     .duration_since(i.modified_at)
                     .map(|d| d.as_secs())
                     .unwrap_or(0)
-                    / 60
+                    .checked_div(60)
+                    .expect("no division by 0")
                     < lifetime
             });
             let next_values = values.split_off(split_index);
@@ -67,12 +70,12 @@ impl Content {
         out.insert(u64::MAX, values);
 
         assert!(!self.result.contains_key(key));
-        self.result.insert(key.to_string(), out);
+        self.result.insert(key.to_owned(), out);
     }
 }
 
-impl std::fmt::Display for Content {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Content {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         macro_rules! token_if_empty {
             ($t:expr, $e:expr) => {
                 if $e != 0 {
@@ -125,7 +128,7 @@ impl std::fmt::Display for Content {
                 self.empty_token,
                 self.result.iter().fold(0, |sum, (_, values)| values
                     .iter()
-                    .fold(sum, |sum, (_, m)| { sum + m.len() }))
+                    .fold(sum, |s, (_, m)| { s + m.len() }))
             )
         ))?;
 
@@ -133,8 +136,8 @@ impl std::fmt::Display for Content {
             self.result.iter().fold(0, |sum, (_, values)| {
                 values
                     .iter()
-                    .filter(|(l, _)| **l == lifetime)
-                    .fold(sum, |sum, (_, m)| sum + m.len())
+                    .filter(|&(l, _)| *l == lifetime)
+                    .fold(sum, |s, (_, m)| s + m.len())
             })
         };
 
@@ -176,10 +179,11 @@ impl std::fmt::Display for Content {
     }
 }
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn show<OUT: std::io::Write + Send + Sync>(
         queues: Vec<QueueID>,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         empty_token: char,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
@@ -211,7 +215,7 @@ impl Commands {
                     let mut valid_entries = content
                         .inner
                         .iter()
-                        .map(|i| i.as_ref().unwrap())
+                        .filter_map(|i| i.as_ref().ok())
                         .cloned()
                         .collect::<Vec<_>>();
 
@@ -247,7 +251,7 @@ mod tests {
     async fn working_and_delivery_empty() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         Commands::show(
@@ -260,7 +264,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             ["WORKING    has :\t<EMPTY>\n", "DELIVER    has :\t<EMPTY>\n",].concat(),
         );
     }
@@ -269,12 +273,12 @@ mod tests {
     async fn all_empty() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -284,7 +288,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "WORKING    has :\t<EMPTY>\n",
                 "DELIVER    has :\t<EMPTY>\n",
@@ -300,11 +304,12 @@ mod tests {
     async fn all_missing() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config.clone()).unwrap();
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager =
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
 
         let queues = <QueueID as strum::IntoEnumIterator>::iter()
-            .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+            .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
             .collect::<Vec<_>>();
 
         std::fs::remove_dir_all(queue_manager.tempdir.path()).unwrap();
@@ -314,7 +319,7 @@ mod tests {
             .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "WORKING    has :\t<MISSING>\n",
                 "DELIVER    has :\t<MISSING>\n",
@@ -330,9 +335,10 @@ mod tests {
     async fn one_error() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
 
-        let queue_manager = crate::temp::QueueManager::init(config.clone()).unwrap();
+        let queue_manager =
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
 
         std::fs::write(
             format!(
@@ -346,7 +352,7 @@ mod tests {
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -356,7 +362,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "WORKING    has :\t<EMPTY>\twith 1 error\n",
                 "DELIVER    has :\t<EMPTY>\n",
@@ -373,13 +379,13 @@ mod tests {
     async fn dead_with_one() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
 
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let msg = local_msg();
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
         queue_manager
             .write_both(&QueueID::Dead, &ctx, &msg)
             .await
@@ -387,7 +393,7 @@ mod tests {
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -397,7 +403,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "WORKING    has :\t<EMPTY>\n",
                 "DELIVER    has :\t<EMPTY>\n",

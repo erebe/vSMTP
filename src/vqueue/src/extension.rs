@@ -20,13 +20,16 @@ use vsmtp_common::mail_context::{Finished, MailContext};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
-///
+extern crate alloc;
+
+/// Extension to the [`GenericQueueManager`] to simplify filesystem implementation.
 #[async_trait::async_trait]
 pub trait FilesystemQueueManagerExt {
     ///
     #[must_use]
+    #[inline]
     fn get_root_folder(config: &Config, queue: &QueueID) -> std::path::PathBuf {
-        match queue {
+        match *queue {
             QueueID::Dead
             | QueueID::Deferred
             | QueueID::Delegated
@@ -37,12 +40,13 @@ pub trait FilesystemQueueManagerExt {
     }
 
     ///
+    #[inline]
     fn get_queue_path(&self, queue: &QueueID) -> std::path::PathBuf {
         Self::get_root_folder(self.get_config(), queue).join(queue.to_string())
     }
 
     ///
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>>
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized;
 
@@ -51,18 +55,21 @@ pub trait FilesystemQueueManagerExt {
 }
 
 #[async_trait::async_trait]
-impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueManager for T {
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>>
+impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueueManager for T {
+    #[inline]
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized,
     {
         T::init(config)
     }
 
+    #[inline]
     fn get_config(&self) -> &Config {
         T::get_config(self)
     }
 
+    #[inline]
     async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext<Finished>) -> anyhow::Result<()> {
         let message_id = ctx.message_id();
         let queue_path = self.get_queue_path(queue);
@@ -90,6 +97,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         Ok(())
     }
 
+    #[inline]
     async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
         if !mails.exists() {
@@ -105,7 +113,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
 
             std::io::Write::write_all(&mut file, msg.inner().to_string().as_bytes())?;
         }
-        if let Some(parsed) = &msg.get_parsed() {
+        if let &Some(ref parsed) = msg.get_parsed() {
             let mails_json = mails.join(format!("{message_id}.json"));
             let mut file = std::fs::OpenOptions::new()
                 .create(true)
@@ -121,6 +129,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         Ok(())
     }
 
+    #[inline]
     async fn remove_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()> {
         let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
 
@@ -134,6 +143,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         Ok(())
     }
 
+    #[inline]
     async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
 
@@ -152,6 +162,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         Ok(())
     }
 
+    #[inline]
     async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>> {
         let queue_path = self.get_queue_path(queue);
 
@@ -161,13 +172,14 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
             .map(|i| match i {
                 Err(e) => Err(anyhow::Error::new(e)),
                 Ok(entry) => match entry.path().file_stem().map(std::ffi::OsStr::to_str) {
-                    Some(Some(name)) => Ok(name.to_string()),
+                    Some(Some(name)) => Ok(name.to_owned()),
                     _ => Err(anyhow::anyhow!("Invalid file name")),
                 },
             })
             .collect::<Vec<Result<_, _>>>())
     }
 
+    #[inline]
     async fn get_ctx(
         &self,
         queue: &QueueID,
@@ -184,6 +196,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
             .with_context(|| format!("Cannot deserialize: '{content:?}'"))
     }
 
+    #[inline]
     async fn get_detailed_ctx(
         &self,
         queue: &QueueID,
@@ -206,6 +219,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         })
     }
 
+    #[inline]
     async fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody> {
         let msg_filepath = std::path::PathBuf::from_iter([
             self.get_config().server.queues.dirpath.clone(),

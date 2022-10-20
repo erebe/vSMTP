@@ -21,20 +21,45 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 //
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+#![warn(clippy::restriction)]
 //
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::use_self)] // false positive with enums
+#![allow(clippy::integer_arithmetic, clippy::arithmetic)] // issue with strum
+// restriction we ignore
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::blanket_clippy_restriction_lints)]
+#![allow(clippy::pub_use)]
+#![allow(clippy::implicit_return)]
+#![allow(clippy::unseparated_literal_suffix)]
+#![allow(clippy::shadow_reuse)]
+#![allow(clippy::mod_module_files)]
+//
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-///
+/// Module containing the Command Line Interpreter
 pub mod cli {
     ///
     pub mod args;
     ///
-    pub mod debugger;
+    pub mod execute;
+    ///
+    pub mod debugger {
+        ///
+        pub mod message_move;
+        ///
+        pub mod message_remove;
+        ///
+        pub mod message_show;
+        ///
+        pub mod show;
+    }
 }
 
 mod api;
@@ -43,14 +68,36 @@ pub use api::{GenericQueueManager, QueueID};
 pub use extension::FilesystemQueueManagerExt;
 
 mod implementation {
+    /// The filesystem implementation of the queue manager,
+    /// writing mails ([`MailContext`](vsmtp_common::mail_context::MailContext) and [`MessageBody`](vsmtp_mail_parser::MessageBody))
+    /// to the `/var/spool/vsmtp` directory (path configurable).
     ///
+    /// The structure of the spool is the following:
+    ///
+    /// ```shell
+    /// $> tree -L 2 /var/spool/vsmtp
+    /// /var/spool/vsmtp
+    /// ├── dead                   # fatal error happened
+    /// ├── delegated              # [`delegation flow`] (smtp ping/pong with another service)
+    /// ├── deliver                # to deliver (first attempt)
+    /// ├── deferred               # to deliver (1..N) times (at least one error occurred before)
+    /// ├── mails                  # the message body (received between DATA and "<CRLF>.<CRLF>"
+    /// │   ├── <msg-id>.eml       # * stored as received (not modified)
+    /// │   └── <msg-id-2>.json    # * parsed and stored in .json (possibly modified)
+    /// └── working                # mail to be processed (after taking its responsibility bu issuing a "250 Ok")
+    /// ```
     pub mod fs;
 
+    /// Similar to the filesystem implementation, but using a temporary directory.
     ///
+    /// Only used for testing.
     #[cfg(feature = "testing")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
     pub mod temp;
 }
 
 pub use implementation::fs;
+
 #[cfg(feature = "testing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
 pub use implementation::temp;

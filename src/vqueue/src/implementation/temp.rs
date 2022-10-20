@@ -19,28 +19,32 @@ use crate::{FilesystemQueueManagerExt, QueueID};
 use anyhow::Context;
 use vsmtp_config::Config;
 
+extern crate alloc;
+
 ///
 pub struct QueueManager {
-    config: std::sync::Arc<Config>,
+    config: alloc::sync::Arc<Config>,
     pub(crate) tempdir: tempfile::TempDir,
 }
 
-impl std::fmt::Debug for QueueManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for QueueManager {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("TempQueueManager").finish_non_exhaustive()
     }
 }
 
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>> {
-        let this = std::sync::Arc::new(Self {
+    #[inline]
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>> {
+        let this = alloc::sync::Arc::new(Self {
             config,
             tempdir: tempfile::Builder::new().rand_bytes(20).tempdir()?,
         });
 
         for i in <QueueID as strum::IntoEnumIterator>::iter() {
-            let (cpy, q) = (this.clone(), i.clone());
+            let (cpy, q) = (alloc::sync::Arc::clone(&this), i.clone());
             let dir = cpy.get_queue_path(&q);
             std::fs::create_dir_all(&dir).with_context(|| {
                 format!("could not create `{i}` directory at `{}`", dir.display())
@@ -50,10 +54,12 @@ impl FilesystemQueueManagerExt for QueueManager {
         Ok(this)
     }
 
+    #[inline]
     fn get_config(&self) -> &Config {
         &self.config
     }
 
+    #[inline]
     fn get_queue_path(&self, queue: &QueueID) -> std::path::PathBuf {
         self.tempdir
             .path()

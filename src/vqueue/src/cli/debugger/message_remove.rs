@@ -15,33 +15,31 @@
  *
  */
 use crate::{cli::args::Commands, GenericQueueManager, QueueID};
+extern crate alloc;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn message_remove<
         OUT: std::io::Write + Send + Sync,
-        IN: tokio::io::AsyncRead + Send + Sync + std::marker::Unpin,
+        IN: tokio::io::AsyncRead + Send + Sync + core::marker::Unpin,
     >(
         msg_id: &str,
         confirmed: bool,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         output: &mut OUT,
         mut input: IN,
     ) -> anyhow::Result<()> {
-        let queue = futures_util::future::join_all(
+        match (futures_util::future::join_all(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .map(|q| (q, queue_manager.clone()))
-                .map(|(q, queue_manager)| async move {
-                    (q.clone(), queue_manager.get_ctx(&q, msg_id).await)
-                }),
+                .map(|q| (q, alloc::sync::Arc::clone(&queue_manager)))
+                .map(|(q, manager)| async move { (q.clone(), manager.get_ctx(&q, msg_id).await) }),
         )
         .await
         .into_iter()
         .find_map(|(q, ctx)| match ctx {
             Ok(_) => Some(q),
             Err(_) => None,
-        });
-
-        match (queue, queue_manager.get_msg(msg_id).await) {
+        }), queue_manager.get_msg(msg_id).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }
@@ -89,11 +87,11 @@ mod tests {
         let mut output = vec![];
         let input = std::io::Cursor::new(vec![]);
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -103,7 +101,7 @@ mod tests {
         Commands::message_remove(
             function_name!(),
             true,
-            queue_manager.clone(),
+            alloc::sync::Arc::clone(&queue_manager),
             &mut output,
             input,
         )
@@ -116,7 +114,7 @@ mod tests {
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "Removing message 'confirmed' in queue: 'working'\n",
                 "File removed\n"
@@ -129,13 +127,13 @@ mod tests {
     #[function_name::named]
     async fn not_confirmed() {
         let mut output = vec![];
-        let input = std::io::Cursor::new(b"yes\n" as &[u8]);
+        let input = std::io::Cursor::new(b"yes\n");
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -145,7 +143,7 @@ mod tests {
         Commands::message_remove(
             function_name!(),
             false,
-            queue_manager.clone(),
+            alloc::sync::Arc::clone(&queue_manager),
             &mut output,
             input,
         )
@@ -158,7 +156,7 @@ mod tests {
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "Removing message 'not_confirmed' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",
@@ -172,13 +170,13 @@ mod tests {
     #[function_name::named]
     async fn canceled() {
         let mut output = vec![];
-        let input = std::io::Cursor::new(b"no\n" as &[u8]);
+        let input = std::io::Cursor::new(b"no\n");
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -188,7 +186,7 @@ mod tests {
         Commands::message_remove(
             function_name!(),
             false,
-            queue_manager.clone(),
+            alloc::sync::Arc::clone(&queue_manager),
             &mut output,
             input,
         )
@@ -201,7 +199,7 @@ mod tests {
             .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
                 "Removing message 'canceled' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",

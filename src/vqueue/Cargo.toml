@@ -73,5 +73,9 @@ pretty_assertions = "1.3.0"
 function_name = "0.3.0"
 vsmtp-test = { path = "../vsmtp/vsmtp-test" }
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 testing = ["tempfile"]

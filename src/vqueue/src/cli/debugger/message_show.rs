@@ -20,11 +20,13 @@ use crate::{
     cli::args::{Commands, MessageShowFormat},
     GenericQueueManager, QueueID,
 };
+extern crate alloc;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn message_show<OUT: std::io::Write + Send + Sync>(
         msg_id: &str,
-        queue_manager: &std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: &alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         format: &MessageShowFormat,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
@@ -52,7 +54,7 @@ impl Commands {
         output.write_all(b"Message body:\n")?;
 
         output.write_all(
-            match format {
+            match *format {
                 MessageShowFormat::Eml => msg.inner().to_string(),
                 MessageShowFormat::Json => serde_json::to_string_pretty(&msg)?,
             }
@@ -73,11 +75,11 @@ mod tests {
     async fn show1_json() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -106,7 +108,7 @@ mod tests {
             .replace('}', "  }");
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
@@ -147,11 +149,11 @@ Message body:
     async fn show1_eml() {
         let mut output = vec![];
 
-        let config = std::sync::Arc::new(local_test());
+        let config = alloc::sync::Arc::new(local_test());
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_owned());
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -180,7 +182,7 @@ Message body:
             .replace('}', "  }");
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{

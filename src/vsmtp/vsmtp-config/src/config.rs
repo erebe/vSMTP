@@ -314,21 +314,7 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerQueues {
-        /// Path of the spool folder.
-        ///
-        /// The structure of the spool is the following:
-        ///
-        /// ```shell
-        /// $> tree -L 2 /var/spool/vsmtp
-        /// /var/spool/vsmtp
-        /// ├── dead                   # mail failed to be delivered too many times
-        /// ├── deferred               # mail failed to be delivered (1..N) times
-        /// ├── deliver                # mail to be delivered
-        /// ├── mails                  # the message body (received between DATA and "<CRLF>.<CRLF>"
-        /// │   ├── <msg-id>.eml       # this file has not been modified (and stay in eml format)
-        /// │   └── <msg-id-2>.json    # this file has been parsed, and stored in .json
-        /// └── working                # mail to be processed
-        ///
+        /// The root directory for the queuer system.
         pub dirpath: std::path::PathBuf,
         /// see [`FieldQueueWorking`]
         #[serde(default)]

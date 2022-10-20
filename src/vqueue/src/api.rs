@@ -18,7 +18,10 @@ use vsmtp_common::mail_context::{Finished, MailContext};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
+extern crate alloc;
+
 /// identifiers for all mail queues.
+#[allow(clippy::exhaustive_enums)]
 #[derive(Debug, PartialEq, Eq, Clone, strum::IntoStaticStr, strum::EnumString, strum::EnumIter)]
 #[strum(serialize_all = "lowercase")]
 pub enum QueueID {
@@ -40,11 +43,16 @@ pub enum QueueID {
     },
 }
 
-impl std::fmt::Display for QueueID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for QueueID {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            QueueID::Quarantine { name } => write!(f, "quarantine/{name}"),
-            _ => write!(f, "{}", Into::<&'static str>::into(self)),
+            &QueueID::Quarantine { ref name } => write!(f, "quarantine/{name}"),
+            &QueueID::Working
+            | &QueueID::Deliver
+            | &QueueID::Delegated
+            | &QueueID::Deferred
+            | &QueueID::Dead => write!(f, "{}", Into::<&'static str>::into(self)),
         }
     }
 }
@@ -62,7 +70,7 @@ mod tests {
             QueueID::Deferred,
             QueueID::Dead,
             QueueID::Quarantine {
-                name: "foobar".to_string(),
+                name: "foobar".to_owned(),
             },
         ]
         .into_iter()
@@ -90,10 +98,15 @@ pub struct DetailedMailContext {
 #[async_trait::async_trait]
 pub trait GenericQueueManager
 where
-    Self: std::fmt::Debug + Sync + Send,
+    Self: core::fmt::Debug + Sync + Send,
 {
+    /// This method is called to initialize the queue manager.
     ///
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>>
+    /// All the method of [`GenericQueueManager`] take `&self` meaning that you should
+    /// wrap the mutable inner state in a `Mutex` or `RwLock`.
+    ///
+    /// The configuration must be stored and accessible using [`GenericQueueManager::get_config()`].
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized;
 
@@ -107,6 +120,7 @@ where
     async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
 
     ///
+    #[inline]
     async fn write_both(
         &self,
         queue: &QueueID,
@@ -130,6 +144,7 @@ where
     async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()>;
 
     ///
+    #[inline]
     async fn remove_both(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()>
     where
         Self: Sized,
@@ -157,6 +172,7 @@ where
     async fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody>;
 
     ///
+    #[inline]
     async fn get_both(
         &self,
         queue: &QueueID,
@@ -172,6 +188,7 @@ where
     }
 
     ///
+    #[inline]
     async fn move_to_from_id(
         &self,
         before: &QueueID,
@@ -190,6 +207,7 @@ where
     }
 
     ///
+    #[inline]
     async fn move_to(
         &self,
         before: &QueueID,

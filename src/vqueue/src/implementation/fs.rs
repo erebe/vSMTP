@@ -18,21 +18,25 @@ use crate::{FilesystemQueueManagerExt, QueueID};
 use anyhow::Context;
 use vsmtp_config::Config;
 
+extern crate alloc;
+
 ///
 // TODO: handle canonicalization of path (& chown)
 pub struct QueueManager {
-    config: std::sync::Arc<Config>,
+    config: alloc::sync::Arc<Config>,
 }
 
-impl std::fmt::Debug for QueueManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for QueueManager {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("QueueManager").finish_non_exhaustive()
     }
 }
 
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>> {
+    #[inline]
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>> {
         <QueueID as strum::IntoEnumIterator>::iter()
             .map(|q| {
                 let dir = Self::get_root_folder(&config, &q).join(q.to_string());
@@ -42,9 +46,10 @@ impl FilesystemQueueManagerExt for QueueManager {
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        Ok(std::sync::Arc::new(Self { config }))
+        Ok(alloc::sync::Arc::new(Self { config }))
     }
 
+    #[inline]
     fn get_config(&self) -> &Config {
         &self.config
     }
@@ -53,6 +58,7 @@ impl FilesystemQueueManagerExt for QueueManager {
 #[cfg(test)]
 mod tests {
     use vsmtp_test::config::local_test;
+    extern crate alloc;
 
     #[test]
     fn debug() {
@@ -60,7 +66,7 @@ mod tests {
             "QueueManager { .. }",
             format!(
                 "{:?}",
-                <super::QueueManager as crate::GenericQueueManager>::init(std::sync::Arc::new(
+                <super::QueueManager as crate::GenericQueueManager>::init(alloc::sync::Arc::new(
                     local_test()
                 ))
                 .unwrap()

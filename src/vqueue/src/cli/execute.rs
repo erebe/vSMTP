@@ -17,18 +17,16 @@
 use super::args::{Commands, MessageCommand};
 use crate::{GenericQueueManager, QueueID};
 
-mod message_move;
-mod message_remove;
-mod message_show;
-mod show;
+extern crate alloc;
 
 impl Commands {
     /// Execute the vQueue command
     ///
     /// # Errors
+    #[inline]
     pub async fn execute(
         self,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
     ) -> anyhow::Result<()> {
         match self {
             Commands::Show {
@@ -65,6 +63,7 @@ impl Commands {
                     )
                     .await
                 }
+                #[allow(clippy::unimplemented)]
                 MessageCommand::ReRun {} => unimplemented!(),
             },
         }

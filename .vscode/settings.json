@@ -29,6 +29,7 @@
     "DMARC",
     "dnsbl",
     "dnssec",
+    "docsrs",
     "domainkey",
     "ehlo",
     "ENHANCEDSTATUSCODES",
