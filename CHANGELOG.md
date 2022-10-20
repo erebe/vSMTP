@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.3.4] - 2022-10-20
+
 ### Fixed
 
 * `forward` && `forward_all` functions now take port into account in socket strings. (#695)
