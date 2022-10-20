@@ -17,6 +17,7 @@
 use crate::run_test;
 use crate::tests::auth::{safe_auth_config, unsafe_auth_config};
 use vqueue::GenericQueueManager;
+use vsmtp_common::mail_context::Finished;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -76,13 +77,13 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "client.com");
-                assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+                assert_eq!(mail.client_name(), "client.com");
+                assert_eq!(mail.reverse_path().full(), "foo@bar");
+                assert_eq!(*mail.forward_paths(), vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
         }
@@ -131,13 +132,13 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "client.com");
-                assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+                assert_eq!(mail.client_name(), "client.com");
+                assert_eq!(mail.reverse_path().full(), "foo@bar");
+                assert_eq!(*mail.forward_paths(), vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
         }
@@ -182,13 +183,13 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "client.com");
-                assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+                assert_eq!(mail.client_name(), "client.com");
+                assert_eq!(mail.reverse_path().full(), "foo@bar");
+                assert_eq!(*mail.forward_paths(), vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
         }
@@ -233,13 +234,13 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "client.com");
-                assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+                assert_eq!(mail.client_name(), "client.com");
+                assert_eq!(mail.reverse_path().full(), "foo@bar");
+                assert_eq!(*mail.forward_paths(), vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
         }
@@ -368,13 +369,13 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "client.com");
-                assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-                assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+                assert_eq!(mail.client_name(), "client.com");
+                assert_eq!(mail.reverse_path().full(), "foo@bar");
+                assert_eq!(*mail.forward_paths(), vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
         }

@@ -14,6 +14,22 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-rule "child rule missing evaluate" #{
-    description: "this rule does not contain the mendatory 'evaluate' anonymous function"
+
+/*
+macro_rules! rules_path {
+    ( $( $x:expr ),* ) => [
+        std::path::PathBuf::from(file!())
+            .parent()
+            .unwrap()
+            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
+            .strip_prefix("src/vsmtp/vsmtp-rule-engine")
+            .unwrap()
+            .to_path_buf()
+    ];
 }
+*/
+
+mod engine;
+mod message;
+mod rules;
+mod types;

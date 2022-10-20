@@ -1,6 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_config::Config;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
 fuzz_target!(|data: &[u8]| {
@@ -26,6 +26,12 @@ fuzz_target!(|data: &[u8]| {
         .unwrap();
 
     let config = std::sync::Arc::new(config);
+    let queue_manager =
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
-    let _ = std::str::from_utf8(data).map(|script| RuleEngine::from_script(config, script));
+    let dns_resolvers = std::sync::Arc::new(
+        DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),
+    );
+    let _ = std::str::from_utf8(data)
+        .map(|script| RuleEngine::from_script(config, script, dns_resolvers, queue_manager));
 });

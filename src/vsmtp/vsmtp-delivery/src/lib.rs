@@ -30,7 +30,11 @@
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, Address};
+    use vsmtp_common::{
+        mail_context::{Finished, MailContext},
+        rcpt::Rcpt,
+        Address,
+    };
     use vsmtp_config::Config;
 
     ///
@@ -40,7 +44,7 @@ pub mod transport {
         async fn deliver(
             self,
             config: &Config,
-            metadata: &MessageMetadata,
+            context: &MailContext<Finished>,
             from: &Address,
             to: Vec<Rcpt>,
             content: &str,
@@ -66,7 +70,7 @@ pub mod transport {
         async fn deliver(
             self,
             _: &Config,
-            _: &MessageMetadata,
+            _: &MailContext<Finished>,
             _: &Address,
             to: Vec<Rcpt>,
             _: &str,
@@ -136,39 +140,5 @@ pub mod transport {
                 ))
                 .build(),
         )
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use vsmtp_common::{
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
-        Envelop,
-    };
-
-    /// create an empty email context for testing purposes.
-    #[must_use]
-    pub fn get_default_context() -> MailContext {
-        MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-                server_addr: "127.0.0.1:25".parse().expect("valid"),
-                client_addr: "127.0.0.1:26".parse().expect("valid"),
-                error_count: 0,
-                authentication_attempt: 0,
-            },
-            envelop: Envelop::default(),
-            metadata: MessageMetadata {
-                timestamp: Some(std::time::SystemTime::now()),
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            },
-        }
     }
 }

@@ -45,7 +45,10 @@ pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
 use anyhow::Context;
-use vsmtp_common::{mail_context::MailContext, transfer::SmtpConnection};
+use vsmtp_common::{
+    mail_context::{Finished, MailContext},
+    transfer::SmtpConnection,
+};
 use vsmtp_mail_parser::MessageBody;
 
 /// tag for a specific email process.
@@ -62,16 +65,15 @@ pub enum Process {
 /// delegate a message to another service.
 pub(crate) fn delegate(
     delegator: &SmtpConnection,
-    context: &MailContext,
+    context: &MailContext<Finished>,
     message: &MessageBody,
 ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
     use lettre::Transport;
 
     let envelope = lettre::address::Envelope::new(
-        Some(context.envelop.mail_from.full().parse()?),
+        Some(context.reverse_path().full().parse()?),
         context
-            .envelop
-            .rcpt
+            .forward_paths()
             .iter()
             .map(|rcpt| {
                 rcpt.address

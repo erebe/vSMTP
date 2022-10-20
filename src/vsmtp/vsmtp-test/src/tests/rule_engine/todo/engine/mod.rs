@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+/*
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
     mail_context::{ConnectionContext, MailContext, MessageMetadata},
@@ -45,28 +46,6 @@ fn test_engine_errors() {
         re.run_when(&mut state, State::MailFrom),
         Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
-}
-
-#[test]
-#[ignore]
-// TODO: module errors are parsed at compile time now.
-fn test_engine_rules_syntax() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["syntax", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(
-        re.run_when(&mut state, State::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-    assert_eq!(re.run_when(&mut state, State::Helo), Status::Next);
-    assert_eq!(re.run_when(&mut state, State::MailFrom), Status::Next);
-    assert_eq!(re.run_when(&mut state, State::RcptTo), Status::Next);
-    assert_eq!(re.run_when(&mut state, State::PreQ), Status::Next);
-    assert_eq!(re.run_when(&mut state, State::PostQ), Status::Next);
 }
 
 #[test]
@@ -111,35 +90,14 @@ fn test_rule_state() {
         &rule_engine,
     );
     let state_with_context = RuleState::with_context(
-        config,
-        resolvers,
-        queue_manager,
         &rule_engine,
-        MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-                server_addr: "127.0.0.1:25".parse().unwrap(),
-                client_addr: "127.0.0.1:26".parse().unwrap(),
-                error_count: 0,
-                authentication_attempt: 0,
-            },
-            envelop: Envelop {
-                helo: "test".to_string(),
-                mail_from: vsmtp_common::addr!("a@a.a"),
-                rcpt: vec![],
-            },
-            metadata: MessageMetadata {
-                timestamp: None,
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            },
-        },
+        MailContext::connect(
+            "127.0.0.1:26".parse().unwrap(),
+            "127.0.0.1:25".parse().unwrap(),
+            "testserver.com".to_string(),
+        )
+        .helo("test".to_string())
+        .mail_from("a@a.a".to_string()),
         MessageBody::default(),
     );
 
@@ -158,3 +116,4 @@ fn test_rule_state() {
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))
     );
 }
+*/

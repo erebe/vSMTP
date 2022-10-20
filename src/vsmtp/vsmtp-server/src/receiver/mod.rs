@@ -18,7 +18,10 @@ use self::transaction::{Transaction, TransactionResult};
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{
-    mail_context::ConnectionContext, state::State, status::Status, CodeID, ConnectionKind,
+    mail_context::{Connect, Finished, Helo, MailContext, TlsProperties},
+    state::State,
+    status::Status,
+    CodeID, ConnectionKind,
 };
 use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{BasicParser, MailParser, MessageBody};
@@ -79,13 +82,7 @@ where
         self.send_code(CodeID::Greetings).await?;
 
         loop {
-            let mut transaction = Transaction::new(
-                self,
-                &helo_domain,
-                rule_engine.clone(),
-                resolvers.clone(),
-                queue_manager.clone(),
-            );
+            let mut transaction = Transaction::new(self, &helo_domain, rule_engine.clone());
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
@@ -171,13 +168,7 @@ where
         let mut helo_domain = None;
 
         loop {
-            let mut transaction = Transaction::new(
-                self,
-                &helo_domain,
-                rule_engine.clone(),
-                resolvers.clone(),
-                queue_manager.clone(),
-            );
+            let mut transaction = Transaction::new(self, &helo_domain, rule_engine.clone());
 
             match transaction.receive(self, &helo_domain).await? {
                 TransactionResult::HandshakeSMTP => {
@@ -253,18 +244,20 @@ where
 
             Connection {
                 kind: self.kind,
-                context: ConnectionContext {
+                context: Connect {
                     server_name: stream
                         .get_ref()
                         .1
                         .sni_hostname()
                         .unwrap_or(&self.context.server_name)
                         .to_string(),
-                    is_secured: true,
+                    tls: Some(TlsProperties {}),
                     ..self.context.clone()
                 },
-                config: self.config.clone(),
                 inner: AbstractIO::new(stream),
+                config: self.config.clone(),
+                error_count: self.error_count,
+                authentication_attempt: self.authentication_attempt,
             }
         };
 
@@ -312,6 +305,14 @@ where
             *message = MessageBody::from(body);
         }
 
+        transaction
+            .rule_state
+            .context()
+            .write()
+            .unwrap()
+            .set_state_finished()
+            .unwrap();
+
         let status = transaction
             .rule_engine
             .run_when(&mut transaction.rule_state, State::PreQ);
@@ -331,12 +332,26 @@ where
         {
             let mail_context = transaction.rule_state.context();
             let mut state_writer = mail_context.write().unwrap();
-            state_writer.metadata.skipped = transaction.rule_state.skipped().cloned();
+            state_writer.set_skipped(transaction.rule_state.skipped().cloned());
         }
 
         let (mail_context, message, _) = transaction.rule_state.take().unwrap();
 
-        let helo = mail_context.envelop.helo.clone();
+        if std::convert::TryInto::<&MailContext<Connect>>::try_into(&mail_context).is_ok() {
+            // when received "DATA\r\n.\r\n"
+            return Ok(false);
+        }
+        if std::convert::TryInto::<&MailContext<Helo>>::try_into(&mail_context).is_ok() {
+            // when received "DATA\r\nHELO xxx\r\n.\r\n"
+            return Ok(false);
+        }
+
+        let mail_context: MailContext<Finished> = match mail_context.try_into() {
+            Ok(finished) => finished,
+            Err(e) => todo!("{}", e),
+        };
+
+        let helo = mail_context.client_name().to_string();
         let code = mail_handler
             .on_mail(self, Box::new(mail_context), message, queue_manager)
             .await;

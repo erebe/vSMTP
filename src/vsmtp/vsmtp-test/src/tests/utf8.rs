@@ -15,6 +15,7 @@
  *
 */
 use vqueue::GenericQueueManager;
+use vsmtp_common::mail_context::Finished;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
@@ -31,16 +32,14 @@ macro_rules! test_lang {
             async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug>(
                 &mut self,
                 _: &mut Connection<S>,
-                mail: Box<MailContext>,
+                mail: Box<MailContext<Finished>>,
                 mut message: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.envelop.helo, "foobar".to_string());
-                assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
-                assert_eq!(
-                    mail.envelop.rcpt,
-                    vec![addr!("aa@bb").into()]
-                );
+
+                assert_eq!(mail.client_name(), "foobar");
+                assert_eq!(mail.reverse_path().full(), "john@doe");
+                assert_eq!(*mail.forward_paths(), vec![addr!("aa@bb").into()]);
 
                 pretty_assertions::assert_eq!(
                     *message

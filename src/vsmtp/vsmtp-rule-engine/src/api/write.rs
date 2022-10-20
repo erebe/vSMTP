@@ -110,15 +110,11 @@ fn dump(srv: &mut Server, ctx: &mut Context, dir: &str) -> EngineResult<()> {
 
     std::io::Write::write_all(
         &mut file,
-        serde_json::to_string_pretty(
-            &*ctx
-                .read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
-        )
-        .map_err::<Box<EvalAltResult>, _>(|err| {
-            format!("failed to dump email at {dir:?}: {err}").into()
-        })?
-        .as_bytes(),
+        serde_json::to_string_pretty(&*vsl_guard_ok!(ctx.read()))
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to dump email at {dir:?}: {err}").into()
+            })?
+            .as_bytes(),
     )
     .map_err(|err| format!("failed to dump email at {dir:?}: {err}").into())
 }

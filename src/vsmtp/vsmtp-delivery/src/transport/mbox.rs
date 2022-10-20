@@ -19,7 +19,7 @@ use super::Transport;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown,
-    mail_context::MessageMetadata,
+    mail_context::{Finished, MailContext},
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, TransferErrors},
 };
@@ -42,12 +42,12 @@ impl Transport for MBox {
     async fn deliver(
         self,
         config: &Config,
-        metadata: &MessageMetadata,
+        ctx: &MailContext<Finished>,
         from: &vsmtp_common::Address,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let timestamp = get_mbox_timestamp_format(&metadata.timestamp.unwrap());
+        let timestamp = get_mbox_timestamp_format(ctx.connection_timestamp());
         let content = build_mbox_message(from, &timestamp, content);
 
         for rcpt in &mut to {

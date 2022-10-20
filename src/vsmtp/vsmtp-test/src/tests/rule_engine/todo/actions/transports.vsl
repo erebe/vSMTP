@@ -72,16 +72,15 @@
             maildir("c@example.com");
         },
 
-        // Finally, you can choose to disable the delivery
-        // for a recipient. The email for this recipient
-        // will be removed from the file system
-        // as soon as their are no other recipient
-        // to send the email to.
-        action "disable delivery" || {
-            const d = address("d@example.com");
-
-            disable_delivery(d);
-            disable_delivery("a@example.com");
-        },
+        // // Finally, you can choose to disable the delivery
+        // // for a recipient. The email for this recipient
+        // // will be removed from the file system
+        // // as soon as their are no other recipient
+        // // to send the email to.
+        // action "disable delivery" || {
+        //     const d = address("d@example.com");
+        //     disable_delivery(d);
+        //     disable_delivery("a@example.com");
+        // },
     ]
 }

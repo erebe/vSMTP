@@ -23,6 +23,7 @@ const TEST_SERVER_CERT: &str = "src/template/certs/certificate.crt";
 const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
 use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
 use vsmtp_common::ConnectionKind;
 use vsmtp_config::DnsResolvers;
 use vsmtp_config::{get_rustls_config, Config};
@@ -75,6 +76,8 @@ async fn test_starttls(
 
     let server = tokio::spawn(async move {
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
+        let queue_manager = vqueue::temp::QueueManager::init(server_config.clone()).unwrap();
+        let resolvers = arc!(DnsResolvers::from_config(&server_config).unwrap());
 
         Server::run_session(
             Connection::new(
@@ -96,6 +99,8 @@ async fn test_starttls(
             arc!(RuleEngine::new(
                 server_config.clone(),
                 server_config.app.vsl.filepath.clone(),
+                resolvers,
+                queue_manager,
             )
             .unwrap()),
             std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap()),
@@ -210,9 +215,14 @@ async fn test_tls_tunneled_with_auth(
     get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
     after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
+    let queue_manager = vqueue::temp::QueueManager::init(server_config.clone()).unwrap();
+    let resolvers = arc!(DnsResolvers::from_config(&server_config).unwrap());
+
     let rule_engine = arc!(RuleEngine::new(
         server_config.clone(),
         server_config.app.vsl.filepath.clone(),
+        resolvers,
+        queue_manager,
     )
     .unwrap());
 

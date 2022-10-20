@@ -206,4 +206,4 @@ fn info(code) { sys::info(code) }
 /// ```
 ///
 /// ### Module:Status
-fn quarantine(queue) { sys::quarantine(ctx(), queue) }
+fn quarantine(queue) { sys::quarantine(queue) }

@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext, MessageMetadata},
-    Envelop,
-};
+use vsmtp_common::mail_context::Finished;
+use vsmtp_common::mail_context::{Empty, MailContext};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
+
 /// find a file in root examples.
 #[macro_export]
 macro_rules! root_example {
@@ -69,32 +68,16 @@ pub fn local_test() -> Config {
 
 ///
 #[must_use]
-pub fn local_ctx() -> MailContext {
-    MailContext {
-        connection: ConnectionContext {
-            timestamp: std::time::SystemTime::now(),
-            credentials: None,
-            server_name: "testserver.com".to_string(),
-            server_addr: "127.0.0.1:25".parse().expect(""),
-            client_addr: "127.0.0.1:5977".parse().expect(""),
-            is_authenticated: false,
-            is_secured: false,
-            error_count: 0,
-            authentication_attempt: 0,
-        },
-        envelop: Envelop {
-            helo: "client.testserver.com".to_string(),
-            mail_from: "client@client.testserver.com".parse().expect(""),
-            rcpt: vec![],
-        },
-        metadata: MessageMetadata {
-            timestamp: None,
-            message_id: None,
-            skipped: None,
-            spf: None,
-            dkim: None,
-        },
-    }
+pub fn local_ctx() -> MailContext<Finished> {
+    MailContext::<Empty>::connect(
+        "127.0.0.1:25".parse().expect(""),
+        "127.0.0.1:5977".parse().expect(""),
+        "testserver.com".to_string(),
+    )
+    .helo("client.testserver.com".to_string())
+    .mail_from("client@client.testserver.com".parse().expect(""))
+    .rcpt_to(vec![])
+    .finish()
 }
 
 ///

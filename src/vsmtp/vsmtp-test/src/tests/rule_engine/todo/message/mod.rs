@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+/*
 use crate::{
     rule_engine::RuleEngine,
     rule_state::RuleState,
@@ -24,6 +25,8 @@ use vsmtp_common::{
 };
 use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{BodyType, Mail, MailHeaders, MailMimeParser, MessageBody};
+*/
+/*
 
 #[test]
 fn test_email_context_empty() {
@@ -183,3 +186,4 @@ fn test_email_add_get_set_header() {
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
+*/

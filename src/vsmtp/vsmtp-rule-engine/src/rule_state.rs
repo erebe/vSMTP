@@ -14,124 +14,35 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::server_api::ServerAPI;
 use crate::api::{Context, Message, Server};
 use crate::dsl::directives::Directive;
 use crate::rule_engine::RuleEngine;
-use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::MessageMetadata;
+use vsmtp_common::mail_context::{Connect, MailContextAPI};
 use vsmtp_common::status::Status;
-use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext},
-    Envelop,
-};
-use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugins::rhai;
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
     /// A lightweight engine for evaluation.
-    engine: rhai::Engine,
+    pub(super) engine: rhai::Engine,
     /// A pointer to the server api.
-    pub server: Server,
+    pub(super) server: Server,
     /// A pointer to the mail context for the current connection.
-    mail_context: Context,
+    pub(super) mail_context: Context,
     /// A pointer to the mail body for the current connection.
-    message: Message,
+    pub(super) message: Message,
     // NOTE: we could replace this property by a `skip` function on
     //       the `Status` enum.
     /// A state to check if the next rules need to be executed or skipped.
-    skip: Option<Status>,
-}
-
-impl std::fmt::Debug for RuleState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RuleState")
-            .field("mail_context", &self.mail_context)
-            .field("message", &self.message)
-            .field("skip", &self.skip)
-            .finish()
-    }
+    pub(super) skip: Option<Status>,
 }
 
 impl RuleState {
-    /// creates a new rule engine with an empty scope.
-    #[must_use]
-    pub fn new(
-        config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<DnsResolvers>,
-        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
-        rule_engine: &RuleEngine,
-    ) -> Self {
-        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
-            // TODO: add `Default` trait to `ConnectionContext`.
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: config.server.domain.clone(),
-                server_addr: config
-                    .server
-                    .interfaces
-                    .addr
-                    .get(0)
-                    .copied()
-                    .unwrap_or_else(|| {
-                        "0.0.0.0:0"
-                            .parse()
-                            .expect("default server address should be parsable")
-                    }),
-                client_addr: "0.0.0.0:0"
-                    .parse()
-                    .expect("default client address should be parsable"),
-                error_count: 0,
-                authentication_attempt: 0,
-            },
-            envelop: Envelop::default(),
-            metadata: MessageMetadata {
-                timestamp: None,
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            },
-        }));
-        let server = std::sync::Arc::new(ServerAPI {
-            config,
-            resolvers,
-            queue_manager,
-        });
-
-        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
-
-        let engine = Self::build_rhai_engine(
-            mail_context.clone(),
-            message.clone(),
-            server.clone(),
-            rule_engine,
-        );
-
-        Self {
-            engine,
-            server,
-            mail_context,
-            skip: None,
-            message,
-        }
-    }
-
     /// create a new rule state with connection data.
     #[must_use]
-    pub fn with_connection(
-        config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<DnsResolvers>,
-        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
-        rule_engine: &RuleEngine,
-        conn: ConnectionContext,
-    ) -> Self {
-        let mut state = Self::new(config, resolvers, queue_manager, rule_engine);
+    pub fn with_connection(rule_engine: &RuleEngine, conn: Connect) -> Self {
+        let mut state = rule_engine.spawn();
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
@@ -152,7 +63,7 @@ impl RuleState {
             .mail_context
             .write()
             .expect("`mail_context` mutex is not poisoned here")
-            .connection = conn;
+            .set_state_connect(conn);
 
         state
     }
@@ -160,108 +71,17 @@ impl RuleState {
     /// create a `RuleState` from an existing mail context (f.e. when deserializing a context)
     #[must_use]
     pub fn with_context(
-        config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<DnsResolvers>,
-        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         rule_engine: &RuleEngine,
-        mail_context: MailContext,
+        mail_context: MailContextAPI,
         message: MessageBody,
     ) -> Self {
-        let server = std::sync::Arc::new(ServerAPI {
-            config,
-            resolvers,
-            queue_manager,
-        });
-
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        let skip = mail_context.metadata.skipped.clone();
+        let skip = mail_context.skipped().cloned();
 
-        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(message));
-        let engine = Self::build_rhai_engine(
-            mail_context.clone(),
-            message.clone(),
-            server.clone(),
-            rule_engine,
-        );
-
-        Self {
-            engine,
-            server,
-            mail_context,
-            message,
-            skip,
-        }
-    }
-
-    /// build a cheap rhai engine with vsl's api.
-    fn build_rhai_engine(
-        mail_context: Context,
-        message: Message,
-        server: Server,
-        rule_engine: &RuleEngine,
-    ) -> rhai::Engine {
-        let mut engine = rhai::Engine::new_raw();
-        // let config = server.config.clone();
-
-        // NOTE: on_var is not deprecated, just subject to change in future releases.
-        #[allow(deprecated)]
-        engine
-            // NOTE: why do we have to clone the arc instead of just moving it here ?
-            // injecting the state if the current connection into the engine.
-            .on_var(move |name, _, _| match name {
-                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
-                "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
-                "MSG" => Ok(Some(rhai::Dynamic::from(message.clone()))),
-                _ => Ok(None),
-            });
-
-        #[cfg(debug_assertion)]
-        engine
-            .on_print(|msg| println!("{msg}"))
-            .on_debug(move |s, src, pos| {
-                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
-            });
-
-        engine
-            .register_global_module(rule_engine.std_module.clone())
-            .register_global_module(rule_engine.vsl_rhai_module.clone())
-            .register_static_module("sys", rule_engine.vsl_native_module.clone())
-            .register_static_module("toml", rule_engine.toml_module.clone())
-            // FIXME: the following lines should be remove for performance improvement.
-            //        need to check out how to construct directives as a module.
-            .register_custom_syntax_with_state_raw(
-                "rule",
-                Directive::parse_directive,
-                true,
-                crate::dsl::directives::rule::create,
-            )
-            .register_custom_syntax_with_state_raw(
-                "action",
-                Directive::parse_directive,
-                true,
-                crate::dsl::directives::action::create,
-            );
-
-        #[cfg(feature = "delegation")]
-        engine.register_custom_syntax_with_state_raw(
-            "delegate",
-            Directive::parse_directive,
-            true,
-            crate::dsl::directives::delegation::create,
-        );
-
-        engine.set_fast_operators(false);
-
-        // FIXME: No need to re-apply that.
-        vsmtp_plugins::managers::PluginManager::apply(
-            &*rule_engine.vsl_service_plugin_manager,
-            &mut engine,
-        )
-        .expect("plugins should already have been analyser by the main engine.");
-
-        engine
+        let mut this = rule_engine.spawn_with(mail_context, message);
+        this.skip = skip;
+        this
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
@@ -276,13 +96,13 @@ impl RuleState {
         self.message.clone()
     }
 
-    /// Consume the instance and return the inner [`MailContext`] and [`MessageBody`]
+    /// Consume the instance and return the inner [`MailContextAPI`] and [`MessageBody`]
     ///
     /// # Errors
     ///
     /// * at least one strong reference of the [`std::sync::Arc`] is living
     /// * the [`std::sync::RwLock`] is poisoned
-    pub fn take(self) -> anyhow::Result<(MailContext, MessageBody, Option<Status>)> {
+    pub fn take(self) -> anyhow::Result<(MailContextAPI, MessageBody, Option<Status>)> {
         // early drop of engine because a strong reference is living inside
         let skipped = self.skipped().cloned();
         drop(self.engine);

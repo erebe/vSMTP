@@ -58,13 +58,13 @@ mod tests;
 /// Module containing the backend for the vsl's Rust API.
 pub mod api {
     use crate::server_api::ServerAPI;
-    use vsmtp_common::mail_context::MailContext;
+    use vsmtp_common::mail_context::MailContextAPI;
     use vsmtp_mail_parser::MessageBody;
 
     /// Error produced by the vsl's Rust API function calls.
     pub type EngineResult<T> = Result<T, Box<vsmtp_plugins::rhai::EvalAltResult>>;
     /// Alias for `ctx()`
-    pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
+    pub type Context = std::sync::Arc<std::sync::RwLock<MailContextAPI>>;
     /// Alias for `msg()`
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     /// Alias for `srv()`
@@ -116,38 +116,6 @@ pub mod api {
                 .combine(vsmtp_plugins::rhai::exported_module!(mail_context))
                 .combine(vsmtp_plugins::rhai::exported_module!(message))
                 .combine(vsmtp_plugins::rhai::exported_module!(message_parsed));
-        }
-    }
-
-    #[cfg(test)]
-    mod test {
-        use vsmtp_common::{
-            mail_context::{ConnectionContext, MailContext, MessageMetadata},
-            Envelop,
-        };
-
-        pub fn get_default_context() -> MailContext {
-            MailContext {
-                connection: ConnectionContext {
-                    timestamp: std::time::SystemTime::now(),
-                    credentials: None,
-                    is_authenticated: false,
-                    is_secured: false,
-                    server_name: "testserver.com".to_string(),
-                    server_addr: "127.0.0.1:25".parse().unwrap(),
-                    client_addr: "0.0.0.0:0".parse().unwrap(),
-                    error_count: 0,
-                    authentication_attempt: 0,
-                },
-                envelop: Envelop::default(),
-                metadata: MessageMetadata {
-                    timestamp: Some(std::time::SystemTime::now()),
-                    message_id: None,
-                    skipped: None,
-                    spf: None,
-                    dkim: None,
-                },
-            }
         }
     }
 }

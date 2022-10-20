@@ -36,7 +36,7 @@ async fn write_get_and_delete_ctx() {
     ] {
         let msg_id = format!("{}-{i}", function_name!());
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.clone());
+        ctx.set_message_id(msg_id.clone());
         queue_manager.write_ctx(&i, &ctx).await.unwrap();
         let ctx_read = queue_manager.get_ctx(&i, &msg_id).await.unwrap();
         pretty_assertions::assert_eq!(ctx, ctx_read);
@@ -53,7 +53,7 @@ async fn write_ctx_after_dir_deleted() {
     let i = QueueID::Working;
     let msg_id = format!("{}-{i}", function_name!());
     let mut ctx = local_ctx();
-    ctx.metadata.message_id = Some(msg_id.clone());
+    ctx.set_message_id(msg_id.clone());
 
     queue_manager.write_ctx(&i, &ctx).await.unwrap();
     let ctx_read = queue_manager.get_ctx(&i, &msg_id).await.unwrap();
@@ -109,7 +109,7 @@ async fn write_get_and_delete_both() {
     ] {
         let msg_id = format!("{}-{i}", function_name!());
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.clone());
+        ctx.set_message_id(msg_id.clone());
 
         let msg = local_msg();
         queue_manager.write_both(&i, &ctx, &msg).await.unwrap();
@@ -142,7 +142,7 @@ async fn move_to() {
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let mut ctx = local_ctx();
-    ctx.metadata.message_id = Some(function_name!().to_string());
+    ctx.set_message_id(function_name!().to_string());
 
     queue_manager
         .get_ctx(&QueueID::Working, function_name!())
@@ -189,7 +189,7 @@ async fn move_to_from_id() {
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let mut ctx = local_ctx();
-    ctx.metadata.message_id = Some(function_name!().to_string());
+    ctx.set_message_id(function_name!().to_string());
 
     queue_manager
         .write_ctx(&QueueID::Deliver, &ctx)

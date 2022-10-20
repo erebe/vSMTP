@@ -18,7 +18,10 @@ use super::Transport;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus, Address,
+    mail_context::{Finished, MailContext},
+    rcpt::Rcpt,
+    transfer::EmailTransferStatus,
+    Address,
 };
 use vsmtp_config::Config;
 
@@ -176,7 +179,7 @@ impl<'r> Transport for Deliver<'r> {
     async fn deliver(
         self,
         config: &Config,
-        _: &MessageMetadata,
+        _: &MailContext<Finished>,
         from: &vsmtp_common::Address,
         to: Vec<Rcpt>,
         content: &str,

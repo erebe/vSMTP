@@ -16,6 +16,7 @@
 */
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
+use vqueue::GenericQueueManager;
 use vsmtp_config::{
     field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel},
     get_rustls_config,
@@ -28,9 +29,17 @@ async fn simple() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let config = arc!(config);
+    let resolvers = arc!(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let (client, server) = test_tls_tunneled(
-        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(
+            config.clone(),
+            config.app.vsl.filepath.clone(),
+            resolvers,
+            queue_manager
+        )
+        .unwrap()),
         "testserver.com",
         config,
         [
@@ -81,9 +90,17 @@ async fn starttls_under_tunnel() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let config = arc!(config);
+    let resolvers = arc!(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let (client, server) = test_tls_tunneled(
-        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(
+            config.clone(),
+            config.app.vsl.filepath.clone(),
+            resolvers,
+            queue_manager
+        )
+        .unwrap()),
         "testserver.com",
         config,
         ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
@@ -122,9 +139,17 @@ async fn config_ill_formed() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
     let config = arc!(config);
+    let resolvers = arc!(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let (client, server) = test_tls_tunneled(
-        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(
+            config.clone(),
+            config.app.vsl.filepath.clone(),
+            resolvers,
+            queue_manager
+        )
+        .unwrap()),
         "testserver.com",
         config,
         vec!["NOOP\r\n".to_string()],
@@ -161,9 +186,17 @@ async fn sni() {
     );
 
     let config = arc!(config);
+    let resolvers = arc!(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let (client, server) = test_tls_tunneled(
-        arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
+        arc!(RuleEngine::new(
+            config.clone(),
+            config.app.vsl.filepath.clone(),
+            resolvers,
+            queue_manager
+        )
+        .unwrap()),
         "second.testserver.com",
         config,
         ["NOOP\r\n", "QUIT\r\n"]

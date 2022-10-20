@@ -15,12 +15,10 @@
  *
 */
 use super::connection::Connection;
-use vqueue::GenericQueueManager;
 use vsmtp_common::{
-    addr, auth::Mechanism, event::Event, mail_context::MessageMetadata, rcpt::Rcpt, state::State,
-    status::Status, Address, CodeID, Envelop, ReplyOrCodeID,
+    auth::Mechanism, event::Event, state::State, status::Status, Address, CodeID, ReplyOrCodeID,
 };
-use vsmtp_config::{field::TlsSecurityLevel, Config, DnsResolvers};
+use vsmtp_config::{field::TlsSecurityLevel, Config};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -78,19 +76,12 @@ impl Transaction {
             (_, Event::HelpCmd(_)) => either::Left((ReplyOrCodeID::Left(CodeID::Help), None)),
 
             (_, Event::RsetCmd) => {
-                {
-                    let state = self.rule_state.context();
-                    let mut ctx = state.write().unwrap();
-                    ctx.metadata = MessageMetadata {
-                        timestamp: None,
-                        message_id: None,
-                        skipped: None,
-                        spf: None,
-                        dkim: None,
-                    };
-                    ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from = addr!("default@domain.com");
-                }
+                self.rule_state
+                    .context()
+                    .write()
+                    .unwrap()
+                    .reset_state()
+                    .unwrap();
                 self.reset_message();
                 either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::Helo)))
             }
@@ -132,7 +123,7 @@ impl Transaction {
                     Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
                     _ => either::Left((
-                        ReplyOrCodeID::Left(if connection.context.is_secured {
+                        ReplyOrCodeID::Left(if connection.context.tls.is_some() {
                             CodeID::EhloSecured
                         } else {
                             CodeID::EhloPain
@@ -155,23 +146,23 @@ impl Transaction {
             }
 
             (State::Helo, Event::Auth(mechanism, initial_response))
-                if !connection.context.is_authenticated =>
+                if connection.context.auth.is_none() =>
             {
                 either::Right(TransactionResult::HandshakeSASL(
                     self.rule_state
                         .context()
                         .read()
                         .expect("`rule_state` mutex is not poisoned")
-                        .envelop
-                        .helo
-                        .clone(),
+                        .client_name()
+                        .unwrap()
+                        .to_string(),
                     mechanism,
                     initial_response,
                 ))
             }
 
             (State::Helo, Event::MailCmd(..))
-                if !connection.context.is_secured
+                if connection.context.tls.is_none()
                     && connection
                         .config
                         .server
@@ -184,7 +175,7 @@ impl Transaction {
             }
 
             (State::Helo, Event::MailCmd(..))
-                if !connection.context.is_authenticated
+                if connection.context.auth.is_none()
                     && connection
                         .config
                         .server
@@ -199,7 +190,7 @@ impl Transaction {
             (State::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 // TODO: handle : mail_from can be "<>"
-                self.set_mail_from(mail_from.unwrap(), connection);
+                self.set_mail_from(mail_from.unwrap());
 
                 match self
                     .rule_engine
@@ -228,7 +219,13 @@ impl Transaction {
                 {
                     Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
-                    _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
+                    _ if self
+                        .rule_state
+                        .context()
+                        .read()
+                        .unwrap()
+                        .forward_paths()
+                        .map_or(0, Vec::len)
                         >= connection.config.server.smtp.rcpt_count_max =>
                     {
                         either::Left((ReplyOrCodeID::Left(CodeID::TooManyRecipients), None))
@@ -257,70 +254,29 @@ impl Transaction {
         &mut self,
         connection: &Connection<S>,
     ) {
-        let state = self.rule_state.context();
-        let ctx = &mut state.write().unwrap();
-
-        ctx.connection.client_addr = connection.context.client_addr;
-        ctx.connection.timestamp = connection.context.timestamp;
+        self.rule_state
+            .context()
+            .write()
+            .unwrap()
+            .set_state_connect(connection.context.clone());
     }
 
     fn set_helo(&mut self, helo: String) {
-        {
-            let state = self.rule_state.context();
-            let mut ctx = state.write().unwrap();
-
-            ctx.metadata = MessageMetadata {
-                timestamp: None,
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            };
-            ctx.envelop = Envelop {
-                helo,
-                mail_from: addr!("no@address.net"),
-                rcpt: vec![],
-            };
-        }
+        self.rule_state
+            .context()
+            .write()
+            .unwrap()
+            .set_state_helo(helo)
+            .unwrap();
     }
 
-    fn set_mail_from<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
-        &mut self,
-        mail_from: Address,
-        connection: &Connection<S>,
-    ) {
-        let now = std::time::SystemTime::now();
-
-        {
-            let state = self.rule_state.context();
-            let mut ctx = state.write().unwrap();
-            ctx.envelop.rcpt.clear();
-            ctx.envelop.mail_from = mail_from;
-            ctx.metadata = MessageMetadata {
-                timestamp: Some(now),
-                message_id: Some(format!(
-                    "{}{}{}{}",
-                    now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                        .expect("did went back in time")
-                        .as_micros(),
-                    connection
-                        .context
-                        .timestamp
-                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                        .expect("did went back in time")
-                        .as_millis(),
-                    std::iter::repeat_with(fastrand::alphanumeric)
-                        .take(36)
-                        .collect::<String>(),
-                    std::process::id()
-                )),
-                skipped: self.rule_state.skipped().cloned(),
-                spf: None,
-                dkim: None,
-            };
-        }
+    fn set_mail_from(&mut self, mail_from: Address) {
+        self.rule_state
+            .context()
+            .write()
+            .unwrap()
+            .set_state_mail_from(mail_from)
+            .unwrap();
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: Address) {
@@ -328,9 +284,8 @@ impl Transaction {
             .context()
             .write()
             .unwrap()
-            .envelop
-            .rcpt
-            .push(Rcpt::new(rcpt_to));
+            .set_state_rcpt_to(rcpt_to)
+            .unwrap();
     }
 
     /// reset the message but keeps headers.
@@ -343,16 +298,8 @@ impl Transaction {
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<DnsResolvers>,
-        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> Transaction {
-        let rule_state = RuleState::with_connection(
-            conn.config.clone(),
-            resolvers,
-            queue_manager,
-            &rule_engine,
-            conn.context.clone(),
-        );
+        let rule_state = RuleState::with_connection(&rule_engine, conn.context.clone());
 
         Self {
             state: if helo_domain.is_none() {

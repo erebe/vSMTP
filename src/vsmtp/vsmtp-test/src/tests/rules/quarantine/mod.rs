@@ -23,11 +23,7 @@ const QUARANTINE_RULE: &str = r#"
 #{
     {stage}: [
         rule "quarantine john" || {
-            if mail_from().local_part == "john.doe" {
-                quarantine("john")
-            } else {
-                accept()
-            }
+            quarantine("john")
         }
     ]
 }

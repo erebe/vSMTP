@@ -28,7 +28,7 @@ pub mod rule;
 pub type Directives = std::collections::BTreeMap<State, Vec<Directive>>;
 
 /// a type of rule that can be executed from a function pointer.
-#[derive(strum::AsRefStr)]
+#[derive(Debug, strum::AsRefStr)]
 #[strum(serialize_all = "lowercase")]
 pub enum Directive {
     /// execute code that return a status.
@@ -44,15 +44,6 @@ pub enum Directive {
         pointer: rhai::FnPtr,
         service: std::sync::Arc<crate::dsl::smtp::service::Smtp>,
     },
-}
-
-impl std::fmt::Debug for Directive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Directive")
-            .field("type", &self.as_ref())
-            .field("name", &self.name())
-            .finish_non_exhaustive()
-    }
 }
 
 impl Directive {
@@ -152,9 +143,7 @@ impl Directive {
                             &format!(
                                 "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
                                 vsl_guard_ok!(rule_state.context().read())
-                                    .metadata
-                                    .message_id
-                                    .as_ref()
+                                    .message_id()
                                     .unwrap()
                             ),
                         );

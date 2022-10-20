@@ -14,15 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
+use crate::api::Server;
 use crate::api::{rule_state::deny, EngineResult, StandardVSLPackage};
 use crate::dsl::cmd::plugin::Cmd;
 use crate::dsl::directives::{Directive, Directives};
 use crate::dsl::smtp::{plugin, service};
 use crate::rule_state::RuleState;
+use crate::server_api::ServerAPI;
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope, AST};
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::{mail_context::MailContext, state::State, status::Status};
+use vsmtp_common::mail_context::{Empty, MailContext, MailContextAPI, StateSMTP};
+use vsmtp_common::{state::State, status::Status};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugin_vsl::plugin::Objects;
@@ -39,6 +42,7 @@ macro_rules! block_on {
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
+#[derive(Debug)]
 pub struct RuleEngine {
     /// ast built from the user's .vsl files.
     pub(super) ast: AST,
@@ -54,6 +58,7 @@ pub struct RuleEngine {
     pub(super) toml_module: rhai::Shared<rhai::Module>,
     /// Handle to vSL plugins.
     pub(super) vsl_service_plugin_manager: rhai::Shared<NativeVSL>,
+    pub(super) server: Server,
 }
 
 type RuleEngineInput<'a> = either::Either<Option<std::path::PathBuf>, &'a str>;
@@ -70,8 +75,10 @@ impl RuleEngine {
     pub fn new(
         config: std::sync::Arc<Config>,
         input: Option<std::path::PathBuf>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
-        Self::new_inner(config, &either::Left(input))
+        Self::new_inner(&either::Left(input), config, resolvers, queue_manager)
     }
 
     // NOTE: since a single engine instance is created for each postq emails
@@ -81,14 +88,21 @@ impl RuleEngine {
     /// # Errors
     ///
     /// * failed to compile the script.
-    pub fn from_script(config: std::sync::Arc<Config>, input: &str) -> anyhow::Result<Self> {
-        Self::new_inner(config, &either::Right(input))
+    pub fn from_script(
+        config: std::sync::Arc<Config>,
+        input: &str,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
+    ) -> anyhow::Result<Self> {
+        Self::new_inner(&either::Right(input), config, resolvers, queue_manager)
     }
 
     #[tracing::instrument(name = "building-rules", skip_all)]
     fn new_inner(
-        config: std::sync::Arc<Config>,
         input: &RuleEngineInput<'_>,
+        config: std::sync::Arc<Config>,
+        resolvers: std::sync::Arc<DnsResolvers>,
+        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
         let (server_config, app_config) = (
             serde_json::to_string(&config.server)
@@ -180,7 +194,100 @@ impl RuleEngine {
             std_module,
             toml_module,
             vsl_service_plugin_manager,
+            server: std::sync::Arc::new(ServerAPI {
+                config,
+                resolvers,
+                queue_manager,
+            }),
         })
+    }
+
+    pub(crate) fn spawn(&self) -> RuleState {
+        self.spawn_with(
+            MailContextAPI::Empty(MailContext::<Empty>::empty()),
+            MessageBody::default(),
+        )
+    }
+
+    /// build a cheap rhai engine with vsl's api.
+    pub(crate) fn spawn_with(
+        &self,
+        mail_context: MailContextAPI,
+        message: MessageBody,
+    ) -> RuleState {
+        let (mail_context, message) = (
+            std::sync::Arc::new(std::sync::RwLock::new(mail_context)),
+            std::sync::Arc::new(std::sync::RwLock::new(message)),
+        );
+
+        let (mail_context_cpy, server_cpy, message_cpy) =
+            (mail_context.clone(), self.server.clone(), message.clone());
+
+        let mut engine = rhai::Engine::new_raw();
+
+        // NOTE: on_var is not deprecated, just subject to change in future releases.
+        #[allow(deprecated)]
+        engine
+            // NOTE: why do we have to clone the arc instead of just moving it here ?
+            // injecting the state if the current connection into the engine.
+            .on_var(move |name, _, _| match name {
+                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context_cpy.clone()))),
+                "SRV" => Ok(Some(rhai::Dynamic::from(server_cpy.clone()))),
+                "MSG" => Ok(Some(rhai::Dynamic::from(message_cpy.clone()))),
+                _ => Ok(None),
+            });
+
+        #[cfg(debug_assertion)]
+        engine
+            .on_print(|msg| println!("{msg}"))
+            .on_debug(move |s, src, pos| {
+                println!("{} @ {:?} > {}", src.unwrap_or("unknown source"), pos, s);
+            });
+
+        engine
+            .register_global_module(self.std_module.clone())
+            .register_global_module(self.vsl_rhai_module.clone())
+            .register_static_module("sys", self.vsl_native_module.clone())
+            .register_static_module("toml", self.toml_module.clone())
+            // FIXME: the following lines should be remove for performance improvement.
+            //        need to check out how to construct directives as a module.
+            .register_custom_syntax_with_state_raw(
+                "rule",
+                Directive::parse_directive,
+                true,
+                crate::dsl::directives::rule::create,
+            )
+            .register_custom_syntax_with_state_raw(
+                "action",
+                Directive::parse_directive,
+                true,
+                crate::dsl::directives::action::create,
+            );
+
+        #[cfg(feature = "delegation")]
+        engine.register_custom_syntax_with_state_raw(
+            "delegate",
+            Directive::parse_directive,
+            true,
+            crate::dsl::directives::delegation::create,
+        );
+
+        engine.set_fast_operators(false);
+
+        // FIXME: No need to re-apply that.
+        vsmtp_plugins::managers::PluginManager::apply(
+            &*self.vsl_service_plugin_manager,
+            &mut engine,
+        )
+        .expect("plugins should already have been analyzed by the main engine.");
+
+        RuleState {
+            engine,
+            server: self.server.clone(),
+            mail_context,
+            message,
+            skip: None,
+        }
     }
 
     // FIXME: delegation handling to refactor.
@@ -244,8 +351,9 @@ impl RuleEngine {
                                 .get_ctx(&QueueID::Delegated, message_id);
                             match block_on!(&mut ctx) {
                                 Ok(mut context) => {
-                                    context.metadata.skipped = None;
-                                    *rule_state.context().write().unwrap() = context;
+                                    context.set_skipped(None);
+                                    *rule_state.context().write().unwrap() =
+                                        MailContextAPI::Finished(context);
                                 }
                                 Err(error) => {
                                     tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
@@ -305,23 +413,16 @@ impl RuleEngine {
     ///
     /// A tuple with the mail context, body, result status, and skip status.
     #[must_use]
-    pub fn just_run_when(
+    pub fn just_run_when<S: StateSMTP>(
         &self,
         state: State,
-        config: std::sync::Arc<Config>,
-        resolvers: std::sync::Arc<DnsResolvers>,
-        queue_manager: std::sync::Arc<dyn GenericQueueManager>,
-        mail_context: MailContext,
+        mail_context: MailContext<S>,
         mail_message: MessageBody,
-    ) -> (MailContext, MessageBody, Status, Option<Status>) {
-        let mut rule_state = RuleState::with_context(
-            config,
-            resolvers,
-            queue_manager,
-            self,
-            mail_context,
-            mail_message,
-        );
+    ) -> (MailContextAPI, MessageBody, Status, Option<Status>)
+    where
+        MailContextAPI: From<MailContext<S>>,
+    {
+        let mut rule_state = RuleState::with_context(self, mail_context.into(), mail_message);
 
         let result = self.run_when(&mut rule_state, state);
 

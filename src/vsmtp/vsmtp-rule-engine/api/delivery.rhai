@@ -201,6 +201,7 @@ fn maildir(rcpt) { sys::maildir(ctx(), rcpt) }
 /// ### Module:Delivery
 fn maildir_all() { sys::maildir_all(ctx()) }
 
+/*
 /// Disable the delivery for a single recipient.
 ///
 /// ### Args
@@ -222,7 +223,9 @@ fn maildir_all() { sys::maildir_all(ctx()) }
 ///
 /// ### Module:Delivery
 fn disable_delivery(rcpt) { sys::disable_delivery(ctx(), rcpt) }
+*/
 
+/*
 /// Disable delivery for all single recipients.
 ///
 /// ### Effective smtp stage
@@ -240,3 +243,4 @@ fn disable_delivery(rcpt) { sys::disable_delivery(ctx(), rcpt) }
 ///
 /// ### Module:Delivery
 fn disable_delivery_all() { sys::disable_delivery_all(ctx()) }
+*/

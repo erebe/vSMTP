@@ -14,14 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::run_test;
 use vqueue::GenericQueueManager;
+use vsmtp_common::mail_context::Finished;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::CodeID;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
-
-use crate::run_test;
 
 const CONFIG: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -80,12 +80,11 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                ctx: Box<MailContext>,
+                ctx: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                ctx.envelop
-                    .rcpt
+                ctx.forward_paths()
                     .iter()
                     .find(|rcpt| rcpt.address.full() == "jane.doe@doe-family.com")
                     .unwrap();

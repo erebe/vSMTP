@@ -69,9 +69,6 @@ pub use types::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 ///
 pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
 
-mod envelop;
-pub use envelop::Envelop;
-
 /// parsed command of the client
 pub mod event;
 

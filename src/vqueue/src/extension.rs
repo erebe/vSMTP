@@ -16,7 +16,7 @@
  */
 use crate::{api::DetailedMailContext, GenericQueueManager, QueueID};
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::mail_context::{Finished, MailContext};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
@@ -63,13 +63,8 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         T::get_config(self)
     }
 
-    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext) -> anyhow::Result<()> {
-        let message_id = &ctx
-            .metadata
-            .message_id
-            .as_ref()
-            .expect("not ill-formed mail context");
-
+    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext<Finished>) -> anyhow::Result<()> {
+        let message_id = ctx.message_id();
         let queue_path = self.get_queue_path(queue);
 
         if !queue_path.exists() {
@@ -87,7 +82,8 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
             .truncate(true)
             .open(&msg_path)?;
 
-        std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
+        let serialized = serde_json::to_string_pretty(ctx)?;
+        std::io::Write::write_all(&mut file, serialized.as_bytes())?;
 
         tracing::debug!(to = ?queue_path, "Email context written.");
 
@@ -172,7 +168,11 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
             .collect::<Vec<Result<_, _>>>())
     }
 
-    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext> {
+    async fn get_ctx(
+        &self,
+        queue: &QueueID,
+        msg_id: &str,
+    ) -> anyhow::Result<MailContext<Finished>> {
         let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
 
         ctx_filepath.set_extension("json");
@@ -180,7 +180,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
         let content = std::fs::read_to_string(&ctx_filepath)
             .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
 
-        serde_json::from_str::<MailContext>(&content)
+        serde_json::from_str::<MailContext<Finished>>(&content)
             .with_context(|| format!("Cannot deserialize: '{content:?}'"))
     }
 
@@ -200,7 +200,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + std::fmt::Debug> GenericQueueM
             .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
 
         Ok(DetailedMailContext {
-            ctx: serde_json::from_str::<MailContext>(&content)
+            ctx: serde_json::from_str::<MailContext<Finished>>(&content)
                 .with_context(|| format!("Cannot deserialize: '{content:?}'"))?,
             modified_at,
         })

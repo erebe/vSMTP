@@ -18,7 +18,7 @@
 use super::Connection;
 use super::{rsasl_callback::ValidationVSL, Callback};
 use vqueue::GenericQueueManager;
-use vsmtp_common::{auth::Mechanism, mail_context::ConnectionContext, CodeID};
+use vsmtp_common::{auth::Mechanism, CodeID};
 use vsmtp_config::{field::FieldServerSMTPAuth, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
@@ -123,7 +123,7 @@ where
                     anyhow::bail!("{e} - {}", CodeID::AuthInvalidCredentials)
                 }
                 Error::Canceled => {
-                    self.context.authentication_attempt += 1;
+                    self.authentication_attempt += 1;
                     *helo_domain = Some(helo_pre_auth);
 
                     let retries_max = self
@@ -134,7 +134,7 @@ where
                         .as_ref()
                         .unwrap()
                         .attempt_count_max;
-                    if retries_max != -1 && self.context.authentication_attempt > retries_max {
+                    if retries_max != -1 && self.authentication_attempt > retries_max {
                         self.send_code(CodeID::AuthRequired).await?;
                         anyhow::bail!("Auth: Attempt max {retries_max} reached");
                     }
@@ -169,7 +169,7 @@ where
 
         let (mechanism, initial_response) = args;
 
-        if mechanism.must_be_under_tls() && !self.context.is_secured {
+        if mechanism.must_be_under_tls() && self.context.tls.is_none() {
             if self
                 .config
                 .server
@@ -251,10 +251,7 @@ where
 
         match session.validation() {
             Some((conn_ctx, _skipped)) => {
-                self.context = ConnectionContext {
-                    is_authenticated: true,
-                    ..conn_ctx
-                };
+                self.context = conn_ctx;
 
                 self.send_code(CodeID::AuthSucceeded)
                     .await

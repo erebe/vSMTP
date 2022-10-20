@@ -35,17 +35,17 @@
             forward_all(example);
         },
 
-        // The "mbox" method delivers the email localy
+        // The "mbox" method delivers the email locally
         // using the mailbox protocol.
         action "use mailbox for everything" || mbox_all(),
 
-        // The "maildir" method delivers the email localy
+        // The "maildir" method delivers the email locally
         // using the maildir protocol.
         action "use maildir for everything" || maildir_all(),
 
-        // Finally, you can choose to disable the delivery
-        // for all recipients. The email will be removed
-        // immediatly once it reaches the delivery stage.
-        action "disable delivery" || disable_delivery_all(),
+        // // Finally, you can choose to disable the delivery
+        // // for all recipients. The email will be removed
+        // // immediately once it reaches the delivery stage.
+        // action "disable delivery" || disable_delivery_all(),
     ]
 }

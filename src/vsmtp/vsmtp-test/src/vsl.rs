@@ -16,25 +16,39 @@
 */
 
 use crate::config::{local_ctx, local_msg, local_test};
+use vqueue::GenericQueueManager;
+use vsmtp_common::mail_context::MailContextAPI;
 use vsmtp_common::state::State;
+use vsmtp_common::status::Status;
 use vsmtp_config::DnsResolvers;
+use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 
 ///
-pub fn run(vsl: &'static str) {
+#[must_use]
+pub fn run(
+    vsl: &'static str,
+) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
     let config = arc!(local_test());
-    let rule_engine = RuleEngine::from_script(config.clone(), vsl).expect("rule engine");
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
+    let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
-    let queue_manager =
-        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-            .expect("queue manager");
+    let rule_engine =
+        RuleEngine::from_script(config, vsl, resolvers, queue_manager).expect("rule engine");
 
-    let _output = rule_engine.just_run_when(
+    let mut out = std::collections::HashMap::<
+        State,
+        (MailContextAPI, MessageBody, Status, Option<Status>),
+    >::new();
+    for i in [
         State::Connect,
-        config,
-        std::sync::Arc::new(DnsResolvers::from_system_conf().expect("resolvers")),
-        queue_manager,
-        local_ctx(),
-        local_msg(),
-    );
+        State::Helo,
+        State::MailFrom,
+        State::RcptTo,
+        State::PreQ,
+        State::PostQ,
+    ] {
+        out.insert(i, rule_engine.just_run_when(i, local_ctx(), local_msg()));
+    }
+    out
 }

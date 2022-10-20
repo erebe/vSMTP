@@ -25,6 +25,10 @@ mod examples {
 }
 mod message_max_size;
 mod rset;
+mod rule_engine {
+    mod actions;
+    mod getters;
+}
 mod rules {
     mod codes;
     mod quarantine;

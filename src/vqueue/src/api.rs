@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::mail_context::{Finished, MailContext};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
@@ -82,7 +82,7 @@ mod tests {
 ///
 #[derive(Debug, Clone)]
 pub struct DetailedMailContext {
-    pub(crate) ctx: MailContext,
+    pub(crate) ctx: MailContext<Finished>,
     pub(crate) modified_at: std::time::SystemTime,
 }
 
@@ -101,7 +101,7 @@ where
     fn get_config(&self) -> &Config;
 
     ///
-    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext) -> anyhow::Result<()>;
+    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext<Finished>) -> anyhow::Result<()>;
 
     ///
     async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
@@ -110,17 +110,13 @@ where
     async fn write_both(
         &self,
         queue: &QueueID,
-        ctx: &MailContext,
+        ctx: &MailContext<Finished>,
         msg: &MessageBody,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
     {
-        let msg_id = ctx
-            .metadata
-            .message_id
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?;
+        let msg_id = ctx.message_id();
 
         self.write_ctx(queue, ctx).await?;
         self.write_msg(msg_id, msg).await?;
@@ -147,7 +143,8 @@ where
     async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
 
     ///
-    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext>;
+    async fn get_ctx(&self, queue: &QueueID, msg_id: &str)
+        -> anyhow::Result<MailContext<Finished>>;
 
     ///
     async fn get_detailed_ctx(
@@ -164,7 +161,7 @@ where
         &self,
         queue: &QueueID,
         msg_id: &str,
-    ) -> anyhow::Result<(MailContext, MessageBody)>
+    ) -> anyhow::Result<(MailContext<Finished>, MessageBody)>
     where
         Self: Sized,
     {
@@ -197,7 +194,7 @@ where
         &self,
         before: &QueueID,
         after: &QueueID,
-        ctx: &MailContext,
+        ctx: &MailContext<Finished>,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
@@ -207,14 +204,7 @@ where
         tracing::debug!(from = %before, to = %after, "Moving email.");
 
         self.write_ctx(after, ctx).await?;
-        self.remove_ctx(
-            before,
-            ctx.metadata
-                .message_id
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?,
-        )
-        .await?;
+        self.remove_ctx(before, ctx.message_id()).await?;
 
         Ok(())
     }

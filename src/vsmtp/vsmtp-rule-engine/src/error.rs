@@ -164,6 +164,12 @@ macro_rules! vsl_missing_ok {
                 stage: $stage,
             })?
     };
+    (ref $option:expr, $field:expr, $stage:expr) => {
+        $option.ok_or_else(|| $crate::error::RuntimeError::MissingField {
+            field: $field.to_string(),
+            stage: $stage,
+        })?
+    };
     (mut $option:expr, $field:expr,  $stage:expr) => {
         $option
             .as_mut()

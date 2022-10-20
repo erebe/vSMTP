@@ -18,10 +18,7 @@
 use vsmtp_plugin_vsl::objects::Object;
 use vsmtp_plugins::rhai;
 
-use crate::api::{
-    transports::disable_delivery_all,
-    EngineResult, {Context, SharedObject},
-};
+use crate::api::{EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
@@ -158,11 +155,10 @@ mod rule_state {
     /// # Errors
     ///
     /// * a mutex is poisoned
-    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
-    pub fn quarantine_str(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
-        disable_delivery_all(ctx)?;
-
-        Ok(Status::Quarantine(queue.to_string()))
+    #[must_use]
+    #[rhai_fn(global, name = "quarantine")]
+    pub fn quarantine_str(queue: &str) -> Status {
+        Status::Quarantine(queue.to_string())
     }
 
     /// Return a [`Status::Quarantine`] with `queue`
@@ -171,10 +167,9 @@ mod rule_state {
     ///
     /// * a mutex is poisoned
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
-    pub fn quarantine_obj(ctx: &mut Context, queue: SharedObject) -> EngineResult<Status> {
-        disable_delivery_all(ctx)?;
-
-        Ok(Status::Quarantine(queue.to_string()))
+    #[must_use]
+    #[rhai_fn(global, name = "quarantine")]
+    pub fn quarantine_obj(queue: SharedObject) -> Status {
+        Status::Quarantine(queue.to_string())
     }
 }

@@ -16,6 +16,7 @@
 */
 
 use vqueue::GenericQueueManager;
+use vsmtp_common::mail_context::Finished;
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -68,15 +69,15 @@ run_test! {
             >(
                 &mut self,
                 _: &mut Connection<S>,
-                ctx: Box<MailContext>,
+                ctx: Box<MailContext<Finished>>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(
-                    ctx.envelop.rcpt,
+                    *ctx.forward_paths(),
                     vec![
-                        addr!("john@gmail.com").into(),
                         addr!("oliver@mydomain.com").into(),
+                        addr!("john@gmail.com").into(),
                         addr!("john.doe@mydomain.com").into(),
                     ]
                 );

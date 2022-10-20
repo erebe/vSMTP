@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -30,37 +32,32 @@ impl Commands {
             <QueueID as strum::IntoEnumIterator>::iter()
                 .map(|q| async move { queue_manager.get_ctx(&q, msg_id).await }),
         )
-        .await
-        .into_iter()
-        .find_map(Result::ok);
+        .await;
 
-        match (ctx, queue_manager.get_msg(msg_id).await) {
-            (None, Ok(_)) => {
-                anyhow::bail!("Message is orphan: exists but no context in the queue!")
-            }
-            (None, Err(_)) => {
-                anyhow::bail!("Message does not exist in any queue!")
-            }
-            (Some(_), Err(_)) => {
-                anyhow::bail!("Message  is orphan: context in the queue but no message!")
-            }
-            (Some(ctx), Ok(msg)) => {
-                output.write_fmt(format_args!(
-                    "Message context:\n{}\n",
-                    serde_json::to_string_pretty(&ctx)?
-                ))?;
+        let ctx = ctx
+            .into_iter()
+            .find_map(Result::ok)
+            .context("Mail context not found")?;
 
-                output.write_all(b"Message body:\n")?;
+        let msg = queue_manager
+            .get_msg(msg_id)
+            .await
+            .context("Message not found")?;
 
-                output.write_all(
-                    match format {
-                        MessageShowFormat::Eml => msg.inner().to_string(),
-                        MessageShowFormat::Json => serde_json::to_string_pretty(&msg)?,
-                    }
-                    .as_bytes(),
-                )?;
+        output.write_fmt(format_args!(
+            "Message context:\n{}\n",
+            serde_json::to_string_pretty(&ctx)?
+        ))?;
+
+        output.write_all(b"Message body:\n")?;
+
+        output.write_all(
+            match format {
+                MessageShowFormat::Eml => msg.inner().to_string(),
+                MessageShowFormat::Json => serde_json::to_string_pretty(&msg)?,
             }
-        }
+            .as_bytes(),
+        )?;
 
         Ok(())
     }
@@ -71,7 +68,7 @@ mod tests {
     use super::*;
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     #[function_name::named]
     async fn show1_json() {
         let mut output = vec![];
@@ -80,9 +77,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
-
-        let timestamp = ctx.connection.timestamp;
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -98,34 +93,37 @@ mod tests {
         .await
         .unwrap();
 
+        let connect_timestamp = ctx.connection_timestamp();
+        let connect_timestamp = serde_json::to_string_pretty(&connect_timestamp)
+            .unwrap()
+            .replace("  ", "    ")
+            .replace('}', "  }");
+
+        let mail_timestamp = ctx.mail_timestamp();
+        let mail_timestamp = serde_json::to_string_pretty(&mail_timestamp)
+            .unwrap()
+            .replace("  ", "    ")
+            .replace('}', "  }");
+
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connection": {{
-    "timestamp": {},
-    "client_addr": "127.0.0.1:5977",
-    "credentials": null,
-    "server_name": "testserver.com",
-    "server_addr": "127.0.0.1:25",
-    "is_authenticated": false,
-    "is_secured": false,
-    "error_count": 0,
-    "authentication_attempt": 0
-  }},
-  "envelop": {{
-    "helo": "client.testserver.com",
-    "mail_from": "client@client.testserver.com",
-    "rcpt": []
-  }},
-  "metadata": {{
-    "timestamp": null,
-    "message_id": "show1_json",
-    "skipped": null,
-    "spf": null,
-    "dkim": null
-  }}
+  "connect_timestamp": {connect_timestamp},
+  "client_addr": "127.0.0.1:25",
+  "server_addr": "127.0.0.1:5977",
+  "server_name": "testserver.com",
+  "skipped": null,
+  "tls": null,
+  "auth": null,
+  "client_name": "client.testserver.com",
+  "reverse_path": "client@client.testserver.com",
+  "mail_timestamp": {mail_timestamp},
+  "message_id": "show1_json",
+  "forward_path": [],
+  "dkim": null,
+  "spf": null
 }}
 Message body:
 {{
@@ -140,15 +138,11 @@ Message body:
   }},
   "parsed": null
 }}"#,
-                serde_json::to_string_pretty(&timestamp)
-                    .unwrap()
-                    .replace("  ", "      ")
-                    .replace('}', "    }")
             )
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     #[function_name::named]
     async fn show1_eml() {
         let mut output = vec![];
@@ -157,9 +151,7 @@ Message body:
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
-
-        let timestamp = ctx.connection.timestamp;
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -175,41 +167,40 @@ Message body:
         .await
         .unwrap();
 
+        let connect_timestamp = ctx.connection_timestamp();
+        let connect_timestamp = serde_json::to_string_pretty(&connect_timestamp)
+            .unwrap()
+            .replace("  ", "    ")
+            .replace('}', "  }");
+
+        let mail_timestamp = ctx.mail_timestamp();
+        let mail_timestamp = serde_json::to_string_pretty(&mail_timestamp)
+            .unwrap()
+            .replace("  ", "    ")
+            .replace('}', "  }");
+
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connection": {{
-    "timestamp": {},
-    "client_addr": "127.0.0.1:5977",
-    "credentials": null,
-    "server_name": "testserver.com",
-    "server_addr": "127.0.0.1:25",
-    "is_authenticated": false,
-    "is_secured": false,
-    "error_count": 0,
-    "authentication_attempt": 0
-  }},
-  "envelop": {{
-    "helo": "client.testserver.com",
-    "mail_from": "client@client.testserver.com",
-    "rcpt": []
-  }},
-  "metadata": {{
-    "timestamp": null,
-    "message_id": "show1_eml",
-    "skipped": null,
-    "spf": null,
-    "dkim": null
-  }}
+  "connect_timestamp": {connect_timestamp},
+  "client_addr": "127.0.0.1:25",
+  "server_addr": "127.0.0.1:5977",
+  "server_name": "testserver.com",
+  "skipped": null,
+  "tls": null,
+  "auth": null,
+  "client_name": "client.testserver.com",
+  "reverse_path": "client@client.testserver.com",
+  "mail_timestamp": {mail_timestamp},
+  "message_id": "show1_eml",
+  "forward_path": [],
+  "dkim": null,
+  "spf": null
 }}
 Message body:
 {}"#,
-                serde_json::to_string_pretty(&timestamp)
-                    .unwrap()
-                    .replace("  ", "      ")
-                    .replace('}', "    }"),
                 [
                     "From: NoBody <nobody@domain.tld>\r\n",
                     "Reply-To: Yuin <yuin@domain.tld>\r\n",

@@ -20,7 +20,12 @@ use crate::{
     ProcessMessage,
 };
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::{state::State, status::Status, transfer::EmailTransferStatus};
+use vsmtp_common::{
+    mail_context::{Finished, MailContext},
+    state::State,
+    status::Status,
+    transfer::EmailTransferStatus,
+};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_rule_engine::RuleEngine;
 
@@ -83,27 +88,21 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         QueueID::Deliver
     };
 
-    let (mail_context, mail_message) = queue_manager
+    let (ctx, mail_message) = queue_manager
         .get_both(&queue, &process_message.message_id)
         .await?;
 
-    let (mut mail_context, mut mail_message, result, skipped) = rule_engine.just_run_when(
-        State::Delivery,
-        config.clone(),
-        resolvers.clone(),
-        queue_manager.clone(),
-        mail_context,
-        mail_message,
-    );
+    let (ctx, mut mail_message, result, skipped) =
+        rule_engine.just_run_when(State::Delivery, ctx, mail_message);
+
+    let mut ctx: MailContext<Finished> = ctx
+        .try_into()
+        .expect("the inner state of mail_context must not change");
 
     match &skipped {
         Some(status @ Status::Quarantine(path)) => {
             queue_manager
-                .move_to(
-                    &queue,
-                    &QueueID::Quarantine { name: path.into() },
-                    &mail_context,
-                )
+                .move_to(&queue, &QueueID::Quarantine { name: path.into() }, &ctx)
                 .await?;
 
             queue_manager
@@ -115,10 +114,10 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             return Ok(());
         }
         Some(status @ Status::Delegated(delegator)) => {
-            mail_context.metadata.skipped = Some(Status::DelegationResult);
+            ctx.set_skipped(Some(Status::DelegationResult));
 
             queue_manager
-                .move_to(&queue, &QueueID::Delegated, &mail_context)
+                .move_to(&queue, &QueueID::Delegated, &ctx)
                 .await?;
 
             queue_manager
@@ -127,7 +126,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
-            delegate(delegator, &mail_context, &mail_message)?;
+            delegate(delegator, &ctx, &mail_message)?;
 
             tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
@@ -139,16 +138,14 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             )
         }
         Some(Status::Deny(code)) => {
-            for rcpt in &mut mail_context.envelop.rcpt {
+            for rcpt in ctx.forward_paths_mut() {
                 rcpt.email_status = EmailTransferStatus::Failed {
                     timestamp: std::time::SystemTime::now(),
                     reason: format!("rule engine denied the message in delivery: {code:?}."),
                 };
             }
 
-            queue_manager
-                .move_to(&queue, &QueueID::Dead, &mail_context)
-                .await?;
+            queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
 
             queue_manager
                 .write_msg(&process_message.message_id, &mail_message)
@@ -162,13 +159,11 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         None => {}
     };
 
-    add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
+    add_trace_information(&ctx, &mut mail_message, &result)?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
+    match send_mail(&config, &mut ctx, &mail_message, resolvers).await {
         SenderOutcome::MoveToDead => {
-            queue_manager
-                .move_to(&queue, &QueueID::Dead, &mail_context)
-                .await?;
+            queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
 
             queue_manager
                 .write_msg(&process_message.message_id, &mail_message)
@@ -176,7 +171,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         }
         SenderOutcome::MoveToDeferred => {
             queue_manager
-                .move_to(&queue, &QueueID::Deferred, &mail_context)
+                .move_to(&queue, &QueueID::Deferred, &ctx)
                 .await?;
 
             queue_manager
@@ -206,9 +201,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
-        ctx.metadata.timestamp = Some(std::time::SystemTime::now());
-        ctx.envelop.rcpt.push(Rcpt::new(
+        ctx.set_message_id(function_name!().to_string());
+        ctx.forward_paths_mut().push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@foobar.com").unwrap(),
         ));
 
@@ -220,13 +214,16 @@ mod tests {
 
         handle_one_in_delivery_queue(
             config.clone(),
-            resolvers,
+            resolvers.clone(),
             queue_manager.clone(),
             ProcessMessage {
                 message_id: function_name!().to_string(),
                 delegated: false,
             },
-            std::sync::Arc::new(RuleEngine::from_script(config.clone(), "#{}").unwrap()),
+            std::sync::Arc::new(
+                RuleEngine::from_script(config.clone(), "#{}", resolvers, queue_manager.clone())
+                    .unwrap(),
+            ),
         )
         .await
         .unwrap();
@@ -251,8 +248,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
-        ctx.metadata.timestamp = Some(std::time::SystemTime::now());
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Deliver, &ctx, &local_msg())
@@ -262,7 +258,7 @@ mod tests {
 
         handle_one_in_delivery_queue(
             config.clone(),
-            resolvers,
+            resolvers.clone(),
             queue_manager.clone(),
             ProcessMessage {
                 message_id: function_name!().to_string(),
@@ -272,6 +268,8 @@ mod tests {
                 RuleEngine::from_script(
                     config.clone(),
                     &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::Delivery),
+                    resolvers,
+                    queue_manager.clone(),
                 )
                 .unwrap(),
             ),

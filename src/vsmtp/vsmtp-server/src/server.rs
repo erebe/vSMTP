@@ -311,6 +311,8 @@ mod tests {
                 <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                     .unwrap();
 
+            let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
             let delivery = tokio::sync::mpsc::channel::<ProcessMessage>(
                 config.server.queues.delivery.channel_size,
             );
@@ -321,7 +323,10 @@ mod tests {
 
             let s = Server::new(
                 config.clone(),
-                std::sync::Arc::new(RuleEngine::new(config.clone(), None).unwrap()),
+                std::sync::Arc::new(
+                    RuleEngine::new(config.clone(), None, resolvers, queue_manager.clone())
+                        .unwrap(),
+                ),
                 std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap()),
                 queue_manager,
                 working.0,

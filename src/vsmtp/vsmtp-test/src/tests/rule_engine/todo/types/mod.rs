@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+/*
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{state::State, status::Status, CodeID, ReplyOrCodeID};
 use vsmtp_config::DnsResolvers;
@@ -36,61 +37,6 @@ fn test_status() {
     );
 }
 
-#[test]
-fn test_time_and_date() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["time", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(
-        re.run_when(&mut state, State::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
-
-#[test]
-fn test_cmd() {
-    let config = Config::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_server_name("testserver.com")
-        .with_user_group_and_default_system("root", "root")
-        .unwrap()
-        .with_ipv4_localhost()
-        .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/spool")
-        .without_tls_support()
-        .with_default_smtp_options()
-        .with_default_smtp_error_handler()
-        .with_default_smtp_codes()
-        .without_auth()
-        .with_app_at_location("./tmp/app")
-        .with_vsl("./tmp/nothing")
-        .with_default_app_logs()
-        .with_system_dns()
-        .without_virtual_entries()
-        .validate()
-        .unwrap();
-
-    let config = std::sync::Arc::new(config);
-
-    let re = RuleEngine::new(config.clone(), Some(rules_path!["cmd", "main.vsl"])).unwrap();
-    let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
-    let queue_manager =
-        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
-
-    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
-
-    *state.message().write().unwrap() = MessageBody::default();
-
-    assert_eq!(
-        re.run_when(&mut state, State::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
 
 #[test]
 fn test_config_display() {
@@ -146,3 +92,4 @@ fn test_config_display() {
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
+*/

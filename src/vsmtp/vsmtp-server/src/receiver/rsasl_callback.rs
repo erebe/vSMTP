@@ -18,7 +18,7 @@
 use vqueue::GenericQueueManager;
 use vsmtp_common::{
     auth::{Credentials, Mechanism},
-    mail_context::ConnectionContext,
+    mail_context::{AuthProperties, Connect},
     state::State,
     status::Status,
 };
@@ -39,7 +39,7 @@ pub enum Error {
 pub struct ValidationVSL;
 
 impl rsasl::validate::Validation for ValidationVSL {
-    type Value = (ConnectionContext, Option<Status>);
+    type Value = (Connect, Option<Status>);
 }
 
 ///
@@ -53,7 +53,7 @@ pub struct Callback {
     ///
     pub config: std::sync::Arc<Config>,
     ///
-    pub conn_ctx: ConnectionContext,
+    pub conn_ctx: Connect,
 }
 
 impl Callback {
@@ -62,12 +62,11 @@ impl Callback {
         credentials: &Credentials,
     ) -> Result<<ValidationVSL as rsasl::validate::Validation>::Value, Error> {
         let mut rule_state = RuleState::with_connection(
-            self.config.clone(),
-            self.resolvers.clone(),
-            self.queue_manager.clone(),
             &self.rule_engine,
-            ConnectionContext {
-                credentials: Some(credentials.clone()),
+            Connect {
+                auth: Some(AuthProperties {
+                    credentials: credentials.clone(),
+                }),
                 ..self.conn_ctx.clone()
             },
         );
@@ -84,7 +83,7 @@ impl Callback {
 
         let (ctx, _, skipped) = rule_state.take().expect("no strong reference here");
 
-        Ok((ctx.connection, skipped))
+        Ok((ctx.get_connect().clone(), skipped))
     }
 }
 

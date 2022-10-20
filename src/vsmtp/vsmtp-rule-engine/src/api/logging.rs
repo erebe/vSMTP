@@ -30,7 +30,7 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/str)" || {
@@ -40,7 +40,7 @@ mod logging_rhai {
     ///     },
     ///   ],
     /// }
-    /// "#);
+    /// # "#);
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
@@ -52,7 +52,7 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/str)" || {
@@ -62,7 +62,7 @@ mod logging_rhai {
     ///     },
     ///   ],
     /// }
-    /// "#);
+    /// # "#);
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
@@ -74,7 +74,7 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (obj/obj)" || {
@@ -85,7 +85,7 @@ mod logging_rhai {
     ///     },
     ///   ],
     /// }
-    /// "#);
+    /// # "#);
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
@@ -97,15 +97,15 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (str/str)" || {
-    ///       log("info", "ehlo world");
+    ///       log("info", `[${date()}/${time()}] client=${client_ip()}`);
     ///     },
     ///   ],
     /// }
-    /// "#);
+    /// # "#);
     /// ```
     #[rhai_fn(global, name = "log")]
     #[doc = "overloaded as `log(level, message)`"]

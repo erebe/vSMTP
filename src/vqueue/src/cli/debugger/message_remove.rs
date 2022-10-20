@@ -93,7 +93,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -135,7 +135,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -178,7 +178,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_string());
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())

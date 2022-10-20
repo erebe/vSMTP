@@ -18,7 +18,10 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vqueue::GenericQueueManager;
-use vsmtp_common::{mail_context::MailContext, CodeID};
+use vsmtp_common::{
+    mail_context::{Finished, MailContext},
+    CodeID,
+};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::{Connection, OnMail};
@@ -34,7 +37,7 @@ impl OnMail for DefaultMailHandler {
     >(
         &mut self,
         _: &mut Connection<S>,
-        _: Box<MailContext>,
+        _: Box<MailContext<Finished>>,
         _: MessageBody,
         _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {

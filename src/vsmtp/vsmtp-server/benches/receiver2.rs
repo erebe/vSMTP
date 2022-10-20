@@ -33,12 +33,13 @@ fn run_benchmark(body_size: u64, port: u16) {
                 );
 
                 let config = std::sync::Arc::new(config);
+                let resolvers = std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap());
+
+                let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
                 let rule_engine = std::sync::Arc::new(
-                    RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap(),
+                    RuleEngine::new(config.clone(), config.app.vsl.filepath.clone(), resolvers.clone(), queue_manager).unwrap(),
                 );
-
-                let resolvers = std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap());
 
                 Server::new(
                     config.clone(),

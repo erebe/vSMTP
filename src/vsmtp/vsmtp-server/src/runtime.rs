@@ -80,17 +80,19 @@ pub fn start_runtime(
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size),
     );
 
-    let rule_engine = std::sync::Arc::new(RuleEngine::new(
-        config.clone(),
-        config.app.vsl.filepath.clone(),
-    )?);
-
     let queue_manager =
         <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
 
     let resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).context("could not initialize dns")?,
     );
+
+    let rule_engine = std::sync::Arc::new(RuleEngine::new(
+        config.clone(),
+        config.app.vsl.filepath.clone(),
+        resolvers.clone(),
+        queue_manager.clone(),
+    )?);
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
@@ -111,9 +113,7 @@ pub fn start_runtime(
         "processing",
         config.server.system.thread_pool.processing,
         processing::start(
-            config.clone(),
             rule_engine.clone(),
-            resolvers.clone(),
             queue_manager.clone(),
             working_channel.1,
             delivery_channel.0.clone(),

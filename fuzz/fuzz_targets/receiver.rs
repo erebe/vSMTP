@@ -1,7 +1,10 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind};
+use vsmtp_common::{
+    mail_context::{Finished, MailContext},
+    CodeID, ConnectionKind,
+};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
@@ -17,7 +20,7 @@ impl OnMail for FuzzOnMail {
     >(
         &mut self,
         _: &mut Connection<S>,
-        _: Box<MailContext>,
+        _: Box<MailContext<Finished>>,
         _: MessageBody,
         _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
@@ -60,16 +63,16 @@ fuzz_target!(|data: &[u8]| {
         config.clone(),
         &mut mock,
     );
-
-    let re = std::sync::Arc::new(
-        RuleEngine::new(config.clone(), None).expect("failed to build rule engine"),
-    );
-
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
     let dns_resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),
+    );
+
+    let re = std::sync::Arc::new(
+        RuleEngine::new(config, None, dns_resolvers.clone(), queue_manager.clone())
+            .expect("failed to build rule engine"),
     );
 
     let _ = tokio::runtime::Runtime::new()

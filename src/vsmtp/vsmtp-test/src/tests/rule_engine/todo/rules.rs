@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+/*
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::{addr, rcpt::Rcpt, state::State, status::Status, CodeID, ReplyOrCodeID};
 use vsmtp_mail_parser::{MailMimeParser, MessageBody};
@@ -149,3 +150,4 @@ fn test_rcpt_rules() {
         ]
     );
 }
+*/

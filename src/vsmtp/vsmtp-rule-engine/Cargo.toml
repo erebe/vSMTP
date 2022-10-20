@@ -109,3 +109,4 @@ delegation = []          # Add the delegation system.
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.3.0"
+rstest = "0.15.0"

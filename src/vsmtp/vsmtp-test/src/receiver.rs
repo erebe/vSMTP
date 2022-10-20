@@ -84,7 +84,7 @@ impl OnMail for DefaultMailHandler {
     >(
         &mut self,
         _: &mut Connection<S>,
-        _: Box<vsmtp_common::mail_context::MailContext>,
+        _: Box<vsmtp_common::mail_context::MailContext<vsmtp_common::mail_context::Finished>>,
         _: MessageBody,
         _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
@@ -128,18 +128,19 @@ macro_rules! run_test {
             &mut mock,
         );
 
-        let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
-            let _f = || vsmtp_rule_engine::RuleEngine::new(
-                config.clone(), config.app.vsl.filepath.clone()
-            ).unwrap();                                         $(
-            let _f = || vsmtp_rule_engine::RuleEngine::from_script(
-                config.clone(), $rule_script
-            ).unwrap();                                         )?
-            std::sync::Arc::new(_f())
-        };
         let resolvers = std::sync::Arc::new(vsmtp_config::DnsResolvers::from_config(&config).unwrap());
         let queue_manager =
             <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+
+        let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
+            let _f = || vsmtp_rule_engine::RuleEngine::new(
+                config.clone(), config.app.vsl.filepath.clone(), resolvers.clone(), queue_manager.clone()
+            ).unwrap();                                         $(
+            let _f = || vsmtp_rule_engine::RuleEngine::from_script(
+                config.clone(), $rule_script, resolvers.clone(), queue_manager.clone()
+            ).unwrap();                                         )?
+            std::sync::Arc::new(_f())
+        };
 
         let result = conn
             .receive(

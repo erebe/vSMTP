@@ -18,3 +18,51 @@
 pub mod api;
 pub mod plugin;
 pub mod service;
+
+#[cfg(test)]
+mod tests {
+    use vsmtp_config::DnsResolvers;
+    use vsmtp_test::config::local_test;
+
+    use crate::RuleEngine;
+
+    const VSL: &str = r#"
+const my_command = cmd(#{
+    command: "echo",
+    args: [ "-n", "executing a command from vSMTP!" ],
+    timeout: "15s",
+    user: "vsmtp",
+    group: "vsmtp",
+});
+
+#{}
+"#;
+
+    #[test]
+    fn parse() {
+        let config = std::sync::Arc::new(local_test());
+        let queue_manger =
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+        let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+        RuleEngine::from_script(config, VSL, dns_resolvers, queue_manger).unwrap();
+    }
+
+    #[test]
+    fn run() {
+        let config = std::sync::Arc::new(local_test());
+        let queue_manger =
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+                .unwrap();
+        let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+
+        RuleEngine::from_script(
+            config,
+            include_str!("test/main.vsl"),
+            dns_resolvers,
+            queue_manger,
+        )
+        .unwrap();
+    }
+}

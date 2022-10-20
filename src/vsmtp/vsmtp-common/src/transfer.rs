@@ -160,8 +160,6 @@ pub enum Transfer {
     Mbox,
     /// local delivery via the maildir protocol.
     Maildir,
-    /// the delivery will be skipped.
-    None,
 }
 
 impl std::str::FromStr for ForwardTarget {

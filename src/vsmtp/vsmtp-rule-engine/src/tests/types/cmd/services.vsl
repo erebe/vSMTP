@@ -1,5 +1,0 @@
-export const echo = cmd(#{
-    timeout: "2s",
-    command: "echo",
-    args: ["-e", "using cmd to print to stdout\r\n"],
-});

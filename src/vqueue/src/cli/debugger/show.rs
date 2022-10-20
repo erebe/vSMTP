@@ -216,11 +216,11 @@ impl Commands {
                         .collect::<Vec<_>>();
 
                     valid_entries
-                        .sort_by(|a, b| Ord::cmp(&a.ctx.envelop.helo, &b.ctx.envelop.helo));
+                        .sort_by(|a, b| Ord::cmp(&a.ctx.client_name(), &b.ctx.client_name()));
 
                     for (key, values) in
                         &itertools::Itertools::group_by(valid_entries.into_iter(), |i| {
-                            i.ctx.envelop.helo.clone()
+                            i.ctx.client_name().to_owned()
                         })
                     {
                         content.add_entry(&key, values.into_iter().collect::<Vec<_>>());
@@ -379,7 +379,7 @@ mod tests {
 
         let msg = local_msg();
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(function_name!().to_string());
+        ctx.set_message_id(function_name!().to_string());
         queue_manager
             .write_both(&QueueID::Dead, &ctx, &msg)
             .await

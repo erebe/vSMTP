@@ -16,7 +16,9 @@
 */
 use crate::tests::tls::{get_tls_config, test_tls_tunneled};
 use tokio_rustls::rustls;
+use vqueue::GenericQueueManager;
 use vsmtp_config::get_rustls_config;
+use vsmtp_config::DnsResolvers;
 use vsmtp_rule_engine::RuleEngine;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
@@ -39,9 +41,17 @@ async fn test_all_cipher_suite() {
         config.server.tls.as_mut().unwrap().cipher_suite = vec![i.suite()];
 
         let config = arc!(config);
+        let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+        let resolvers = arc!(DnsResolvers::from_config(&config).unwrap());
 
         let (client, server) = test_tls_tunneled(
-            arc!(RuleEngine::new(config.clone(), config.app.vsl.filepath.clone()).unwrap()),
+            arc!(RuleEngine::new(
+                config.clone(),
+                config.app.vsl.filepath.clone(),
+                resolvers,
+                queue_manager,
+            )
+            .unwrap()),
             "testserver.com",
             config,
             vec!["QUIT\r\n".to_string()],

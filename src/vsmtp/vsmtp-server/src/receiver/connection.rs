@@ -15,7 +15,7 @@
  *
 */
 use super::AbstractIO;
-use vsmtp_common::{mail_context::ConnectionContext, CodeID, ConnectionKind, Reply, ReplyOrCodeID};
+use vsmtp_common::{mail_context::Connect, CodeID, ConnectionKind, Reply, ReplyOrCodeID};
 use vsmtp_config::Config;
 
 /// Instance containing connection to the server's information
@@ -26,11 +26,14 @@ where
     /// Kind of connection
     pub kind: ConnectionKind,
     /// Data related to this connection
-    pub context: ConnectionContext,
+    pub context: Connect,
     /// server's configuration
     pub config: std::sync::Arc<Config>,
     /// inner stream
     pub inner: AbstractIO<S>,
+    /// number of error the client made so far
+    pub error_count: i64,
+    pub(crate) authentication_attempt: i64,
 }
 
 impl<S> std::fmt::Debug for Connection<S>
@@ -58,20 +61,20 @@ where
         inner: S,
     ) -> Self {
         Self {
-            context: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
+            context: Connect {
+                connect_timestamp: std::time::SystemTime::now(),
                 client_addr,
-                credentials: None,
                 server_name: config.server.domain.clone(),
                 server_addr,
-                is_authenticated: false,
-                is_secured: false,
-                error_count: 0,
-                authentication_attempt: 0,
+                skipped: None,
+                tls: None,
+                auth: None,
             },
             config,
             inner: AbstractIO::new(inner),
             kind,
+            error_count: 0,
+            authentication_attempt: 0,
         }
     }
 }
@@ -114,12 +117,12 @@ where
             self.send(&reply.fold()).await?;
             return Ok(());
         }
-        self.context.error_count += 1;
+        self.error_count += 1;
 
         let hard_error = self.config.server.smtp.error.hard_count;
         let soft_error = self.config.server.smtp.error.soft_count;
 
-        if hard_error != -1 && self.context.error_count >= hard_error {
+        if hard_error != -1 && self.error_count >= hard_error {
             tracing::warn!(
                 max = hard_error,
                 "Hard error count max reached, closing connection."
@@ -144,7 +147,7 @@ where
 
         self.send(&reply.fold()).await?;
 
-        if soft_error != -1 && self.context.error_count >= soft_error {
+        if soft_error != -1 && self.error_count >= soft_error {
             tracing::warn!(
                 max = soft_error,
                 "Soft error max count reached, delaying connection."

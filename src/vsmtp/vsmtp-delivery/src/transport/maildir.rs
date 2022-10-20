@@ -18,7 +18,7 @@ use super::Transport;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
-    mail_context::MessageMetadata,
+    mail_context::{Finished, MailContext},
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, TransferErrors},
 };
@@ -36,12 +36,12 @@ impl Transport for Maildir {
     async fn deliver(
         self,
         config: &Config,
-        metadata: &MessageMetadata,
+        ctx: &MailContext<Finished>,
         _: &vsmtp_common::Address,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let msg_id = metadata.message_id.as_ref().unwrap();
+        let msg_id = ctx.message_id();
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 Self::write_to_maildir(

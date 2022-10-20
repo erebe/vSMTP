@@ -18,7 +18,11 @@
 use crate::{Connection, Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    mail_context::MailContext, state::State, status::Status, transfer::EmailTransferStatus, CodeID,
+    mail_context::{Finished, MailContext},
+    state::State,
+    status::Status,
+    transfer::EmailTransferStatus,
+    CodeID,
 };
 use vsmtp_mail_parser::MessageBody;
 
@@ -31,7 +35,7 @@ pub trait OnMail {
     >(
         &mut self,
         conn: &mut Connection<S>,
-        mail: Box<MailContext>,
+        mail: Box<MailContext<Finished>>,
         message: MessageBody,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID;
@@ -76,13 +80,13 @@ impl MailHandler {
     >(
         &self,
         _: &mut Connection<S>,
-        mut mail_context: Box<MailContext>,
+        mut mail_context: Box<MailContext<Finished>>,
         mail_message: MessageBody,
         queue_manager: &'a std::sync::Arc<dyn GenericQueueManager>,
     ) -> Result<(), MailHandlerError> {
         let (mut message_id, skipped) = (
-            mail_context.metadata.message_id.clone().unwrap(),
-            mail_context.metadata.skipped.clone(),
+            mail_context.message_id().to_string(),
+            mail_context.skipped().cloned(),
         );
 
         let mut write_to_queue = Option::<QueueID>::None;
@@ -119,7 +123,7 @@ impl MailHandler {
                 send_to_next_process = Some(Process::Processing);
             }
             Some(Status::Deny(code)) => {
-                for rcpt in &mut mail_context.envelop.rcpt {
+                for rcpt in mail_context.forward_paths_mut() {
                     rcpt.email_status = EmailTransferStatus::Failed {
                         timestamp: std::time::SystemTime::now(),
                         reason: format!("rule engine denied the message in preq: {code:?}."),
@@ -178,7 +182,7 @@ impl OnMail for MailHandler {
     >(
         &mut self,
         conn: &mut Connection<S>,
-        mail: Box<MailContext>,
+        mail: Box<MailContext<Finished>>,
         message: MessageBody,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {

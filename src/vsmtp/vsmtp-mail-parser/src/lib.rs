@@ -1,17 +1,3 @@
-//! vSMTP mail parser
-
-#![doc(html_no_source)]
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-//
-#![warn(rust_2018_idioms)]
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
-//
-#![allow(clippy::use_self)] // false positive with enums
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -28,7 +14,24 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+//! vSMTP mail parser
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+//
+#![warn(rust_2018_idioms)]
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)] // false positive with enums
+
 pub(crate) mod helpers;
+
+/// average size of a mail
+pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 mod implementation {
     pub mod basic_parser;

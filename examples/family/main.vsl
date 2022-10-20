@@ -19,9 +19,11 @@ import "services" as svc;
 
     // Prevent delivery to untrusted domains using a regex.
     // you could also use the `check_relay` function in this case.
-    action "do not deliver untrusted domains" || {
+    rule "do not deliver untrusted domains" || {
       if rcpt() == obj::untrusted {
-        disable_delivery(rcpt());
+        quarantine("untrusted")
+      } else {
+        next()
       }
     }
   ],

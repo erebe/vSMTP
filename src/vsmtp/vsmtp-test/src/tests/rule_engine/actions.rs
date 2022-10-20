@@ -14,9 +14,169 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+use crate::run_test;
+use vqueue::FilesystemQueueManagerExt;
+
+run_test! {
+    fn test_logs,
+    input = concat!(
+        "NOOP\r\n",
+        "QUIT\r\n"
+    ),
+    expected = concat!(
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n",
+    ),
+    ,,,
+    rule_script = r#"#{
+  connect: [
+    rule "test_connect" || {
+      log("trace", `${client_ip()}`);
+      if client_ip() is "127.0.0.1" { next() } else { deny() }
+    }
+  ],
+}
+"#,
+}
+
+const CTX_TEMPLATE: &str = concat!(
+    "{\n",
+    "  \"Finished\": {\n",
+    "    \"connect_timestamp\": {\n",
+    "    },\n",
+    "    \"client_addr\": \"127.0.0.1:53844\",\n",
+    "    \"server_addr\": \"127.0.0.1:53845\",\n",
+    "    \"server_name\": \"testserver.com\",\n",
+    "    \"skipped\": null,\n",
+    "    \"tls\": null,\n",
+    "    \"auth\": null,\n",
+    "    \"client_name\": \"foo\",\n",
+    "    \"reverse_path\": \"john@doe.com\",\n",
+    "    \"mail_timestamp\": {\n",
+    "    },\n",
+    "    \"message_id\": \"{message_id}\",\n",
+    "    \"forward_path\": [\n",
+    "      {\n",
+    "        \"address\": \"green@foo.net\",\n",
+    "        \"transfer_method\": \"Deliver\",\n",
+    "        \"email_status\": {\n",
+    "          \"waiting\": {\n",
+    "            \"timestamp\": {\n",
+    "            }\n",
+    "          }\n",
+    "        }\n",
+    "      }\n",
+    "    ],\n",
+    "    \"dkim\": null,\n",
+    "    \"spf\": null\n",
+    "  }\n",
+    "}"
+);
+
+const VSL_WRITE_DUMP: &str = r#"
+#{
+  mail: [
+    rule "partial write to disk, body not received" || {
+      prepend_header("X-VSMTP-INIT", "done.");
+      {action}("tests/generated/{action}");
+      accept()
+    },
+  ],
+
+  preq: [
+    action "write to disk preq" || {
+      const path = "tests/generated";
+
+      {action}("tests/generated/{action}");
+      {action}(path);
+      accept()
+    },
+  ],
+}"#;
+
+#[rstest::rstest]
+#[tokio::test]
+async fn context_write(#[values("write", "dump")] action: &str) {
+    let q = run_test! {
+        input = concat!(
+            "EHLO foo\r\n",
+            "MAIL FROM:<john@doe.com>\r\n",
+            "RCPT TO:<green@foo.net>\r\n",
+            "DATA\r\n",
+            "From: john doe <john@doe.com>\r\n",
+            "To: green@foo.net\r\n",
+            "Subject: test email\r\n",
+            "\r\n",
+            "This is a raw email.\r\n",
+            ".\r\n",
+            "QUIT\r\n",
+        ),
+        expected = concat!(
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-STARTTLS\r\n",
+            "250-8BITMIME\r\n",
+            "250 SMTPUTF8\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n",
+        ),,,,
+    rule_script = &VSL_WRITE_DUMP.replace("{action}", action),
+    }
+    .unwrap();
+
+    let dirpath = q
+        .get_config()
+        .app
+        .dirpath
+        .join(format!("tests/generated/{action}"));
+    // one entry exists, but we don't know its name.
+    for i in std::fs::read_dir(&dirpath).unwrap() {
+        let path = i.unwrap().path();
+        let msg = std::fs::read_to_string(&path).unwrap();
+        match action {
+            "write" => {
+                pretty_assertions::assert_eq!(
+                    msg,
+                    [
+                        "X-VSMTP-INIT: done.\r\n",
+                        "From: john doe <john@doe.com>\r\n",
+                        "To: green@foo.net\r\n",
+                        "Subject: test email\r\n",
+                        "\r\n",
+                        "This is a raw email.\r\n"
+                    ]
+                    .concat()
+                );
+            }
+            "dump" => {
+                pretty_assertions::assert_eq!(
+                    msg.lines()
+                        .filter(|i| !["secs_since_epoch", "nanos_since_epoch"]
+                            .into_iter()
+                            .any(|p| i.contains(p)))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    CTX_TEMPLATE
+                        .replace("{message_id}", path.file_stem().unwrap().to_str().unwrap())
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    std::fs::remove_dir_all(&dirpath).unwrap();
+}
+
+/*
 use crate::rule_engine::RuleEngine;
 use crate::rule_state::RuleState;
 use crate::tests::helpers::{get_default_config, get_default_state};
+use vsmtp_common::mail_context::{Empty, MailContext};
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{addr, CodeID, ReplyOrCodeID};
@@ -26,21 +186,7 @@ use vsmtp_common::{
 use vsmtp_config::field::FieldServerVirtual;
 use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::{MailMimeParser, MessageBody};
-use vsmtp_test::config::local_test;
-
-#[test]
-fn test_logs() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["actions", "logs.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-    assert_eq!(
-        re.run_when(&mut state, State::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
-    );
-}
+use vsmtp_test::config::{local_msg, local_test};
 
 #[test]
 fn test_users() {
@@ -54,171 +200,6 @@ fn test_users() {
     assert_eq!(
         re.run_when(&mut state, State::Delivery),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
-
-#[test]
-fn test_context_write() {
-    let config = local_test();
-    let re = RuleEngine::new(
-        std::sync::Arc::new(config),
-        Some(rules_path!["actions", "write.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    state.context().write().unwrap().metadata = MessageMetadata {
-        message_id: Some("test_message_id".to_string()),
-        timestamp: Some(std::time::SystemTime::now()),
-        skipped: None,
-        spf: None,
-        dkim: None,
-    };
-    *state.message().write().unwrap() = MessageBody::try_from(concat!(
-        "From: john doe <john@doe.com>\r\n",
-        "To: green@foo.net\r\n",
-        "Subject: test email\r\n",
-        "\r\n",
-        "This is a raw email.\r\n",
-    ))
-    .unwrap();
-
-    assert_eq!(
-        re.run_when(&mut state, State::MailFrom),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-    assert_eq!(
-        re.run_when(&mut state, State::PreQ),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-    assert_eq!(
-        re.run_when(&mut state, State::PostQ),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-
-    // raw mail should have been written on disk.
-    pretty_assertions::assert_eq!(
-        std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.eml")
-            .expect("could not read 'test_message_id'"),
-        [
-            "X-VSMTP-INIT: done.\r\n",
-            "From: john doe <john@doe.com>\r\n",
-            "To: green@foo.net\r\n",
-            "Subject: test email\r\n",
-            "\r\n",
-            "This is a raw email.\r\n"
-        ]
-        .concat()
-    );
-
-    std::fs::remove_file("./tmp/app/tests/generated/test_message_id.eml")
-        .expect("could not remove generated test file");
-}
-
-#[test]
-fn test_context_dump() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["actions", "dump.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    state.context().write().unwrap().metadata = MessageMetadata {
-        message_id: Some("test_message_id".to_string()),
-        timestamp: Some(std::time::SystemTime::now()),
-        skipped: None,
-        spf: None,
-        dkim: None,
-    };
-    *state.message().write().unwrap() = MessageBody::default();
-    assert_eq!(
-        re.run_when(&mut state, State::PreQ),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-
-    *state.message().write().unwrap() = MessageBody::try_from(concat!(
-        "From: john@doe.com\r\n",
-        "To: green@bar.net\r\n",
-        "X-Custom-Header: my header\r\n",
-        "Date: toto\r\n",
-        "\r\n",
-        "this is an empty body\r\n",
-    ))
-    .unwrap();
-    state
-        .message()
-        .write()
-        .unwrap()
-        .parse::<MailMimeParser>()
-        .unwrap();
-
-    assert_eq!(
-        re.run_when(&mut state, State::PostQ),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-
-    assert_eq!(
-        std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.json")
-            .expect("could not read 'test_message_id'"),
-        serde_json::to_string_pretty(&*state.context().read().unwrap())
-            .expect("couldn't convert context into string")
-    );
-
-    std::fs::remove_file("./tmp/app/tests/generated/test_message_id.json")
-        .expect("could not remove generated test file");
-}
-
-#[test]
-fn test_quarantine() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["actions", "quarantine.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    state.context().write().unwrap().metadata = MessageMetadata {
-        message_id: Some("test_message_id".to_string()),
-        timestamp: Some(std::time::SystemTime::now()),
-        skipped: None,
-        spf: None,
-        dkim: None,
-    };
-    *state.message().write().unwrap() = MessageBody::default();
-    assert_eq!(
-        re.run_when(&mut state, State::PreQ),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-
-    assert!(state
-        .context()
-        .read()
-        .unwrap()
-        .envelop
-        .rcpt
-        .iter()
-        .all(|rcpt| rcpt.transfer_method == Transfer::None));
-
-    *state.message().write().unwrap() = MessageBody::try_from(concat!(
-        "From: john@doe.com\r\n",
-        "To: green@bar.net\r\n",
-        "Date: toto\r\n",
-        "X-Custom-Header: my header\r\n",
-        "\r\n",
-        "this is an empty body\r\n",
-    ))
-    .unwrap();
-    state
-        .message()
-        .write()
-        .unwrap()
-        .parse::<MailMimeParser>()
-        .unwrap();
-
-    assert_eq!(
-        re.run_when(&mut state, State::PostQ),
-        Status::Quarantine("tests/generated/quarantine2".to_string())
     );
 }
 
@@ -315,6 +296,8 @@ fn test_transports_all() {
             assert_eq!(rcpt.transfer_method, Transfer::None);
         });
 }
+*/
+/*
 
 #[test]
 fn test_hostname() {
@@ -343,11 +326,19 @@ async fn test_lookup() {
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
-    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
-    state.context().write().unwrap().envelop.rcpt = vec![
-        Rcpt::new(addr!("john.doe@example.com")),
-        Rcpt::new(addr!("foo.bar@localhost")),
-    ];
+    let mut state = RuleState::with_context(
+        &re,
+        MailContext::<Empty>::connect("".parse().unwrap(), "".parse().unwrap(), "".to_string())
+            .helo("".to_string())
+            .mail_from(addr!("foo@bar"))
+            .rcpt_to(vec![
+                Rcpt::new(addr!("john.doe@example.com")),
+                Rcpt::new(addr!("foo.bar@localhost")),
+            ])
+            .finish()
+            .into(),
+        local_msg(),
+    );
 
     assert_eq!(
         re.run_when(&mut state, State::RcptTo),
@@ -380,10 +371,24 @@ fn test_in_domain_and_server_name_sni() {
     let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
-    let mut state = RuleState::new(config, resolvers, queue_manager, &re);
+
+    let mut state = RuleState::with_context(
+        &re,
+        MailContext::<Empty>::connect("".parse().unwrap(), "".parse().unwrap(), "".to_string())
+            .helo("".to_string())
+            .mail_from(addr!("foo@bar"))
+            .rcpt_to(vec![
+                Rcpt::new(addr!("john.doe@example.com")),
+                Rcpt::new(addr!("foo.bar@localhost")),
+            ])
+            .finish()
+            .into(),
+        local_msg(),
+    );
 
     assert_eq!(
         re.run_when(&mut state, State::PreQ),
         Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
+*/
