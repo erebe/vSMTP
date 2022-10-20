@@ -43,8 +43,7 @@ impl<'r> Forward<'r> {
         let result = self
             .resolver
             .reverse_lookup(*query)
-            .await
-            .with_context(|| format!("failed to forward email to {query}"))?
+            .await?
             .into_iter()
             .next()
             .ok_or_else(|| anyhow::anyhow!("no domain found for {query}"))?
@@ -58,18 +57,18 @@ impl<'r> Forward<'r> {
         config: &Config,
         from: &vsmtp_common::Address,
         target: &str,
+        port: Option<u16>,
         envelop: &lettre::address::Envelope,
         content: &str,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
         lettre::AsyncTransport::send_raw(
             // TODO: transport should be cached.
-            &crate::transport::build_transport(config, self.resolver, from, target)?,
+            &crate::transport::build_transport(config, self.resolver, from, target, port)?,
             envelop,
             content.as_bytes(),
         )
-        .await?;
-
-        Ok(())
+        .await
+        .map_err(|err| anyhow::anyhow!(err))
     }
 
     async fn deliver_inner(
@@ -78,7 +77,7 @@ impl<'r> Forward<'r> {
         from: &vsmtp_common::Address,
         to: &[Rcpt],
         content: &str,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
         let envelop = from
             .full()
             .parse()
@@ -101,16 +100,20 @@ impl<'r> Forward<'r> {
                     .context("envelop is invalid")
             })?;
 
-        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
-        let target = match &self.to {
-            ForwardTarget::Domain(domain) => Ok(domain.clone()),
-            ForwardTarget::Ip(ip) => self.reverse_lookup(ip).await,
-            ForwardTarget::Socket(socket) => self.reverse_lookup(&socket.ip()).await,
-        }?;
+        tracing::debug!(?self.to, "Forwarding email.");
 
-        self.send_email(config, from, &target, &envelop, content)
+        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
+        let (target, port) = match &self.to {
+            ForwardTarget::Domain(domain) => (domain.clone(), None),
+            ForwardTarget::Ip(ip) => (self.reverse_lookup(ip).await?, None),
+            ForwardTarget::Socket(socket) => (
+                self.reverse_lookup(&socket.ip()).await?,
+                Some(socket.port()),
+            ),
+        };
+
+        self.send_email(config, from, &target, port, &envelop, content)
             .await
-            .with_context(|| format!("failed to forward email to {target}"))
     }
 }
 
@@ -126,8 +129,9 @@ impl<'r> Transport for Forward<'r> {
         content: &str,
     ) -> Vec<Rcpt> {
         match self.deliver_inner(config, from, &to, content).await {
-            Ok(_) => {
+            Ok(code) => {
                 tracing::info!("Email delivered.");
+                tracing::debug!(?code);
 
                 for i in &mut to {
                     i.email_status = EmailTransferStatus::Sent {

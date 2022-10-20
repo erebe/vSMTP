@@ -13,6 +13,14 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.3.4] - 2022-10-20
+
+### Fixed
+
+* `forward` && `forward_all` functions now take port into account in socket strings. (#695)
+
+## [1.3.3] - 2022-10-03
+
 ### Added
 
 * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
