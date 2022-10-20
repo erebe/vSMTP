@@ -69,7 +69,7 @@ impl<'r> Deliver<'r> {
     ) -> anyhow::Result<()> {
         lettre::AsyncTransport::send_raw(
             // TODO: transport should be cached.
-            &crate::transport::build_transport(config, self.resolver, from, target)?,
+            &crate::transport::build_transport(config, self.resolver, from, target, None)?,
             envelop,
             content.as_bytes(),
         )

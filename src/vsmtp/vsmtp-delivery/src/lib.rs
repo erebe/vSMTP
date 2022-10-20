@@ -83,6 +83,7 @@ pub mod transport {
         _: &TokioAsyncResolver,
         from: &vsmtp_common::Address,
         target: &str,
+        port: Option<u16>,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>> {
         let tls_builder =
             lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
@@ -130,7 +131,7 @@ pub mod transport {
                 .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
                     from.domain().to_string(),
                 ))
-                .port(lettre::transport::smtp::SMTP_PORT)
+                .port(port.unwrap_or(lettre::transport::smtp::SMTP_PORT))
                 .tls(lettre::transport::smtp::client::Tls::Opportunistic(
                     tls_parameters,
                 ))

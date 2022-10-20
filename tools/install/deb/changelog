@@ -1,6 +1,14 @@
 vsmtp (x.y.z) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
+  * Fixed
+    - `forward` functions take port into account in sockets. (#695)
+
+ -- ltabis <l.tabis@viridit.com>  Thu, 20 Oct 2022 13:22:54 +0200
+
+vsmtp (1.3.3) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
   * Added
     - `--stdout` flag, print logs to stdout. (#579)
     - Message size limit configuration. (#580)
