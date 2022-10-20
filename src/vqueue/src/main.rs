@@ -20,7 +20,7 @@ use vsmtp_config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args = <Args as clap::StructOpt>::parse();
+    let args = <Args as clap::Parser>::parse();
 
     if args.version {
         println!(

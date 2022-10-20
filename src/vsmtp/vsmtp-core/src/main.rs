@@ -45,7 +45,7 @@ fn bind_sockets(addr: &[std::net::SocketAddr]) -> anyhow::Result<Vec<std::net::T
 }
 
 fn try_main() -> anyhow::Result<()> {
-    let args = <Args as clap::StructOpt>::parse();
+    let args = <Args as clap::Parser>::parse();
 
     if args.version {
         println!(

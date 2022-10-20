@@ -19,7 +19,7 @@ use crate::QueueID;
 ///
 #[derive(clap::Parser)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-#[clap(about, version, author)]
+#[clap(about, author)]
 pub struct Args {
     /// Print the version and exit.
     #[clap(short, long, action)]
@@ -65,7 +65,7 @@ pub enum MessageCommand {
     /// Print the content of the message
     Show {
         /// Format of the output
-        #[clap(arg_enum, value_parser, default_value = "json")]
+        #[clap(value_enum, value_parser, default_value = "json")]
         format: MessageShowFormat,
     },
     /// Move the message to the given queue
@@ -85,7 +85,7 @@ pub enum MessageCommand {
 }
 
 ///
-#[derive(Clone, clap::ArgEnum)]
+#[derive(Clone, clap::ValueEnum)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageShowFormat {
     /// Message's body as .eml (bytes between DATA and \r\n.\r\n)
@@ -107,7 +107,7 @@ mod tests {
                 config: None,
                 command: None,
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "--version"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "--version"]).unwrap()
         );
     }
 
@@ -122,7 +122,7 @@ mod tests {
                     empty_token: '0'
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "show"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "show"]).unwrap()
         );
 
         assert_eq!(
@@ -134,7 +134,7 @@ mod tests {
                     empty_token: '0'
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "show", "dead"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "show", "dead"]).unwrap()
         );
 
         assert_eq!(
@@ -146,7 +146,7 @@ mod tests {
                     empty_token: '.'
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "show", "-e", "."]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "show", "-e", "."]).unwrap()
         );
 
         assert_eq!(
@@ -158,7 +158,7 @@ mod tests {
                     empty_token: '0'
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "show", "dead", "deliver"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "show", "dead", "deliver"]).unwrap()
         );
     }
 
@@ -176,7 +176,7 @@ mod tests {
                     }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "show"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "show"]).unwrap()
         );
 
         assert_eq!(
@@ -191,8 +191,7 @@ mod tests {
                     }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "show", "json"])
-                .unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "show", "json"]).unwrap()
         );
 
         assert_eq!(
@@ -207,8 +206,7 @@ mod tests {
                     }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "show", "eml"])
-                .unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "show", "eml"]).unwrap()
         );
     }
 
@@ -226,8 +224,7 @@ mod tests {
                     }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "move", "dead"])
-                .unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "move", "dead"]).unwrap()
         );
     }
 
@@ -243,7 +240,7 @@ mod tests {
                     command: MessageCommand::Remove { yes: false }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "remove"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "remove"]).unwrap()
         );
 
         assert_eq!(
@@ -256,7 +253,7 @@ mod tests {
                     command: MessageCommand::Remove { yes: true }
                 })
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "msg", "foobar", "remove", "--yes"])
+            <Args as clap::Parser>::try_parse_from(["", "msg", "foobar", "remove", "--yes"])
                 .unwrap()
         );
     }

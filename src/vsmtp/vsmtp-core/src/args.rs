@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn parse_arg() {
-        assert!(<Args as clap::StructOpt>::try_parse_from([""]).is_ok());
+        assert!(<Args as clap::Parser>::try_parse_from([""]).is_ok());
 
         assert_eq!(
             Args {
@@ -85,7 +85,7 @@ mod tests {
                 stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "-c", "path"]).unwrap()
         );
 
         assert_eq!(
@@ -97,7 +97,7 @@ mod tests {
                 stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "config-show"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "-c", "path", "config-show"]).unwrap()
         );
 
         assert_eq!(
@@ -109,7 +109,7 @@ mod tests {
                 stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "config-diff"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "-c", "path", "config-diff"]).unwrap()
         );
 
         assert_eq!(
@@ -121,7 +121,7 @@ mod tests {
                 stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "--version"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "--version"]).unwrap()
         );
 
         assert_eq!(
@@ -133,7 +133,7 @@ mod tests {
                 stdout: false,
                 timeout: None
             },
-            <Args as clap::StructOpt>::try_parse_from(["", "-c", "path", "--no-daemon"]).unwrap()
+            <Args as clap::Parser>::try_parse_from(["", "-c", "path", "--no-daemon"]).unwrap()
         );
 
         assert_eq!(
@@ -145,7 +145,7 @@ mod tests {
                 stdout: true,
                 timeout: Some(Timeout(std::time::Duration::from_secs(1)))
             },
-            <Args as clap::StructOpt>::try_parse_from([
+            <Args as clap::Parser>::try_parse_from([
                 "",
                 "-c",
                 "path",
