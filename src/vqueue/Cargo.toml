@@ -37,7 +37,7 @@ tracing = { version = "0.1.37", default-features = false, features = [
     "attributes",
 ] }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
-clap = { version = "4.0.17", default-features = false, features = [
+clap = { version = "4.0.18", default-features = false, features = [
     "std",
     "derive",
     "cargo",
