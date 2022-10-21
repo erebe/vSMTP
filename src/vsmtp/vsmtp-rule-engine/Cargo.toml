@@ -65,7 +65,7 @@ strum = { version = "0.24.1", default-features = false, features = [
 serde_json = { version = "1.0.86", default-features = false, features = [
   "std",
 ] }
-serde = { version = "1.0.145", default-features = false, features = [
+serde = { version = "1.0.146", default-features = false, features = [
   "std",
   "derive",
 ] }
