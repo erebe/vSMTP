@@ -72,7 +72,7 @@ thiserror = { version = "1.0.37", default-features = false }
 
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
 
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 serde_json = { version = "1.0.86", default-features = false, features = [

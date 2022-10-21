@@ -93,7 +93,7 @@ tokio-rustls = { version = "0.23.4", default-features = false, features = [
   "logging",
   "tls12",
 ] }
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 rsasl = { version = "=2.0.0-rc.3", default-features = false, features = [
   "provider",
   "config_builder",

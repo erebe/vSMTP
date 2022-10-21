@@ -65,7 +65,7 @@ tokio = { version = "1.21.2", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 function_name = "0.3.0"
