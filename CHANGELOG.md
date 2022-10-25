@@ -29,6 +29,7 @@ release. They will however *never* happen in a patch release.
 ### Changed
 
 * Configuration is written using Rhai. (#685)
+
 ```rust
 let config = new_config();
 
@@ -50,16 +51,19 @@ config.server.interfaces = #{
 
 * Changed the API of objects to be simple rhai functions, removing implicit `export` of
   objects. (#647)
+
 ```js
 // Old syntax
 object localhost ip4 = "127.0.0.1";
 // New syntax
 const localhost = ip4("127.0.0.1");
 ```
+
 * Moved the csv database to an external plugin. (#625)
 * Moved the mysql database to an external plugin. (#625)
 * Moved vSL syntax to a crate for better reusability. (#660)
 * Remove Group object & function, replaced by Rhai arrays. (#660)
+
 ```js
 const localhost = ip4("127.0.0.1");
 const john = identifier("john.doe");
@@ -67,7 +71,9 @@ const john = identifier("john.doe");
 // declaration of a group.
 const group = [ localhost, john ];
 ```
+
 * Remove File object, replaced by Rhai arrays. (#660)
+
 ```js
 // This returns an Array of addresses.
 const whitelist = file("/etc/vsmtp/whitelist.txt", "address");

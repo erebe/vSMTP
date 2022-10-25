@@ -1,9 +1,9 @@
 [package]
 edition = "2021"
 
-license = "GPL-3.0-only"
 name = "vqueue"
 version = "1.3.4"
+license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
 
