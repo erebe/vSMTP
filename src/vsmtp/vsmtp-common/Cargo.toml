@@ -33,7 +33,7 @@ version = "1.3.4"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 log = { version = "0.4.17", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = [
     "std",
@@ -45,7 +45,7 @@ strum = { version = "0.24.1", default-features = false, features = [
     "std",
     "derive",
 ] }
-libc = { version = "0.2.135", default-features = false, features = ["std"] }
+libc = { version = "0.2.136", default-features = false, features = ["std"] }
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
     "builder",
@@ -60,7 +60,7 @@ tokio = { version = "1.21.2", default-features = false, features = [
     "libc",
     "mio",
 ] }
-serde = { version = "1.0.145", default-features = false, features = [
+serde = { version = "1.0.147", default-features = false, features = [
     "std",
     "derive",
 ] }
@@ -72,7 +72,7 @@ thiserror = { version = "1.0.37", default-features = false }
 
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
 
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 serde_json = { version = "1.0.86", default-features = false, features = [

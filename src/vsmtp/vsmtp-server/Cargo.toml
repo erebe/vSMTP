@@ -48,7 +48,7 @@ strum = { version = "0.24.1", default-features = false, features = [
   "std",
   "derive",
 ] }
-anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
 log = { version = "0.4.17", default-features = false, features = ["std"] }
 either = { version = "1.8.0", default-features = false, features = [
@@ -68,7 +68,7 @@ signal-hook = { version = "0.3.14", default-features = false, features = [
 ] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
-time = { version = "0.3.15", default-features = false, features = [
+time = { version = "0.3.16", default-features = false, features = [
   "std",
   "formatting",
   "macros",
@@ -93,7 +93,7 @@ tokio-rustls = { version = "0.23.4", default-features = false, features = [
   "logging",
   "tls12",
 ] }
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 rsasl = { version = "=2.0.0-rc.3", default-features = false, features = [
   "provider",
   "config_builder",
