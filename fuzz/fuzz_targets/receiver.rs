@@ -42,7 +42,7 @@ fuzz_target!(|data: &[u8]| {
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
         .without_auth()
-        .with_default_app()
+        .with_app_at_location("./tmp/app")
         .with_vsl("./main.vsl")
         .with_default_app_logs()
         .with_system_dns()
