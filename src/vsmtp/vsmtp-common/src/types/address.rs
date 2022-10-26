@@ -15,7 +15,7 @@
  *
 */
 /// Address Email
-#[derive(Clone, Debug, serde_with::SerializeDisplay, Eq, serde_with::DeserializeFromStr)]
+#[derive(Clone, Debug, Eq, serde_with::SerializeDisplay, serde_with::DeserializeFromStr)]
 pub struct Address {
     at_sign: usize,
     full: String,
@@ -29,7 +29,7 @@ pub struct Address {
 #[macro_export]
 macro_rules! addr {
     ($e:expr) => {
-        <$crate::Address as std::str::FromStr>::from_str($e).unwrap()
+        <$crate::Address as core::str::FromStr>::from_str($e).unwrap()
     };
 }
 

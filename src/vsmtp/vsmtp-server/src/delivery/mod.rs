@@ -24,35 +24,30 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{mail_context::Finished, transfer::EmailTransferStatus};
-use vsmtp_common::{
-    mail_context::MailContext,
-    rcpt::Rcpt,
-    status::Status,
-    transfer::{ForwardTarget, Transfer},
-};
+use vsmtp_common::mail_context::Finished;
+use vsmtp_common::{mail_context::MailContext, status::Status};
 use vsmtp_config::{Config, DnsResolvers};
-use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
+use vsmtp_delivery::Sender;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 
 mod deferred;
 mod deliver;
 
-/// process used to deliver incoming emails force accepted by the smtp process
-/// or parsed by the vMime process.
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
+    sender: std::sync::Arc<Sender>,
 ) {
     flush_deliver_queue(
         config.clone(),
         resolvers.clone(),
         queue_manager.clone(),
         rule_engine.clone(),
+        sender.clone(),
     )
     .await;
 
@@ -72,6 +67,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                         queue_manager.clone(),
                         pm,
                         rule_engine.clone(),
+                        sender.clone(),
                     )
                 );
             }
@@ -83,6 +79,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                         config.clone(),
                         resolvers.clone(),
                         queue_manager.clone(),
+                        sender.clone(),
                     )
                 );
             }
@@ -90,143 +87,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     }
 }
 
-#[must_use]
-pub enum SenderOutcome {
-    MoveToDead,
-    MoveToDeferred,
-    RemoveFromDisk,
-}
-
-#[tracing::instrument(name = "send", skip_all)]
-#[allow(clippy::too_many_lines)]
-pub async fn send_mail(
-    config: &Config,
-    message_ctx: &mut MailContext<Finished>,
-    message_body: &MessageBody,
-    resolvers: std::sync::Arc<DnsResolvers>,
-) -> SenderOutcome {
-    let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
-    for i in message_ctx
-        .forward_paths()
-        .iter()
-        .filter(|r| r.email_status.is_sendable())
-    {
-        acc.entry(i.transfer_method.clone())
-            .and_modify(|domain| domain.push(i.clone()))
-            .or_insert_with(|| vec![i.clone()]);
-    }
-
-    if acc.is_empty() {
-        tracing::warn!("No recipients to send to.");
-        return SenderOutcome::MoveToDead;
-    }
-
-    let message_content = message_body.inner().to_string();
-
-    let from = &message_ctx.reverse_path();
-
-    let futures = acc
-        .into_iter()
-        .map(|(key, to)| match key {
-            Transfer::Forward(forward_target) => {
-                let resolver = match &forward_target {
-                    ForwardTarget::Domain(domain) => resolvers.get_resolver_or_root(domain),
-                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
-                        resolvers.get_resolver_root()
-                    }
-                };
-
-                Forward::new(forward_target.clone(), resolver).deliver(
-                    config,
-                    message_ctx,
-                    from,
-                    to,
-                    &message_content,
-                )
-            }
-            Transfer::Deliver => Deliver::new({
-                resolvers.get_resolver_or_root(
-                    to.get(0)
-                        .expect("at least one element in the group")
-                        .address
-                        .domain(),
-                )
-            })
-            .deliver(config, message_ctx, from, to, &message_content),
-            Transfer::Mbox => MBox.deliver(config, message_ctx, from, to, &message_content),
-            Transfer::Maildir => Maildir.deliver(config, message_ctx, from, to, &message_content),
-        })
-        .collect::<Vec<_>>();
-
-    message_ctx.set_forward_paths(
-        futures_util::future::join_all(futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>(),
-    );
-
-    tracing::debug!(rcpt = ?message_ctx.forward_paths().iter().map(ToString::to_string).collect::<Vec<_>>(), "Sending.");
-    tracing::trace!(rcpt = ?message_ctx.reverse_path());
-
-    // updating retry count, set status to Failed if threshold reached.
-    for rcpt in message_ctx.forward_paths_mut() {
-        if matches!(&rcpt.email_status, EmailTransferStatus::HeldBack{errors}
-            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
-        {
-            rcpt.email_status = EmailTransferStatus::Failed {
-                timestamp: std::time::SystemTime::now(),
-                reason: format!(
-                    "maximum retry count of '{}' reached",
-                    config.server.queues.delivery.deferred_retry_max
-                ),
-            };
-        }
-    }
-
-    if message_ctx.forward_paths().is_empty() {
-        tracing::warn!("No recipients to send to, or all transfer method are set to none.");
-        return SenderOutcome::MoveToDead;
-    }
-
-    if message_ctx
-        .forward_paths()
-        .iter()
-        .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
-    {
-        tracing::info!("Send operation successful.");
-        return SenderOutcome::RemoveFromDisk;
-    }
-
-    if message_ctx
-        .forward_paths()
-        .iter()
-        .all(|rcpt| !rcpt.email_status.is_sendable())
-    {
-        tracing::warn!("No more sendable recipients.");
-        return SenderOutcome::MoveToDead;
-    }
-
-    for rcpt in message_ctx.forward_paths_mut() {
-        if matches!(&rcpt.email_status, EmailTransferStatus::Waiting { .. }) {
-            rcpt.email_status
-                .held_back("ignored by delivery transport".to_string());
-        }
-    }
-
-    tracing::warn!("Some send operations failed, email deferred.");
-    tracing::debug!(failed = ?message_ctx
-        .forward_paths().iter()
-        .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
-        .map(|r| (r.address.to_string(), r.email_status.clone()))
-        .collect::<Vec<_>>()
-    );
-
-    SenderOutcome::MoveToDeferred
-}
-
-/// prepend trace information to headers.
-/// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
+// <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
     ctx: &MailContext<Finished>,
     message: &mut MessageBody,
@@ -255,21 +116,18 @@ fn add_trace_information(
     Ok(())
 }
 
-/// create the "Received" header stamp.
 fn create_received_stamp(
     client_helo: &str,
     server_domain: &str,
     message_id: &str,
-    received_timestamp: &std::time::SystemTime,
+    received_timestamp: &time::OffsetDateTime,
 ) -> anyhow::Result<String> {
-    let odt: time::OffsetDateTime = (*received_timestamp).into();
-    let date = odt.format(&Rfc2822)?;
+    let date = received_timestamp.format(&Rfc2822)?;
     Ok(format!(
         "from {client_helo} by {server_domain} with SMTP id {message_id}; {date}"
     ))
 }
 
-/// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
         "id=\"{message_id}\"; version=\"{version}\"; status=\"{}\"",
@@ -280,6 +138,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
+    use time::format_description::well_known::Rfc2822;
     use vsmtp_common::status::Status;
     use vsmtp_mail_parser::{MessageBody, RawBody};
     use vsmtp_test::config::local_ctx;
@@ -330,11 +189,7 @@ mod test {
                     " by testserver.com".to_string(),
                     " with SMTP".to_string(),
                     " id test_message_id; ".to_string(),
-                    {
-                        let odt: time::OffsetDateTime = (*ctx.mail_timestamp()).into();
-                        odt.format(&time::format_description::well_known::Rfc2822)
-                            .unwrap()
-                    }
+                    { ctx.mail_timestamp().format(&Rfc2822).unwrap() }
                 ]
                 .concat(),
                 format!(

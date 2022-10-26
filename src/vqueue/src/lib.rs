@@ -1,5 +1,3 @@
-//! vQueue: the vSMTP's queue manager
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
+
+//! vQueue: the vSMTP's queue manager
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]

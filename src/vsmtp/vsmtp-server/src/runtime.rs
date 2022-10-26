@@ -17,6 +17,7 @@
 use crate::{delivery, processing, ProcessMessage, Server};
 use anyhow::Context;
 use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_delivery::Sender;
 use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
@@ -30,10 +31,20 @@ where
     F: std::future::Future<Output = ()> + Send + 'static,
 {
     let name = name.into();
+
+    let name_park = name.clone();
+    let name_unpark = name.clone();
+    let name_start = name.clone();
+    let name_stop = name.clone();
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_thread_count)
         .enable_all()
         .thread_name(format!("{name}-child"))
+        .on_thread_park(move || tracing::trace!("{}-child goes idle", name_park))
+        .on_thread_unpark(move || tracing::trace!("{}-child starts executing tasks", name_unpark))
+        .on_thread_start(move || tracing::trace!("{}-child start", name_start))
+        .on_thread_stop(move || tracing::trace!("{}-child stop", name_stop))
         .build()?;
 
     std::thread::Builder::new()
@@ -94,6 +105,8 @@ pub fn start_runtime(
         queue_manager.clone(),
     )?);
 
+    let sender = std::sync::Arc::new(Sender::default());
+
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
         "delivery",
@@ -104,6 +117,7 @@ pub fn start_runtime(
             resolvers.clone(),
             queue_manager.clone(),
             delivery_channel.1,
+            sender,
         ),
         timeout,
     )?;

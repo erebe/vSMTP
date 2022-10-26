@@ -20,7 +20,7 @@ use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
     mail_context::{Finished, MailContext},
     rcpt::Rcpt,
-    transfer::{EmailTransferStatus, TransferErrors},
+    transfer::{EmailTransferStatus, TransferErrorsVariant},
 };
 use vsmtp_config::Config;
 
@@ -28,6 +28,7 @@ use vsmtp_config::Config;
 //
 // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
 #[derive(Default)]
+#[non_exhaustive]
 pub struct Maildir;
 
 #[async_trait::async_trait]
@@ -52,17 +53,18 @@ impl Transport for Maildir {
                     content,
                 )
             }) {
-                Some(Ok(_)) => {
+                Some(Ok(())) => {
                     tracing::info!("Email delivered.");
 
-                    rcpt.email_status = EmailTransferStatus::Sent {
-                        timestamp: std::time::SystemTime::now(),
-                    }
+                    rcpt.email_status = EmailTransferStatus::sent();
                 }
                 Some(Err(error)) => {
                     tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.email_status.held_back(error);
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::LocalDeliveryError {
+                            error: error.to_string(),
+                        });
                 }
                 None => {
                     tracing::error!(
@@ -70,9 +72,10 @@ impl Transport for Maildir {
                         "Email delivery failure."
                     );
 
-                    rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
-                        name: rcpt.address.local_part().to_string(),
-                    });
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::NoSuchMailbox {
+                            name: rcpt.address.local_part().to_owned(),
+                        });
                 }
             }
         }
@@ -81,6 +84,7 @@ impl Transport for Maildir {
 }
 
 impl Maildir {
+    #[allow(clippy::unreachable, clippy::panic_in_result_fn)] // false positive
     #[tracing::instrument(name = "create-maildir", level = "warn", fields(folder = ?path))]
     fn create_and_chown(
         path: &std::path::PathBuf,
@@ -92,7 +96,7 @@ impl Maildir {
         if path.exists() {
             tracing::warn!("Folder already exists.");
         } else {
-            std::fs::create_dir(path)
+            std::fs::create_dir_all(path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
 
             tracing::trace!(
@@ -161,12 +165,11 @@ mod test {
     #[test]
     fn test_maildir_path() {
         let user = users::User::new(10000, "test_user", 10001);
-        let current = users::get_user_by_uid(users::get_current_uid())
-            .expect("current user has been deleted after running this test");
+        let current = users::get_user_by_uid(users::get_current_uid()).unwrap();
 
         // NOTE: if a user with uid 10000 exists, this is not guaranteed to fail.
         // maybe iterate over all users beforehand ?
-        assert!(getpwuid(user.uid()).is_err());
+        getpwuid(user.uid()).unwrap_err();
         assert_eq!(
             getpwuid(current.uid()).unwrap(),
             std::path::Path::new(current.home_dir().as_os_str().to_str().unwrap()),
@@ -176,8 +179,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_writing_to_maildir() {
-        let current = users::get_user_by_uid(users::get_current_uid())
-            .expect("current user has been deleted after running this test");
+        let current = users::get_user_by_uid(users::get_current_uid()).unwrap();
         let message_id = "test_message";
 
         Maildir::write_to_maildir(
@@ -187,7 +189,7 @@ mod test {
             message_id,
             "email content",
         )
-        .expect("could not write email to maildir");
+        .unwrap();
 
         let maildir = std::path::PathBuf::from_iter([
             current.home_dir().as_os_str().to_str().unwrap(),
@@ -197,9 +199,8 @@ mod test {
         ]);
 
         assert_eq!(
-            "email content".to_string(),
-            std::fs::read_to_string(&maildir)
-                .unwrap_or_else(|_| panic!("could not read current '{:?}'", maildir))
+            "email content".to_owned(),
+            std::fs::read_to_string(&maildir).unwrap()
         );
     }
 }

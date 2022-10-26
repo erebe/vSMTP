@@ -338,7 +338,7 @@ impl Event {
         ))
     }
 
-    /// Parse a smtp input receive between DATA and <CRLF>.<CRLF> (DATA END)
+    /// Parse a smtp input receive between DATA and CRLF.CRLF (DATA END)
     /// and handle dot-stuffing
     ///
     /// # Errors

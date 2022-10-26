@@ -760,6 +760,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c90bf5f19754d10198ccb95b70664fc925bd1fc090a0fd9a6ebc54acc8cd6272"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "error-chain"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1259,6 +1272,7 @@ dependencies = [
  "quoted_printable",
  "rustls",
  "rustls-pemfile",
+ "serde",
  "socket2",
  "tokio",
  "tokio-rustls",
@@ -2431,6 +2445,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-log"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f0c854faeb68a048f0f2dc410c5ddae3bf83854ef0e4977d58306a5edef50e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2956,6 +2981,7 @@ dependencies = [
  "serde_json",
  "strum",
  "tempfile",
+ "time",
  "tokio",
  "tracing",
  "vsmtp-common",
@@ -3027,7 +3053,9 @@ dependencies = [
  "serde_with",
  "strum",
  "thiserror",
+ "time",
  "tokio",
+ "trust-dns-resolver",
  "users",
  "vsmtp-auth",
  "vsmtp-mail-parser",
@@ -3071,15 +3099,21 @@ dependencies = [
  "addr",
  "anyhow",
  "async-trait",
+ "env_logger",
+ "futures-util",
  "lettre",
  "log",
+ "test-log",
  "time",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "trust-dns-resolver",
  "users",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-mail-parser",
+ "vsmtp-test",
 ]
 
 [[package]]

@@ -57,26 +57,23 @@ mod types_rhai {
         status.as_ref().to_string()
     }
 
-    // std::time::SystemTime
+    // time::OffsetDateTime
 
-    /// Convert a `std::time::SystemTime` to a `String`
+    /// Convert a `time::OffsetDateTime` to a `String`
     #[rhai_fn(global, name = "to_string", return_raw, pure)]
-    pub fn time_to_string(this: &mut std::time::SystemTime) -> EngineResult<String> {
-        Ok(format!(
-            "{}",
-            this.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                .as_secs()
-        ))
+    pub fn time_to_string(this: &mut time::OffsetDateTime) -> EngineResult<String> {
+        const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] =
+            time::macros::format_description!(
+    "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
+);
+
+        this.format(&CTIME_FORMAT)
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 
-    /// Convert a `std::time::SystemTime` to a `String`
+    /// Convert a `time::OffsetDateTime` to a `String`
     #[rhai_fn(global, name = "to_debug", return_raw, pure)]
-    pub fn time_to_debug(this: &mut std::time::SystemTime) -> EngineResult<String> {
-        Ok(format!(
-            "{:?}",
-            this.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        ))
+    pub fn time_to_debug(this: &mut time::OffsetDateTime) -> EngineResult<String> {
+        Ok(format!("{:?}", this))
     }
 }

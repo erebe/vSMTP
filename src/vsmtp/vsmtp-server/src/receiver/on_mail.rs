@@ -21,7 +21,7 @@ use vsmtp_common::{
     mail_context::{Finished, MailContext},
     state::State,
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
     CodeID,
 };
 use vsmtp_mail_parser::MessageBody;
@@ -124,10 +124,9 @@ impl MailHandler {
             }
             Some(Status::Deny(code)) => {
                 for rcpt in mail_context.forward_paths_mut() {
-                    rcpt.email_status = EmailTransferStatus::Failed {
-                        timestamp: std::time::SystemTime::now(),
-                        reason: format!("rule engine denied the message in preq: {code:?}."),
-                    };
+                    rcpt.email_status = EmailTransferStatus::failed(
+                        TransferErrorsVariant::RuleEngine(RuleEngineVariants::Denied(code.clone())),
+                    );
                 }
 
                 write_to_queue = Some(QueueID::Dead);

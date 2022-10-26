@@ -62,7 +62,7 @@ where
     ) -> Self {
         Self {
             context: Connect {
-                connect_timestamp: std::time::SystemTime::now(),
+                connect_timestamp: time::OffsetDateTime::now_utc(),
                 client_addr,
                 server_name: config.server.domain.clone(),
                 server_addr,

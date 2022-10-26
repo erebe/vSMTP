@@ -15,42 +15,44 @@
  *
 */
 use super::Transport;
-use anyhow::Context;
+use crate::{to_lettre_envelope, Sender, SenderParameters};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::{Finished, MailContext},
     rcpt::Rcpt,
-    transfer::EmailTransferStatus,
-    Address,
+    transfer::{EmailTransferStatus, TransferErrorsVariant},
+    Address, SMTP_PORT,
 };
 use vsmtp_config::Config;
-
-enum ResultSendMail {
-    /// Temporary error, increasing the `HeldBack` property to retry later.
-    IncreaseHeldBack(anyhow::Error),
-    /// Definitive error. Failed to send the mail.
-    Failed(String),
-}
+extern crate alloc;
 
 /// the email will be sent to another mail exchanger via mx record resolution & smtp.
-pub struct Deliver<'r> {
-    resolver: &'r TokioAsyncResolver,
+pub struct Deliver<'resolver> {
+    resolver: &'resolver TokioAsyncResolver,
+    senders: alloc::sync::Arc<Sender>,
 }
 
-impl<'r> Deliver<'r> {
+impl<'resolver> Deliver<'resolver> {
     /// create a new deliver with a resolver to get data from the distant dns server.
     #[must_use]
-    pub const fn new(resolver: &'r TokioAsyncResolver) -> Self {
-        Self { resolver }
+    #[inline]
+    pub const fn new(
+        resolver: &'resolver TokioAsyncResolver,
+        senders: alloc::sync::Arc<Sender>,
+    ) -> Self {
+        Self { resolver, senders }
     }
 }
 
-impl<'r> Deliver<'r> {
+impl Deliver<'_> {
     /// fetch mx records for a specific domain and order them by priority.
     async fn get_mx_records(
         &self,
         query: &str,
-    ) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
+    ) -> Result<
+        Vec<trust_dns_resolver::proto::rr::rdata::MX>,
+        trust_dns_resolver::error::ResolveError,
+    > {
         let mut records_by_priority = self
             .resolver
             .mx_lookup(query)
@@ -58,85 +60,105 @@ impl<'r> Deliver<'r> {
             .into_iter()
             .collect::<Vec<_>>();
         records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
-
         Ok(records_by_priority)
-    }
-
-    async fn send_email(
-        &self,
-        config: &Config,
-        target: &str,
-        envelop: &lettre::address::Envelope,
-        from: &vsmtp_common::Address,
-        content: &str,
-    ) -> anyhow::Result<()> {
-        lettre::AsyncTransport::send_raw(
-            // TODO: transport should be cached.
-            &crate::transport::build_transport(config, self.resolver, from, target, None)?,
-            envelop,
-            content.as_bytes(),
-        )
-        .await?;
-
-        Ok(())
     }
 
     async fn deliver_one_domain(
         &self,
-        config: &Config,
-        content: &str,
+        ctx: &MailContext<Finished>,
+        message: &str,
+        from: &Address,
+        domain: String,
+        mut rcpt: Vec<Rcpt>,
+    ) -> Vec<Rcpt> {
+        match self
+            .deliver_one_domain_inner(ctx, message, from, &domain, &rcpt)
+            .await
+        {
+            Ok(()) => {
+                for i in &mut rcpt {
+                    i.email_status = EmailTransferStatus::sent();
+                }
+                rcpt
+            }
+            Err(error) => {
+                tracing::warn!(?error);
+
+                tracing::trace!(rcpt = ?rcpt.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>(), sender = %from.full(), %domain);
+
+                let is_permanent = error.is_permanent();
+
+                for i in &mut rcpt {
+                    if is_permanent {
+                        i.email_status = EmailTransferStatus::failed(error.clone());
+                    } else {
+                        i.email_status.held_back(error.clone());
+                    }
+                }
+
+                rcpt
+            }
+        }
+    }
+
+    async fn deliver_one_domain_inner(
+        &self,
+        ctx: &MailContext<Finished>,
+        message: &str,
         from: &Address,
         domain: &str,
         rcpt: &[Rcpt],
-    ) -> anyhow::Result<(), ResultSendMail> {
-        let envelop = from
-            .full()
-            .parse()
-            .context("sender in envelop is invalid")
-            .and_then(|from| {
-                Ok((
-                    from,
-                    rcpt.iter()
-                        .map(|i| {
-                            i.address
-                                .full()
-                                .parse::<lettre::Address>()
-                                .with_context(|| format!("recipient address is invalid: {i}"))
-                        })
-                        .collect::<anyhow::Result<Vec<_>>>()?,
-                ))
-            })
-            .and_then(|(from, rcpt_addresses)| {
-                lettre::address::Envelope::new(Some(from), rcpt_addresses)
-                    .context("failed to build message envelop")
-            })
-            .map_err(|err| ResultSendMail::Failed(err.to_string()))?;
-
+    ) -> Result<(), TransferErrorsVariant> {
+        let envelop = to_lettre_envelope(from, rcpt).map_err(|e| {
+            tracing::error!("{}", e.to_string());
+            TransferErrorsVariant::EnvelopIllFormed {
+                reverse_path: from.clone(),
+                forward_paths: rcpt.to_vec(),
+            }
+        })?;
         tracing::trace!(?envelop);
 
-        let records = self
-            .get_mx_records(domain)
-            .await
-            .with_context(|| format!("failed to get mx records for '{domain}'"))
-            .map_err(ResultSendMail::IncreaseHeldBack)?;
-
+        let records =
+            self.get_mx_records(domain)
+                .await
+                .map_err(|e| TransferErrorsVariant::DnsRecord {
+                    error: e.to_string(),
+                })?;
         tracing::trace!(?records);
 
         if records.is_empty() {
-            tracing::warn!("empty set of MX records found for '{domain}'");
-
             // using directly the AAAA record instead of an mx record.
             // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
-            self.send_email(config, domain, &envelop, from, content)
+            tracing::warn!("empty set of MX records found for '{domain}'");
+
+            self.senders
+                .send(
+                    &SenderParameters {
+                        server: domain.to_owned(),
+                        hello_name: ctx.server_name().to_owned(),
+                        pool_idle_timeout: core::time::Duration::from_secs(60),
+                        pool_max_size: 3,
+                        pool_min_idle: 1,
+                        port: SMTP_PORT,
+                    },
+                    &envelop,
+                    message.as_bytes(),
+                )
                 .await
-                .with_context(|| format!("failed to send message from '{from}' for '{domain}'"))
-                .map_err(ResultSendMail::IncreaseHeldBack)?;
+                .map_err(|e| TransferErrorsVariant::Smtp {
+                    error: e.to_string(),
+                })?;
+            return Ok(());
         }
 
-        let mut records = records.iter();
-        for record in records.by_ref() {
-            let host = record.exchange().to_ascii();
+        let hosts = records
+            .into_iter()
+            .map(|r| r.exchange().to_string())
+            .collect::<Vec<_>>();
 
+        for host in &hosts {
             tracing::debug!("Trying to send an email.");
             tracing::trace!(%host);
 
@@ -147,107 +169,90 @@ impl<'r> Deliver<'r> {
                     "Trying to deliver to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
 
-                return Err(ResultSendMail::Failed(
-                    "null record found for this domain".to_string(),
-                ));
+                return Err(TransferErrorsVariant::HasNullMX {
+                    domain: domain.to_owned(),
+                });
             }
 
             match self
-                .send_email(config, &host, &envelop, from, content)
+                .senders
+                .send(
+                    &SenderParameters {
+                        server: host.to_string(),
+                        hello_name: ctx.server_name().to_owned(),
+                        pool_idle_timeout: core::time::Duration::from_secs(60),
+                        pool_max_size: 3,
+                        pool_min_idle: 1,
+                        port: SMTP_PORT,
+                    },
+                    &envelop,
+                    message.as_bytes(),
+                )
                 .await
             {
-                Ok(()) => {
+                Ok(response) => {
                     tracing::info!("Email sent successfully");
-                    tracing::trace!(%host, sender = %from, ?envelop);
+                    tracing::trace!(%host, sender = %from, ?envelop, ?response);
 
                     return Ok(());
                 }
                 Err(err) => {
-                    tracing::warn!("failed to send message from '{from}' to '{host}': {err}");
+                    tracing::error!("failed to send message from '{from}' to '{host}': {err}");
                 }
             }
         }
 
-        Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
-            "no valid mail exchanger found for '{domain}'",
-        )))
+        Err(TransferErrorsVariant::DeliveryError { targets: hosts })
     }
 }
 
 #[async_trait::async_trait]
-impl<'r> Transport for Deliver<'r> {
+impl Transport for Deliver<'_> {
+    #[inline]
     async fn deliver(
         self,
-        config: &Config,
-        _: &MailContext<Finished>,
+        _: &Config,
+        ctx: &MailContext<Finished>,
         from: &vsmtp_common::Address,
         to: Vec<Rcpt>,
-        content: &str,
+        message: &str,
     ) -> Vec<Rcpt> {
         let mut rcpt_by_domain = std::collections::HashMap::<String, Vec<Rcpt>>::new();
         for rcpt in to {
             rcpt_by_domain
-                .entry(rcpt.address.domain().to_string())
+                .entry(rcpt.address.domain().to_owned())
                 .and_modify(|domain| domain.push(rcpt.clone()))
                 .or_insert_with(|| vec![rcpt.clone()]);
         }
 
-        for (domain, rcpt) in &mut rcpt_by_domain {
-            // TODO: run the delivery on different domain concurrently
-
-            match self
-                .deliver_one_domain(config, content, from, domain, &*rcpt)
-                .await
-            {
-                Ok(_) => rcpt.iter_mut().for_each(|i| {
-                    i.email_status = EmailTransferStatus::Sent {
-                        timestamp: std::time::SystemTime::now(),
-                    };
-                }),
-                Err(ResultSendMail::IncreaseHeldBack(error)) => {
-                    tracing::warn!(
-                        %error,
-                        "Temporary failure to send email."
-                    );
-                    tracing::trace!(rcpt = ?rcpt.iter().map(std::string::ToString::to_string).collect::<Vec<_>>(), sender = %from.full(), %domain);
-
-                    for i in rcpt {
-                        i.email_status.held_back(error.to_string());
-                    }
-                }
-                Err(ResultSendMail::Failed(reason)) => {
-                    tracing::error!(
-                        error = %reason,
-                        "Permanent failure to send email."
-                    );
-                    tracing::trace!(rcpt = ?rcpt.iter().map(std::string::ToString::to_string), sender = %from.full(), %domain);
-
-                    for i in rcpt {
-                        i.email_status = EmailTransferStatus::Failed {
-                            timestamp: std::time::SystemTime::now(),
-                            reason: reason.clone(),
-                        }
-                    }
-                }
-            }
-        }
-
-        rcpt_by_domain
+        let futures = rcpt_by_domain
             .into_iter()
-            .fold(vec![], |mut acc, (_, rcpt)| {
-                acc.extend(rcpt);
-                acc
-            })
+            .map(|(domain, rcpt)| self.deliver_one_domain(ctx, message, from, domain, rcpt));
+
+        futures_util::future::join_all(futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod test {
-
-    use crate::transport::deliver::Deliver;
-    use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::addr;
-    use vsmtp_config::Config;
+    use super::*;
+    use crate::{
+        transport::{deliver::Deliver, Transport},
+        Sender,
+    };
+    use trust_dns_resolver::{
+        config::{ResolverConfig, ResolverOpts},
+        TokioAsyncResolver,
+    };
+    use vsmtp_common::{
+        rcpt::Rcpt,
+        transfer::{EmailTransferStatus, Transfer, TransferErrorsVariant},
+    };
+    use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     /*
     #[tokio::test]
@@ -267,28 +272,38 @@ mod test {
     }
     */
 
-    #[tokio::test]
-    #[ignore]
+    #[test_log::test(tokio::test)]
     async fn test_delivery() {
-        let config = Config::default();
+        let config = local_test();
+        let ctx = local_ctx();
+        let msg = local_msg();
 
-        let resolver = TokioAsyncResolver::tokio_from_system_conf().unwrap();
-        let deliver = Deliver::new(&resolver);
+        let updated_rcpt = Deliver::new(
+            &TokioAsyncResolver::tokio(ResolverConfig::google(), ResolverOpts::default()).unwrap(),
+            alloc::sync::Arc::new(Sender::default()),
+        )
+        .deliver(
+            &config,
+            &ctx,
+            &"root@foo.bar".parse().unwrap(),
+            vec![Rcpt {
+                address: "root@foo.bar".parse().unwrap(),
+                transfer_method: Transfer::Deliver,
+                email_status: EmailTransferStatus::default(),
+            }],
+            &msg.inner().to_string(),
+        )
+        .await;
 
-        // NOTE: for this to return ok, we would need to setup a test server running locally.
-        assert!(deliver
-            .send_email(
-                &config,
-                "localhost",
-                &lettre::address::Envelope::new(
-                    Some("a@a.a".parse().unwrap()),
-                    vec!["b@b.b".parse().unwrap()]
-                )
-                .unwrap(),
-                &addr!("a@a.a"),
-                "content"
-            )
-            .await
-            .is_err());
+        #[allow(clippy::wildcard_enum_match_arm)]
+        match &updated_rcpt.first().unwrap().email_status {
+            &EmailTransferStatus::HeldBack { ref errors } => assert_eq!(
+                errors.first().unwrap().variant,
+                TransferErrorsVariant::DnsRecord {
+                    error: "no record found for Query { name: Name(\"foo.bar.\"), query_type: MX, query_class: IN }".to_owned(),
+                }
+            ),
+            _ => panic!(),
+        }
     }
 }

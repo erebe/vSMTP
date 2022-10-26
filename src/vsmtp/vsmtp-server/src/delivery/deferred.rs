@@ -14,19 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    delivery::{send_mail, SenderOutcome},
-    ProcessMessage,
-};
+use crate::ProcessMessage;
 use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
 
 // TODO: what should be the procedure on failure here ?
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
+    sender: std::sync::Arc<Sender>,
 ) {
     let queued = match queue_manager.list(&QueueID::Deferred).await {
         Ok(queued) => queued,
@@ -53,6 +52,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
                 message_id: msg_id,
                 delegated: false,
             },
+            sender.clone(),
         )
         .await
         {
@@ -67,6 +67,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
+    sender: std::sync::Arc<Sender>,
 ) -> anyhow::Result<()> {
     tracing::debug!("Processing email.");
 
@@ -74,7 +75,9 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
         .get_both(&QueueID::Deferred, &process_message.message_id)
         .await?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
+    match split_and_sort_and_send(&config, &mut mail_context, &mail_message, resolvers, sender)
+        .await
+    {
         SenderOutcome::MoveToDead => queue_manager
             .move_to(&QueueID::Deferred, &QueueID::Dead, &mail_context)
             .await
@@ -90,9 +93,8 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
             .await
             .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
         SenderOutcome::RemoveFromDisk => {
-            // TODO: remove both ?
             queue_manager
-                .remove_ctx(&QueueID::Deferred, &process_message.message_id)
+                .remove_both(&QueueID::Deferred, &process_message.message_id)
                 .await
         }
     }
@@ -124,6 +126,7 @@ mod tests {
             .unwrap();
 
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_deferred_queue(
             config.clone(),
@@ -133,6 +136,7 @@ mod tests {
                 message_id: function_name!().to_string(),
                 delegated: false,
             },
+            sender,
         )
         .await
         .unwrap();
@@ -168,6 +172,7 @@ mod tests {
             .await
             .unwrap();
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_deferred_queue(
             config.clone(),
@@ -177,6 +182,7 @@ mod tests {
                 message_id: function_name!().to_string(),
                 delegated: false,
             },
+            sender,
         )
         .await
         .unwrap();

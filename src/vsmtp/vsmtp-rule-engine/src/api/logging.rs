@@ -27,69 +27,23 @@ pub use logging_rhai::*;
 #[rhai::plugin::export_module]
 mod logging_rhai {
 
-    /// # Examples
-    ///
-    /// ```
-    /// # vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/str)" || {
-    ///       const message = "Hello world!";
-    ///
-    ///       log("error", message);
-    ///     },
-    ///   ],
-    /// }
-    /// # "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_str_obj(level: &str, message: SharedObject) {
         log(level, &message.to_string());
     }
 
-    /// # Examples
-    ///
-    /// ```
-    /// # vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/str)" || {
-    ///       const level = "warn";
-    ///
-    ///       log(level, "I love vsl!");
-    ///     },
-    ///   ],
-    /// }
-    /// # "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_obj_str(level: &mut SharedObject, message: &str) {
         log(&level.to_string(), message);
     }
 
-    /// # Examples
-    ///
-    /// ```
-    /// # vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/obj)" || {
-    ///       const level = "trace";
-    ///       const message = "connection established";
-    ///
-    ///       log(level, message);
-    ///     },
-    ///   ],
-    /// }
-    /// # "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
         log(&level.to_string(), &message.to_string());
     }
@@ -103,12 +57,27 @@ mod logging_rhai {
     ///     action "log on connection (str/str)" || {
     ///       log("info", `[${date()}/${time()}] client=${client_ip()}`);
     ///     },
+    ///     action "log on connection (str/obj)" || {
+    ///       const message = "Ehllo world!";
+    ///
+    ///       log("error", message);
+    ///     },
+    ///     action "log on connection (obj/obj)" || {
+    ///       const level = "trace";
+    ///       const message = "connection established";
+    ///
+    ///       log(level, message);
+    ///     },
+    ///     action "log on connection (obj/str)" || {
+    ///       const level = "warn";
+    ///
+    ///       log(level, "I love vsl!");
+    ///     },
     ///   ],
     /// }
     /// # "#);
     /// ```
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
     // TODO: inject rule name #[tracing::instrument(name = %rule_name, skip_all)]
     #[allow(clippy::cognitive_complexity)]
     pub fn log(level: &str, message: &str) {

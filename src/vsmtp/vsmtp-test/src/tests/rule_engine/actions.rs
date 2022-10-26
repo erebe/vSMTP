@@ -44,8 +44,6 @@ run_test! {
 const CTX_TEMPLATE: &str = concat!(
     "{\n",
     "  \"Finished\": {\n",
-    "    \"connect_timestamp\": {\n",
-    "    },\n",
     "    \"client_addr\": \"127.0.0.1:53844\",\n",
     "    \"server_addr\": \"127.0.0.1:53845\",\n",
     "    \"server_name\": \"testserver.com\",\n",
@@ -54,17 +52,13 @@ const CTX_TEMPLATE: &str = concat!(
     "    \"auth\": null,\n",
     "    \"client_name\": \"foo\",\n",
     "    \"reverse_path\": \"john@doe.com\",\n",
-    "    \"mail_timestamp\": {\n",
-    "    },\n",
     "    \"message_id\": \"{message_id}\",\n",
     "    \"forward_path\": [\n",
     "      {\n",
     "        \"address\": \"green@foo.net\",\n",
-    "        \"transfer_method\": \"Deliver\",\n",
+    "        \"transfer_method\": \"deliver\",\n",
     "        \"email_status\": {\n",
     "          \"waiting\": {\n",
-    "            \"timestamp\": {\n",
-    "            }\n",
     "          }\n",
     "        }\n",
     "      }\n",
@@ -156,7 +150,8 @@ async fn context_write(#[values("write", "dump")] action: &str) {
             "dump" => {
                 pretty_assertions::assert_eq!(
                     msg.lines()
-                        .filter(|i| !["secs_since_epoch", "nanos_since_epoch"]
+                        // ignoring the timestamps
+                        .filter(|i| !["mail_timestamp", "connect_timestamp", "timestamp"]
                             .into_iter()
                             .any(|p| i.contains(p)))
                         .collect::<Vec<_>>()
@@ -203,99 +198,6 @@ fn test_users() {
     );
 }
 
-#[test]
-fn test_transports() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["actions", "transports.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = MessageBody::try_from(concat!(
-        "From: john@doe.com\r\n",
-        "To: green@bar.net\r\n",
-        "Date: toto\r\n",
-        "X-Custom-Header: my header\r\n",
-        "\r\n",
-        "this is an empty body\r\n",
-    ))
-    .unwrap();
-    state
-        .message()
-        .write()
-        .unwrap()
-        .parse::<MailMimeParser>()
-        .unwrap();
-
-    assert_eq!(re.run_when(&mut state, State::Connect), Status::Next);
-    assert_eq!(re.run_when(&mut state, State::Delivery), Status::Next);
-
-    let rcpt = state.context().read().unwrap().envelop.rcpt.clone();
-
-    assert_eq!(rcpt[0].address.full(), "john@example.com");
-    assert_eq!(
-        rcpt[0].transfer_method,
-        Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
-    );
-
-    assert_eq!(rcpt[1].address.full(), "doe@example.com");
-    assert_eq!(rcpt[1].transfer_method, Transfer::Mbox);
-
-    assert_eq!(rcpt[2].address.full(), "green@example.com");
-    assert_eq!(
-        rcpt[2].transfer_method,
-        Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
-    );
-
-    assert_eq!(rcpt[3].address.full(), "foo@example.com");
-    assert_eq!(rcpt[3].transfer_method, Transfer::Deliver);
-
-    assert_eq!(rcpt[4].address.full(), "bar@example.com");
-    assert_eq!(rcpt[4].transfer_method, Transfer::Deliver);
-
-    assert_eq!(rcpt[5].address.full(), "a@example.com");
-    assert_eq!(rcpt[5].transfer_method, Transfer::None);
-
-    assert_eq!(rcpt[6].address.full(), "b@example.com");
-    assert_eq!(rcpt[6].transfer_method, Transfer::Maildir);
-
-    assert_eq!(rcpt[7].address.full(), "c@example.com");
-    assert_eq!(rcpt[7].transfer_method, Transfer::Maildir);
-
-    assert_eq!(rcpt[8].address.full(), "d@example.com");
-    assert_eq!(rcpt[8].transfer_method, Transfer::None);
-}
-
-#[test]
-#[allow(clippy::too_many_lines)]
-fn test_transports_all() {
-    let re = RuleEngine::new(
-        std::sync::Arc::new(vsmtp_config::Config::default()),
-        Some(rules_path!["actions", "transports_all.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-    state
-        .message()
-        .write()
-        .unwrap()
-        .parse::<MailMimeParser>()
-        .unwrap();
-
-    re.run_when(&mut state, State::Connect);
-    re.run_when(&mut state, State::Delivery);
-
-    state
-        .context()
-        .read()
-        .unwrap()
-        .envelop
-        .rcpt
-        .iter()
-        .for_each(|rcpt| {
-            assert_eq!(rcpt.transfer_method, Transfer::None);
-        });
-}
 */
 /*
 

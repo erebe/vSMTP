@@ -54,7 +54,7 @@ impl<State: StateSMTP> MailContext<State> {
     ) -> MailContext<Connect> {
         MailContext::<Connect> {
             state: Connect {
-                connect_timestamp: std::time::SystemTime::now(),
+                connect_timestamp: time::OffsetDateTime::now_utc(),
                 client_addr,
                 server_addr,
                 server_name,
@@ -88,7 +88,7 @@ impl MailContext<Connect> {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.connect_timestamp
     }
 
@@ -117,19 +117,12 @@ impl MailContext<Helo> {
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn mail_from(self, reverse_path: Address) -> MailContext<MailFrom> {
-        let now = std::time::SystemTime::now();
+        let now = time::OffsetDateTime::now_utc();
 
         let message_id = format!(
             "{}{}{}{}",
-            now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .expect("did went back in time")
-                .as_micros(),
-            self.state
-                .connect
-                .connect_timestamp
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .expect("did went back in time")
-                .as_millis(),
+            now.unix_timestamp_nanos(),
+            self.state.connect.connect_timestamp.unix_timestamp_nanos(),
             std::iter::repeat_with(fastrand::alphanumeric)
                 .take(36)
                 .collect::<String>(),
@@ -154,7 +147,7 @@ impl MailContext<Helo> {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.connect.connect_timestamp
     }
 
@@ -206,7 +199,7 @@ impl MailContext<MailFrom> {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.helo.connect.connect_timestamp
     }
 
@@ -218,7 +211,7 @@ impl MailContext<MailFrom> {
 
     ///
     #[must_use]
-    pub const fn mail_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn mail_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.mail_timestamp
     }
 
@@ -277,7 +270,7 @@ impl MailContext<RcptTo> {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.mail_from.helo.connect.connect_timestamp
     }
 
@@ -289,7 +282,7 @@ impl MailContext<RcptTo> {
 
     ///
     #[must_use]
-    pub const fn mail_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn mail_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.mail_from.mail_timestamp
     }
 
@@ -341,7 +334,7 @@ impl MailContext<Finished> {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.rcpt_to.mail_from.helo.connect.connect_timestamp
     }
 
@@ -358,7 +351,7 @@ impl MailContext<Finished> {
 
     ///
     #[must_use]
-    pub const fn mail_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn mail_timestamp(&self) -> &time::OffsetDateTime {
         &self.state.rcpt_to.mail_from.mail_timestamp
     }
 
@@ -425,7 +418,8 @@ pub struct Empty {}
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Connect {
     /// timestamp of the connection TCP/IP
-    pub connect_timestamp: std::time::SystemTime,
+    #[serde(with = "time::serde::iso8601")]
+    pub connect_timestamp: time::OffsetDateTime,
     /// TCP/IP address of the client
     pub client_addr: std::net::SocketAddr,
     /// TCP/IP address of the server
@@ -459,7 +453,8 @@ pub struct MailFrom {
     // send by the client with MAIL FROM command (email address)
     reverse_path: Address,
     //
-    mail_timestamp: std::time::SystemTime,
+    #[serde(with = "time::serde::iso8601")]
+    mail_timestamp: time::OffsetDateTime,
 
     // unique id generated when the "MAIL FROM" has been received.
     // format: {mail timestamp}{connection timestamp}{process id}
@@ -589,7 +584,7 @@ impl MailContextAPI {
 
     ///
     #[must_use]
-    pub const fn connection_timestamp(&self) -> &std::time::SystemTime {
+    pub const fn connection_timestamp(&self) -> &time::OffsetDateTime {
         match self {
             MailContextAPI::Empty(_) => unimplemented!(),
             MailContextAPI::Connect(ctx) => ctx.connection_timestamp(),
@@ -665,7 +660,7 @@ impl MailContextAPI {
 
     ///
     #[must_use]
-    pub const fn mail_timestamp(&self) -> Option<&std::time::SystemTime> {
+    pub const fn mail_timestamp(&self) -> Option<&time::OffsetDateTime> {
         match self {
             MailContextAPI::Empty(_) | MailContextAPI::Connect(_) | MailContextAPI::Helo(_) => None,
             MailContextAPI::MailFrom(ctx) => Some(ctx.mail_timestamp()),

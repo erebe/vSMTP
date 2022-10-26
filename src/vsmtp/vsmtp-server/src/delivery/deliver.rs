@@ -14,19 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    delegate,
-    delivery::{add_trace_information, send_mail, SenderOutcome},
-    ProcessMessage,
-};
+use crate::{delegate, delivery::add_trace_information, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
     mail_context::{Finished, MailContext},
     state::State,
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
 };
 use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
 use vsmtp_rule_engine::RuleEngine;
 
 pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
@@ -34,6 +31,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     rule_engine: std::sync::Arc<RuleEngine>,
+    sender: std::sync::Arc<Sender>,
 ) {
     // FIXME: add span on the function.
     tracing::info!("Flushing deliver queue.");
@@ -58,6 +56,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
                 delegated: false,
             },
             rule_engine.clone(),
+            sender.clone(),
         )
         .await;
     }
@@ -81,6 +80,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<RuleEngine>,
+    sender: std::sync::Arc<Sender>,
 ) -> anyhow::Result<()> {
     let queue = if process_message.delegated {
         QueueID::Delegated
@@ -139,10 +139,9 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         }
         Some(Status::Deny(code)) => {
             for rcpt in ctx.forward_paths_mut() {
-                rcpt.email_status = EmailTransferStatus::Failed {
-                    timestamp: std::time::SystemTime::now(),
-                    reason: format!("rule engine denied the message in delivery: {code:?}."),
-                };
+                rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
+                    RuleEngineVariants::Denied(code.clone()),
+                ));
             }
 
             queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
@@ -161,7 +160,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
 
     add_trace_information(&ctx, &mut mail_message, &result)?;
 
-    match send_mail(&config, &mut ctx, &mail_message, resolvers).await {
+    match split_and_sort_and_send(&config, &mut ctx, &mail_message, resolvers, sender).await {
         SenderOutcome::MoveToDead => {
             queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
 
@@ -192,7 +191,7 @@ mod tests {
     use vsmtp_common::{rcpt::Rcpt, Address};
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[function_name::named]
     async fn move_to_deferred() {
         let config = std::sync::Arc::new(local_test());
@@ -211,6 +210,7 @@ mod tests {
             .await
             .unwrap();
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_delivery_queue(
             config.clone(),
@@ -224,6 +224,7 @@ mod tests {
                 RuleEngine::from_script(config.clone(), "#{}", resolvers, queue_manager.clone())
                     .unwrap(),
             ),
+            sender,
         )
         .await
         .unwrap();
@@ -255,6 +256,7 @@ mod tests {
             .await
             .unwrap();
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_delivery_queue(
             config.clone(),
@@ -273,6 +275,7 @@ mod tests {
                 )
                 .unwrap(),
             ),
+            sender,
         )
         .await
         .unwrap();

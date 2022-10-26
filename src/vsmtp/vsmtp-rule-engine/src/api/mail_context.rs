@@ -74,7 +74,7 @@ mod mail_context_rhai {
 
     /// Get the timestamp when the client connected to the server.
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
-    pub fn connection_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
+    pub fn connection_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
         Ok(*vsl_guard_ok!(context.read()).connection_timestamp())
     }
 
@@ -208,7 +208,7 @@ mod mail_context_rhai {
 
     /// Get the timestamp when the client started to send the message.
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
-    pub fn mail_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
+    pub fn mail_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
         Ok(**vsl_missing_ok!(
             vsl_guard_ok!(context.read()).mail_timestamp(),
             "mail_timestamp",

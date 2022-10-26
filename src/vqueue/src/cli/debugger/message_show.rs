@@ -96,23 +96,29 @@ mod tests {
         .unwrap();
 
         let connect_timestamp = ctx.connection_timestamp();
-        let connect_timestamp = serde_json::to_string_pretty(&connect_timestamp)
-            .unwrap()
-            .replace("  ", "    ")
-            .replace('}', "  }");
+        let connect_timestamp =
+            time::serde::iso8601::serialize(connect_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
 
         let mail_timestamp = ctx.mail_timestamp();
-        let mail_timestamp = serde_json::to_string_pretty(&mail_timestamp)
-            .unwrap()
-            .replace("  ", "    ")
-            .replace('}', "  }");
+        let mail_timestamp =
+            time::serde::iso8601::serialize(mail_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let mail_timestamp = mail_timestamp.replace("  ", "    ").replace('}', "  }");
 
         pretty_assertions::assert_eq!(
             core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connect_timestamp": {connect_timestamp},
+  "connect_timestamp": "{connect_timestamp}",
   "client_addr": "127.0.0.1:25",
   "server_addr": "127.0.0.1:5977",
   "server_name": "testserver.com",
@@ -121,7 +127,7 @@ mod tests {
   "auth": null,
   "client_name": "client.testserver.com",
   "reverse_path": "client@client.testserver.com",
-  "mail_timestamp": {mail_timestamp},
+  "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_json",
   "forward_path": [],
   "dkim": null,
@@ -170,23 +176,29 @@ Message body:
         .unwrap();
 
         let connect_timestamp = ctx.connection_timestamp();
-        let connect_timestamp = serde_json::to_string_pretty(&connect_timestamp)
-            .unwrap()
-            .replace("  ", "    ")
-            .replace('}', "  }");
+        let connect_timestamp =
+            time::serde::iso8601::serialize(connect_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
 
         let mail_timestamp = ctx.mail_timestamp();
-        let mail_timestamp = serde_json::to_string_pretty(&mail_timestamp)
-            .unwrap()
-            .replace("  ", "    ")
-            .replace('}', "  }");
+        let mail_timestamp =
+            time::serde::iso8601::serialize(mail_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let mail_timestamp = mail_timestamp.replace("  ", "    ").replace('}', "  }");
 
         pretty_assertions::assert_eq!(
             core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connect_timestamp": {connect_timestamp},
+  "connect_timestamp": "{connect_timestamp}",
   "client_addr": "127.0.0.1:25",
   "server_addr": "127.0.0.1:5977",
   "server_name": "testserver.com",
@@ -195,7 +207,7 @@ Message body:
   "auth": null,
   "client_name": "client.testserver.com",
   "reverse_path": "client@client.testserver.com",
-  "mail_timestamp": {mail_timestamp},
+  "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_eml",
   "forward_path": [],
   "dkim": null,

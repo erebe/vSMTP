@@ -20,7 +20,7 @@ use vsmtp_common::{
     mail_context::{Finished, MailContext},
     state::State,
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
 };
 use vsmtp_rule_engine::RuleEngine;
 
@@ -112,10 +112,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
         }
         Some(Status::Deny(code)) => {
             for rcpt in ctx.forward_paths_mut() {
-                rcpt.email_status = EmailTransferStatus::Failed {
-                    timestamp: std::time::SystemTime::now(),
-                    reason: format!("rule engine denied the message in postq: {code:?}."),
-                };
+                rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
+                    RuleEngineVariants::Denied(code.clone()),
+                ));
             }
 
             move_to_queue = Some(QueueID::Dead);

@@ -37,10 +37,8 @@ impl Rcpt {
     pub fn new(address: Address) -> Self {
         Self {
             address,
-            transfer_method: Transfer::Deliver,
-            email_status: EmailTransferStatus::Waiting {
-                timestamp: std::time::SystemTime::now(),
-            },
+            transfer_method: Transfer::default(),
+            email_status: EmailTransferStatus::default(),
         }
     }
 
@@ -50,9 +48,7 @@ impl Rcpt {
         Self {
             address,
             transfer_method: method,
-            email_status: EmailTransferStatus::Waiting {
-                timestamp: std::time::SystemTime::now(),
-            },
+            email_status: EmailTransferStatus::default(),
         }
     }
 }
