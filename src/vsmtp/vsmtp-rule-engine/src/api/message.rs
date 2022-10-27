@@ -30,28 +30,80 @@ pub use message_rhai::*;
 #[rhai::plugin::export_module]
 mod message_rhai {
 
-    /// check if a given header exists in the top level headers.
+    /// Return a boolean, `true` if a header named `header` exists in the message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: foo\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "check if header exists" || {
+    ///       if has_header("X-My-Header") {
+    ///         accept();
+    ///       } else {
+    ///         deny();
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// # "#, Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// ```
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
-    pub fn has_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
+    pub fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
     }
 
-    /// check if a given header exists in the top level headers.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
     pub fn has_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(message.read())
-            .get_header(&header.to_string())
-            .is_some())
+        has_header(message, &header.to_string())
     }
 
     /// Count the number of headers with the given name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: foo\r\n",
+    /// "X-My-Header: bar\r\n",
+    /// "X-My-Header: baz\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "count_header" || {
+    ///       accept(`250 count is ${count_header("X-My-Header")}`)
+    ///     }
+    ///   ]
+    /// }
+    /// # "#, Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "count is 3".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "count_header", return_raw, pure)]
-    pub fn count_header_str(message: &mut Message, header: &str) -> EngineResult<rhai::INT> {
+    pub fn count_header(message: &mut Message, header: &str) -> EngineResult<rhai::INT> {
         super::count_header(message, header)
     }
 
-    /// Count the number of headers with the given name.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "count_header", return_raw, pure)]
     pub fn count_header_obj(
@@ -62,20 +114,43 @@ mod message_rhai {
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: 250 foo\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "get_header" || {
+    ///       accept(get_header("X-My-Header"))
+    ///     }
+    ///   ]
+    /// }
+    /// # "#, Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "foo".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "get_header", return_raw, pure)]
-    pub fn get_header_str(message: &mut Message, header: &str) -> EngineResult<String> {
+    pub fn get_header(message: &mut Message, header: &str) -> EngineResult<String> {
         Ok(vsl_guard_ok!(message.read())
             .get_header(header)
             .unwrap_or_default())
     }
 
-    /// return the value of a header if it exists. Otherwise, returns an empty string.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "get_header", return_raw, pure)]
     pub fn get_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(message.read())
-            .get_header(&header.to_string())
-            .unwrap_or_default())
+        get_header(message, &header.to_string())
     }
 
     /// Return the complete list of headers.
@@ -95,7 +170,7 @@ mod message_rhai {
         super::get_all_headers(message, name)
     }
 
-    /// Return a list of headers bearing the `name` given as argument.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "get_all_headers", return_raw, pure)]
     pub fn get_all_headers_obj(
@@ -107,15 +182,11 @@ mod message_rhai {
 
     /// add a header to the end of the raw or parsed email contained in ctx.
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
-    pub fn append_header_str_str(
-        message: &mut Message,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
+    pub fn append_header(message: &mut Message, header: &str, value: &str) -> EngineResult<()> {
         super::append_header(message, &header, &value)
     }
 
-    /// add a header to the end of the raw or parsed email contained in ctx. (using an object)
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
     pub fn append_header_str_obj(
@@ -136,7 +207,7 @@ mod message_rhai {
         super::prepend_header(message, header, value)
     }
 
-    /// prepend a header to the raw or parsed email contained in ctx. (using an object)
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
     pub fn prepend_header_str_obj(
@@ -149,15 +220,11 @@ mod message_rhai {
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, name = "set_header", return_raw, pure)]
-    pub fn set_header_str_str(
-        message: &mut Message,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
+    pub fn set_header(message: &mut Message, header: &str, value: &str) -> EngineResult<()> {
         super::set_header(message, header, value)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "set_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn set_header_str_obj(
@@ -170,11 +237,11 @@ mod message_rhai {
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
-    pub fn rename_header_str_str(message: &mut Message, old: &str, new: &str) -> EngineResult<()> {
+    pub fn rename_header(message: &mut Message, old: &str, new: &str) -> EngineResult<()> {
         super::rename_header(message, old, new)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_str_obj(
@@ -185,7 +252,7 @@ mod message_rhai {
         super::rename_header(message, old, &new.to_string())
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_obj_str(
@@ -196,7 +263,7 @@ mod message_rhai {
         super::rename_header(message, &old.to_string(), new)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_obj_obj(
@@ -215,11 +282,11 @@ mod message_rhai {
 
     /// Remove a header from the raw or parsed email contained in ctx.
     #[rhai_fn(global, name = "remove_header", return_raw, pure)]
-    pub fn remove_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
+    pub fn remove_header(message: &mut Message, header: &str) -> EngineResult<bool> {
         super::remove_header(message, header)
     }
 
-    /// Remove a header from the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "remove_header", return_raw, pure)]
     pub fn remove_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
@@ -328,7 +395,7 @@ mod test {
     fn test_has_header_success() {
         let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        append_header(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
@@ -336,16 +403,16 @@ mod test {
         )
         .unwrap();
 
-        assert!(has_header_str(&mut message, "X-HEADER-1").unwrap());
-        assert!(has_header_str(&mut message, "X-HEADER-2").unwrap());
-        assert!(!has_header_str(&mut message, "X-HEADER-3").unwrap());
+        assert!(has_header(&mut message, "X-HEADER-1").unwrap());
+        assert!(has_header(&mut message, "X-HEADER-2").unwrap());
+        assert!(!has_header(&mut message, "X-HEADER-3").unwrap());
     }
 
     #[test]
     fn test_get_header_success() {
         let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        append_header(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
@@ -353,22 +420,19 @@ mod test {
         )
         .unwrap();
 
+        assert_eq!(get_header(&mut message, "X-HEADER-1").unwrap(), "VALUE-1");
         assert_eq!(
-            get_header_str(&mut message, "X-HEADER-1").unwrap(),
-            "VALUE-1"
-        );
-        assert_eq!(
-            get_header_str(&mut message, "X-HEADER-2").unwrap(),
+            get_header(&mut message, "X-HEADER-2").unwrap(),
             "example.com"
         );
-        assert_eq!(get_header_str(&mut message, "X-HEADER-3").unwrap(), "");
+        assert_eq!(get_header(&mut message, "X-HEADER-3").unwrap(), "");
     }
 
     #[test]
     fn test_append_header_success() {
         let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        append_header(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
         append_header_str_obj(
             &mut message,
             "X-HEADER-2",
@@ -412,7 +476,7 @@ mod test {
     fn test_set_header_success() {
         let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
-        set_header_str_str(&mut message, "X-HEADER", "VALUE-1").unwrap();
+        set_header(&mut message, "X-HEADER", "VALUE-1").unwrap();
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER").unwrap(),
             "VALUE-1"

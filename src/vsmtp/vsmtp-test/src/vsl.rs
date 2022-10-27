@@ -26,15 +26,19 @@ use vsmtp_rule_engine::RuleEngine;
 
 ///
 #[must_use]
-pub fn run(
+pub fn run_with_msg(
     vsl: &'static str,
+    msg: Option<MessageBody>,
 ) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
-    let rule_engine =
-        RuleEngine::from_script(config, vsl, resolvers, queue_manager).expect("rule engine");
+    let rule_engine = std::sync::Arc::new(
+        RuleEngine::from_script(config, vsl, resolvers, queue_manager).expect("rule engine"),
+    );
+
+    let msg = msg.unwrap_or_else(local_msg);
 
     let mut out = std::collections::HashMap::<
         State,
@@ -48,7 +52,23 @@ pub fn run(
         State::PreQ,
         State::PostQ,
     ] {
-        out.insert(i, rule_engine.just_run_when(i, local_ctx(), local_msg()));
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let re = rule_engine.clone();
+        let msg = msg.clone();
+
+        let state = runtime.block_on(async move { re.just_run_when(i, local_ctx(), msg) });
+        out.insert(i, state);
     }
     out
+}
+
+///
+#[must_use]
+pub fn run(
+    vsl: &'static str,
+) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
+    run_with_msg(vsl, None)
 }

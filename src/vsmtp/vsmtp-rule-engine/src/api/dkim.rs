@@ -167,6 +167,71 @@ mod dkim_rhai {
 
     /// Operate the hashing of the `message`'s headers and body, and compare the result with the
     /// `signature` and `key` data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = concat!(
+    /// "Received: from github.com (hubbernetes-node-54a15d2.ash1-iad.github.net [10.56.202.84])\r\n",
+    /// "	by smtp.github.com (Postfix) with ESMTPA id 19FB45E0B6B\r\n",
+    /// "	for <mlala@negabit.com>; Wed, 26 Oct 2022 14:30:51 -0700 (PDT)\r\n",
+    /// "DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=github.com;\r\n",
+    /// "	s=pf2014; t=1666819851;\r\n",
+    /// "	bh=7gTTczemS/Aahap1SpEnunm4pAPNuUIg7fUzwEx0QUA=;\r\n",
+    /// "	h=Date:From:To:Subject:From;\r\n",
+    /// "	b=eAufMk7uj4R+bO5Nr4DymffdGdbrJNza1+eykatgZED6tBBcMidkMiLSnP8FyVCS9\r\n",
+    /// "	 /GSlXME6/YffAXg4JEBr2lN3PuLIf94S86U3VckuoQQQe1LPtHlnGW5ZwJgi6DjrzT\r\n",
+    /// "	 klht/6Pn1w3a2jdNSDccWhk5qlSOQX9JKnE7UD58=\r\n",
+    /// "Date: Wed, 26 Oct 2022 14:30:51 -0700\r\n",
+    /// "From: Mathieu Lala <noreply@github.com>\r\n",
+    /// "To: mlala@negabit.com\r\n",
+    /// "Message-ID: <viridIT/vSMTP/push/refs/heads/test/rule-engine/000000-c6459a@github.com>\r\n",
+    /// "Subject: [viridIT/vSMTP] c6459a: test: add test on message\r\n",
+    /// "Mime-Version: 1.0\r\n",
+    /// "Content-Type: text/plain;\r\n",
+    /// " charset=UTF-8\r\n",
+    /// "Content-Transfer-Encoding: 7bit\r\n",
+    /// "Approved: =?UTF-8?Q?hello_there_=F0=9F=91=8B?=\r\n",
+    /// "X-GitHub-Recipient-Address: mlala@negabit.com\r\n",
+    /// "X-Auto-Response-Suppress: All\r\n",
+    /// "\r\n",
+    /// "  Branch: refs/heads/test/rule-engine\r\n",
+    /// "  Home:   https://github.com/viridIT/vSMTP\r\n",
+    /// "  Commit: c6459a4946395ba90182ce7181bdbc327994c038\r\n",
+    /// "      https://github.com/viridIT/vSMTP/commit/c6459a4946395ba90182ce7181bdbc327994c038\r\n",
+    /// "  Author: Mathieu Lala <m.lala@viridit.com>\r\n",
+    /// "  Date:   2022-10-26 (Wed, 26 Oct 2022)\r\n",
+    /// "  \r\n",
+    /// "  Changed paths:\r\n",
+    /// "    M src/vsmtp/vsmtp-rule-engine/src/api/message.rs\r\n",
+    /// "    M src/vsmtp/vsmtp-rule-engine/src/lib.rs\r\n",
+    /// "    M src/vsmtp/vsmtp-test/src/vsl.rs\r\n",
+    /// "\r\n",
+    /// "  Log Message:\r\n",
+    /// "  -----------\r\n",
+    /// "  test: add test on message\r\n",
+    /// "\r\n",
+    /// "\r\n",
+    /// # );
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "verify_dkim" || {
+    ///       verify_dkim();
+    ///       if get_header("Authentication-Results").contains("dkim=pass") {
+    ///         accept();
+    ///       } else {
+    ///         deny();
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// # "#, Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
     pub fn verify_dkim(
