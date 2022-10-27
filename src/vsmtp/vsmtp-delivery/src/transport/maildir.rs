@@ -85,17 +85,17 @@ impl Transport for Maildir {
 
 impl Maildir {
     #[allow(clippy::unreachable, clippy::panic_in_result_fn)] // false positive
-    #[tracing::instrument(name = "create-maildir", level = "warn", fields(folder = ?path))]
+    #[tracing::instrument(name = "create-maildir", level = "warn", fields(folder = ?path.display()))]
     fn create_and_chown(
         path: &std::path::PathBuf,
         user: &users::User,
         group_local: Option<&users::Group>,
     ) -> anyhow::Result<()> {
-        tracing::debug!(to = %path.display(), "Creating folder.");
-
         if path.exists() {
             tracing::warn!("Folder already exists.");
         } else {
+            tracing::debug!("Creating folder.");
+
             std::fs::create_dir_all(path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
 

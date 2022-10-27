@@ -52,11 +52,11 @@ impl Transaction {
         client_message: &str,
         connection: &Connection<S>,
     ) -> either::Either<ProcessedEvent, TransactionResult> {
-        let command_or_code = Event::parse_cmd(client_message);
+        let parsed = Event::parse_cmd(client_message);
 
-        tracing::trace!(message = %client_message, parsed = ?command_or_code);
+        tracing::trace!("<< {:?} ; {:?}", client_message, parsed);
 
-        command_or_code.map_or_else(
+        parsed.map_or_else(
             |c| either::Left((ReplyOrCodeID::Left(c), None)),
             |command| self.process_event(command, connection),
         )

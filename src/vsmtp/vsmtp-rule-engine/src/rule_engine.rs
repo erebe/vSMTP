@@ -303,7 +303,7 @@ impl RuleEngine {
         let directive_set = if let Some(directive_set) = self.directives.get(&smtp_state) {
             directive_set
         } else {
-            tracing::debug!("No rules for the current state, skipping.");
+            tracing::debug!("No rules for the current state, continuing.");
             return Status::Next;
         };
 
