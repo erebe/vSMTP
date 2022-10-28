@@ -161,9 +161,6 @@ impl Object {
     }
 
     /// Create a new identifier object.
-    ///
-    /// # Errors
-    /// * The value could not be converted.
     pub fn new_identifier(identifier: impl Into<String>) -> Object {
         Object::Identifier(identifier.into())
     }

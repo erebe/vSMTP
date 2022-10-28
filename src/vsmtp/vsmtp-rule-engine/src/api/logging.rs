@@ -58,20 +58,18 @@ mod logging_rhai {
     ///       log("info", `[${date()}/${time()}] client=${client_ip()}`);
     ///     },
     ///     action "log on connection (str/obj)" || {
-    ///       const message = "Ehllo world!";
-    ///
-    ///       log("error", message);
+    ///       log("error", identifier("Ehllo world!"));
     ///     },
     ///     action "log on connection (obj/obj)" || {
     ///       const level = "trace";
     ///       const message = "connection established";
     ///
-    ///       log(level, message);
+    ///       log(identifier(level), identifier(message));
     ///     },
     ///     action "log on connection (obj/str)" || {
     ///       const level = "warn";
     ///
-    ///       log(level, "I love vsl!");
+    ///       log(identifier(level), "I love vsl!");
     ///     },
     ///   ],
     /// }

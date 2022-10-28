@@ -1925,44 +1925,17 @@ dependencies = [
 [[package]]
 name = "rhai"
 version = "1.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6eec3a3db30f591ece18c66b3db4c9fa26f3bce20bc821c50550968361f84333"
-dependencies = [
- "ahash",
- "bitflags",
- "instant",
- "num-traits",
- "rhai_codegen 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde",
- "smallvec",
- "smartstring",
-]
-
-[[package]]
-name = "rhai"
-version = "1.10.1"
 source = "git+https://github.com/schungx/rhai#6b24cc151e455a89754feca155cc3b22a9fb17a8"
 dependencies = [
  "ahash",
  "bitflags",
  "instant",
  "num-traits",
- "rhai_codegen 1.4.2 (git+https://github.com/schungx/rhai)",
+ "rhai_codegen",
  "serde",
  "serde_json",
  "smallvec",
  "smartstring",
-]
-
-[[package]]
-name = "rhai_codegen"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36791b0b801159db25130fd46ac726d2751c070260bba3a4a0a3eeb6231bb82a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -3072,7 +3045,7 @@ dependencies = [
  "log",
  "pem",
  "pretty_assertions",
- "rhai 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rhai",
  "ring-compat",
  "rsa",
  "rustls",
@@ -3120,7 +3093,7 @@ dependencies = [
 name = "vsmtp-docs"
 version = "1.3.4"
 dependencies = [
- "rhai 1.10.1 (git+https://github.com/schungx/rhai)",
+ "rhai",
  "vsmtp-config",
  "vsmtp-rule-engine",
 ]
@@ -3161,7 +3134,7 @@ version = "1.3.4"
 dependencies = [
  "anyhow",
  "libloading",
- "rhai 1.10.1 (git+https://github.com/schungx/rhai)",
+ "rhai",
  "serde",
  "tracing",
 ]

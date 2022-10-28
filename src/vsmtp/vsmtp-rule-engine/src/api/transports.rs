@@ -58,7 +58,7 @@ mod transports_rhai {
     ///     action "forward (obj/obj)" || {
     ///       let rcpt = address("my.address@boz.com");
     ///       add_rcpt_envelop(rcpt);
-    ///       forward(rcpt, "127.0.0.4");
+    ///       forward(rcpt, ip4("127.0.0.4"));
     ///     },
     ///   ],
     /// }
@@ -145,6 +145,11 @@ mod transports_rhai {
     ///       add_rcpt_envelop("my.address@foo.com");
     ///       add_rcpt_envelop("my.address@bar.com");
     ///       forward_all("127.0.0.1");
+    ///     },
+    ///     action "forward_all (obj)" || {
+    ///       add_rcpt_envelop("my.address@foo2.com");
+    ///       add_rcpt_envelop("my.address@bar2.com");
+    ///       forward_all(ip4("127.0.0.1"));
     ///     },
     ///   ],
     /// }
