@@ -76,7 +76,6 @@ impl MailMimeParser {
 
                     check_mandatory_headers(&headers.0)?;
                     let has_mime_version = headers.0.iter().any(|(name, _)| name == "mime-version");
-
                     tracing::trace!("mime-version header found?: {has_mime_version}",);
 
                     return Ok(Mail {
