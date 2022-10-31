@@ -56,7 +56,8 @@ console-subscriber = { version = "0.1.7", optional = true, default-features = fa
 
 tracing = { version = "0.1.37", default-features = false, features = [
     "std",
-    "release_max_level_debug",
+    "attributes",
+    "release_max_level_info",
 ] }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = [
     "smallvec",

@@ -35,7 +35,7 @@ serde = { version = "1.0.147", default-features = false, features = [
 tracing = { version = "0.1.37", default-features = false, features = [
     "std",
     "attributes",
-    "release_max_level_debug",
+    "release_max_level_info",
 ] }
 thiserror = { version = "1.0.37", default-features = false }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }

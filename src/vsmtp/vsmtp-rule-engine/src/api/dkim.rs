@@ -82,20 +82,18 @@ mod dkim_rhai {
         let map = err
             .try_cast::<rhai::Map>()
             .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                Box::new(
-                    format!("expected a map as error from dkim module, got `{type_name}`").into(),
-                )
+                format!("expected a map as error from dkim module, got `{type_name}`").into()
             })?;
 
         let r#type = map
             .get("type")
             .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                Box::new("expected a field `type` in dkim module's error".into())
+                "expected a field `type` in dkim module's error".into()
             })?
             .clone()
             .try_cast::<String>()
             .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                Box::new("expected the field `type` to be a `string` in dkim's error".into())
+                "expected the field `type` to be a `string` in dkim's error".into()
             })?;
 
         let dkim_error = <DkimErrors as strum::IntoEnumIterator>::iter()
@@ -105,7 +103,7 @@ mod dkim_rhai {
                     == r#type
             })
             .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                Box::new(format!("unknown `DkimErrors` got: `{type}`").into())
+                format!("unknown `DkimErrors` got: `{type}`").into()
             })?;
 
         Ok(strum::EnumMessage::get_message(&dkim_error)

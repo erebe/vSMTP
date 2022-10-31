@@ -22,7 +22,7 @@ categories = ["email", "parsing"]
 tracing = { version = "0.1.37", default-features = false, features = [
     "std",
     "attributes",
-    "release_max_level_debug",
+    "release_max_level_info",
 ] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 async-trait = { version = "0.1.58", default-features = false }

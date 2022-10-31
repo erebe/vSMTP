@@ -36,9 +36,8 @@ anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 tracing = { version = "0.1.37", default-features = false, features = [
   "std",
   "attributes",
-  "release_max_level_debug",
+  "release_max_level_info",
 ] }
-log = { version = "0.4.17", default-features = false, features = ["std"] }
 
 futures-util = { version = "0.3.24", default-features = false, features = [
   "async-await",

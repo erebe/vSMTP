@@ -39,27 +39,4 @@
             }
         }
     ],
-
-    postq: [
-        rule "get hostname" || {
-            print("running hostname getter: ");
-            print(hostname());
-            accept()
-        }
-    ],
-
-    delivery: [
-        rule "find users" || {
-
-            const root = identifier("root");
-
-            if !user_exist("john")
-            && user_exist(root)
-            {
-                accept()
-            } else {
-                deny()
-            }
-        }
-    ]
 }

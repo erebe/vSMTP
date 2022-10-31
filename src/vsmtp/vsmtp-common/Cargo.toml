@@ -34,7 +34,6 @@ path = "../vsmtp-mail-parser"
 
 [dependencies]
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
-log = { version = "0.4.17", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = [
     "std",
     # "serde", # TODO
