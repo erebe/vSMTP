@@ -59,91 +59,82 @@ impl SubDomainHierarchy {
     ///
     /// # Errors
     /// * Failed to compile scripts.
+    #[tracing::instrument(skip(engine), err)]
     pub fn new(engine: &rhai::Engine, path: &std::path::Path) -> anyhow::Result<Self> {
         let mut hierarchy = std::collections::BTreeMap::new();
 
+        tracing::debug!(
+            "Expecting '{}/**/{{incoming,outgoing,internal}}.vsl'",
+            path.display()
+        );
+
         // Searching for domain folders.
-        for dir in std::fs::read_dir(path)
-            .with_context(|| format!("could not read rule directory at {path:?}"))?
-        {
-            let dir = dir?;
-
-            if dir.file_type()?.is_dir() {
-                let domain = dir
-                    .file_name()
-                    .to_str()
-                    .map(std::string::ToString::to_string)
-                    .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
-                let domain_dir = std::fs::read_dir(&dir.path())
-                    .context("could not read domain rule directory")?;
-
-                let mut incoming = None;
-                let mut outgoing = None;
-                let mut internal = None;
-
-                for file in domain_dir {
-                    let file = file?;
-
-                    match file
-                        .file_name()
-                        .to_str()
-                        .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?
-                    {
-                        "incoming.vsl" => incoming = Some(file.path()),
-                        "outgoing.vsl" => outgoing = Some(file.path()),
-                        "internal.vsl" => internal = Some(file.path()),
-                        _ => {}
-                    }
-                }
-
-                let scripts =
-                    // FIXME: refactor this.
-                    [incoming, outgoing, internal]
-                        .into_iter()
-                        .map(|file| {
-                            file.map_or_else(
-                                || Err(anyhow::anyhow!("entrypoint script missing for {domain}")),
-                                Ok,
-                            )
-                        })
-                        .collect::<anyhow::Result<Vec<std::path::PathBuf>>>()?;
-
-                hierarchy.insert(
-                    domain.clone(),
-                    DomainDirectives {
-                        incoming: Self::rules_from_path(
-                            engine,
-                            scripts[0].as_path(),
-                        ).with_context(|| format!("failed to compile the incoming.vsl script for the '{domain}' domain"))?,
-                        outgoing: Self::rules_from_path(
-                            engine,
-                            scripts[1].as_path(),
-                        ).with_context(|| format!("failed to compile the outgoing.vsl script for the '{domain}' domain"))?,
-                        internal: Self::rules_from_path(
-                            engine,
-                            scripts[2].as_path(),
-                        ).with_context(|| format!("failed to compile the internal.vsl script for the '{domain}' domain"))?,
-
-                        },
-                );
+        for entry in std::fs::read_dir(path).with_context(|| {
+            format!(
+                "Cannot read subdomain in the directory '{}'",
+                path.display()
+            )
+        })? {
+            // TODO: should we ignore deleted files and IO errors?
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() {
+                continue;
             }
+
+            let domain_dir = entry.path();
+
+            // NOTE: non readable file are ignored
+            let files = std::fs::read_dir(&domain_dir)
+                .with_context(|| format!("Cannot read rule for domain '{}'", domain_dir.display()))?
+                .filter_map(|i| match i {
+                    Ok(e) => Some(e.path()),
+                    Err(_) => None,
+                })
+                .collect::<Vec<_>>();
+
+            for required in ["incoming.vsl", "outgoing.vsl", "internal.vsl"] {
+                if !files
+                    .iter()
+                    .any(|f| f.file_name().map_or(false, |f| f == required))
+                {
+                    anyhow::bail!(
+                        "Missing rule '{}' for domain '{}'",
+                        required,
+                        domain_dir.display()
+                    );
+                }
+            }
+
+            let domain = domain_dir
+                .file_name()
+                .and_then(std::ffi::OsStr::to_str)
+                .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
+
+            hierarchy.insert(
+                domain.to_owned(),
+                DomainDirectives {
+                    incoming: Self::rules_from_path(
+                        engine,
+                        &domain_dir.join("incoming.vsl"),
+                    ).with_context(|| format!("failed to compile the 'incoming.vsl' script for the '{domain}' domain"))?,
+                    outgoing: Self::rules_from_path(
+                        engine,
+                        &domain_dir.join("outgoing.vsl"),
+                    ).with_context(|| format!("failed to compile the 'outgoing.vsl' script for the '{domain}' domain"))?,
+                    internal: Self::rules_from_path(
+                        engine,
+                        &domain_dir.join("internal.vsl"),
+                    ).with_context(|| format!("failed to compile the 'internal.vsl' script for the '{domain}' domain"))?,
+                },
+            );
         }
 
         Ok(Self {
             // TODO: if main / fallback not found, use defaults and log.
-            main: {
-                let mut path = path.to_path_buf();
-                path.push("main.vsl");
-                Self::rules_from_path(engine, &path)
-                    .context("failed to load your rule entrypoint file (main.vsl)")?
-            },
-            fallback: {
-                let mut path = path.to_path_buf();
-                path.push("fallback.vsl");
-
-                Self::rules_from_path(engine, &path)
-                    .context("failed to load your rule fallback file (fallback.vsl)")?
-            },
+            main: Self::rules_from_path(engine, &path.join("main.vsl"))
+                .context("failed to load your rule entrypoint file (main.vsl)")?,
+            fallback: Self::rules_from_path(engine, &path.join("fallback.vsl"))
+                .context("failed to load your rule fallback file (fallback.vsl)")?,
             domains: hierarchy,
         })
     }
