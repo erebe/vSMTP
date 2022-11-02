@@ -19,6 +19,7 @@ use crate::{
     receiver::{Connection, MailHandler},
 };
 use anyhow::Context;
+use time::format_description::well_known::Iso8601;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{CodeID, ConnectionKind};
@@ -169,9 +170,7 @@ impl Server {
         );
         let client_counter_copy = client_counter.clone();
         tokio::spawn(async move {
-            if let Err(error) = session.await {
-                tracing::error!(%error, "Run session failure.");
-            }
+            let _err = session.await;
 
             client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
         });
@@ -254,6 +253,9 @@ impl Server {
 
     ///
     /// # Errors
+    #[tracing::instrument(skip_all, err, fields(
+        id = conn.context.connect_timestamp.format(&Iso8601::DEFAULT).unwrap())
+    )]
     pub async fn run_session(
         mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -263,28 +265,19 @@ impl Server {
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
-        let connection_result = conn
-            .receive(
-                tls_config,
-                rule_engine,
-                resolvers,
-                queue_manager,
-                &mut MailHandler {
-                    working_sender,
-                    delivery_sender,
-                },
-            )
-            .await;
-
-        match &connection_result {
-            Ok(_) => {
-                tracing::info!("Connection closed cleanly.");
-            }
-            Err(error) => {
-                tracing::warn!(%error, "Connection closing failure.");
-            }
-        }
-        connection_result
+        conn.receive(
+            tls_config,
+            rule_engine,
+            resolvers,
+            queue_manager,
+            &mut MailHandler {
+                working_sender,
+                delivery_sender,
+            },
+        )
+        .await?;
+        log::info!("Connection closed cleanly.");
+        Ok(())
     }
 }
 
