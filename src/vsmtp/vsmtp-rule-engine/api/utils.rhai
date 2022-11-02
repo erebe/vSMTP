@@ -48,10 +48,10 @@
 fn in_domain(rcpt) {
     switch rcpt.type_of() {
         "VSLObject" => {
-            rcpt.domain in cfg::server.virtual || rcpt.domain == cfg::server.domain
+            rcpt.domain in cfg::server.virtual || rcpt.domain == cfg::server.name
         },
         "string" => {
-            rcpt in cfg::server.virtual || rcpt == cfg::server.domain
+            rcpt in cfg::server.virtual || rcpt == cfg::server.name
         },
         _ => false,
     }

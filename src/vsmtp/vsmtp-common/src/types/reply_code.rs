@@ -169,11 +169,8 @@ mod tests {
             (ReplyCode::Code { code: 504 }, "")
         );
         assert_eq!(
-            ReplyCode::parse("220 {domain} ESMTP Service ready").unwrap(),
-            (
-                ReplyCode::Code { code: 220 },
-                "{domain} ESMTP Service ready"
-            )
+            ReplyCode::parse("220 {name} ESMTP Service ready").unwrap(),
+            (ReplyCode::Code { code: 220 }, "{name} ESMTP Service ready")
         );
 
         assert_eq!(

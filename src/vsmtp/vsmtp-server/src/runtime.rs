@@ -100,7 +100,7 @@ pub fn start_runtime(
 
     let rule_engine = std::sync::Arc::new(RuleEngine::new(
         config.clone(),
-        config.app.vsl.filepath.clone(),
+        config.app.vsl.dirpath.clone(),
         resolvers.clone(),
         queue_manager.clone(),
     )?);

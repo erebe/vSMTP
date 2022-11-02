@@ -2,6 +2,6 @@
 let config = new_config();
 
 config.server.dns.type = "system";
-config.app.vsl.filepath = "./examples/antivirus/main.vsl";
+config.app.vsl.dirpath = "./examples/antivirus/main.vsl";
 
 export config;

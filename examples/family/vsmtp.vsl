@@ -2,7 +2,7 @@ let config = new_config();
 
 config.version_requirement = ">=1.3.3, <2.0.0";
 
-config.server.domain = "doe-family.com";
+config.server.name = "doe-family.com";
 
 config.server.interfaces = #{
     // Replace 192.168.1.254 by your own IP.
@@ -22,4 +22,4 @@ config.server.tls = #{
 
 config.server.queues.dirpath = "examples/family/spool";
 config.app.dirpath = "examples/family/app";
-config.app.vsl.filepath = "../../../examples/family/main.vsl";
+config.app.vsl.dirpath = "../../../examples/family/main.vsl";

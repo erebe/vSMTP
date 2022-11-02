@@ -20,7 +20,7 @@ config.server.smtp.auth = #{
     enable_dangerous_mechanism_in_clair: true,
 };
 
-config.app.vsl.filepath = "./examples/auth/main.vsl";
+config.app.vsl.dirpath = "./examples/auth/main.vsl";
 
 config.app.logs.filepath = "./tmp/dev/app.log";
 

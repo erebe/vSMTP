@@ -57,9 +57,8 @@ pub mod field {
         ///
         /// Used with the response [`CodeID::Greetings`], and [`CodeID::Helo`],
         /// and [`CodeID::EhloPain`], and [`CodeID::EhloSecured`].
-        // TODO: parse valid fqdn
         #[serde(default = "FieldServer::hostname")]
-        pub domain: String,
+        pub name: String,
         /// Maximum number of client served at the same time.
         ///
         /// The client will be rejected if the server is full.
@@ -582,7 +581,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldAppVSL {
         /// Entry point of the vsl application.
-        pub filepath: Option<std::path::PathBuf>,
+        pub dirpath: Option<std::path::PathBuf>,
         /// Plugins locations.
         #[serde(default)]
         pub plugins: std::collections::BTreeMap<String, std::path::PathBuf>,

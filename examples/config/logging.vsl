@@ -13,7 +13,7 @@ config.server.logs = #{
     ]
 };
 
-config.server.smtp.codes.set("Greetings", "220 {domain} ESMTP Service ready");
+config.server.smtp.codes.set("Greetings", "220 {name} ESMTP Service ready");
 
 config.server.smtp.codes.set("Help", #{
     code: 214,

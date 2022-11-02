@@ -53,7 +53,7 @@ impl Builder<WantsValidate> {
             version_requirement: version.version_requirement,
             path: path.path,
             server: FieldServer {
-                domain: srv.domain,
+                name: srv.name,
                 client_count_max: srv.client_count_max,
                 message_size_limit: srv.message_size_limit,
                 system: FieldServerSystem {
@@ -107,7 +107,7 @@ impl Builder<WantsValidate> {
             app: FieldApp {
                 dirpath: app.dirpath,
                 vsl: FieldAppVSL {
-                    filepath: app_vsl.filepath,
+                    dirpath: app_vsl.dirpath,
                     plugins: app_vsl.plugins,
                 },
                 logs: FieldAppLogs {

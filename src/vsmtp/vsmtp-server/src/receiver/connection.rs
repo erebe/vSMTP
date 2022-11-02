@@ -64,7 +64,7 @@ where
             context: Connect {
                 connect_timestamp: time::OffsetDateTime::now_utc(),
                 client_addr,
-                server_name: config.server.domain.clone(),
+                server_name: config.server.name.clone(),
                 server_addr,
                 skipped: None,
                 tls: None,

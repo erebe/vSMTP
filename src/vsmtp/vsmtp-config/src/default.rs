@@ -58,7 +58,7 @@ impl Default for Config {
 impl Default for FieldServer {
     fn default() -> Self {
         Self {
-            domain: Self::hostname(),
+            name: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
             message_size_limit: Self::default_message_size_limit(),
             system: FieldServerSystem::default(),
@@ -337,7 +337,7 @@ impl FieldServerSMTP {
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
         let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
             CodeID::Greetings => Reply::new(
-                ReplyCode::Code{ code: 220 }, "{domain} Service ready\r\n"
+                ReplyCode::Code{ code: 220 }, "{name} Service ready\r\n"
             ),
             CodeID::Help => Reply::new(
                 ReplyCode::Code{ code: 214 }, "joining us https://viridit.com/support\r\n"

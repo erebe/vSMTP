@@ -43,6 +43,7 @@
     "Faccept",
     "fastrand",
     "flamegraph",
+    "dirpath",
     "fullchain",
     "getpwuid",
     "greylist",

@@ -47,7 +47,7 @@ async fn test_all_cipher_suite() {
         let (client, server) = test_tls_tunneled(
             arc!(RuleEngine::new(
                 config.clone(),
-                config.app.vsl.filepath.clone(),
+                config.app.vsl.dirpath.clone(),
                 resolvers,
                 queue_manager,
             )

@@ -35,7 +35,7 @@ async fn simple() {
     let (client, server) = test_tls_tunneled(
         arc!(RuleEngine::new(
             config.clone(),
-            config.app.vsl.filepath.clone(),
+            config.app.vsl.dirpath.clone(),
             resolvers,
             queue_manager
         )
@@ -96,7 +96,7 @@ async fn starttls_under_tunnel() {
     let (client, server) = test_tls_tunneled(
         arc!(RuleEngine::new(
             config.clone(),
-            config.app.vsl.filepath.clone(),
+            config.app.vsl.dirpath.clone(),
             resolvers,
             queue_manager
         )
@@ -145,7 +145,7 @@ async fn config_ill_formed() {
     let (client, server) = test_tls_tunneled(
         arc!(RuleEngine::new(
             config.clone(),
-            config.app.vsl.filepath.clone(),
+            config.app.vsl.dirpath.clone(),
             resolvers,
             queue_manager
         )
@@ -168,7 +168,7 @@ async fn config_ill_formed() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn sni() {
     let mut config = get_tls_config();
-    config.app.vsl.filepath = Some("./src/vsl/sni".into());
+    config.app.vsl.dirpath = Some("./src/vsl/sni".into());
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
     config.server.r#virtual.insert(
         "second.testserver.com".to_string(),
@@ -192,7 +192,7 @@ async fn sni() {
     let (client, server) = test_tls_tunneled(
         arc!(RuleEngine::new(
             config.clone(),
-            config.app.vsl.filepath.clone(),
+            config.app.vsl.dirpath.clone(),
             resolvers,
             queue_manager
         )

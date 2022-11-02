@@ -99,7 +99,7 @@ async fn test_starttls(
             },
             arc!(RuleEngine::new(
                 server_config.clone(),
-                server_config.app.vsl.filepath.clone(),
+                server_config.app.vsl.dirpath.clone(),
                 resolvers,
                 queue_manager,
             )
@@ -221,7 +221,7 @@ async fn test_tls_tunneled_with_auth(
 
     let rule_engine = arc!(RuleEngine::new(
         server_config.clone(),
-        server_config.app.vsl.filepath.clone(),
+        server_config.app.vsl.dirpath.clone(),
         resolvers,
         queue_manager,
     )

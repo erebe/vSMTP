@@ -38,7 +38,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                 let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
 
                 let rule_engine = std::sync::Arc::new(
-                    RuleEngine::new(config.clone(), config.app.vsl.filepath.clone(), resolvers.clone(), queue_manager).unwrap(),
+                    RuleEngine::new(config.clone(), config.app.vsl.dirpath.clone(), resolvers.clone(), queue_manager).unwrap(),
                 );
 
                 Server::new(

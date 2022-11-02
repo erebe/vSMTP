@@ -136,7 +136,7 @@ impl Sender {
 
         // from's domain could match the root domain of the server.
         let tls_parameters =
-            if config.server.domain == from.domain() && config.server.tls.is_some() {
+            if config.server.name == from.domain() && config.server.tls.is_some() {
                 tls_builder.add_root_certificate(
                     lettre::transport::smtp::client::Certificate::from_der(
                         config

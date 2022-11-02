@@ -123,13 +123,13 @@ impl Builder<WantsServer> {
     #[must_use]
     pub fn with_server_name_and_client_count(
         self,
-        domain: &str,
+        name: &str,
         client_count_max: i64,
     ) -> Builder<WantsServerSystem> {
         Builder::<WantsServerSystem> {
             state: WantsServerSystem {
                 parent: self.state,
-                domain: domain.to_string(),
+                name: name.to_string(),
                 client_count_max,
                 message_size_limit: FieldServer::default_message_size_limit(),
             },
@@ -571,7 +571,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: None,
+                dirpath: None,
                 plugins: std::collections::BTreeMap::new(),
             },
         }
@@ -583,7 +583,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: Some(entry_point.into()),
+                dirpath: Some(entry_point.into()),
                 plugins: std::collections::BTreeMap::new(),
             },
         }

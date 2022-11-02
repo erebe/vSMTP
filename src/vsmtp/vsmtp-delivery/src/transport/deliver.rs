@@ -261,7 +261,7 @@ mod test {
         let mut config = Config::default();
         config.server.dns = FieldServerDNS::System;
         let resolvers = vsmtp_config::build_resolvers(&config).unwrap();
-        let deliver = Deliver::new(resolvers.get(&config.server.domain).unwrap());
+        let deliver = Deliver::new(resolvers.get(&config.server.name).unwrap());
 
         deliver
             .get_mx_records("google.com")
