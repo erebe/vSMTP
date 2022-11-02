@@ -30,15 +30,17 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ),
     ,,,
-    rule_script = r#"#{
-  connect: [
-    rule "test_connect" || {
-      log("trace", `${client_ip()}`);
-      if client_ip() is "127.0.0.1" { next() } else { deny() }
-    }
-  ],
-}
-"#,
+    hierarchy_builder = |builder| {
+        Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"#{
+                    connect: [
+                      rule "test_connect" || {
+                        log("trace", `${client_ip()}`);
+                        if client_ip() is "127.0.0.1" { next() } else { deny() }
+                      }
+                    ],
+                  }
+                  "#,)?.build())
+    },
 }
 
 const CTX_TEMPLATE: &str = concat!(
@@ -53,6 +55,7 @@ const CTX_TEMPLATE: &str = concat!(
     "    \"client_name\": \"foo\",\n",
     "    \"reverse_path\": \"john@doe.com\",\n",
     "    \"message_id\": \"{message_id}\",\n",
+    "    \"outgoing\": false,\n",
     "    \"forward_path\": [\n",
     "      {\n",
     "        \"address\": \"green@foo.net\",\n",
@@ -60,6 +63,9 @@ const CTX_TEMPLATE: &str = concat!(
     "        \"email_status\": {\n",
     "          \"waiting\": {\n",
     "          }\n",
+    "        },\n",
+    "        \"transaction_type\": {\n",
+    "          \"Incoming\": null\n",
     "        }\n",
     "      }\n",
     "    ],\n",
@@ -69,7 +75,7 @@ const CTX_TEMPLATE: &str = concat!(
     "}"
 );
 
-const VSL_WRITE_DUMP: &str = r#"
+const VSL_WRITE_DUMP_MAIL_FROM: &str = r#"
 #{
   mail: [
     rule "partial write to disk, body not received" || {
@@ -78,7 +84,10 @@ const VSL_WRITE_DUMP: &str = r#"
       accept()
     },
   ],
+}"#;
 
+const VSL_WRITE_DUMP: &str = r#"
+#{
   preq: [
     action "write to disk preq" || {
       const path = "tests/generated";
@@ -92,7 +101,7 @@ const VSL_WRITE_DUMP: &str = r#"
 
 #[rstest::rstest]
 #[tokio::test]
-async fn context_write(#[values("write", "dump")] action: &str) {
+async fn context_write(#[values("write", "dump")] action: &'static str) {
     let q = run_test! {
         input = concat!(
             "EHLO foo\r\n",
@@ -119,7 +128,9 @@ async fn context_write(#[values("write", "dump")] action: &str) {
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
         ),,,,
-    rule_script = &VSL_WRITE_DUMP.replace("{action}", action),
+        hierarchy_builder = |builder| {
+            Ok(builder.add_main_rules(&VSL_WRITE_DUMP_MAIL_FROM.replace("{action}", action))?.add_fallback_rules(&VSL_WRITE_DUMP.replace("{action}", action))?.build())
+        },
     }
     .unwrap();
 

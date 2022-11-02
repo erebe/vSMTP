@@ -14,11 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::wants::{
-    WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
-    WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
-    WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
-    WantsServerVirtual, WantsValidate, WantsVersion,
+use super::{
+    wants::{
+        WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
+        WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
+        WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
+        WantsServerVirtual, WantsValidate, WantsVersion,
+    },
+    WantsPath,
 };
 use crate::{
     field::{
@@ -43,25 +46,48 @@ impl Builder<WantsVersion> {
     ///
     /// * `CARGO_PKG_VERSION` is not valid
     #[must_use]
-    pub fn with_current_version(self) -> Builder<WantsServer> {
+    pub fn with_current_version(self) -> Builder<WantsPath> {
         self.with_version_str(env!("CARGO_PKG_VERSION")).unwrap()
     }
 
     /// # Errors
     ///
     /// * `version_requirement` is not valid format
-    pub fn with_version_str(
-        self,
-        version_requirement: &str,
-    ) -> anyhow::Result<Builder<WantsServer>> {
+    pub fn with_version_str(self, version_requirement: &str) -> anyhow::Result<Builder<WantsPath>> {
         semver::VersionReq::parse(version_requirement)
             .with_context(|| format!("version is not valid: '{version_requirement}'"))
-            .map(|version_requirement| Builder::<WantsServer> {
-                state: WantsServer {
+            .map(|version_requirement| Builder::<WantsPath> {
+                state: WantsPath {
                     parent: self.state,
                     version_requirement,
                 },
             })
+    }
+}
+
+impl Builder<WantsPath> {
+    ///
+    #[allow(clippy::missing_const_for_fn)] // false positive.
+    #[must_use]
+    pub fn without_path(self) -> Builder<WantsServer> {
+        Builder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                path: None,
+            },
+        }
+    }
+
+    ///
+    #[allow(clippy::missing_const_for_fn)] // false positive.
+    #[must_use]
+    pub fn with_path(self, path: std::path::PathBuf) -> Builder<WantsServer> {
+        Builder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                path: Some(path),
+            },
+        }
     }
 }
 

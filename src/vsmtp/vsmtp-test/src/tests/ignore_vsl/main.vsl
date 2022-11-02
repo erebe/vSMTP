@@ -14,23 +14,4 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
-#{
-   connect: [
-        rule "dump configuration" || {
-            if cfg::server.domain == "testserver.com"
-            && cfg::server.system.user == "root"
-            && cfg::server.system.group == "root"
-            && cfg::server.virtual["domain@example.com"].tls.protocol_version == ["TLSv1.3"]
-
-            && cfg::app.dirpath == "./tmp/app"
-            && cfg::app.vsl.filepath == "./tmp/nothing" {
-                next()
-            } else {
-                deny()
-            }
-        },
-
-        rule "trailing" || accept(),
-   ],
-}
+#{}

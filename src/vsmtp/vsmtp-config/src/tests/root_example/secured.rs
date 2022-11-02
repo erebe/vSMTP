@@ -22,15 +22,17 @@ use vsmtp_common::{collection, state::State};
 
 #[test]
 fn parse() {
+    let path_to_config = std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/config/secured.vsl",
+    ]);
+
     pretty_assertions::assert_eq!(
-        Config::from_vsl_file(std::path::PathBuf::from_iter([
-            env!("CARGO_MANIFEST_DIR"),
-            "../../../examples/config/secured.vsl"
-        ]))
-        .unwrap(),
+        Config::from_vsl_file(&path_to_config).unwrap(),
         Config::builder()
             .with_version_str(">=1.3.3, <2.0.0")
             .unwrap()
+            .with_path(path_to_config)
             .with_hostname_and_client_count_max(8)
             .with_default_user_and_thread_pool(3, 3, 3)
             .with_ipv4_localhost()

@@ -7,6 +7,7 @@ fuzz_target!(|data: &[u8]| {
     let config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
+        .without_path()
         .with_hostname()
         .with_default_system()
         .with_ipv4_localhost()
@@ -32,6 +33,12 @@ fuzz_target!(|data: &[u8]| {
     let dns_resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).expect("failed to build dns resolvers"),
     );
-    let _ = std::str::from_utf8(data)
-        .map(|script| RuleEngine::from_script(config, script, dns_resolvers, queue_manager));
+    let _ = String::from_utf8(data.to_vec()).map(|script| {
+        RuleEngine::with_hierarchy(
+            config,
+            move |builder| Ok(builder.add_main_rules(&script)?.build()),
+            dns_resolvers,
+            queue_manager,
+        )
+    });
 });

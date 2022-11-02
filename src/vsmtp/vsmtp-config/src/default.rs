@@ -50,6 +50,7 @@ impl Default for Config {
             ]),
             server: FieldServer::default(),
             app: FieldApp::default(),
+            path: None,
         }
     }
 }

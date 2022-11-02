@@ -69,11 +69,22 @@ fn compile_errored(
         BAD_ACTION_SYNTAX,
         BAD_ACTION_SYNTAX_2
     )]
-    script: &str,
+    script: &'static str,
 ) {
     let config = std::sync::Arc::new(local_test());
     let queue_manger = vqueue::temp::QueueManager::init(config.clone()).unwrap();
     let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
-    RuleEngine::from_script(config, script, dns_resolvers, queue_manger).unwrap_err();
+    RuleEngine::with_hierarchy(
+        config,
+        |builder| {
+            Ok(builder
+                .add_main_rules("#{}")?
+                .add_fallback_rules(script)?
+                .build())
+        },
+        dns_resolvers,
+        queue_manger,
+    )
+    .unwrap_err();
 }

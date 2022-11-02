@@ -54,6 +54,7 @@ macro_rules! assert_mechanism_list {
     ($required:expr, $clair_expected:expr, $secured_expected:expr) => {
         let config = Config::builder()
             .with_current_version()
+            .without_path()
             .with_hostname()
             .with_default_system()
             .with_ipv4_localhost()

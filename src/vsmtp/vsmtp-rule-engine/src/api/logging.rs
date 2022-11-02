@@ -51,7 +51,8 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// # vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_main_rules(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (str/str)" || {
@@ -73,7 +74,7 @@ mod logging_rhai {
     ///     },
     ///   ],
     /// }
-    /// # "#);
+    /// # "#)?.build()));
     /// ```
     #[rhai_fn(global, name = "log")]
     // TODO: inject rule name #[tracing::instrument(name = %rule_name, skip_all)]

@@ -43,7 +43,7 @@ run_test! {
         "500 I decided that you cannot send data.\r\n",
         "221 Service closing transmission channel\r\n"
     ],,,,
-    rule_script = include_str!("custom_codes_info.vsl"),
+    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_info_pre_rcpt.vsl"))?.add_fallback_rules(include_str!("custom_codes_info.vsl"))?.build()),
 }
 
 run_test! {
@@ -57,7 +57,7 @@ run_test! {
         "250 Ok\r\n",
         "501 4.7.1 satan is blacklisted on this server\r\n",
     ],,,,
-    rule_script = include_str!("custom_codes_deny.vsl"),
+    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
@@ -71,7 +71,7 @@ run_test! {
         "250 Ok\r\n",
         "501 4.7.1 evil is blacklisted on this server\r\n",
     ],,,,
-    rule_script = include_str!("custom_codes_deny.vsl"),
+    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
@@ -85,7 +85,7 @@ run_test! {
         "250 Ok\r\n",
         "501 4.7.1 unpleasant is blacklisted on this server\r\n",
     ],,,,
-    rule_script = include_str!("custom_codes_deny.vsl"),
+    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
@@ -104,5 +104,5 @@ run_test! {
         "221 Service closing transmission channel\r\n"
     ].concat(),
     config = unsafe_auth_config(),,,
-    rule_script = include_str!("custom_codes_accept.vsl"),
+    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_accept.vsl"))?.build()),
 }

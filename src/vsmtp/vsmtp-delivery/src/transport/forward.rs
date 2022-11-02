@@ -175,7 +175,7 @@ mod tests {
     use crate::{transport::Transport, Sender};
     use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::{
-        rcpt::Rcpt,
+        rcpt::{Rcpt, TransactionType},
         transfer::{EmailTransferStatus, ForwardTarget, Transfer, TransferErrorsVariant},
     };
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
@@ -201,6 +201,7 @@ mod tests {
                 address: "root@localhost".parse().unwrap(),
                 transfer_method: Transfer::Forward(target),
                 email_status: EmailTransferStatus::default(),
+                transaction_type: TransactionType::Incoming(None),
             }],
             &msg.inner().to_string(),
         )

@@ -80,7 +80,8 @@ mod utils_rhai {
     /// # Examples
     ///
     /// ```
-    /// # let states = vsmtp_test::vsl::run(r#"
+    /// # let states = vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_main_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "user_exist" || {
@@ -93,7 +94,7 @@ mod utils_rhai {
     ///     }
     ///   ]
     /// }
-    /// # "#);
+    /// # "#)?.build()));
     /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
     /// # assert_eq!(states[&State::Connect].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "root exist ? yes".to_string(),
@@ -121,7 +122,8 @@ mod utils_rhai {
     /// # Examples
     ///
     /// ```
-    /// # vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_main_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "hostname" || {
@@ -129,7 +131,7 @@ mod utils_rhai {
     ///     }
     ///   ]
     /// }
-    /// # "#);
+    /// # "#)?.build()));
     /// ```
     #[rhai_fn(return_raw)]
     pub fn hostname() -> EngineResult<String> {
@@ -192,7 +194,8 @@ mod utils_rhai {
     /// # Examples
     ///
     /// ```
-    /// # vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
     /// #{
     ///   preq: [
     ///     action "lookup recipients" || {
@@ -204,7 +207,7 @@ mod utils_rhai {
     ///     },
     ///   ],
     /// }
-    /// # "#);
+    /// # "#)?.build()));
     /// ```
     #[rhai_fn(global, name = "lookup", return_raw, pure)]
     pub fn lookup(server: &mut Server, name: &str) -> EngineResult<rhai::Array> {
@@ -228,7 +231,8 @@ mod utils_rhai {
     /// # Examples
     ///
     /// ```
-    /// # let states = vsmtp_test::vsl::run(r#"
+    /// # let states = vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_main_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "rlookup" || {
@@ -236,7 +240,7 @@ mod utils_rhai {
     ///     }
     ///   ],
     /// }
-    /// # "#);
+    /// # "#)?.build()));
     /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
     /// # assert_eq!(states[&State::Connect].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "client ip: 127.0.0.1 -> [\"localhost.\"]".to_string(),

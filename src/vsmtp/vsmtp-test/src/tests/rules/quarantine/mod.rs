@@ -62,7 +62,13 @@ async fn actual_test(stage: State) {
         .concat(),,
         config_arc = config.clone(),
         mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
-        rule_script = &QUARANTINE_RULE.replace("{stage}", &stage.to_string()),
+        hierarchy_builder = move |builder| Ok(
+            builder
+                // not ideal since some stages won't ever be run in main / fallback, but it works fine that way.
+                .add_main_rules(&QUARANTINE_RULE.replace("{stage}", &stage.to_string()))?
+                .add_fallback_rules(&QUARANTINE_RULE.replace("{stage}", &stage.to_string()))?
+                .build()
+            ),
     }
     .unwrap();
 

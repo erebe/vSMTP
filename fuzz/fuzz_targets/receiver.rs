@@ -32,6 +32,7 @@ fuzz_target!(|data: &[u8]| {
     let mut config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
+        .without_path()
         .with_hostname()
         .with_default_system()
         .with_ipv4_localhost()

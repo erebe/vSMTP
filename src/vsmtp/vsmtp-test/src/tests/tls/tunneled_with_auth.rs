@@ -21,6 +21,7 @@ fn get_tls_auth_config() -> Config {
     Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
+        .without_path()
         .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
         .unwrap()
@@ -34,7 +35,7 @@ fn get_tls_auth_config() -> Config {
         .with_default_smtp_codes()
         .with_safe_auth(true, -1)
         .with_app_at_location("./tmp/app")
-        .with_vsl("./src/tests/empty_main.vsl")
+        .with_vsl("./src/tests/ignore_vsl")
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()
@@ -45,7 +46,7 @@ fn get_tls_auth_config() -> Config {
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
     let mut config = get_tls_auth_config();
-    config.app.vsl.filepath = Some("./src/tests/auth.vsl".into());
+    config.app.vsl.filepath = Some("./src/tests/tls/vsl".into());
 
     let (client, server) = test_tls_tunneled_with_auth(
         "testserver.com",

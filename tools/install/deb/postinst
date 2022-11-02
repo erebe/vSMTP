@@ -8,6 +8,14 @@ DPKG_VER=$(dpkg -s $DPKG_NAME | sed -n 's/^Version: //p')
 
 CONF_DIR="/etc/vsmtp/"
 CONF_FILE=${CONF_DIR}"vsmtp.vsl"
+USER_CONF_DIR=${CONF_DIR}"conf.d/"
+USER_CONF_FILE=${USER_CONF_DIR}"config.vsl"
+TARGETS=${CONF_DIR}"targets"
+DOMAIN_AVAILABE=${CONF_DIR}"domain-availabe"
+DOMAIN_ENABLED=${CONF_DIR}"domain-enabled"
+SERVICES=${CONF_DIR}"services"
+OBJECTS=${CONF_DIR}"objects"
+PLUGINS=${CONF_DIR}"plugins"
 
 LOG_DIR="/var/log/vsmtp/"
 SPOOL_DIR="/var/spool/vsmtp/"
@@ -27,29 +35,37 @@ add_user() {
 # as the directories themselves will have their file ownership recursively
 # changed to match what is configured.
 check_dir() {
-    # vSMTP log directory
+    # vSMTP log directory.
     if [ ! -d "${LOG_DIR}" ]; then
         mkdir ${LOG_DIR}
         chown ${VSMTP_USER}:${VSMTP_USER} ${LOG_DIR}
         chmod 755 ${LOG_DIR}
     fi
-    # vSMTP spool directory
+    # vSMTP spool directory.
     if [ ! -d "${SPOOL_DIR}" ]; then
         mkdir ${SPOOL_DIR}
         chown ${VSMTP_USER}:${VSMTP_USER} ${SPOOL_DIR}
         chmod 755 ${SPOOL_DIR}
     fi
-    # vSMTP data directory
+    # vSMTP config directory.
     if [ ! -d "${CONF_DIR}" ]; then
-        mkdir ${CONF_DIR}
-        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR}
-        chmod 755 ${CONF_DIR}
+        mkdir -p ${USER_CONF_DIR} ${TARGETS} ${DOMAIN_AVAILABE} ${DOMAIN_ENABLED} ${SERVICES} ${OBJECTS} ${PLUGINS}
+
+        chown -R ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR}
+        chmod -R 755 ${CONF_DIR}
     fi
 }
 
-check_toml() {
+check_config() {
     if [ ! -f "${CONF_FILE}" ]; then
         cat >${CONF_FILE} <<EOF
+//! This is the first file that vSMTP reads when it starts.
+//!
+//! This file is maintained by vSMTP package maintainers and it is recommended that administrators
+//! avoid editing this file unless they also follow changes made by upstream.
+//! It's advised to instead add customizations in the files underneath
+//! the $(conf.d/) directory.
+
 import "conf.d/config" as cfg;
 
 let config = cfg::config;
@@ -57,8 +73,24 @@ let config = cfg::config;
 config.version_requirement = ">=${DPKG_VER}";
 EOF
 
-        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE}
-        chmod 664 ${CONF_FILE}
+        cat >${USER_CONF_FILE} <<EOF
+//! This is the entrypoint for vSMTP's configuration.
+//!
+//! To make the configuration easier to maintain, we recommend that you split
+//! it into a set of feature‑specific files stored in this directory that you
+//! can import via the Rhai $(import) statement.
+//!
+//! See https://vsmtp.rs/reference/config-file.html?highlight=config#complete-vsmtp-toml-keyvalue-list
+
+let config = new_config();
+
+// Configure vSMTP here using the config variable.
+
+export config;
+EOF
+
+        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE} ${USER_CONF_FILE}
+        chmod 664 ${CONF_FILE} ${USER_CONF_FILE}
     fi
 }
 
@@ -66,7 +98,7 @@ case "$1" in
 configure)
     add_user
     check_dir
-    check_toml
+    check_config
     ;;
 esac
 

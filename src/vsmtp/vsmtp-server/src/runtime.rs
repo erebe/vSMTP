@@ -196,7 +196,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn basic() -> anyhow::Result<()> {
+    fn basic() {
         start_runtime(
             config::local_test(),
             (
@@ -206,5 +206,6 @@ mod tests {
             ),
             Some(std::time::Duration::from_millis(100)),
         )
+        .unwrap();
     }
 }

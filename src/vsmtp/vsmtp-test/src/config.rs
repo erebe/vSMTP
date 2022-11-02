@@ -46,6 +46,7 @@ pub fn local_test() -> Config {
     Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
+        .without_path()
         .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
         .unwrap()
@@ -58,7 +59,10 @@ pub fn local_test() -> Config {
         .with_default_smtp_codes()
         .without_auth()
         .with_app_at_location("./tmp/app")
-        .with_vsl("src/tests/empty_main.vsl")
+        .with_vsl(format!(
+            "{}/src/tests/ignore_vsl",
+            env!("CARGO_MANIFEST_DIR")
+        ))
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()
@@ -75,7 +79,7 @@ pub fn local_ctx() -> MailContext<Finished> {
         "testserver.com".to_string(),
     )
     .helo("client.testserver.com".to_string())
-    .mail_from("client@client.testserver.com".parse().expect(""))
+    .mail_from("client@client.testserver.com".parse().expect(""), false)
     .rcpt_to(vec![])
     .finish()
 }

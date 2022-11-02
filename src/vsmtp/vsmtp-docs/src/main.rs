@@ -185,7 +185,7 @@ fn main() {
 
     path.push("any.md");
 
-    let mut engine = RuleEngine::new_compiler();
+    let mut engine = RuleEngine::new_rhai_engine();
     let vsl_native_module = StandardVSLPackage::new().as_shared_module();
 
     engine.register_static_module("sys", vsl_native_module);

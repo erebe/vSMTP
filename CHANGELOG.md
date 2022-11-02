@@ -13,14 +13,6 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [1.3.4] - 2022-10-20
-
-### Fixed
-
-* `forward` && `forward_all` functions now take port into account in socket strings. (#695)
-
-## [1.3.3] - 2022-10-03
-
 ### Added
 
 * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
@@ -49,6 +41,30 @@ config.server.interfaces = #{
 };
 ```
 
+* vSL scripts are split between transaction types and handled sub domains. (#709)
+
+```
+/etc/vsmtp
+┣ vsmtp.vsl
+┣ conf.d/
+┃     ┣ config.vsl
+┃     ┣ interfaces.vsl
+┃     ┣ logs.vsl
+┃     ┗ other.vsl
+┣ domain-available/
+┃     ┣ main.vsl            # Rules executed before the 'mail' stage
+┃     ┣ fallback.vsl        # Rules executed if the domain is not handled.
+┃     ┣ example.com/
+┃     ┃    ┣ incoming.vsl   # Sender domain unknown, recipient domain is 'example.com'.
+┃     ┃    ┣ outgoing.vsl   # Sender domain is 'example.com', recipient domain is different.
+┃     ┃    ┗ internal.vsl   # Sender & recipient domain are both 'example.com'.
+┃     ┗ test.com/
+┃         ┗ ...
+┗ domain-enabled/
+      ┗ example.com -> /etc/vsmtp/domain-available/example.com
+```
+
+* The `toml` vsl module has been renamed to `cfg`. (#709)
 * Changed the API of objects to be simple rhai functions, removing implicit `export` of
   objects. (#647)
 
@@ -82,6 +98,12 @@ for addr in whitelist {
   // ...
 }
 ```
+
+## [1.3.4] - 2022-10-20
+
+### Fixed
+
+* `forward` && `forward_all` functions now take port into account in socket strings. (#695)
 
 ## [1.3.3] - 2022-10-03
 

@@ -22,12 +22,13 @@ use vsmtp_common::state::State;
 use vsmtp_common::status::Status;
 use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_rule_engine::sub_domain_hierarchy::{Builder, SubDomainHierarchy};
 use vsmtp_rule_engine::RuleEngine;
 
 ///
 #[must_use]
 pub fn run_with_msg(
-    vsl: &'static str,
+    callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
     msg: Option<MessageBody>,
 ) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
     let config = arc!(local_test());
@@ -35,7 +36,8 @@ pub fn run_with_msg(
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
     let rule_engine = std::sync::Arc::new(
-        RuleEngine::from_script(config, vsl, resolvers, queue_manager).expect("rule engine"),
+        RuleEngine::with_hierarchy(config, callback, resolvers, queue_manager)
+            .expect("rule engine"),
     );
 
     let msg = msg.unwrap_or_else(local_msg);
@@ -68,7 +70,7 @@ pub fn run_with_msg(
 ///
 #[must_use]
 pub fn run(
-    vsl: &'static str,
+    sub_domain_hierarchy_builder: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
 ) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
-    run_with_msg(vsl, None)
+    run_with_msg(sub_domain_hierarchy_builder, None)
 }

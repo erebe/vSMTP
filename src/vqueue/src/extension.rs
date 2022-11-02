@@ -105,6 +105,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
         }
         {
             let mails_eml = mails.join(format!("{message_id}.eml"));
+
             let mut file = std::fs::OpenOptions::new()
                 .create(true)
                 .write(true)

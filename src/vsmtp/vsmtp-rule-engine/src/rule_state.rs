@@ -15,7 +15,6 @@
  *
 */
 use crate::api::{Context, Message, Server};
-use crate::dsl::directives::Directive;
 use crate::rule_engine::RuleEngine;
 use vsmtp_common::mail_context::{Connect, MailContextAPI};
 use vsmtp_common::status::Status;
@@ -42,27 +41,28 @@ impl RuleState {
     /// create a new rule state with connection data.
     #[must_use]
     pub fn with_connection(rule_engine: &RuleEngine, conn: Connect) -> Self {
-        let mut state = rule_engine.spawn();
+        let state = rule_engine.spawn();
 
-        // all rule are skipped until the designated rule
-        // in case of a delegation result.
-        #[cfg(feature = "delegation")]
-        if rule_engine
-            .directives
-            .iter()
-            .flat_map(|(_, d)| d)
-            .any(|d| match d {
-                Directive::Delegation { service, .. } => service.receiver == conn.server_addr,
-                _ => false,
-            })
-        {
-            state.skip = Some(Status::DelegationResult);
-        }
+        // TODO: update skip state for delegation.
+        // // all rule are skipped until the designated rule
+        // // in case of a delegation result.
+        // #[cfg(feature = "delegation")]
+        // if rule_engine
+        //     .rules
+        //     .iter()
+        //     .flat_map(|(_, d)| d)
+        //     .any(|d| match d {
+        //         Directive::Delegation { service, .. } => service.receiver == conn.server_addr,
+        //         _ => false,
+        //     })
+        // {
+        //     state.skip = Some(Status::DelegationResult);
+        // }
 
         state
             .mail_context
             .write()
-            .expect("`mail_context` mutex is not poisoned here")
+            .expect("`mail_context` mutex cannot be poisoned here")
             .set_state_connect(conn);
 
         state

@@ -46,10 +46,12 @@ impl Builder<WantsValidate> {
         let srv_inet = srv_logs.parent;
         let srv_syst = srv_inet.parent;
         let srv = srv_syst.parent;
-        let version = srv.parent;
+        let path = srv.parent;
+        let version = path.parent;
 
         Config::ensure(Config {
             version_requirement: version.version_requirement,
+            path: path.path,
             server: FieldServer {
                 domain: srv.domain,
                 client_count_max: srv.client_count_max,
@@ -124,6 +126,7 @@ mod tests {
     fn default_build() {
         let config = Config::builder()
             .with_current_version()
+            .without_path()
             .with_debug_server_info()
             .with_default_system()
             .with_ipv4_localhost()

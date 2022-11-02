@@ -249,7 +249,7 @@ mod test {
         TokioAsyncResolver,
     };
     use vsmtp_common::{
-        rcpt::Rcpt,
+        rcpt::{Rcpt, TransactionType},
         transfer::{EmailTransferStatus, Transfer, TransferErrorsVariant},
     };
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
@@ -290,6 +290,7 @@ mod test {
                 address: "root@foo.bar".parse().unwrap(),
                 transfer_method: Transfer::Deliver,
                 email_status: EmailTransferStatus::default(),
+                transaction_type: TransactionType::default(),
             }],
             &msg.inner().to_string(),
         )

@@ -16,7 +16,12 @@
 */
 use super::connection::Connection;
 use vsmtp_common::{
-    auth::Mechanism, event::Event, state::State, status::Status, Address, CodeID, ReplyOrCodeID,
+    auth::Mechanism,
+    event::Event,
+    rcpt::{Rcpt, TransactionType},
+    state::State,
+    status::Status,
+    Address, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config};
 use vsmtp_mail_parser::MessageBody;
@@ -27,6 +32,11 @@ type ProcessedEvent = (ReplyOrCodeID, Option<State>);
 pub struct Transaction {
     state: State,
     pub rule_state: RuleState,
+    /// In case the transaction context is outgoing, we create two states
+    /// to run two batches of rules at the same time, one for internal transaction
+    /// with recipients that have the same domain as the sender, and another
+    /// for any other recipient domain.
+    pub rule_state_internal: Option<RuleState>,
     pub rule_engine: std::sync::Arc<RuleEngine>,
 }
 
@@ -76,12 +86,7 @@ impl Transaction {
             (_, Event::HelpCmd(_)) => either::Left((ReplyOrCodeID::Left(CodeID::Help), None)),
 
             (_, Event::RsetCmd) => {
-                self.rule_state
-                    .context()
-                    .write()
-                    .unwrap()
-                    .reset_state()
-                    .unwrap();
+                self.reset_state();
                 self.reset_message();
                 either::Left((ReplyOrCodeID::Left(CodeID::Ok), Some(State::Helo)))
             }
@@ -190,7 +195,9 @@ impl Transaction {
             (State::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 // TODO: handle : mail_from can be "<>"
-                self.set_mail_from(mail_from.unwrap());
+                let mail_from = mail_from.unwrap();
+                let is_outgoing = self.rule_engine.handle_domain(&mail_from);
+                self.set_mail_from(mail_from, is_outgoing);
 
                 match self
                     .rule_engine
@@ -211,12 +218,14 @@ impl Transaction {
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.set_rcpt_to(rcpt_to);
+                let internal = self.set_rcpt_to(rcpt_to);
 
-                match self
-                    .rule_engine
-                    .run_when(&mut self.rule_state, State::RcptTo)
-                {
+                let rule_state = match self.rule_state_internal.as_mut() {
+                    Some(rule_state_internal) if internal => rule_state_internal,
+                    _ => &mut self.rule_state,
+                };
+
+                match self.rule_engine.run_when(rule_state, State::RcptTo) {
                     Status::Info(packet) => either::Left((packet, None)),
                     Status::Deny(packet) => either::Right(TransactionResult::SessionEnded(packet)),
                     _ if self
@@ -270,28 +279,108 @@ impl Transaction {
             .unwrap();
     }
 
-    fn set_mail_from(&mut self, mail_from: Address) {
+    fn set_mail_from(&mut self, mail_from: Address, is_outgoing: bool) {
         self.rule_state
             .context()
             .write()
             .unwrap()
-            .set_state_mail_from(mail_from)
+            .set_state_mail_from(mail_from, is_outgoing)
             .unwrap();
     }
 
-    fn set_rcpt_to(&mut self, rcpt_to: Address) {
+    /// Add a recipient to the outgoing or internal context.
+    ///
+    /// # Return
+    /// * `bool` - true if the recipient is internal, false otherwise.
+    fn set_rcpt_to(&mut self, rcpt_to: Address) -> bool {
+        let ctx = self.rule_state.context();
+        let mut ctx = ctx.write().unwrap();
+
+        let handled = self.rule_engine.handle_domain(&rcpt_to);
+        let is_outgoing = ctx.is_outgoing();
+
+        let rcpt = match (is_outgoing, handled) {
+            (true, true) if rcpt_to.domain() == ctx.reverse_path().unwrap().domain() => {
+                if let Some(rule_state_internal) = &self.rule_state_internal {
+                    rule_state_internal
+                        .context()
+                        .write()
+                        .unwrap()
+                        .set_state_rcpt_to(Some(Rcpt::with_transaction_type(
+                            rcpt_to,
+                            TransactionType::Internal,
+                        )))
+                        .unwrap();
+                } else {
+                    let mut ctx_internal = ctx.clone();
+                    let msg_internal = self.rule_state.message().read().unwrap().clone();
+
+                    ctx_internal.generate_message_id().unwrap();
+                    ctx_internal.clear_forward_paths();
+                    ctx_internal
+                        .set_state_rcpt_to(Some(Rcpt::with_transaction_type(
+                            rcpt_to,
+                            TransactionType::Internal,
+                        )))
+                        .unwrap();
+
+                    self.rule_state_internal = Some(RuleState::with_context(
+                        &self.rule_engine,
+                        ctx_internal,
+                        msg_internal,
+                    ));
+                }
+
+                None
+            }
+            (true, true | false) => {
+                let domain = ctx.reverse_path().unwrap().domain().to_string();
+
+                Some(Rcpt::with_transaction_type(
+                    rcpt_to,
+                    TransactionType::Outgoing(domain),
+                ))
+            }
+            (false, true) => {
+                let domain = ctx.reverse_path().unwrap().domain().to_string();
+
+                Some(Rcpt::with_transaction_type(
+                    rcpt_to,
+                    TransactionType::Incoming(Some(domain)),
+                ))
+            }
+            (false, false) => Some(Rcpt::with_transaction_type(
+                rcpt_to,
+                TransactionType::Incoming(None),
+            )),
+        };
+
+        let internal = rcpt.is_none();
+
+        ctx.set_state_rcpt_to(rcpt).unwrap();
+
+        internal
+    }
+
+    /// Reset the state to the helo command.
+    pub fn reset_state(&mut self) {
         self.rule_state
             .context()
             .write()
             .unwrap()
-            .set_state_rcpt_to(rcpt_to)
+            .reset_state()
             .unwrap();
+
+        self.rule_state_internal = None;
     }
 
     /// reset the message but keeps headers.
     fn reset_message(&mut self) {
-        let state = self.rule_state.message();
-        *state.write().unwrap() = MessageBody::default();
+        *self.rule_state.message().write().unwrap() = MessageBody::default();
+
+        if let Some(rule_state_internal) = &self.rule_state_internal {
+            *rule_state_internal.message().write().unwrap() = MessageBody::default();
+        }
     }
 
     pub fn new<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug>(
@@ -308,6 +397,7 @@ impl Transaction {
                 State::Helo
             },
             rule_state,
+            rule_state_internal: None,
             rule_engine,
         }
     }

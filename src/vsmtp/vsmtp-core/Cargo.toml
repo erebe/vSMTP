@@ -84,33 +84,33 @@ name = "vsmtp"
 maintainer = "Pag <pag@viridit.com>"
 copyright = "Copyright (c) 2022, viridIT SAS. All rights reserved."
 extended-description = "A high performance MTA written in RUST."
-changelog = "./tools/install/deb/changelog"
+changelog = "../../../tools/install/deb/changelog"
 depends = "$auto, adduser"
 section = "mail"
 priority = "optional"
 assets = [
     [
-        "target/release/vsmtp",
+        "../../../target/release/vsmtp",
         "usr/sbin/",
         "755",
     ],
     [
-        "target/release/vqueue",
+        "../../../target/release/vqueue",
         "usr/sbin/",
         "755",
     ],
     [
-        "tools/install/man/*",
+        "../../../tools/install/man/*",
         "usr/share/man/man1",
         "644",
     ],
     [
-        "README.md",
+        "../../../README.md",
         "usr/share/doc/vsmtp/README",
         "644",
     ],
 ]
-maintainer-scripts = "./tools/install/deb/"
+maintainer-scripts = "../../../tools/install/deb/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
 
 #

@@ -221,8 +221,18 @@ mod tests {
                 delegated: false,
             },
             std::sync::Arc::new(
-                RuleEngine::from_script(config.clone(), "#{}", resolvers, queue_manager.clone())
-                    .unwrap(),
+                RuleEngine::with_hierarchy(
+                    config.clone(),
+                    |builder| {
+                        Ok(builder
+                            .add_main_rules("#{}")?
+                            .add_fallback_rules("#{}")?
+                            .build())
+                    },
+                    resolvers,
+                    queue_manager.clone(),
+                )
+                .unwrap(),
             ),
             sender,
         )
@@ -267,9 +277,17 @@ mod tests {
                 delegated: false,
             },
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::Delivery),
+                    |builder| {
+                        Ok(builder
+                            .add_main_rules("#{}")?
+                            .add_fallback_rules(&format!(
+                                "#{{ {}: [ rule \"\" || sys::deny() ] }}",
+                                State::Delivery
+                            ))?
+                            .build())
+                    },
                     resolvers,
                     queue_manager.clone(),
                 )

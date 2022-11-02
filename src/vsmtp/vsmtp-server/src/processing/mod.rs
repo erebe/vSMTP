@@ -175,8 +175,16 @@ mod tests {
 
         assert!(handle_one_in_working_queue(
             std::sync::Arc::new(
-                RuleEngine::from_script(config, "#{}", resolvers.clone(), queue_manager.clone())
-                    .unwrap()
+                RuleEngine::with_hierarchy(
+                    config,
+                    |builder| Ok(builder
+                        .add_main_rules("#{}")?
+                        .add_fallback_rules("#{}")?
+                        .build()),
+                    resolvers.clone(),
+                    queue_manager.clone()
+                )
+                .unwrap()
             ),
             queue_manager,
             ProcessMessage {
@@ -210,9 +218,14 @@ mod tests {
 
         handle_one_in_working_queue(
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    "#{}",
+                    |builder| {
+                        Ok(builder
+                            .add_main_rules("#{}")?
+                            .add_fallback_rules("#{}")?
+                            .build())
+                    },
                     resolvers.clone(),
                     queue_manager.clone(),
                 )
@@ -263,9 +276,17 @@ mod tests {
 
         handle_one_in_working_queue(
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::PostQ),
+                    |builder| {
+                        Ok(builder
+                            .add_main_rules("#{}")?
+                            .add_fallback_rules(&format!(
+                                r#"#{{ {}: [ rule "abc" || deny(), ] }}"#,
+                                State::PostQ
+                            ))?
+                            .build())
+                    },
                     resolvers.clone(),
                     queue_manager.clone(),
                 )
@@ -285,6 +306,7 @@ mod tests {
             .get_ctx(&QueueID::Working, function_name!())
             .await
             .unwrap_err();
+
         queue_manager
             .get_ctx(&QueueID::Dead, function_name!())
             .await
@@ -312,12 +334,16 @@ mod tests {
 
         handle_one_in_working_queue(
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    &format!(
-                        "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
-                        State::PostQ
-                    ),
+                    |builder| {
+                        Ok(builder
+                            .add_fallback_rules(&format!(
+                                "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
+                                State::PostQ
+                            ))?
+                            .build())
+                    },
                     resolvers.clone(),
                     queue_manager.clone(),
                 )

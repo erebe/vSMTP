@@ -1,0 +1,10 @@
+#{
+    authenticate: [
+        action "auth getters" || {
+            print(`auth type => ${auth().type}`);
+            print(`auth token => ${auth().anonymous_token}`);
+        },
+
+        rule "trailing authenticate" || accept(),
+    ],
+}

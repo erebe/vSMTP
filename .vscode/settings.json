@@ -33,6 +33,8 @@
     "domainkey",
     "ehlo",
     "ENHANCEDSTATUSCODES",
+    "entrypoints",
+    "esmtp",
     "ESMTP",
     "ESMTPA",
     "ESMTPSA",
@@ -62,6 +64,7 @@
     "msrv",
     "mysql",
     "nametoindex",
+    "nanos",
     "nodaemon",
     "nonblocking",
     "ocsp",
@@ -101,6 +104,7 @@
     "setgroups",
     "setsid",
     "setuid",
+    "smtps",
     "SMTPS",
     "SMTPUTF",
     "softfail",
@@ -116,6 +120,7 @@
     "tokio",
     "udeps",
     "unencrypted",
+    "uuid",
     "viaspf",
     "viridit",
     "vmta",
@@ -178,9 +183,7 @@
   "lldb.showDisassembly": "auto",
   "lldb.dereferencePointers": true,
   "lldb.consoleMode": "commands",
-  "cSpell.enableFiletypes": [
-    "rhai"
-  ],
+  "cSpell.enableFiletypes": ["rhai"],
   "rust-analyzer.server.extraEnv": {
     "RUSTUP_TOOLCHAIN": "stable"
   }

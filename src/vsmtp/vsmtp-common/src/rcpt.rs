@@ -22,12 +22,37 @@ use crate::{
 /// representation of a recipient with it's delivery method.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
-    /// email address of the recipient.
+    /// Email address of the recipient.
     pub address: Address,
-    /// protocol used by vsmtp to deliver / transfer the email bound by this recipient.
+    /// Protocol used by vsmtp to deliver / transfer the email bound by this recipient.
     pub transfer_method: Transfer,
-    /// delivery status of the email bound to this recipient.
+    /// Delivery status of the email bound to this recipient.
     pub email_status: EmailTransferStatus,
+    /// Type of the transaction for this recipient.
+    /// Is used to process rules for the current recipient, even when
+    /// re-injecting the recipient in the processing loop.
+    pub transaction_type: TransactionType,
+}
+
+// TODO: find a better name.
+/// What rules should be executed regarding the domains of the sender and recipients.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum TransactionType {
+    /// The sender's domain is unknown, contained domain is only one of the recipients.
+    /// If none, it means all recipients are unknown, or that the rcpt stage has not
+    /// yet been executed.
+    Incoming(Option<String>),
+    /// The sender's domain is known, the domain is stored.
+    Outgoing(String),
+    /// The sender's domain is known, and recipients domains are the same.
+    /// Use the sender's domain to execute your rules.
+    Internal,
+}
+
+impl Default for TransactionType {
+    fn default() -> Self {
+        Self::Incoming(None)
+    }
 }
 
 impl Rcpt {
@@ -39,16 +64,18 @@ impl Rcpt {
             address,
             transfer_method: Transfer::default(),
             email_status: EmailTransferStatus::default(),
+            transaction_type: TransactionType::default(),
         }
     }
 
-    /// create a new recipient from it's address & transfer method.
+    /// create a new recipient from it's address with it's transaction type.
     #[must_use]
-    pub fn with_transfer_method(address: Address, method: Transfer) -> Self {
+    pub fn with_transaction_type(address: Address, transaction_type: TransactionType) -> Self {
         Self {
             address,
-            transfer_method: method,
+            transfer_method: Transfer::default(),
             email_status: EmailTransferStatus::default(),
+            transaction_type,
         }
     }
 }

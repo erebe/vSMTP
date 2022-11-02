@@ -36,5 +36,16 @@ fn time_api() {
     let queue_manger = vqueue::temp::QueueManager::init(config.clone()).unwrap();
     let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
-    RuleEngine::from_script(config, TIME, dns_resolvers, queue_manger).unwrap();
+    RuleEngine::with_hierarchy(
+        config,
+        |builder| {
+            Ok(builder
+                .add_main_rules("#{}")?
+                .add_fallback_rules(TIME)?
+                .build())
+        },
+        dns_resolvers,
+        queue_manger,
+    )
+    .unwrap();
 }

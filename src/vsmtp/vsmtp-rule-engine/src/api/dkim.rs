@@ -214,7 +214,8 @@ mod dkim_rhai {
     /// ; // .eml ends here
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
-    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    ///     |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -235,7 +236,7 @@ mod dkim_rhai {
     ///     }
     ///   ]
     /// }
-    /// # "#, Some(msg));
+    /// # "#)?.build()), Some(msg));
     /// # use vsmtp_common::{state::State, status::Status, CodeID};
     /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
@@ -286,7 +287,8 @@ mod dkim_rhai {
     /// ; // .eml ends here
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
-    /// # let states = vsmtp_test::vsl::run_with_msg(r#"
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -298,7 +300,7 @@ mod dkim_rhai {
     ///     }
     ///   ]
     /// }
-    /// # "#, Some(msg));
+    /// # "#)?.build()), Some(msg));
     /// # use vsmtp_common::{state::State, status::Status, CodeID};
     /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```

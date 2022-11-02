@@ -46,7 +46,13 @@ const my_command = cmd(#{
                 .unwrap();
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
-        RuleEngine::from_script(config, VSL, dns_resolvers, queue_manger).unwrap();
+        RuleEngine::with_hierarchy(
+            config,
+            |builder| Ok(builder.add_fallback_rules(VSL)?.build()),
+            dns_resolvers,
+            queue_manger,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -57,9 +63,14 @@ const my_command = cmd(#{
                 .unwrap();
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
-        RuleEngine::from_script(
+        RuleEngine::with_hierarchy(
             config,
-            include_str!("test/main.vsl"),
+            |builder| {
+                Ok(builder
+                    .add_main_rules("#{}")?
+                    .add_fallback_rules(include_str!("test/main.vsl"))?
+                    .build())
+            },
             dns_resolvers,
             queue_manger,
         )

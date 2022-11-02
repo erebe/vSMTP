@@ -52,6 +52,10 @@ mod server_api;
 pub use rule_engine::RuleEngine;
 pub use rule_state::RuleState;
 
+// TODO: restrain this to the rule engine import / allow only in cfg debug.
+/// Build sub domain hierarchy configurations.
+pub mod sub_domain_hierarchy;
+
 #[cfg(test)]
 mod tests;
 

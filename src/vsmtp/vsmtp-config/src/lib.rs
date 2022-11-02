@@ -133,7 +133,11 @@ impl Config {
         let script =
             std::fs::read_to_string(path).context(format!("Cannot read file at {path:?}"))?;
 
-        Self::from_vsl_script(&script, Some(&vsmtp_config_dir))
+        let mut config = Self::from_vsl_script(&script, Some(&vsmtp_config_dir))?;
+
+        config.path = Some(path.to_path_buf());
+
+        Ok(config)
     }
 
     /// Create a [`Config`] from vsl data.

@@ -33,12 +33,14 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 pub struct Config {
     /// vSMTP's version requirement to parse this configuration file.
     pub version_requirement: semver::VersionReq,
-    /// see [`field::FieldServer`]
+    /// See [`field::FieldServer`]
     #[serde(default)]
     pub server: field::FieldServer,
-    /// see [`field::FieldApp`]
+    /// See [`field::FieldApp`]
     #[serde(default)]
     pub app: field::FieldApp,
+    /// Optional path of the configuration on disk.
+    pub path: Option<std::path::PathBuf>,
 }
 
 /// The inner field of the `vSMTP`'s configuration.

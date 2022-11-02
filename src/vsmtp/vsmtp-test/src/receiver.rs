@@ -102,7 +102,7 @@ macro_rules! run_test {
         $(config = $config:expr)?,
         $(config_arc = $config_arc:expr)?,
         $(mail_handler = $mail_handler:expr)?,
-        $(rule_script = $rule_script:expr)?,
+        $(hierarchy_builder = $hierarchy_builder:expr)?,
     ) => {{
         let expected: String = $expected.to_string();
         let input: Vec<u8> = $input.as_bytes().to_vec();
@@ -136,8 +136,8 @@ macro_rules! run_test {
             let _f = || vsmtp_rule_engine::RuleEngine::new(
                 config.clone(), config.app.vsl.filepath.clone(), resolvers.clone(), queue_manager.clone()
             ).unwrap();                                         $(
-            let _f = || vsmtp_rule_engine::RuleEngine::from_script(
-                config.clone(), $rule_script, resolvers.clone(), queue_manager.clone()
+            let _f = || vsmtp_rule_engine::RuleEngine::with_hierarchy(
+                config.clone(), $hierarchy_builder, resolvers.clone(), queue_manager.clone()
             ).unwrap();                                         )?
             std::sync::Arc::new(_f())
         };
@@ -174,7 +174,7 @@ macro_rules! run_test {
         $(config = $config:expr)?,
         $(config_arc = $config_arc:expr)?,
         $(mail_handler = $mail_handler:expr)?,
-        $(rule_script = $rule_script:expr)?,
+        $(hierarchy_builder = $hierarchy_builder:expr)?,
     ) => {
         #[tokio::test]
         async fn $name() {
@@ -184,7 +184,7 @@ macro_rules! run_test {
                 $(config = $config)?,
                 $(config_arc = $config_arc)?,
                 $(mail_handler = $mail_handler)?,
-                $(rule_script = $rule_script)?,
+                $(hierarchy_builder = $hierarchy_builder)?,
             }
             .unwrap();
         }
@@ -195,7 +195,7 @@ macro_rules! run_test {
         $(config = $config:expr)?,
         $(config_arc = $config_arc:expr)?,
         $(mail_handler = $mail_handler:expr)?,
-        $(rule_script = $rule_script:expr)?,
+        $(hierarchy_builder = $hierarchy_builder:expr)?,
     ) => {
         #[tokio::test]
         async fn $name() {
@@ -205,7 +205,7 @@ macro_rules! run_test {
                 $(config = $config)?,
                 $(config_arc = $config_arc)?,
                 $(mail_handler = $mail_handler)?,
-                $(rule_script = $rule_script)?,
+                $(hierarchy_builder = $hierarchy_builder)?,
             }
             .unwrap_err();
         }
@@ -216,7 +216,7 @@ macro_rules! run_test {
         $(config = $config:expr)?,
         $(config_arc = $config_arc:expr)?,
         $(mail_handler = $mail_handler:expr)?,
-        $(rule_script = $rule_script:expr)?,
+        $(hierarchy_builder = $hierarchy_builder:expr)?,
     ) => {
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn $name() {
@@ -226,7 +226,7 @@ macro_rules! run_test {
                 $(config = $config)?,
                 $(config_arc = $config_arc)?,
                 $(mail_handler = $mail_handler)?,
-                $(rule_script = $rule_script)?,
+                $(hierarchy_builder = $hierarchy_builder)?,
             }
             .unwrap();
         }

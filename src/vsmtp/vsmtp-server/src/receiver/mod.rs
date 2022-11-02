@@ -24,7 +24,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind,
 };
 use vsmtp_config::DnsResolvers;
-use vsmtp_mail_parser::{BasicParser, MailParser, MessageBody};
+use vsmtp_mail_parser::{BasicParser, Mail, MailParser, MessageBody, RawBody};
 use vsmtp_rule_engine::RuleEngine;
 
 mod connection;
@@ -266,6 +266,7 @@ where
             .await
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn handle_stream<M>(
         &mut self,
         mail_handler: &mut M,
@@ -278,8 +279,26 @@ where
     {
         // fetching the email using the transaction's stream.
         {
+            fn set_body(message: &mut MessageBody, mut body: either::Either<RawBody, Mail>) {
+                // Headers could have been added to the email before preq,
+                // so we start by prepending them to the headers received.
+                let preq_headers = message.inner().headers_lines();
+
+                match &mut body {
+                    either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),
+                    either::Right(parsed) => {
+                        parsed.prepend_headers(preq_headers.filter_map(|s| {
+                            s.split_once(':')
+                                .map(|(key, value)| (key.to_string(), value.to_string()))
+                        }));
+                    }
+                };
+
+                *message = MessageBody::from(body);
+            }
+
             tracing::info!("SMTP handshake completed, fetching email.");
-            let mut body = {
+            let body = {
                 let stream = Transaction::stream(self);
                 tokio::pin!(stream);
                 MailParser::parse(&mut BasicParser::default(), stream).await?
@@ -288,21 +307,14 @@ where
             let handle = transaction.rule_state.message();
             let mut message = handle.write().unwrap();
 
-            // Headers could have been added to the email before preq,
-            // so we start by prepending them to the headers received.
-            let preq_headers = message.inner().headers_lines();
-
-            match &mut body {
-                either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),
-                either::Right(parsed) => {
-                    parsed.prepend_headers(preq_headers.filter_map(|s| {
-                        s.split_once(':')
-                            .map(|(key, value)| (key.to_string(), value.to_string()))
-                    }));
-                }
-            };
-
-            *message = MessageBody::from(body);
+            if let Some(rule_state_internal) = &mut transaction.rule_state_internal {
+                let handle_internal = rule_state_internal.message();
+                let mut message_internal = handle_internal.write().unwrap();
+                set_body(&mut message_internal, body.clone());
+                set_body(&mut message, body);
+            } else {
+                set_body(&mut message, body);
+            }
         }
 
         transaction
@@ -313,6 +325,16 @@ where
             .set_state_finished()
             .unwrap();
 
+        if let Some(state) = transaction.rule_state_internal.as_mut() {
+            state
+                .context()
+                .write()
+                .unwrap()
+                .set_state_finished()
+                .unwrap();
+        }
+
+        // FIXME: do not run the outgoing rule state if there are no outgoing recipients.
         let status = transaction
             .rule_engine
             .run_when(&mut transaction.rule_state, State::PreQ);
@@ -335,6 +357,54 @@ where
             state_writer.set_skipped(transaction.rule_state.skipped().cloned());
         }
 
+        let code_internal = if let Some(mut state) = transaction.rule_state_internal {
+            let status_internal = transaction.rule_engine.run_when(&mut state, State::PreQ);
+
+            // NOTE: The status returned by the rule engine in an internal state
+            //       takes priority over the outgoing state.
+            match status_internal {
+                Status::Info(packet) => {
+                    self.send_reply_or_code(packet).await?;
+                    return Ok(true);
+                }
+                Status::Deny(packet) => {
+                    self.send_reply_or_code(packet).await?;
+                    return Ok(false);
+                }
+                _ => (),
+            }
+
+            {
+                let mail_context = state.context();
+                let mut state_writer = mail_context.write().unwrap();
+                state_writer.set_skipped(state.skipped().cloned());
+            }
+
+            let (mail_context, message, _) = state.take().unwrap();
+
+            if std::convert::TryInto::<&MailContext<Connect>>::try_into(&mail_context).is_ok() {
+                // when received "DATA\r\n.\r\n"
+                return Ok(false);
+            }
+            if std::convert::TryInto::<&MailContext<Helo>>::try_into(&mail_context).is_ok() {
+                // when received "DATA\r\nHELO xxx\r\n.\r\n"
+                return Ok(false);
+            }
+
+            let mail_context: MailContext<Finished> = match mail_context.try_into() {
+                Ok(finished) => finished,
+                Err(e) => todo!("{}", e),
+            };
+
+            Some(
+                mail_handler
+                    .on_mail(self, Box::new(mail_context), message, queue_manager.clone())
+                    .await,
+            )
+        } else {
+            None
+        };
+
         let (mail_context, message, _) = transaction.rule_state.take().unwrap();
 
         if std::convert::TryInto::<&MailContext<Connect>>::try_into(&mail_context).is_ok() {
@@ -352,9 +422,14 @@ where
         };
 
         let helo = mail_context.client_name().to_string();
+
         let code = mail_handler
             .on_mail(self, Box::new(mail_context), message, queue_manager)
             .await;
+
+        // NOTE: which code should take priority ?
+        let code = code_internal.map_or(code, |code_internal| code_internal);
+
         *helo_domain = Some(helo);
         self.send_code(code).await?;
 

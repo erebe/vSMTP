@@ -26,10 +26,17 @@ use vsmtp_common::{CodeID, Reply};
 pub struct WantsVersion(pub(crate) ());
 
 ///
-pub struct WantsServer {
+pub struct WantsPath {
     #[allow(dead_code)]
     pub(crate) parent: WantsVersion,
     pub(super) version_requirement: semver::VersionReq,
+}
+
+///
+pub struct WantsServer {
+    #[allow(dead_code)]
+    pub(crate) parent: WantsPath,
+    pub(super) path: Option<std::path::PathBuf>,
 }
 
 ///

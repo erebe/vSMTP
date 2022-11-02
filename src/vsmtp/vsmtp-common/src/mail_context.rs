@@ -28,8 +28,21 @@ pub struct AuthProperties {
     pub credentials: Credentials,
 }
 
+macro_rules! state_smtp_impl {
+    ($state:tt) => {
+        impl StateSMTP for $state {
+            fn as_str() -> &'static str {
+                stringify!($state)
+            }
+        }
+    };
+}
+
 ///
-pub trait StateSMTP: std::fmt::Debug + Clone {}
+pub trait StateSMTP: std::fmt::Debug + Clone {
+    /// return the string version of the state.
+    fn as_str() -> &'static str;
+}
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -116,24 +129,17 @@ impl MailContext<Helo> {
     ///
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn mail_from(self, reverse_path: Address) -> MailContext<MailFrom> {
+    pub fn mail_from(self, reverse_path: Address, outgoing: bool) -> MailContext<MailFrom> {
         let now = time::OffsetDateTime::now_utc();
+        let message_id = new_message_id(self.state.connect.connect_timestamp);
 
-        let message_id = format!(
-            "{}{}{}{}",
-            now.unix_timestamp_nanos(),
-            self.state.connect.connect_timestamp.unix_timestamp_nanos(),
-            std::iter::repeat_with(fastrand::alphanumeric)
-                .take(36)
-                .collect::<String>(),
-            std::process::id()
-        );
         MailContext::<MailFrom> {
             state: MailFrom {
                 helo: self.state,
                 reverse_path,
                 mail_timestamp: now,
                 message_id,
+                outgoing,
             },
         }
     }
@@ -209,6 +215,11 @@ impl MailContext<MailFrom> {
         &self.state.message_id
     }
 
+    /// Re-generate the message id.
+    pub fn generate_message_id(&mut self) {
+        self.state.message_id = new_message_id(self.state.helo.connect.connect_timestamp);
+    }
+
     ///
     #[must_use]
     pub const fn mail_timestamp(&self) -> &time::OffsetDateTime {
@@ -235,9 +246,20 @@ impl MailContext<MailFrom> {
         &self.state.helo.connect.client_addr
     }
 
+    /// Is the current transaction is outgoing from one of our domain or incoming from an unknown domain ?
+    #[must_use]
+    pub const fn is_outgoing(&self) -> bool {
+        self.state.outgoing
+    }
+
     ///
     pub fn set_skipped(&mut self, skipped: Option<Status>) {
         self.state.helo.connect.skipped = skipped;
+    }
+
+    ///
+    pub fn set_outgoing(&mut self, is_outgoing: bool) {
+        self.state.outgoing = is_outgoing;
     }
 
     ///
@@ -280,6 +302,12 @@ impl MailContext<RcptTo> {
         &self.state.mail_from.message_id
     }
 
+    /// Re-generate the message id.
+    pub fn generate_message_id(&mut self) {
+        self.state.mail_from.message_id =
+            new_message_id(self.state.mail_from.helo.connect.connect_timestamp);
+    }
+
     ///
     #[must_use]
     pub const fn mail_timestamp(&self) -> &time::OffsetDateTime {
@@ -304,6 +332,12 @@ impl MailContext<RcptTo> {
 
     const fn client_addr(&self) -> &std::net::SocketAddr {
         &self.state.mail_from.helo.connect.client_addr
+    }
+
+    ///
+    #[must_use]
+    pub const fn is_outgoing(&self) -> bool {
+        self.state.mail_from.outgoing
     }
 
     ///
@@ -373,6 +407,12 @@ impl MailContext<Finished> {
 
     const fn client_addr(&self) -> &std::net::SocketAddr {
         &self.state.rcpt_to.mail_from.helo.connect.client_addr
+    }
+
+    ///
+    #[must_use]
+    pub const fn is_outgoing(&self) -> bool {
+        self.state.rcpt_to.mail_from.outgoing
     }
 
     ///
@@ -449,17 +489,20 @@ pub struct Helo {
 pub struct MailFrom {
     #[serde(flatten)]
     helo: Helo,
-    // Mailbox of the sender
-    // send by the client with MAIL FROM command (email address)
+    /// Mailbox of the sender
+    /// send by the client with MAIL FROM command (email address)
     reverse_path: Address,
     //
     #[serde(with = "time::serde::iso8601")]
     mail_timestamp: time::OffsetDateTime,
 
-    // unique id generated when the "MAIL FROM" has been received.
-    // format: {mail timestamp}{connection timestamp}{process id}
+    /// unique id generated when the "MAIL FROM" has been received.
+    /// format: {mail timestamp}{connection timestamp}{process id}
     // TODO: use uuid format
     message_id: String,
+
+    /// true if outgoing, otherwise incoming.
+    outgoing: bool,
 }
 
 ///
@@ -483,17 +526,17 @@ pub struct Finished {
     spf: Option<spf::Result>,
 }
 
-impl StateSMTP for Empty {}
-impl StateSMTP for Connect {}
-impl StateSMTP for Helo {}
-impl StateSMTP for MailFrom {}
-impl StateSMTP for RcptTo {}
-impl StateSMTP for Finished {}
+state_smtp_impl!(Empty);
+state_smtp_impl!(Connect);
+state_smtp_impl!(Helo);
+state_smtp_impl!(MailFrom);
+state_smtp_impl!(RcptTo);
+state_smtp_impl!(Finished);
 
 ///
 // using an enum instead of MailContext<Box<dyn StateSMTP>>
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum MailContextAPI {
     ///
     Empty(MailContext<Empty>),
@@ -516,9 +559,26 @@ pub enum Error {
     #[default]
     #[error("todo")]
     TODO,
+
+    ///
+    #[error("method can be executed since the '{0}' smtp state, but was run during the '{1}' smtp state")]
+    WrongState(&'static str, &'static str),
 }
 
 impl MailContextAPI {
+    ///
+    #[must_use]
+    pub fn state(&self) -> &'static str {
+        match self {
+            MailContextAPI::Empty(_) => Empty::as_str(),
+            MailContextAPI::Connect(_) => Connect::as_str(),
+            MailContextAPI::Helo(_) => Helo::as_str(),
+            MailContextAPI::MailFrom(_) => MailFrom::as_str(),
+            MailContextAPI::RcptTo(_) => RcptTo::as_str(),
+            MailContextAPI::Finished(_) => Finished::as_str(),
+        }
+    }
+
     ///
     #[must_use]
     pub fn get_connect(&self) -> &Connect {
@@ -610,6 +670,19 @@ impl MailContextAPI {
 
     ///
     #[must_use]
+    pub const fn is_outgoing(&self) -> bool {
+        match self {
+            MailContextAPI::Empty(_) | MailContextAPI::Connect(_) | MailContextAPI::Helo(_) => {
+                false
+            }
+            MailContextAPI::MailFrom(ctx) => ctx.is_outgoing(),
+            MailContextAPI::RcptTo(ctx) => ctx.is_outgoing(),
+            MailContextAPI::Finished(ctx) => ctx.is_outgoing(),
+        }
+    }
+
+    ///
+    #[must_use]
     pub fn server_addr(&self) -> &std::net::SocketAddr {
         match self {
             MailContextAPI::Empty(_) => unimplemented!(),
@@ -658,6 +731,31 @@ impl MailContextAPI {
         }
     }
 
+    /// Re-generate the message id.
+    ///
+    /// # Errors
+    /// * The smtp state is pre-mail or post-preq.
+    pub fn generate_message_id(&mut self) -> Result<(), Error> {
+        match self {
+            MailContextAPI::Empty(_)
+            | MailContextAPI::Connect(_)
+            | MailContextAPI::Helo(_)
+            | MailContextAPI::Finished(_) => {
+                Err(Error::WrongState(MailFrom::as_str(), self.state()))
+            }
+            MailContextAPI::MailFrom(ctx) => {
+                ctx.generate_message_id();
+
+                Ok(())
+            }
+            MailContextAPI::RcptTo(ctx) => {
+                ctx.generate_message_id();
+
+                Ok(())
+            }
+        }
+    }
+
     ///
     #[must_use]
     pub const fn mail_timestamp(&self) -> Option<&time::OffsetDateTime> {
@@ -686,7 +784,7 @@ impl MailContextAPI {
     pub fn set_reverse_path(&mut self, reverse_path: Address) -> Result<(), Error> {
         match self {
             MailContextAPI::Empty(_) | MailContextAPI::Connect(_) | MailContextAPI::Helo(_) => {
-                Err(Error::TODO)
+                Err(Error::WrongState(MailFrom::as_str(), self.state()))
             }
             MailContextAPI::MailFrom(ctx) => {
                 ctx.state.reverse_path = reverse_path;
@@ -730,8 +828,7 @@ impl MailContextAPI {
     }
 
     /// # Errors
-    ///
-    /// * the state of the context is before `RcptTo`
+    /// * function called before the `RcptTo` smtp state.
     pub fn add_forward_path(&mut self, forward_path: Address) -> Result<(), Error> {
         match self {
             MailContextAPI::Empty(_)
@@ -749,9 +846,20 @@ impl MailContextAPI {
         }
     }
 
-    /// # Errors
+    /// Clears all recipients.
     ///
-    /// * the state of the context is before `RcptTo`
+    /// # Errors
+    /// * function called before the `RcptTo` smtp state.
+    pub fn clear_forward_paths(&mut self) {
+        match self {
+            MailContextAPI::RcptTo(ctx) => ctx.state.forward_path.clear(),
+            MailContextAPI::Finished(ctx) => ctx.state.rcpt_to.forward_path.clear(),
+            _ => {}
+        }
+    }
+
+    /// # Errors
+    /// * function called before the `RcptTo` smtp state.
     pub fn remove_forward_path(&mut self, forward_path: &Address) -> Result<(), Error> {
         match self {
             MailContextAPI::Empty(_)
@@ -846,7 +954,11 @@ impl MailContextAPI {
     }
 
     /// # Errors
-    pub fn set_state_mail_from(&mut self, reverse_path: Address) -> Result<(), Error> {
+    pub fn set_state_mail_from(
+        &mut self,
+        reverse_path: Address,
+        is_outgoing: bool,
+    ) -> Result<(), Error> {
         let helo = match self {
             MailContextAPI::Empty(_) => unimplemented!(),
             MailContextAPI::Helo(ctx) => Ok(&ctx.state),
@@ -858,24 +970,36 @@ impl MailContextAPI {
         *self = MailContext::<Helo> {
             state: helo.clone(),
         }
-        .mail_from(reverse_path)
+        .mail_from(reverse_path, is_outgoing)
         .into();
         Ok(())
     }
 
+    /// Set the state to `RcptTo`.
+    ///
+    /// # Args
+    ///
+    /// * `forward_path` - an optional recipient to push to the forward path.
+    ///
     /// # Errors
-    pub fn set_state_rcpt_to(&mut self, forward_path: Address) -> Result<(), Error> {
+    pub fn set_state_rcpt_to(&mut self, forward_path: Option<Rcpt>) -> Result<(), Error> {
         match self {
             MailContextAPI::Empty(_) => unimplemented!(),
             MailContextAPI::Connect(_) | MailContextAPI::Helo(_) | MailContextAPI::Finished(_) => {
-                Err(Error::TODO)
+                Err(Error::WrongState(MailFrom::as_str(), self.state()))
             }
             MailContextAPI::MailFrom(ctx) => {
-                *self = ctx.clone().rcpt_to(vec![Rcpt::new(forward_path)]).into();
+                let rcpt =
+                    forward_path.map_or_else(std::vec::Vec::new, |forward_path| vec![forward_path]);
+
+                *self = ctx.clone().rcpt_to(rcpt).into();
                 Ok(())
             }
             MailContextAPI::RcptTo(ctx) => {
-                ctx.state.forward_path.push(Rcpt::new(forward_path));
+                if let Some(forward_path) = forward_path {
+                    ctx.state.forward_path.push(forward_path);
+                }
+
                 Ok(())
             }
         }
@@ -888,7 +1012,7 @@ impl MailContextAPI {
             MailContextAPI::Connect(_)
             | MailContextAPI::Helo(_)
             | MailContextAPI::MailFrom(_)
-            | MailContextAPI::Finished(_) => Err(Error::TODO),
+            | MailContextAPI::Finished(_) => Err(Error::WrongState(RcptTo::as_str(), self.state())),
             MailContextAPI::RcptTo(ctx) => {
                 *self = ctx.clone().finish().into();
                 Ok(())
@@ -908,6 +1032,23 @@ impl MailContextAPI {
         .clone();
         self.set_state_helo(helo.client_name)
     }
+}
+
+// TODO: use uuid.
+/// Create a new message id.
+#[must_use]
+pub fn new_message_id(connect_timestamp: time::OffsetDateTime) -> String {
+    let now = time::OffsetDateTime::now_utc();
+
+    format!(
+        "{}{}{}{}",
+        now.unix_timestamp_nanos(),
+        connect_timestamp.unix_timestamp_nanos(),
+        std::iter::repeat_with(fastrand::alphanumeric)
+            .take(36)
+            .collect::<String>(),
+        std::process::id()
+    )
 }
 
 macro_rules! try_from_ref {

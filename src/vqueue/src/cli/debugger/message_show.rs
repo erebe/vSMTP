@@ -129,6 +129,7 @@ mod tests {
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_json",
+  "outgoing": false,
   "forward_path": [],
   "dkim": null,
   "spf": null
@@ -209,6 +210,7 @@ Message body:
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_eml",
+  "outgoing": false,
   "forward_path": [],
   "dkim": null,
   "spf": null
