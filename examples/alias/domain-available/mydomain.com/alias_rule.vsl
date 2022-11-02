@@ -1,0 +1,36 @@
+// `add_rcpt_envelop` add an address to the smtp envelop, effectively
+// adding the address to the list of recipients to deliver.
+//
+// In the case our server receive the list of recipients:
+// "jenny@mydomain.com", "joe@mydomain.com", "john@gmail.com" and "oliver@mydomain.com"
+// the list will be replaced by:
+// "john.doe@mydomain.com", "john@gmail.com", "oliver@mydomain.com".
+
+import "objects/aliases" as al;
+
+// Remove recipients that are aliases and replace them by our main
+// address.
+//
+// Note that this does not change the 'To:' header of the email,
+// I guess it is interesting to keep an history of which original
+// addresses where use as recipients.
+fn replace_recipients_by_alias() {
+    let alias_found = false;
+
+    // iterate trough all recipients to check for aliases.
+    for rcpt in rcpt_list() {
+        let user = rcpt.local_part;
+
+        // If the user is within our alias list, then
+        // we can safely remove the recipient that
+        // we will replace by our forwarding address.
+        if user in al::my_aliases {
+            remove_rcpt_envelop(rcpt);
+            alias_found = true;
+        }
+    }
+
+    if alias_found == true {
+        add_rcpt_envelop(al::my_main_address);
+    }
+}

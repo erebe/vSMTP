@@ -834,7 +834,7 @@ impl MailContextAPI {
             MailContextAPI::Empty(_)
             | MailContextAPI::Connect(_)
             | MailContextAPI::Helo(_)
-            | MailContextAPI::MailFrom(_) => Err(Error::TODO),
+            | MailContextAPI::MailFrom(_) => Err(Error::WrongState(RcptTo::as_str(), self.state())),
             MailContextAPI::RcptTo(ctx) => {
                 ctx.state.forward_path.push(Rcpt::new(forward_path));
                 Ok(())

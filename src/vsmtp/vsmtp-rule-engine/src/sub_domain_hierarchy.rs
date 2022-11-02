@@ -63,7 +63,9 @@ impl SubDomainHierarchy {
         let mut hierarchy = std::collections::BTreeMap::new();
 
         // Searching for domain folders.
-        for dir in std::fs::read_dir(path).context("could not read rule directory")? {
+        for dir in std::fs::read_dir(path)
+            .with_context(|| format!("could not read rule directory at {path:?}"))?
+        {
             let dir = dir?;
 
             if dir.file_type()?.is_dir() {
@@ -112,15 +114,15 @@ impl SubDomainHierarchy {
                         incoming: Self::rules_from_path(
                             engine,
                             scripts[0].as_path(),
-                        ).with_context(|| format!("failed to compile the incoming.vsl script for the {domain} domain"))?,
+                        ).with_context(|| format!("failed to compile the incoming.vsl script for the '{domain}' domain"))?,
                         outgoing: Self::rules_from_path(
                             engine,
                             scripts[1].as_path(),
-                        ).with_context(|| format!("failed to compile the outgoing.vsl script for the {domain} domain"))?,
+                        ).with_context(|| format!("failed to compile the outgoing.vsl script for the '{domain}' domain"))?,
                         internal: Self::rules_from_path(
                             engine,
                             scripts[2].as_path(),
-                        ).with_context(|| format!("failed to compile the internal.vsl script for the {domain} domain"))?,
+                        ).with_context(|| format!("failed to compile the internal.vsl script for the '{domain}' domain"))?,
 
                         },
                 );

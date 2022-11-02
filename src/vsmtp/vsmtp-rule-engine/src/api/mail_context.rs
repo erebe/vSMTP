@@ -317,15 +317,15 @@ mod mail_context_rhai {
 
     /// add a recipient to the envelop.
     #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
-    pub fn add_rcpt_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-        super::add_rcpt(context, new_addr)
+    pub fn add_rcpt_envelop_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+        super::add_rcpt_envelop(context, new_addr)
     }
 
     /// add a recipient to the envelop.
     #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn add_rcpt_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
-        super::add_rcpt(context, &new_addr.to_string())
+    pub fn add_rcpt_envelop_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
+        super::add_rcpt_envelop(context, &new_addr.to_string())
     }
 
     /// remove a recipient from the envelop.
@@ -372,15 +372,13 @@ fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> Engine
     Ok(())
 }
 
-fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+fn add_rcpt_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
     vsl_guard_ok!(context.write())
         .add_forward_path(vsl_conversion_ok!(
             "address",
             <Address as std::str::FromStr>::from_str(new_addr)
         ))
-        .unwrap();
-
-    Ok(())
+        .map_err(|err| format!("failed to run `add_rcpt_envelop`: {err}").into())
 }
 
 fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {

@@ -342,7 +342,7 @@ impl Transaction {
                 ))
             }
             (false, true) => {
-                let domain = ctx.reverse_path().unwrap().domain().to_string();
+                let domain = rcpt_to.domain().to_string();
 
                 Some(Rcpt::with_transaction_type(
                     rcpt_to,
