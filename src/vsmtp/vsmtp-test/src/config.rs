@@ -15,7 +15,7 @@
  *
 */
 use vsmtp_common::mail_context::Finished;
-use vsmtp_common::mail_context::{Empty, MailContext};
+use vsmtp_common::mail_context::{Empty, MailContext, TransactionType};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
@@ -80,7 +80,7 @@ pub fn local_ctx() -> MailContext<Finished> {
     )
     .helo("client.testserver.com".to_string())
     .mail_from("client@client.testserver.com".parse().expect(""), false)
-    .rcpt_to(vec![])
+    .rcpt_to(vec![], TransactionType::Incoming(None))
     .finish()
 }
 

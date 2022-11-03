@@ -177,7 +177,6 @@ mod test {
                     address: addr!(&format!("{mailbox}@domain.com")),
                     transfer_method: Transfer::Maildir,
                     email_status: EmailTransferStatus::default(),
-                    transaction_type: vsmtp_common::rcpt::TransactionType::Incoming(None),
                 }],
                 fake_message,
             )

@@ -16,12 +16,8 @@
 */
 use super::connection::Connection;
 use vsmtp_common::{
-    auth::Mechanism,
-    event::Event,
-    rcpt::{Rcpt, TransactionType},
-    state::State,
-    status::Status,
-    Address, CodeID, ReplyOrCodeID,
+    auth::Mechanism, event::Event, mail_context::TransactionType, rcpt::Rcpt, state::State,
+    status::Status, Address, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config};
 use vsmtp_mail_parser::MessageBody;
@@ -299,17 +295,16 @@ impl Transaction {
         let handled = self.rule_engine.handle_domain(&rcpt_to);
         let is_outgoing = ctx.is_outgoing();
 
-        let rcpt = match (is_outgoing, handled) {
-            (true, true) if rcpt_to.domain() == ctx.reverse_path().unwrap().domain() => {
+        let sender = ctx.reverse_path().unwrap().clone();
+
+        match (is_outgoing, handled) {
+            (true, true) if rcpt_to.domain() == sender.domain() => {
                 if let Some(rule_state_internal) = &self.rule_state_internal {
                     rule_state_internal
                         .context()
                         .write()
                         .unwrap()
-                        .set_state_rcpt_to(Some(Rcpt::with_transaction_type(
-                            rcpt_to,
-                            TransactionType::Internal,
-                        )))
+                        .set_state_rcpt_to(Some(Rcpt::new(rcpt_to)), TransactionType::Internal)
                         .unwrap();
                 } else {
                     let mut ctx_internal = ctx.clone();
@@ -318,10 +313,7 @@ impl Transaction {
                     ctx_internal.generate_message_id().unwrap();
                     ctx_internal.clear_forward_paths();
                     ctx_internal
-                        .set_state_rcpt_to(Some(Rcpt::with_transaction_type(
-                            rcpt_to,
-                            TransactionType::Internal,
-                        )))
+                        .set_state_rcpt_to(Some(Rcpt::new(rcpt_to)), TransactionType::Internal)
                         .unwrap();
 
                     self.rule_state_internal = Some(RuleState::with_context(
@@ -331,35 +323,38 @@ impl Transaction {
                     ));
                 }
 
-                None
+                ctx.set_state_rcpt_to(None, TransactionType::Outgoing(sender.domain().to_owned()))
+                    .unwrap();
+
+                true
             }
             (true, true | false) => {
-                let domain = ctx.reverse_path().unwrap().domain().to_string();
+                ctx.set_state_rcpt_to(
+                    Some(Rcpt::new(rcpt_to)),
+                    TransactionType::Outgoing(sender.domain().to_owned()),
+                )
+                .unwrap();
 
-                Some(Rcpt::with_transaction_type(
-                    rcpt_to,
-                    TransactionType::Outgoing(domain),
-                ))
+                false
             }
             (false, true) => {
-                let domain = rcpt_to.domain().to_string();
+                let domain = rcpt_to.domain().to_owned();
 
-                Some(Rcpt::with_transaction_type(
-                    rcpt_to,
+                ctx.set_state_rcpt_to(
+                    Some(Rcpt::new(rcpt_to)),
                     TransactionType::Incoming(Some(domain)),
-                ))
+                )
+                .unwrap();
+
+                false
             }
-            (false, false) => Some(Rcpt::with_transaction_type(
-                rcpt_to,
-                TransactionType::Incoming(None),
-            )),
-        };
+            (false, false) => {
+                ctx.set_state_rcpt_to(Some(Rcpt::new(rcpt_to)), TransactionType::Incoming(None))
+                    .unwrap();
 
-        let internal = rcpt.is_none();
-
-        ctx.set_state_rcpt_to(rcpt).unwrap();
-
-        internal
+                false
+            }
+        }
     }
 
     /// Reset the state to the helo command.

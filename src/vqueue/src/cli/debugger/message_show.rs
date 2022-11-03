@@ -131,6 +131,9 @@ mod tests {
   "message_id": "show1_json",
   "outgoing": false,
   "forward_path": [],
+  "transaction_type": {{
+    "Incoming": null
+  }},
   "dkim": null,
   "spf": null
 }}
@@ -212,6 +215,9 @@ Message body:
   "message_id": "show1_eml",
   "outgoing": false,
   "forward_path": [],
+  "transaction_type": {{
+    "Incoming": null
+  }},
   "dkim": null,
   "spf": null
 }}

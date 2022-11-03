@@ -187,11 +187,16 @@ impl MailContext<MailFrom> {
     ///
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn rcpt_to(self, forward_path: Vec<Rcpt>) -> MailContext<RcptTo> {
+    pub fn rcpt_to(
+        self,
+        forward_path: Vec<Rcpt>,
+        transaction_type: TransactionType,
+    ) -> MailContext<RcptTo> {
         MailContext::<RcptTo> {
             state: RcptTo {
                 mail_from: self.state,
                 forward_path,
+                transaction_type,
             },
         }
     }
@@ -356,6 +361,12 @@ impl MailContext<RcptTo> {
     pub const fn forward_paths(&self) -> &Vec<Rcpt> {
         &self.state.forward_path
     }
+
+    ///
+    #[must_use]
+    pub const fn transaction_type(&self) -> &TransactionType {
+        &self.state.transaction_type
+    }
 }
 
 impl MailContext<Finished> {
@@ -434,6 +445,12 @@ impl MailContext<Finished> {
     }
 
     ///
+    #[must_use]
+    pub const fn transaction_type(&self) -> &TransactionType {
+        &self.state.rcpt_to.transaction_type
+    }
+
+    ///
     pub fn set_skipped(&mut self, skipped: Option<Status>) {
         self.state.rcpt_to.mail_from.helo.connect.skipped = skipped;
     }
@@ -505,14 +522,31 @@ pub struct MailFrom {
     outgoing: bool,
 }
 
+// TODO: find a better name.
+/// What rules should be executed regarding the domains of the sender and recipients.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum TransactionType {
+    /// The sender's domain is unknown, contained domain is only one of the recipients.
+    /// If none, it means all recipients are unknown, or that the rcpt stage has not
+    /// yet been executed.
+    Incoming(Option<String>),
+    /// The sender's domain is known, the domain is stored.
+    Outgoing(String),
+    /// The sender's domain is known, and recipients domains are the same.
+    /// Use the sender's domain to execute your rules.
+    Internal,
+}
+
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct RcptTo {
     #[serde(flatten)]
     mail_from: MailFrom,
-    // Mailbox of the recipients
-    // send by the client with RCPT TO command (email address)
+    /// Mailbox of the recipients
+    /// send by the client with RCPT TO command (email address)
     forward_path: Vec<Rcpt>,
+    /// incoming, outgoing or internal.
+    transaction_type: TransactionType,
 }
 
 ///
@@ -894,6 +928,19 @@ impl MailContextAPI {
 
     ///
     #[must_use]
+    pub const fn transaction_type(&self) -> Option<&TransactionType> {
+        match self {
+            MailContextAPI::Empty(_)
+            | MailContextAPI::Connect(_)
+            | MailContextAPI::Helo(_)
+            | MailContextAPI::MailFrom(_) => None,
+            MailContextAPI::RcptTo(ctx) => Some(ctx.transaction_type()),
+            MailContextAPI::Finished(ctx) => Some(ctx.transaction_type()),
+        }
+    }
+
+    ///
+    #[must_use]
     pub fn dkim(&self) -> Option<&dkim::VerificationResult> {
         TryInto::<&MailContext<Finished>>::try_into(self)
             .ok()
@@ -982,7 +1029,11 @@ impl MailContextAPI {
     /// * `forward_path` - an optional recipient to push to the forward path.
     ///
     /// # Errors
-    pub fn set_state_rcpt_to(&mut self, forward_path: Option<Rcpt>) -> Result<(), Error> {
+    pub fn set_state_rcpt_to(
+        &mut self,
+        forward_path: Option<Rcpt>,
+        transaction_type: TransactionType,
+    ) -> Result<(), Error> {
         match self {
             MailContextAPI::Empty(_) => unimplemented!(),
             MailContextAPI::Connect(_) | MailContextAPI::Helo(_) | MailContextAPI::Finished(_) => {
@@ -992,7 +1043,7 @@ impl MailContextAPI {
                 let rcpt =
                     forward_path.map_or_else(std::vec::Vec::new, |forward_path| vec![forward_path]);
 
-                *self = ctx.clone().rcpt_to(rcpt).into();
+                *self = ctx.clone().rcpt_to(rcpt, transaction_type).into();
                 Ok(())
             }
             MailContextAPI::RcptTo(ctx) => {

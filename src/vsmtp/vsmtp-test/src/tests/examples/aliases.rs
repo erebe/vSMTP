@@ -16,8 +16,7 @@
 */
 
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::rcpt::TransactionType;
+use vsmtp_common::mail_context::{Finished, TransactionType};
 use vsmtp_common::{addr, mail_context::MailContext, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::Connection;
@@ -79,14 +78,13 @@ run_test! {
                 let fp = ctx.forward_paths();
 
                 assert_eq!(fp.len(), 2);
+                assert_eq!(ctx.transaction_type(), &TransactionType::Incoming(Some("mydomain.com".to_owned())));
 
                 assert_eq!(fp[0].address, addr!("oliver@mydomain.com"));
-                assert_eq!(fp[0].transaction_type, TransactionType::Incoming(Some("mydomain.com".to_owned())));
 
                 // FIXME: logical error: adding a recipient with `add_rcpt_envelop` should take
                 //        the `transaction_type` field into account, which it does not do for now.
                 assert_eq!(fp[1].address, addr!("john.doe@mydomain.com"));
-                assert_eq!(fp[1].transaction_type, TransactionType::Incoming(None));
                 // assert_eq!(fp[1].transaction_type, TransactionType::Incoming(Some("mydomain.com".to_owned())));
 
                 CodeID::Ok

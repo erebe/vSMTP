@@ -25,8 +25,7 @@ use crate::sub_domain_hierarchy::{Builder, Script, SubDomainHierarchy};
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope};
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::mail_context::{Empty, MailContext, MailContextAPI, StateSMTP};
-use vsmtp_common::rcpt::TransactionType;
+use vsmtp_common::mail_context::{Empty, MailContext, MailContextAPI, StateSMTP, TransactionType};
 use vsmtp_common::{state::State, status::Status};
 use vsmtp_common::{CodeID, ReplyOrCodeID};
 use vsmtp_config::{Config, DnsResolvers};
@@ -465,11 +464,11 @@ impl RuleEngine {
                     .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?
                     .last()
                     .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
+                let transaction_type = context
+                    .transaction_type()
+                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
-                match (
-                    self.rules.domains.get(sender.domain()),
-                    &recipient.transaction_type,
-                ) {
+                match (self.rules.domains.get(sender.domain()), transaction_type) {
                     (Some(rules), TransactionType::Internal) => {
                         tracing::debug!(rcpt = %recipient, %sender, "Internal email for current recipient.");
 
@@ -481,7 +480,7 @@ impl RuleEngine {
                         Ok(&rules.outgoing)
                     }
 
-                    // Should never happen. NOTE: is this the correct way to handle this edge case ?
+                    // Edge case that should never happen because incoming is never paired with is_outgoing = true.
                     _ => {
                         tracing::error!(rcpt = %recipient, %sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
 
@@ -498,10 +497,13 @@ impl RuleEngine {
                     .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?
                     .last()
                     .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
+                let transaction_type = context
+                    .transaction_type()
+                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
                 if let (Some(rules), TransactionType::Incoming(Some(_))) = (
                     self.rules.domains.get(recipient.address.domain()),
-                    &recipient.transaction_type,
+                    transaction_type,
                 ) {
                     tracing::debug!(rcpt = %recipient, "Incoming recipient.");
 
@@ -518,21 +520,16 @@ impl RuleEngine {
                 let sender = context
                     .reverse_path()
                     .ok_or_else(|| anyhow::anyhow!("sender not found in rcpt stage"))?;
-                let rcpt = context
-                    .forward_paths()
-                    .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?;
+                let transaction_type = context
+                    .transaction_type()
+                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
-                // FIXME: all recipients should be packed by transaction type, this verification could be cached somewhere.
-                let is_internal = rcpt.iter().all(|recipient| {
-                    matches!(recipient.transaction_type, TransactionType::Internal)
-                });
-
-                match self.rules.domains.get(sender.domain()) {
+                match (self.rules.domains.get(sender.domain()), transaction_type) {
                     // Current batch of recipients is marked as internal, we execute the internal rules.
-                    Some(rules) if is_internal => Ok(&rules.internal),
+                    (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
                     // Otherwise, we call the outgoing rules.
-                    Some(rules) => Ok(&rules.outgoing),
-                    // Should never happen. NOTE: is this the correct way to handle this edge case ?
+                    (Some(rules), TransactionType::Outgoing(_)) => Ok(&rules.outgoing),
+                    // Should never happen.
                     _ => {
                         tracing::error!(%sender, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
 
@@ -544,19 +541,27 @@ impl RuleEngine {
             // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
             // otherwise run the fallback script.
             State::PreQ | State::PostQ | State::Delivery => {
-                let rcpt = context
-                    .forward_paths()
-                    .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?;
+                let transaction_type = context
+                    .transaction_type()
+                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
-                rcpt.iter().find_map(|recipient| if let TransactionType::Incoming(Some(domain)) = &recipient.transaction_type {
-                    Some(domain)
-                } else { None } ).map_or_else(|| {
-                    tracing::warn!("No recipient has a domain handled by your configuration, running fallback script");
+                match transaction_type {
+                    TransactionType::Incoming(Some(domain)) => self
+                        .rules
+                        .domains
+                        .get(domain)
+                        .map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming)),
+                    TransactionType::Incoming(None) => {
+                        tracing::warn!("No recipient has a domain handled by your configuration, running fallback script");
 
-                    Ok(&self.rules.fallback)
-                }, |domain| {
-                    self.rules.domains.get(domain).map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming))
-                })
+                        Ok(&self.rules.fallback)
+                    }
+                    TransactionType::Outgoing(_) | TransactionType::Internal => {
+                        tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
+
+                        Ok(&self.rules.fallback)
+                    }
+                }
             }
         }
     }
