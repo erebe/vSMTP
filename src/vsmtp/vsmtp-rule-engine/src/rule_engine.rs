@@ -21,13 +21,13 @@ use crate::dsl::directives::{Directive, Directives};
 use crate::dsl::smtp::{plugin, service};
 use crate::rule_state::RuleState;
 use crate::server_api::ServerAPI;
-use crate::sub_domain_hierarchy::{Builder, Script, SubDomainHierarchy};
+use crate::sub_domain_hierarchy::{Builder, DomainDirectives, Script, SubDomainHierarchy};
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::mail_context::{Empty, MailContext, MailContextAPI, StateSMTP, TransactionType};
 use vsmtp_common::{state::State, status::Status};
-use vsmtp_common::{CodeID, ReplyOrCodeID};
+use vsmtp_common::{CodeID, Domain, ReplyOrCodeID};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugin_vsl::plugin::Objects;
@@ -429,6 +429,7 @@ impl RuleEngine {
     /// Get the desired batch of directives for the current smtp state and transaction context.
     /// The transaction context is whether the email is incoming, outgoing or internal.
     #[allow(clippy::cognitive_complexity)]
+    #[allow(clippy::too_many_lines)]
     fn get_directives_for_smtp_state<'a>(
         &'a self,
         context: &MailContextAPI,
@@ -441,9 +442,10 @@ impl RuleEngine {
             State::MailFrom => {
                 let sender = context.reverse_path();
 
+                #[allow(clippy::option_if_let_else)]
                 match sender {
                     // Outgoing email, we execute the outgoing script from the sender's domain.
-                    Some(sender) if context.is_outgoing() => self.rules.domains.get(sender.domain()).map_or_else(|| {
+                    Some(sender) if context.is_outgoing() => self.get_domain_directives(sender.domain()).map_or_else(|| {
                             tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
 
                             Ok(&self.rules.fallback)
@@ -468,7 +470,10 @@ impl RuleEngine {
                     .transaction_type()
                     .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
-                match (self.rules.domains.get(sender.domain()), transaction_type) {
+                match (
+                    self.get_domain_directives(sender.domain()),
+                    transaction_type,
+                ) {
                     (Some(rules), TransactionType::Internal) => {
                         tracing::debug!(rcpt = %recipient, %sender, "Internal email for current recipient.");
 
@@ -502,7 +507,7 @@ impl RuleEngine {
                     .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
                 if let (Some(rules), TransactionType::Incoming(Some(_))) = (
-                    self.rules.domains.get(recipient.address.domain()),
+                    self.get_domain_directives(recipient.address.domain()),
                     transaction_type,
                 ) {
                     tracing::debug!(rcpt = %recipient, "Incoming recipient.");
@@ -524,7 +529,10 @@ impl RuleEngine {
                     .transaction_type()
                     .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
 
-                match (self.rules.domains.get(sender.domain()), transaction_type) {
+                match (
+                    self.get_domain_directives(sender.domain()),
+                    transaction_type,
+                ) {
                     // Current batch of recipients is marked as internal, we execute the internal rules.
                     (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
                     // Otherwise, we call the outgoing rules.
@@ -564,6 +572,26 @@ impl RuleEngine {
                 }
             }
         }
+    }
+
+    /// Get directives following a domain. If the subdomain cannot be found,
+    /// The root domain is used instead.
+    ///
+    /// Does not check if the domain is a valid domain.
+    fn get_domain_directives(&self, domain: &str) -> Option<&DomainDirectives> {
+        if let Some(directives) = self.rules.domains.get(domain) {
+            return Some(directives);
+        }
+
+        let domain = Domain::iter(domain);
+
+        for parent in domain {
+            if let Some(directives) = self.rules.domains.get(parent) {
+                return Some(directives);
+            }
+        }
+
+        None
     }
 
     fn execute_directives(

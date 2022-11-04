@@ -64,7 +64,12 @@ mod types {
     pub mod reply_code;
 }
 
-pub use types::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
+pub use types::{
+    address::{Address, Domain},
+    code_id::CodeID,
+    reply::Reply,
+    reply_code::*,
+};
 
 ///
 pub type ReplyOrCodeID = either::Either<CodeID, Reply>;

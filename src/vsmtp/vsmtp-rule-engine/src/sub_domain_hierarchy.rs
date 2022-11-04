@@ -86,10 +86,7 @@ impl SubDomainHierarchy {
             // NOTE: non readable file are ignored
             let files = std::fs::read_dir(&domain_dir)
                 .with_context(|| format!("Cannot read rule for domain '{}'", domain_dir.display()))?
-                .filter_map(|i| match i {
-                    Ok(e) => Some(e.path()),
-                    Err(_) => None,
-                })
+                .filter_map(|i| i.map_or(None, |e| Some(e.path())))
                 .collect::<Vec<_>>();
 
             for required in ["incoming.vsl", "outgoing.vsl", "internal.vsl"] {

@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(command) = args.command {
         let config = args.config.as_ref().map_or_else(
             || Ok(Config::default()),
-            |path| Config::from_vsl_file(&path).context("Cannot parse the configuration"),
+            |path| Config::from_vsl_file(path).context("Cannot parse the configuration"),
         )?;
 
         let config = std::sync::Arc::new(config);

@@ -166,7 +166,7 @@ impl Config {
         if let Some(resolve_path) = resolve_path.as_ref() {
             engine.set_module_resolver(
                 rhai::module_resolvers::FileModuleResolver::new_with_path_and_extension(
-                    &resolve_path,
+                    resolve_path,
                     "vsl",
                 ),
             );

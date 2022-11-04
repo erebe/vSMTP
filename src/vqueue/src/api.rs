@@ -94,7 +94,7 @@ pub struct DetailedMailContext {
     pub(crate) modified_at: std::time::SystemTime,
 }
 
-/// CRUB operation for mail in queues.
+/// CRUD operation for mail in queues.
 #[async_trait::async_trait]
 pub trait GenericQueueManager
 where

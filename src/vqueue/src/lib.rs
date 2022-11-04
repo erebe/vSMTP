@@ -30,7 +30,7 @@
 //
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::use_self)] // false positive with enums
-#![allow(clippy::integer_arithmetic, clippy::arithmetic)] // issue with strum
+#![allow(clippy::integer_arithmetic, clippy::arithmetic_side_effects)] // issue with strum
 // restriction we ignore
 #![allow(clippy::missing_docs_in_private_items)]
 #![allow(clippy::blanket_clippy_restriction_lints)]
