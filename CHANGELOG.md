@@ -23,22 +23,24 @@ release. They will however *never* happen in a patch release.
 * Configuration is written using Rhai. (#685)
 
 ```rust
-let config = new_config();
+fn on_config(config) {
+  config.version_requirement = ">=1.3.3, <2.0.0";
+  
+  config.server.name = "my.fqdn.com";
+  
+  config.server.system = #{
+      user: "root",
+      group: "root",
+  };
+  
+  config.server.interfaces = #{
+      addr: ["127.0.0.1:25"],
+      addr_submission: ["127.0.0.1:587"],
+      addr_submissions: ["127.0.0.1:465"],
+  };
 
-config.version_requirement = ">=1.3.3, <2.0.0";
-
-config.server.name = "my.fqdn.com";
-
-config.server.system = #{
-    user: "root",
-    group: "root",
-};
-
-config.server.interfaces = #{
-    addr: ["127.0.0.1:25"],
-    addr_submission: ["127.0.0.1:587"],
-    addr_submissions: ["127.0.0.1:465"],
-};
+  config
+}
 ```
 
 * vSL scripts are split between transaction types and handled sub domains. (#709)

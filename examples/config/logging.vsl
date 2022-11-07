@@ -1,29 +1,31 @@
-let config = new_config();
+fn on_config(config) {
+    config.version_requirement = ">=1.3.3, <2.0.0";
+    
+    config.server.logs = #{
+        filepath: "/var/log/vsmtp/vsmtp.log",
+        level: [
+            "default=warn",
+            "receiver=info",
+            "rule_engine=warn",
+            "delivery=error",
+            "parser=trace",
+        ]
+    };
+    
+    config.server.smtp.codes.set("Greetings", "220 {name} ESMTP Service ready");
+    
+    config.server.smtp.codes.set("Help", #{
+        code: 214,
+        text: "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
+    });
+    
+    config.server.smtp.codes.set("TlsRequired", #{
+        code: 451,
+        enhanced: "5.7.3",
+        text: "STARTTLS is required to send mail",
+    });
+    
+    config.app.logs.filepath = "/var/log/vsmtp/app.log";
 
-config.version_requirement = ">=1.3.3, <2.0.0";
-
-config.server.logs = #{
-    filepath: "/var/log/vsmtp/vsmtp.log",
-    level: [
-        "default=warn",
-        "receiver=info",
-        "rule_engine=warn",
-        "delivery=error",
-        "parser=trace",
-    ]
-};
-
-config.server.smtp.codes.set("Greetings", "220 {name} ESMTP Service ready");
-
-config.server.smtp.codes.set("Help", #{
-    code: 214,
-    text: "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
-});
-
-config.server.smtp.codes.set("TlsRequired", #{
-    code: 451,
-    enhanced: "5.7.3",
-    text: "STARTTLS is required to send mail",
-});
-
-config.app.logs.filepath = "/var/log/vsmtp/app.log"
+    config
+}

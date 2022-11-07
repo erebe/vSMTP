@@ -23,6 +23,7 @@ use crate::{
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
         SyslogSocket, TlsSecurityLevel,
     },
+    field::FieldServerVirtual,
     Config,
 };
 use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
@@ -270,6 +271,12 @@ impl FieldQueueDelivery {
 
     pub(crate) const fn default_deferred_retry_period() -> std::time::Duration {
         std::time::Duration::from_secs(300)
+    }
+}
+
+impl FieldServerVirtual {
+    pub(crate) fn default_json() -> anyhow::Result<rhai::Map> {
+        Ok(rhai::Engine::new().parse_json(serde_json::to_string(&Self::default())?, true)?)
     }
 }
 

@@ -525,6 +525,7 @@ pub struct MailFrom {
 // TODO: find a better name.
 /// What rules should be executed regarding the domains of the sender and recipients.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum TransactionType {
     /// The sender's domain is unknown, contained domain is only one of the recipients.
     /// If none, it means all recipients are unknown, or that the rcpt stage has not

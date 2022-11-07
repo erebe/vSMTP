@@ -1,20 +1,15 @@
-let config = new_config();
+//! This is the first file that vSMTP reads when it starts.
+//!
+//! This file is maintained by vSMTP package maintainers and it is recommended that administrators
+//! avoid editing this file unless they also follow changes made by upstream.
+//! It's advised to instead add customizations in the files underneath
+//! the $(conf.d/) directory.
 
-config.version_requirement = ">=1.3.3, <2.0.0";
+import "conf.d/config" as cfg;
 
-config.server.name = "testserver.com";
+fn on_config(config) {
+    let config = cfg::on_config(config);
 
-config.server.interfaces = #{
-    addr: ["192.168.1.254:25", "192.168.1.254:10025"],
-    addr_submission: ["192.168.1.254:587"],
-    addr_submissions: ["192.168.1.254:465"],
-};
-
-// NOTE: `filepath` key use relative paths to automatically test our examples.
-//        Use absolute or relative paths relative to your own system instead of those.
-//
-//        (for example: config.app.vsl.dirpath = "/etc/vsmtp/main.vsl")
-
-config.server.queues.dirpath = "examples/dnsbl/spool";
-config.app.dirpath = "examples/dnsbl/app";
-config.app.vsl.dirpath = "../../../examples/dnsbl/main.vsl";
+    config.version_requirement = ">=1.3.4, <2.0.0";
+    config
+}

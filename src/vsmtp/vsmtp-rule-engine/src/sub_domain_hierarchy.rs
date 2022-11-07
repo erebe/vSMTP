@@ -75,9 +75,8 @@ impl SubDomainHierarchy {
                 path.display()
             )
         })? {
-            // TODO: should we ignore deleted files and IO errors?
             let entry = entry?;
-            if !entry.file_type()?.is_dir() {
+            if entry.file_type()?.is_file() {
                 continue;
             }
 

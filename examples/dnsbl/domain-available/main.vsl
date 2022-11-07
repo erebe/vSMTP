@@ -12,7 +12,7 @@
                 // If a record is found, that means that the recipient domain
                 // is probably a spam.
                 log("error", `${helo()}: SPAM DETECTED`);
-                return deny();
+                return deny(code_greylist);
             } catch {
                 // No record were found, the email is probably not a spam.
                 log("debug", `${helo()}: ok, not found in dnsbl.`);

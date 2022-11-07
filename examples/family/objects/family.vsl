@@ -19,7 +19,11 @@ export const family_addr = [john, jane, jimmy, jenny];
 export const unknown_quarantine = "doe/bad_user";
 export const virus_queue = "doe/virus";
 
+// NOTE: This is commented because I could not yet find a way to
+//       run automated test with file objects. Since the path must
+//       be absolute, it does not integrate well with unit tests.
+
 // A user blacklist file
-// export const blacklist file:fqdn = "../../../examples/family/blacklist.txt";
+// export const blacklist file:fqdn = "../../../examples/family/conf.d/blacklist.txt";
 
 export const untrusted = regex("^[a-z0-9.]+@example.com$")

@@ -334,7 +334,6 @@ where
                 .unwrap();
         }
 
-        // FIXME: do not run the outgoing rule state if there are no outgoing recipients.
         let status = transaction
             .rule_engine
             .run_when(&mut transaction.rule_state, State::PreQ);

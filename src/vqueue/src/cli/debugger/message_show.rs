@@ -132,7 +132,7 @@ mod tests {
   "outgoing": false,
   "forward_path": [],
   "transaction_type": {{
-    "Incoming": null
+    "incoming": null
   }},
   "dkim": null,
   "spf": null
@@ -216,7 +216,7 @@ Message body:
   "outgoing": false,
   "forward_path": [],
   "transaction_type": {{
-    "Incoming": null
+    "incoming": null
   }},
   "dkim": null,
   "spf": null

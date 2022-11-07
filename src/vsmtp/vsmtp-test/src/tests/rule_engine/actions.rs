@@ -67,7 +67,7 @@ const CTX_TEMPLATE: &str = concat!(
     "      }\n",
     "    ],\n",
     "    \"transaction_type\": {\n",
-    "      \"Incoming\": null\n",
+    "      \"incoming\": null\n",
     "    },\n",
     "    \"dkim\": null,\n",
     "    \"spf\": null\n",

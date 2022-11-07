@@ -68,9 +68,13 @@ check_config() {
 
 import "conf.d/config" as cfg;
 
-let config = cfg::config;
+fn on_config(config) {
+    let config = cfg::on_config(config);
 
-config.version_requirement = ">=${DPKG_VER}";
+    config.version_requirement = ">=${DPKG_VER}";
+    config
+}
+
 EOF
 
         cat >${USER_CONF_FILE} <<EOF
@@ -82,11 +86,11 @@ EOF
 //!
 //! See https://vsmtp.rs/reference/config-file.html?highlight=config#complete-vsmtp-toml-keyvalue-list
 
-let config = new_config();
+fn on_config(config) {
+    // Configure vSMTP here using the config variable.
 
-// Configure vSMTP here using the config variable.
-
-export config;
+    config
+}
 EOF
 
         chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE} ${USER_CONF_FILE}

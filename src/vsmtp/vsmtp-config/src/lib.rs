@@ -86,6 +86,8 @@ mod virtual_tls;
 
 mod dns_resolver;
 
+use anyhow::Context;
+use config::field::FieldServerVirtual;
 pub use dns_resolver::DnsResolvers;
 
 pub use config::{field, Config};
@@ -114,13 +116,6 @@ impl Config {
     ///
     /// [JSON]: https://fr.wikipedia.org/wiki/JavaScript_Object_Notation
     pub fn from_vsl_file(path: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
-        use anyhow::Context;
-
-        #[derive(serde::Serialize, serde::Deserialize)]
-        struct VersionRequirement {
-            version_requirement: semver::VersionReq,
-        }
-
         let path = path.as_ref();
 
         let vsmtp_config_dir = std::path::PathBuf::from(path.parent().ok_or_else(|| {
@@ -152,8 +147,6 @@ impl Config {
         script: impl AsRef<str>,
         resolve_path: Option<&std::path::PathBuf>,
     ) -> anyhow::Result<Self> {
-        use anyhow::Context;
-
         #[derive(serde::Serialize, serde::Deserialize)]
         struct VersionRequirement {
             version_requirement: semver::VersionReq,
@@ -161,7 +154,6 @@ impl Config {
 
         let script = script.as_ref();
         let mut engine = rhai::Engine::new();
-        let mut scope = rhai::Scope::new();
 
         if let Some(resolve_path) = resolve_path.as_ref() {
             engine.set_module_resolver(
@@ -172,47 +164,21 @@ impl Config {
             );
         }
 
-        // Create a new configuration.
-        engine.register_fn("new_config", || {
-            let mut config = Self::default();
+        let ast = engine
+            .compile(script)
+            .context("Failed to compile root configuration (config.vsl)")?;
 
-            // NOTE: serde_json will try to serialize those fields using
-            //       the `ReplyCode` `parse` function, which will fail with
-            //       multi line codes. Those codes will be added later with
-            //       `[Self::ensure]`.
-            //
-            //      This is a workaround and should be fixed by parsing multi-line
-            //      ehlo codes.
-            config
-                .server
-                .smtp
-                .codes
-                .remove(&vsmtp_common::CodeID::EhloPain);
-            config
-                .server
-                .smtp
-                .codes
-                .remove(&vsmtp_common::CodeID::EhloSecured);
-
-            rhai::Engine::new()
-                .parse_json(
-                    serde_json::to_string(&config)
-                        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?,
-                    true,
-                )
-                .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())
-        });
-
-        engine
-            .run_with_scope(&mut scope, script)
-            .context("Failed to evaluate the configuration script")?;
-
-        let user_config = scope.get_value::<rhai::Map>("config").ok_or_else(|| {
-            anyhow::anyhow!("Variable `config` not found in the configuration script, did you forget to use `export config;` ?")
-        })?;
+        let user_config: rhai::Map = engine
+            .call_fn(
+                &mut rhai::Scope::new(),
+                &ast,
+                "on_config",
+                (Config::default_json()?,),
+            )
+            .context("Could not get main configuration.")?;
 
         let raw_config =
-            serde_json::to_string(&user_config).context("The configuration is malformed")?;
+            serde_json::to_string(&user_config).context("The main configuration is malformed")?;
 
         let config = &mut serde_json::Deserializer::from_str(&raw_config);
 
@@ -221,7 +187,7 @@ impl Config {
             Err(error) => anyhow::bail!(Self::format_error(&error)?),
         };
 
-        let config = Self::ensure(config)?;
+        let mut config = Self::ensure(config)?;
 
         let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
         if !config.version_requirement.matches(&pkg_version) {
@@ -232,7 +198,103 @@ impl Config {
             );
         }
 
+        config.get_domain_config(&engine)?;
+
         Ok(config)
+    }
+
+    fn default_json() -> anyhow::Result<rhai::Map> {
+        let mut config = Self::default();
+
+        // NOTE: serde_json will try to serialize those fields using
+        //       the `ReplyCode` `parse` function, which will fail with
+        //       multi line codes. Those codes will be added later with
+        //       `[Self::ensure]`.
+        //
+        //      This is a workaround and should be fixed by parsing multi-line
+        //      ehlo codes.
+        config
+            .server
+            .smtp
+            .codes
+            .remove(&vsmtp_common::CodeID::EhloPain);
+        config
+            .server
+            .smtp
+            .codes
+            .remove(&vsmtp_common::CodeID::EhloSecured);
+
+        Ok(rhai::Engine::new().parse_json(serde_json::to_string(&config)?, true)?)
+    }
+
+    /// Get the configuration for a virtual domain.
+    fn get_domain_config(&mut self, engine: &rhai::Engine) -> anyhow::Result<()> {
+        if let Some(domains_path) = &self.app.vsl.dirpath {
+            for entry in std::fs::read_dir(domains_path).with_context(|| {
+                format!(
+                    "Cannot read subdomain in the directory '{}'",
+                    domains_path.display()
+                )
+            })? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() {
+                    continue;
+                }
+
+                let domain_dir = entry.path();
+                let domain = entry.file_name().to_str().unwrap().to_owned();
+
+                // NOTE: non readable file are ignored.
+                let files = std::fs::read_dir(&domain_dir)
+                    .with_context(|| {
+                        format!(
+                            "Cannot read configuration (config.vsl) for domain '{}'",
+                            domain_dir.display()
+                        )
+                    })?
+                    .filter_map(|i| i.map_or(None, |e| Some(e.path())))
+                    .collect::<Vec<_>>();
+
+                if let Some(config_path) = files
+                    .iter()
+                    .find(|f| f.file_name().map_or(false, |f| f == "config.vsl"))
+                {
+                    let ast = engine.compile_file(config_path.clone()).with_context(|| {
+                        format!(
+                            "Failed to compile configuration (config.vsl) for domain '{}'",
+                            domain_dir.display()
+                        )
+                    })?;
+
+                    let raw_domain_config: rhai::Map = match engine.call_fn(
+                        &mut rhai::Scope::new(),
+                        &ast,
+                        "on_domain_config",
+                        (FieldServerVirtual::default_json()?,),
+                    ) {
+                        Ok(raw_domain_config) => raw_domain_config,
+                        Err(err) => {
+                            eprintln!("Could not get configuration for the '{domain}' domain because: {err}. The root domain config will be used by default.");
+                            return Ok(());
+                        }
+                    };
+
+                    let raw_domain_config = serde_json::to_string(&raw_domain_config)
+                        .context("The configuration is malformed")?;
+
+                    let domain_config = &mut serde_json::Deserializer::from_str(&raw_domain_config);
+
+                    let domain_config = match serde_path_to_error::deserialize(domain_config) {
+                        Ok(domain_config) => domain_config,
+                        Err(error) => anyhow::bail!(Self::format_error(&error)?),
+                    };
+
+                    self.server.r#virtual.insert(domain.clone(), domain_config);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Tracing back the path where the error have been generated,
@@ -240,8 +302,6 @@ impl Config {
     fn format_error(
         error: &serde_path_to_error::Error<serde_json::Error>,
     ) -> anyhow::Result<String> {
-        use anyhow::Context;
-
         let path = error.path();
         let mut invalid_value_path =
             serde_json::to_value(&Self::default()).context("The configuration is malformed")?;

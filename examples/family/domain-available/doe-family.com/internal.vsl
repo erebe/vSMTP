@@ -1,0 +1,15 @@
+import "domain-available/doe-family.com/bcc" as bcc;
+
+#{
+    rcpt: [
+        // Jane will always be added as a bcc when jenny is part of the recipients.
+        action "bcc jenny" || bcc::bcc_jenny(),
+    ],
+
+    delivery: [
+        // since all recipient are 'doe-family.com', we can just deliver them
+        // locally.
+        action "setup delivery" || mailbox_all(),
+    ],
+
+}

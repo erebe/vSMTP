@@ -1,0 +1,6 @@
+#{
+  mail: [
+    // Check the sender domain if it's not `doe-family.com`.
+    rule "blacklist" || if mail_from().domain == "spam-domain.org" { deny(code_greylist) } else { next() }
+  ],
+}
