@@ -1,0 +1,10 @@
+#{
+    rcpt: [
+        rule "accept with code" || {
+            prepend_header("X-INTERNAL", rcpt());
+            prepend_header("X-CUSTOM", "An internal email");
+
+            accept(code(0, "internal example.com"))
+        },
+    ],
+}

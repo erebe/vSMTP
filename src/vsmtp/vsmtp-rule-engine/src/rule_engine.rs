@@ -579,19 +579,12 @@ impl RuleEngine {
     ///
     /// Does not check if the domain is a valid domain.
     fn get_domain_directives(&self, domain: &str) -> Option<&DomainDirectives> {
+        // NOTE: Rust 1.65 if let else could be used here.
         if let Some(directives) = self.rules.domains.get(domain) {
             return Some(directives);
         }
 
-        let domain = Domain::iter(domain);
-
-        for parent in domain {
-            if let Some(directives) = self.rules.domains.get(parent) {
-                return Some(directives);
-            }
-        }
-
-        None
+        Domain::iter(domain).find_map(|parent| self.rules.domains.get(parent))
     }
 
     fn execute_directives(
@@ -871,8 +864,15 @@ impl RuleEngine {
     }
 
     /// Does the rule engine have configuration available for the domain of the given address.
+    /// Check the parents of the given domain, return true if any parent matches the configuration.
     #[must_use]
     pub fn handle_domain(&self, address: &vsmtp_common::Address) -> bool {
-        self.rules.domains.contains_key(address.domain())
+        let domain = address.domain();
+
+        if self.rules.domains.contains_key(domain) {
+            true
+        } else {
+            Domain::iter(domain).any(|parent| self.rules.domains.contains_key(parent))
+        }
     }
 }

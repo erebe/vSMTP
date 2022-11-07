@@ -1,0 +1,20 @@
+import "objects/net" as net;
+
+#{
+    authenticate: [
+        // Any incoming transaction should identify itself to the server.
+        rule "auth /etc/shadow" || { authenticate() },
+    ],
+
+    mail: [
+        // If the sender's domain is not handled in your configuration at this stage,
+        // you can use the main script to apply rule.
+        rule "check for untrusted email" || {
+            if mail_from() == net::untrusted_email {
+                deny(code_greylist)
+            } else {
+                next()
+            }
+        }
+    ]
+}

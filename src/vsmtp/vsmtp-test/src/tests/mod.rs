@@ -28,6 +28,7 @@ mod rset;
 mod rule_engine {
     mod actions;
     mod getters;
+    mod rule_triage;
 }
 mod rules {
     mod codes;
