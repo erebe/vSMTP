@@ -31,7 +31,7 @@ strum = { version = "0.24.1", default-features = false, features = [
     "std",
     "derive",
 ] }
-regex = { version = "1.6.0", default-features = false, features = [
+regex = { version = "1.7.0", default-features = false, features = [
     "std",
     "perf",
     "unicode",
