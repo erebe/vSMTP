@@ -48,3 +48,6 @@ export const code556_1_10 = code(556, "5.1.10", "Recipient address has null MX")
 
 // Greylisting code (https://www.rfc-editor.org/rfc/rfc6647.html#section-2.1)
 export const code_greylist = code(451, "4.7.1", "Sender is not authorized. Please try again.");
+
+export const code_multi_destination = code(451, "4.3.0", "Multiple destination domains per transaction is unsupported. Please try again.");
+export const code_unknown_account = code(550, "5.1.1", "The email account that you tried to reach does not exist. Please try again.");

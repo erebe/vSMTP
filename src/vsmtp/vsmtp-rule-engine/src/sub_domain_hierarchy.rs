@@ -21,7 +21,12 @@ use vsmtp_plugins::rhai;
 use crate::{dsl::directives::Directives, RuleEngine};
 
 /// Rules that automatically deny the transaction once run.
-const DEFAULT_RULES: &str = include_str!("../api/default_rules.rhai");
+const DEFAULT_MAIN_RULES: &str = include_str!("../api/default_main_rules.rhai");
+const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default_fallback_rules.rhai");
+
+const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default_incoming_rules.rhai");
+const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default_outgoing_rules.rhai");
+const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default_internal_rules.rhai");
 
 /// Encapsulate all ASTs of rules split by domain and transaction type.
 #[derive(Debug)]
@@ -81,26 +86,6 @@ impl SubDomainHierarchy {
             }
 
             let domain_dir = entry.path();
-
-            // NOTE: non readable file are ignored
-            let files = std::fs::read_dir(&domain_dir)
-                .with_context(|| format!("Cannot read rule for domain '{}'", domain_dir.display()))?
-                .filter_map(|i| i.map_or(None, |e| Some(e.path())))
-                .collect::<Vec<_>>();
-
-            for required in ["incoming.vsl", "outgoing.vsl", "internal.vsl"] {
-                if !files
-                    .iter()
-                    .any(|f| f.file_name().map_or(false, |f| f == required))
-                {
-                    anyhow::bail!(
-                        "Missing rule '{}' for domain '{}'",
-                        required,
-                        domain_dir.display()
-                    );
-                }
-            }
-
             let domain = domain_dir
                 .file_name()
                 .and_then(std::ffi::OsStr::to_str)
@@ -109,28 +94,53 @@ impl SubDomainHierarchy {
             hierarchy.insert(
                 domain.to_owned(),
                 DomainDirectives {
-                    incoming: Self::rules_from_path(
+                    incoming: Self::rules_from_path_or_default(
                         engine,
                         &domain_dir.join("incoming.vsl"),
-                    ).with_context(|| format!("failed to compile the 'incoming.vsl' script for the '{domain}' domain"))?,
-                    outgoing: Self::rules_from_path(
+                        DEFAULT_INCOMING_RULES,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "failed to compile the 'incoming.vsl' script for the '{domain}' domain"
+                        )
+                    })?,
+                    outgoing: Self::rules_from_path_or_default(
                         engine,
                         &domain_dir.join("outgoing.vsl"),
-                    ).with_context(|| format!("failed to compile the 'outgoing.vsl' script for the '{domain}' domain"))?,
-                    internal: Self::rules_from_path(
+                        DEFAULT_OUTGOING_RULES,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "failed to compile the 'outgoing.vsl' script for the '{domain}' domain"
+                        )
+                    })?,
+                    internal: Self::rules_from_path_or_default(
                         engine,
                         &domain_dir.join("internal.vsl"),
-                    ).with_context(|| format!("failed to compile the 'internal.vsl' script for the '{domain}' domain"))?,
+                        DEFAULT_INTERNAL_RULES,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "failed to compile the 'internal.vsl' script for the '{domain}' domain"
+                        )
+                    })?,
                 },
             );
         }
 
         Ok(Self {
-            // TODO: if main / fallback not found, use defaults and log.
-            main: Self::rules_from_path(engine, &path.join("main.vsl"))
-                .context("failed to load your rule entrypoint file (main.vsl)")?,
-            fallback: Self::rules_from_path(engine, &path.join("fallback.vsl"))
-                .context("failed to load your rule fallback file (fallback.vsl)")?,
+            main: Self::rules_from_path_or_default(
+                engine,
+                &path.join("main.vsl"),
+                DEFAULT_MAIN_RULES,
+            )
+            .context("failed to load your rule entrypoint file (main.vsl)")?,
+            fallback: Self::rules_from_path_or_default(
+                engine,
+                &path.join("fallback.vsl"),
+                DEFAULT_FALLBACK_RULES,
+            )
+            .context("failed to load your rule fallback file (fallback.vsl)")?,
             domains: hierarchy,
         })
     }
@@ -141,27 +151,32 @@ impl SubDomainHierarchy {
     /// * Fail to compile default scripts.
     pub fn new_empty(engine: &rhai::Engine) -> anyhow::Result<Self> {
         Ok(Self {
-            main: Self::default_rules(engine)?,
-            fallback: Self::default_rules(engine)?,
+            main: Self::rules_from_script(engine, DEFAULT_MAIN_RULES)?,
+            fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)?,
             domains: std::collections::BTreeMap::new(),
         })
     }
 
-    /// Create rules from a path.
-    fn rules_from_path(engine: &rhai::Engine, path: &std::path::Path) -> anyhow::Result<Script> {
-        Self::compile_and_extract_directives(engine, &std::fs::read_to_string(path)?)
-    }
-
-    /// Build default rules in case a script is missing.
-    fn default_rules(engine: &rhai::Engine) -> anyhow::Result<Script> {
-        Self::compile_and_extract_directives(engine, DEFAULT_RULES)
-    }
-
-    /// Compile the given script and return it's AST and extracted directives.
-    fn compile_and_extract_directives(
+    /// Create rules from a path, use a default script if the default path could not be loaded
+    fn rules_from_path_or_default(
         engine: &rhai::Engine,
-        script: &str,
+        path: &std::path::Path,
+        default: &str,
     ) -> anyhow::Result<Script> {
+        std::fs::read_to_string(path).map_or_else(
+            |error| {
+                tracing::warn!(
+                    %error, "script at {path:?} could not be loaded, using default rules instead"
+                );
+
+                Self::rules_from_script(engine, default)
+            },
+            |script| Self::rules_from_script(engine, &script),
+        )
+    }
+
+    /// Create rules by compiling the given script and return it's AST and extracted directives.
+    fn rules_from_script(engine: &rhai::Engine, script: &str) -> anyhow::Result<Script> {
         let ast = engine
             .compile_into_self_contained(&rhai::Scope::new(), script)
             .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;
@@ -198,7 +213,7 @@ impl<'a> Builder<'a> {
     /// # Errors
     /// * Failed to compile the script.
     pub fn add_main_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.main = SubDomainHierarchy::compile_and_extract_directives(self.engine, script)?;
+        self.inner.main = SubDomainHierarchy::rules_from_script(self.engine, script)?;
         Ok(self)
     }
 
@@ -208,8 +223,7 @@ impl<'a> Builder<'a> {
     /// * Failed to compile the script.
 
     pub fn add_fallback_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.fallback =
-            SubDomainHierarchy::compile_and_extract_directives(self.engine, script)?;
+        self.inner.fallback = SubDomainHierarchy::rules_from_script(self.engine, script)?;
         Ok(self)
     }
 
@@ -259,10 +273,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsIncoming> {
     ) -> anyhow::Result<DomainDirectivesBuilder<'a, WantsOutgoing>> {
         Ok(DomainDirectivesBuilder::<'a, WantsOutgoing> {
             state: WantsOutgoing {
-                incoming: SubDomainHierarchy::compile_and_extract_directives(
-                    self.inner.engine,
-                    incoming,
-                )?,
+                incoming: SubDomainHierarchy::rules_from_script(self.inner.engine, incoming)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -274,7 +285,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsIncoming> {
     /// # Errors
     /// * Failed to compile the script.
     pub fn with_default(self) -> anyhow::Result<DomainDirectivesBuilder<'a, WantsOutgoing>> {
-        self.with_incoming(DEFAULT_RULES)
+        self.with_incoming(DEFAULT_INCOMING_RULES)
     }
 }
 
@@ -297,10 +308,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsOutgoing> {
         Ok(DomainDirectivesBuilder::<'a, WantsInternal> {
             state: WantsInternal {
                 parent: self.state,
-                outgoing: SubDomainHierarchy::compile_and_extract_directives(
-                    self.inner.engine,
-                    outgoing,
-                )?,
+                outgoing: SubDomainHierarchy::rules_from_script(self.inner.engine, outgoing)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -312,7 +320,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsOutgoing> {
     /// # Errors
     /// * Failed to compile the script.
     pub fn with_default(self) -> anyhow::Result<DomainDirectivesBuilder<'a, WantsInternal>> {
-        self.with_outgoing(DEFAULT_RULES)
+        self.with_outgoing(DEFAULT_OUTGOING_RULES)
     }
 }
 
@@ -335,10 +343,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsInternal> {
         Ok(DomainDirectivesBuilder::<'a, WantsBuild> {
             state: WantsBuild {
                 parent: self.state,
-                internal: SubDomainHierarchy::compile_and_extract_directives(
-                    self.inner.engine,
-                    internal,
-                )?,
+                internal: SubDomainHierarchy::rules_from_script(self.inner.engine, internal)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -350,7 +355,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsInternal> {
     /// # Errors
     /// * Failed to compile the script.
     pub fn with_default(self) -> anyhow::Result<DomainDirectivesBuilder<'a, WantsBuild>> {
-        self.with_internal(DEFAULT_RULES)
+        self.with_internal(DEFAULT_INTERNAL_RULES)
     }
 }
 

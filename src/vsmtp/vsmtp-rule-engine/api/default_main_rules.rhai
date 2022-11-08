@@ -14,28 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod auth;
-mod clair;
-mod examples {
-    mod aliases;
-    mod anti_relaying;
-    mod dnsbl;
-    mod family;
-    mod message;
+
+//! ### Default Main Rules
+//!
+//! Rules loaded by default if no configuration as been found for the main script.
+
+#{
+    connect: [
+        rule "reject by default" || deny(),
+    ]
 }
-mod message_max_size;
-mod rset;
-mod rule_engine {
-    mod actions;
-    mod getters;
-    mod rule_default;
-    mod rule_triage;
-}
-mod rules {
-    mod codes;
-    mod quarantine;
-}
-mod tls;
-mod utf8;
-mod vqueue;
-mod vrfy;

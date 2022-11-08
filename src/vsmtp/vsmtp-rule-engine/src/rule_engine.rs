@@ -114,7 +114,7 @@ impl RuleEngine {
 
         let mut engine = Self::new_rhai_engine();
 
-        tracing::info!("Loading plugins ...");
+        tracing::debug!("Loading plugins ...");
 
         let vsl_service_plugin_manager = Self::load_plugins(&config, &mut engine)?;
 
@@ -449,7 +449,7 @@ impl RuleEngine {
                             tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
 
                             Ok(&self.rules.fallback)
-                            }, |rules| Ok(&rules.outgoing)),
+                        }, |rules| Ok(&rules.outgoing)),
                     // incoming, execute main "mail from" rules by default.
                     _ => Ok(&self.rules.main)
                 }
@@ -863,8 +863,10 @@ impl RuleEngine {
         Ok(rhai::Shared::new(vsl_plugin_manager))
     }
 
-    /// Does the rule engine have configuration available for the domain of the given address.
-    /// Check the parents of the given domain, return true if any parent matches the configuration.
+    /// Check if the rule engine have configuration available for the domain of the given address.
+    ///
+    /// NOTE: Check recursivly all parents of the given domain,
+    /// return true if any parent domain is handled by the configuration.
     #[must_use]
     pub fn handle_domain(&self, address: &vsmtp_common::Address) -> bool {
         let domain = address.domain();

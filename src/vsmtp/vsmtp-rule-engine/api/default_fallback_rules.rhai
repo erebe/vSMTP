@@ -15,12 +15,19 @@
  *
 */
 
-//! ### Default Rules
+//! ### Default Fallback Rules
 //!
-//! This is the rule that is loaded by default if no configuration as been found.
+//! Rules loaded by default if no configuration as been found for the fallback script.
 
 #{
-    connect: [
-        rule "reject by default" || deny(),
-    ]
+    rcpt: [
+        rule "discard recipient by default" || {
+            remove_rcpt_envelop(rcpt());
+            info(code_unknown_account)
+        }
+    ],
+
+    preq:       [ action "preq deny by default" || deny() ],
+    postq:      [ action "postq deny by default" || deny() ],
+    delivery:   [ action "delivery deny by default" || deny() ],
 }
