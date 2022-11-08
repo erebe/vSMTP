@@ -19,7 +19,7 @@ keywords = ["vsmtp"]
 categories = ["plugin", "plugins"]
 
 [dependencies]
-libloading = "0.7.3"
+libloading = "0.7.4"
 tracing = { version = "0.1.37", default-features = false, features = [
     "std",
     "release_max_level_info",
