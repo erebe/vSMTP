@@ -44,7 +44,7 @@ strum = { version = "0.24.1", default-features = false, features = [
     "std",
     "derive",
 ] }
-time = { version = "0.3.15", default-features = false, features = [
+time = { version = "0.3.17", default-features = false, features = [
     "std",
     "formatting",
     "macros",

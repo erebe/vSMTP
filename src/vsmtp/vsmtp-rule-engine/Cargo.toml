@@ -82,7 +82,7 @@ wait-timeout = { version = "0.2.0", default-features = false }
 users = { version = "0.11.0", default-features = false }
 
 hostname = { version = "0.3.1", default-features = false }
-time = { version = "0.3.16", default-features = false, features = [
+time = { version = "0.3.17", default-features = false, features = [
   "std",
   "formatting",
   "macros",
