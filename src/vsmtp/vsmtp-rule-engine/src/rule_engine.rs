@@ -877,4 +877,41 @@ impl RuleEngine {
             Domain::iter(domain).any(|parent| self.rules.domains.contains_key(parent))
         }
     }
+
+    /// Find the delegate directive that matches the given socket.
+    #[cfg(feature = "delegation")]
+    #[must_use]
+    pub fn get_delegation_directive<'a>(
+        &'a self,
+        socket: &'a std::net::SocketAddr,
+    ) -> Option<&'a Directive> {
+        fn get_matching_delegation_inner<'a>(
+            directives: &'a Directives,
+            socket: &'a std::net::SocketAddr,
+        ) -> Option<&'a Directive> {
+            directives.iter().flat_map(|(_, d)| d).find(|d| match d {
+                Directive::Delegation { service, .. } => service.receiver == *socket,
+                _ => false,
+            })
+        }
+
+        // Search for a matching delegation rule with the same socket from main -> fallback -> domains.
+        get_matching_delegation_inner(&self.rules.main.directives, socket).or_else(|| {
+            get_matching_delegation_inner(&self.rules.fallback.directives, socket).or_else(|| {
+                self.rules.domains.iter().find_map(|(_, directives)| {
+                    get_matching_delegation_inner(&directives.incoming.directives, socket).or_else(
+                        || {
+                            get_matching_delegation_inner(&directives.outgoing.directives, socket)
+                                .or_else(|| {
+                                    get_matching_delegation_inner(
+                                        &directives.internal.directives,
+                                        socket,
+                                    )
+                                })
+                        },
+                    )
+                })
+            })
+        })
+    }
 }

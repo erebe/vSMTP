@@ -41,23 +41,17 @@ impl RuleState {
     /// create a new rule state with connection data.
     #[must_use]
     pub fn with_connection(rule_engine: &RuleEngine, conn: Connect) -> Self {
-        let state = rule_engine.spawn();
+        let mut state = rule_engine.spawn();
 
-        // TODO: update skip state for delegation.
-        // // all rule are skipped until the designated rule
-        // // in case of a delegation result.
-        // #[cfg(feature = "delegation")]
-        // if rule_engine
-        //     .rules
-        //     .iter()
-        //     .flat_map(|(_, d)| d)
-        //     .any(|d| match d {
-        //         Directive::Delegation { service, .. } => service.receiver == conn.server_addr,
-        //         _ => false,
-        //     })
-        // {
-        //     state.skip = Some(Status::DelegationResult);
-        // }
+        // all rule are skipped until the designated rule
+        // in case of a delegation result.
+        #[cfg(feature = "delegation")]
+        if rule_engine
+            .get_delegation_directive(&conn.server_addr)
+            .is_some()
+        {
+            state.skip = Some(Status::DelegationResult);
+        }
 
         state
             .mail_context
