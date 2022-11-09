@@ -54,11 +54,7 @@ run_test! {
         "0 We accept everybody, even 'any.com'\r\n",
         // NOTE: should the deny return a specific code when the fallback is missing for the rcpt stage ?
         //       i.e. ""
-        "550-5.1.1 The email account that you tried to reach does not exist. Please try\r\n",
-        "550 5.1.1  again.\r\n",
-        "550-5.1.1 The email account that you tried to reach does not exist. Please try\r\n",
-        "550 5.1.1  again.\r\n",
-        "221 Service closing transmission channel\r\n",
+        "554 permanent problems with the remote server\r\n"
     ].concat(),
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
@@ -72,32 +68,11 @@ run_test! {
         "HELO foo\r\n",
         // Default outgoing.
         "mail from: <any@example.com>\r\n",
-        "rcpt to: <john.doe@example.com>\r\n",
-        "rcpt to: <john.doe@other.com>\r\n",
-        "RSET\r\n",
-        // Default incoming.
-        "mail from: <any@other.com>\r\n",
-        "rcpt to: <any@example.com>\r\n",
-        "rcpt to: <any@other.com>\r\n",
-
-        "QUIT\r\n",
     ].concat(),
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
-        // Should have auth here by default.
-        "250 Ok\r\n",
-        "250 Ok\r\n",
-        "250 Ok\r\n",
-        // Rset.
-        "250 Ok\r\n",
-        // Main "mail" stage is run here.
-        "0 We accept everybody, even 'other.com'\r\n",
-        // handled recipient in incoming are discarded by default.
-        "550-5.1.1 The email account that you tried to reach does not exist. Please try\r\n",
-        "550 5.1.1  again.\r\n",
-        // Fallback called.
-        "550 unhandled domain. sender='other.com', rcpt='other.com'\r\n",
+        "554 permanent problems with the remote server\r\n",
     ].concat(),
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),

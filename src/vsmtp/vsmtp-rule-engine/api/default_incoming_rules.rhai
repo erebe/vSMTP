@@ -20,10 +20,5 @@
 //! Rules loaded by default if no configuration as been found for a domain's incoming script.
 
 #{
-    rcpt: [
-        rule "discard recipient by default" || {
-            remove_rcpt_envelop(rcpt());
-            info(code_unknown_account)
-        }
-    ],
+    rcpt: [ rule "deny by default" || deny() ]
 }

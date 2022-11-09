@@ -20,14 +20,8 @@
 //! Rules loaded by default if no configuration as been found for the fallback script.
 
 #{
-    rcpt: [
-        rule "discard recipient by default" || {
-            remove_rcpt_envelop(rcpt());
-            info(code_unknown_account)
-        }
-    ],
-
-    preq:       [ action "preq deny by default" || deny() ],
-    postq:      [ action "postq deny by default" || deny() ],
-    delivery:   [ action "delivery deny by default" || deny() ],
+    rcpt:       [ rule "rcpt deny by default" || deny() ],
+    preq:       [ rule "preq deny by default" || deny() ],
+    postq:      [ rule "postq deny by default" || deny() ],
+    delivery:   [ rule "delivery deny by default" || deny() ],
 }

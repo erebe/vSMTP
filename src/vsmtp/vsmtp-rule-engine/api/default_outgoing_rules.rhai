@@ -20,8 +20,5 @@
 //! Rules loaded by default if no configuration as been found for a domain's outgoing script.
 
 #{
-    mail: [
-        // TODO: should have auth.
-        // rule "authenticate" || authenticate(),
-    ],
+    mail: [ rule "deny by default" || deny() ],
 }
