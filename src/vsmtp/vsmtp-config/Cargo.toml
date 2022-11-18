@@ -80,7 +80,7 @@ semver = { version = "1.0.14", default-features = false, features = [
   "std",
   "serde",
 ] }
-serde_with = { version = "2.0.1", default-features = false, features = [
+serde_with = { version = "2.1.0", default-features = false, features = [
   "std",
   "macros",
 ] }
