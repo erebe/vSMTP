@@ -20,43 +20,44 @@ use vqueue::FilesystemQueueManagerExt;
 
 run_test! {
     fn test_logs,
-    input = concat!(
+    input = [
         "NOOP\r\n",
         "QUIT\r\n"
-    ),
-    expected = concat!(
+    ],
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
-    ),
-    ,,,
+    ],
     hierarchy_builder = |builder| {
-        Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"#{
-                    connect: [
-                      rule "test_connect" || {
-                        log("trace", `${client_ip()}`);
-                        if client_ip() is "127.0.0.1" { next() } else { deny() }
-                      }
-                    ],
-                  }
-                  "#,)?.build())
+        Ok(builder.add_main_rules("#{}")?.add_fallback_rules(
+        r#"#{
+          connect: [
+            rule "test_connect" || {
+              log("trace", `${client_ip()}`);
+              if client_ip() is "127.0.0.1" { next() } else { deny() }
+            }
+          ],
+        }
+        "#)?.build())
     },
 }
 
 const CTX_TEMPLATE: &str = concat!(
     "{\n",
     "  \"Finished\": {\n",
-    "    \"client_addr\": \"127.0.0.1:53844\",\n",
-    "    \"server_addr\": \"127.0.0.1:53845\",\n",
+    // "    \"client_addr\": \"{client_addr}\",\n",
+    // "    \"server_addr\": \"{server_addr}\",\n",
     "    \"server_name\": \"testserver.com\",\n",
     "    \"skipped\": null,\n",
     "    \"tls\": null,\n",
     "    \"auth\": null,\n",
     "    \"client_name\": \"foo\",\n",
+    "    \"using_deprecated\": false,\n",
     "    \"reverse_path\": \"john@doe.com\",\n",
     "    \"message_id\": \"{message_id}\",\n",
     "    \"outgoing\": false,\n",
-    "    \"forward_path\": [\n",
+    "    \"forward_paths\": [\n",
     "      {\n",
     "        \"address\": \"green@foo.net\",\n",
     "        \"transfer_method\": \"deliver\",\n",
@@ -75,10 +76,10 @@ const CTX_TEMPLATE: &str = concat!(
     "}"
 );
 
-const VSL_WRITE_DUMP_MAIL_FROM: &str = r#"
+const RULE: &str = r#"
 #{
-  mail: [
-    rule "partial write to disk, body not received" || {
+  {stage}: [
+    action "write to disk preq" || {
       prepend_header("X-VSMTP-INIT", "done.");
       {action}("tests/generated/{action}");
       accept()
@@ -86,37 +87,30 @@ const VSL_WRITE_DUMP_MAIL_FROM: &str = r#"
   ],
 }"#;
 
-const VSL_WRITE_DUMP: &str = r#"
-#{
-  preq: [
-    action "write to disk preq" || {
-      const path = "tests/generated";
-
-      {action}("tests/generated/{action}");
-      {action}(path);
-      accept()
-    },
-  ],
-}"#;
-
+#[ignore = "this just be implemented in a better way"]
 #[rstest::rstest]
 #[tokio::test]
-async fn context_write(#[values("write", "dump")] action: &'static str) {
+async fn context_write(
+    #[values("write", "dump")] action: &'static str,
+    #[values("mail", "preq")] stage: &'static str,
+) {
     let q = run_test! {
-        input = concat!(
+        input = [
             "EHLO foo\r\n",
             "MAIL FROM:<john@doe.com>\r\n",
             "RCPT TO:<green@foo.net>\r\n",
             "DATA\r\n",
-            "From: john doe <john@doe.com>\r\n",
-            "To: green@foo.net\r\n",
-            "Subject: test email\r\n",
-            "\r\n",
-            "This is a raw email.\r\n",
-            ".\r\n",
+            concat!(
+                "From: john doe <john@doe.com>\r\n",
+                "To: green@foo.net\r\n",
+                "Subject: test email\r\n",
+                "\r\n",
+                "This is a raw email.\r\n",
+                ".\r\n",
+            ),
             "QUIT\r\n",
-        ),
-        expected = concat!(
+        ],
+        expected = [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
             "250-STARTTLS\r\n",
@@ -127,12 +121,15 @@ async fn context_write(#[values("write", "dump")] action: &'static str) {
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
-        ),,,,
+        ],
         hierarchy_builder = |builder| {
-            Ok(builder.add_main_rules(&VSL_WRITE_DUMP_MAIL_FROM.replace("{action}", action))?.add_fallback_rules(&VSL_WRITE_DUMP.replace("{action}", action))?.build())
+            Ok(builder.add_main_rules(&RULE
+                .replace("{action}", action)
+                .replace("{stage}", stage))?
+                .add_fallback_rules("#{}")?
+                .build())
         },
-    }
-    .unwrap();
+    };
 
     let dirpath = q
         .get_config()
@@ -144,33 +141,32 @@ async fn context_write(#[values("write", "dump")] action: &'static str) {
         let path = i.unwrap().path();
         let msg = std::fs::read_to_string(&path).unwrap();
         match action {
-            "write" => {
-                pretty_assertions::assert_eq!(
-                    msg,
-                    [
-                        "X-VSMTP-INIT: done.\r\n",
-                        "From: john doe <john@doe.com>\r\n",
-                        "To: green@foo.net\r\n",
-                        "Subject: test email\r\n",
-                        "\r\n",
-                        "This is a raw email.\r\n"
+            "write" => pretty_assertions::assert_eq!(
+                msg,
+                concat![
+                    "X-VSMTP-INIT: done.\r\n",
+                    "From: john doe <john@doe.com>\r\n",
+                    "To: green@foo.net\r\n",
+                    "Subject: test email\r\n",
+                    "\r\n",
+                    "This is a raw email.\r\n"
+                ]
+            ),
+            "dump" => pretty_assertions::assert_eq!(
+                msg.lines()
+                    .filter(|i| ![
+                        "mail_timestamp",
+                        "connect_timestamp",
+                        "timestamp",
+                        "client_addr",
+                        "server_addr"
                     ]
-                    .concat()
-                );
-            }
-            "dump" => {
-                pretty_assertions::assert_eq!(
-                    msg.lines()
-                        // ignoring the timestamps
-                        .filter(|i| !["mail_timestamp", "connect_timestamp", "timestamp"]
-                            .into_iter()
-                            .any(|p| i.contains(p)))
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                    CTX_TEMPLATE
-                        .replace("{message_id}", path.file_stem().unwrap().to_str().unwrap())
-                );
-            }
+                    .into_iter()
+                    .any(|p| i.contains(p)))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                CTX_TEMPLATE.replace("{message_id}", path.file_stem().unwrap().to_str().unwrap())
+            ),
             _ => unreachable!(),
         }
     }

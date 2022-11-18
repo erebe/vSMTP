@@ -15,18 +15,16 @@
  *
 */
 
+use crate::{dsl::directives::Directives, RuleEngine};
 use anyhow::Context;
 use vsmtp_plugins::rhai;
 
-use crate::{dsl::directives::Directives, RuleEngine};
+const DEFAULT_MAIN_RULES: &str = include_str!("../api/default/main_rules.rhai");
+const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default/fallback_rules.rhai");
 
-/// Rules that automatically deny the transaction once run.
-const DEFAULT_MAIN_RULES: &str = include_str!("../api/default_main_rules.rhai");
-const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default_fallback_rules.rhai");
-
-const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default_incoming_rules.rhai");
-const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default_outgoing_rules.rhai");
-const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default_internal_rules.rhai");
+const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default/incoming_rules.rhai");
+const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default/outgoing_rules.rhai");
+const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules.rhai");
 
 /// Encapsulate all ASTs of rules split by domain and transaction type.
 #[derive(Debug)]
@@ -158,25 +156,24 @@ impl SubDomainHierarchy {
     }
 
     /// Create rules from a path, use a default script if the default path could not be loaded
+    #[tracing::instrument(skip(engine, default), err)]
     fn rules_from_path_or_default(
         engine: &rhai::Engine,
         path: &std::path::Path,
         default: &str,
     ) -> anyhow::Result<Script> {
-        std::fs::read_to_string(path).map_or_else(
-            |error| {
-                tracing::warn!(
-                    %error, "script at {path:?} could not be loaded, using default rules instead"
-                );
-
-                Self::rules_from_script(engine, default)
-            },
-            |script| Self::rules_from_script(engine, &script),
-        )
+        let source = std::fs::read_to_string(path).unwrap_or_else(|error| {
+            tracing::warn!(
+                %error, "script at {path:?} could not be loaded, using default rules instead"
+            );
+            default.to_string()
+        });
+        Self::rules_from_script(engine, &source)
     }
 
     /// Create rules by compiling the given script and return it's AST and extracted directives.
     fn rules_from_script(engine: &rhai::Engine, script: &str) -> anyhow::Result<Script> {
+        tracing::debug!("Compiling {script:?}...");
         let ast = engine
             .compile_into_self_contained(&rhai::Scope::new(), script)
             .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;

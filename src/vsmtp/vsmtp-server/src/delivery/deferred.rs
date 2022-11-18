@@ -115,8 +115,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
-        ctx.forward_paths_mut().push(Rcpt::new(
+        ctx.mail_from.message_id = function_name!().to_string();
+        ctx.rcpt_to.forward_paths.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
         ));
 
@@ -165,7 +165,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())

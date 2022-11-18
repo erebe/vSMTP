@@ -16,10 +16,9 @@
  */
 use crate::{api::DetailedMailContext, GenericQueueManager, QueueID};
 use anyhow::Context;
-use vsmtp_common::mail_context::{Finished, MailContext};
+use vsmtp_common::ContextFinished;
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
-
 extern crate alloc;
 
 /// Extension to the [`GenericQueueManager`] to simplify filesystem implementation.
@@ -70,8 +69,8 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext<Finished>) -> anyhow::Result<()> {
-        let message_id = ctx.message_id();
+    async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()> {
+        let message_id = &ctx.mail_from.message_id;
         let queue_path = self.get_queue_path(queue);
 
         if !queue_path.exists() {
@@ -181,11 +180,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn get_ctx(
-        &self,
-        queue: &QueueID,
-        msg_id: &str,
-    ) -> anyhow::Result<MailContext<Finished>> {
+    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<ContextFinished> {
         let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
 
         ctx_filepath.set_extension("json");
@@ -193,7 +188,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
         let content = std::fs::read_to_string(&ctx_filepath)
             .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
 
-        serde_json::from_str::<MailContext<Finished>>(&content)
+        serde_json::from_str::<ContextFinished>(&content)
             .with_context(|| format!("Cannot deserialize: '{content:?}'"))
     }
 
@@ -214,7 +209,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
             .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
 
         Ok(DetailedMailContext {
-            ctx: serde_json::from_str::<MailContext<Finished>>(&content)
+            ctx: serde_json::from_str::<ContextFinished>(&content)
                 .with_context(|| format!("Cannot deserialize: '{content:?}'"))?,
             modified_at,
         })

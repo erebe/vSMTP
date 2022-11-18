@@ -15,31 +15,31 @@
  *
 */
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::{addr, mail_context::MailContext, CodeID};
+use vsmtp_common::ContextFinished;
+use vsmtp_common::{addr, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
 use vsmtp_mail_parser::MailHeaders;
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::{Connection, OnMail};
+use vsmtp_server::OnMail;
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
+
         struct T;
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug>(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                mail: Box<MailContext<Finished>>,
+                mail: Box<ContextFinished>,
                 mut message: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
 
-                assert_eq!(mail.client_name(), "foobar");
-                assert_eq!(mail.reverse_path().full(), "john@doe");
-                assert_eq!(*mail.forward_paths(), vec![addr!("aa@bb").into()]);
+                assert_eq!(mail.helo.client_name.to_string(), "foobar");
+                assert_eq!(mail.mail_from.reverse_path.full(), "john@doe");
+                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("aa@bb").into()]);
 
                 pretty_assertions::assert_eq!(
                     *message
@@ -79,19 +79,20 @@ macro_rules! test_lang {
                 "MAIL FROM:<john@doe>\r\n",
                 "RCPT TO:<aa@bb>\r\n",
                 "DATA\r\n",
-                "from: john doe <john@doe>\r\n",
-                "subject: ar\r\n",
-                "to: aa@bb\r\n",
-                "message-id: <xxx@localhost.com>\r\n",
-                "date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
-                "\r\n",
-                &include_str!($lang_code).lines().map(str::to_string).collect::<Vec<_>>().join("\r\n"),
-                // adding a "\r\n" after the mail because [`join`] don t add after the final element
-                "\r\n",
-                ".\r\n",
+                &[
+                    "from: john doe <john@doe>\r\n",
+                    "subject: ar\r\n",
+                    "to: aa@bb\r\n",
+                    "message-id: <xxx@localhost.com>\r\n",
+                    "date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                    "\r\n",
+                    &include_str!($lang_code).lines().map(str::to_string).collect::<Vec<_>>().join("\r\n"),
+                    // adding a "\r\n" after the mail because [`join`] don t add after the final element
+                    "\r\n",
+                    ".\r\n",
+                ].concat(),
                 "QUIT\r\n",
-            ]
-            .concat(),
+            ],
             expected = [
                 "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
@@ -100,29 +101,28 @@ macro_rules! test_lang {
                 "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
-            ]
-            .concat(),,,
-            mail_handler = T,,
+            ],
+            mail_handler = T,
         }
     }};
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_zh() {
-    assert!(test_lang!("../template/mail/zh.txt").is_ok());
+    test_lang!("../../template/mail/zh.txt");
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_el() {
-    assert!(test_lang!("../template/mail/el.txt").is_ok());
+    test_lang!("../../template/mail/el.txt");
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ar() {
-    assert!(test_lang!("../template/mail/ar.txt").is_ok());
+    test_lang!("../../template/mail/ar.txt");
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ko() {
-    assert!(test_lang!("../template/mail/ko.txt").is_ok());
+    test_lang!("../../template/mail/ko.txt");
 }

@@ -15,9 +15,9 @@
  *
 */
 use crate::{delegate, delivery::add_trace_information, ProcessMessage};
+use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    mail_context::{Finished, MailContext},
     state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
@@ -92,12 +92,15 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         .get_both(&queue, &process_message.message_id)
         .await?;
 
-    let (ctx, mut mail_message, result, skipped) =
-        rule_engine.just_run_when(State::Delivery, ctx, mail_message);
+    let mut skipped = ctx.connect.skipped.clone();
+    let (ctx, mut mail_message, result) = rule_engine.just_run_when(
+        &mut skipped,
+        State::Delivery,
+        vsmtp_common::Context::Finished(ctx),
+        mail_message,
+    );
 
-    let mut ctx: MailContext<Finished> = ctx
-        .try_into()
-        .expect("the inner state of mail_context must not change");
+    let mut ctx = ctx.unwrap_finished().context("context is not finished")?;
 
     match &skipped {
         Some(status @ Status::Quarantine(path)) => {
@@ -114,7 +117,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             return Ok(());
         }
         Some(status @ Status::Delegated(delegator)) => {
-            ctx.set_skipped(Some(Status::DelegationResult));
+            ctx.connect.skipped = Some(Status::DelegationResult);
 
             queue_manager
                 .move_to(&queue, &QueueID::Delegated, &ctx)
@@ -138,7 +141,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             )
         }
         Some(Status::Deny(code)) => {
-            for rcpt in ctx.forward_paths_mut() {
+            for rcpt in &mut ctx.rcpt_to.forward_paths {
                 rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
                     RuleEngineVariants::Denied(code.clone()),
                 ));
@@ -200,8 +203,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
-        ctx.forward_paths_mut().push(Rcpt::new(
+        ctx.mail_from.message_id = function_name!().to_string();
+        ctx.rcpt_to.forward_paths.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@foobar.com").unwrap(),
         ));
 
@@ -259,7 +262,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
 
         queue_manager
             .write_both(&QueueID::Deliver, &ctx, &local_msg())

@@ -81,7 +81,7 @@ mod mail_context_rhai {
     /// Get server name under which the client has been served.
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
     pub fn server_name(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).server_name().to_owned())
+        Ok(vsl_guard_ok!(context.read()).server_name().clone())
     }
 
     /// Is the connection under TLS?
@@ -100,11 +100,15 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(context: &mut Context) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).auth(),
-            "auth",
+            vsl_missing_ok!(
+                vsl_guard_ok!(context.read()).auth(),
+                "auth",
+                State::Authenticate
+            )
+            .credentials,
+            "credentials",
             State::Authenticate
         )
-        .credentials
         .clone())
     }
 
@@ -153,7 +157,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "helo", return_raw, pure)]
     pub fn helo(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            ref vsl_guard_ok!(context.read()).client_name(),
+            ref vsl_guard_ok!(context.read()).client_name().ok(),
             "helo",
             State::Helo
         )
@@ -165,7 +169,7 @@ mod mail_context_rhai {
     pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
         let reverse_path = vsl_guard_ok!(context.read()).reverse_path().cloned();
         Ok(std::sync::Arc::new(Object::Address(vsl_missing_ok!(
-            ref reverse_path,
+            ref reverse_path.ok(),
             "mail_from",
             State::MailFrom
         ))))
@@ -175,7 +179,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
     pub fn rcpt_list(context: &mut Context) -> EngineResult<rhai::Array> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).forward_paths(),
+            vsl_guard_ok!(context.read()).forward_paths().ok(),
             "rcpt_list",
             State::RcptTo
         )
@@ -193,7 +197,7 @@ mod mail_context_rhai {
         Ok(std::sync::Arc::new(Object::Address(
             vsl_missing_ok!(
                 vsl_missing_ok!(
-                    vsl_guard_ok!(context.read()).forward_paths(),
+                    vsl_guard_ok!(context.read()).forward_paths().ok(),
                     "rcpt",
                     State::RcptTo
                 )
@@ -210,7 +214,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
         Ok(**vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).mail_timestamp(),
+            vsl_guard_ok!(context.read()).mail_timestamp().ok(),
             "mail_timestamp",
             State::MailFrom
         ))
@@ -220,7 +224,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            ref vsl_guard_ok!(context.read()).message_id(),
+            ref vsl_guard_ok!(context.read()).message_id().ok(),
             "message_id",
             State::MailFrom
         )

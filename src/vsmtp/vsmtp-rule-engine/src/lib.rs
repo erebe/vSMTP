@@ -62,13 +62,12 @@ mod tests;
 /// Module containing the backend for the vsl's Rust API.
 pub mod api {
     use crate::server_api::ServerAPI;
-    use vsmtp_common::mail_context::MailContextAPI;
     use vsmtp_mail_parser::MessageBody;
 
     /// Error produced by the vsl's Rust API function calls.
     pub type EngineResult<T> = Result<T, Box<vsmtp_plugins::rhai::EvalAltResult>>;
     /// Alias for `ctx()`
-    pub type Context = std::sync::Arc<std::sync::RwLock<MailContextAPI>>;
+    pub type Context = std::sync::Arc<std::sync::RwLock<vsmtp_common::Context>>;
     /// Alias for `msg()`
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     /// Alias for `srv()`
@@ -83,7 +82,7 @@ pub mod api {
     /// Log a message of `level` in the `app` target, which will be written to the
     /// the fie you specified in the field `app.logs.filepath` form the [`vsmtp_config::Config`].
     pub mod logging;
-    /// Extensions for the [`MailContext`](vsmtp_common::mail_context::MailContext) type.
+    /// Extensions for the [`MailContext`](vsmtp_common::Context) type.
     pub mod mail_context;
     /// Extensions for the [`MessageBody`](vsmtp_mail_parser::MessageBody) type.
     pub mod message;

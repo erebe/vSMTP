@@ -17,7 +17,7 @@
 
 use crate::{
     message::{mail::Mail, raw_body::RawBody},
-    ParserResult,
+    ParserError, ParserResult,
 };
 
 /// An abstract mail parser
@@ -31,7 +31,7 @@ pub trait MailParser: Default {
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse_sync(&mut self, raw: Vec<String>) -> ParserResult<either::Either<RawBody, Mail>>;
+    fn parse_sync(&mut self, raw: Vec<Vec<u8>>) -> ParserResult<either::Either<RawBody, Mail>>;
 
     ///
     /// # Errors
@@ -39,11 +39,14 @@ pub trait MailParser: Default {
     /// * the input is not compliant
     async fn parse<'a>(
         &'a mut self,
-        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+        mut stream: impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + Unpin + Send + 'a,
     ) -> ParserResult<either::Either<RawBody, Mail>> {
         let mut buffer = vec![];
 
-        while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
+        while let Some(i) = tokio_stream::StreamExt::try_next(&mut stream)
+            .await
+            .map_err(|e| ParserError::IoError(e.to_string()))?
+        {
             buffer.push(i);
         }
 
@@ -55,7 +58,7 @@ pub trait MailParser: Default {
         // TODO(perf):
         let raw = input.to_string();
 
-        self.parse_sync(raw.lines().map(String::from).collect())
+        self.parse_sync(raw.lines().map(|l| l.as_bytes().to_vec()).collect())
             .map(|either| match either {
                 either::Left(_) => None,
                 either::Right(mail) => Some(mail),

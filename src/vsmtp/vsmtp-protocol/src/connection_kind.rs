@@ -14,4 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-#{}
+
+/// Type of SMTP connection.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, strum::Display)]
+pub enum ConnectionKind {
+    /// Connection coming for relay (MTA on port 25)
+    /// see <https://datatracker.ietf.org/doc/html/rfc5321>
+    Relay,
+    /// Connection coming for submission (MSA on port 587)
+    /// see <https://datatracker.ietf.org/doc/html/rfc6409>
+    Submission,
+    /// Connection coming for submissionS (MSA on port 465)
+    /// see <https://datatracker.ietf.org/doc/html/rfc8314>
+    Tunneled,
+}

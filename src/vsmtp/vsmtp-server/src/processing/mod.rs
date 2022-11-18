@@ -15,9 +15,9 @@
  *
 */
 use crate::{delegate, ProcessMessage};
+use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    mail_context::{Finished, MailContext},
     state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
@@ -63,12 +63,15 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
         .get_both(&queue, &process_message.message_id)
         .await?;
 
-    let (ctx, mail_message, _, skipped) =
-        rule_engine.just_run_when(State::PostQ, ctx, mail_message);
+    let mut skipped = ctx.connect.skipped.clone();
+    let (ctx, mail_message, _) = rule_engine.just_run_when(
+        &mut skipped,
+        State::PostQ,
+        vsmtp_common::Context::Finished(ctx),
+        mail_message,
+    );
 
-    let mut ctx: MailContext<Finished> = ctx
-        .try_into()
-        .expect("the inner state of mail_context must not change");
+    let mut ctx = ctx.unwrap_finished().context("context is not finished")?;
 
     let mut move_to_queue = Option::<QueueID>::None;
     let mut send_to_delivery = false;
@@ -84,7 +87,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             tracing::warn!(stage = %State::PostQ, status = "quarantine", "Rules skipped.");
         }
         Some(status @ Status::Delegated(delegator)) => {
-            ctx.set_skipped(Some(Status::DelegationResult));
+            ctx.connect.skipped = Some(Status::DelegationResult);
 
             // NOTE:  moving here because the delegation process could try to
             //        pickup the email before it's written on disk.
@@ -111,7 +114,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             delegated = true;
         }
         Some(Status::Deny(code)) => {
-            for rcpt in ctx.forward_paths_mut() {
+            for rcpt in &mut ctx.rcpt_to.forward_paths {
                 rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
                     RuleEngineVariants::Denied(code.clone()),
                 ));
@@ -206,7 +209,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -264,7 +267,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -322,7 +325,7 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await

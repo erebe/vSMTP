@@ -29,26 +29,29 @@
 //
 #![allow(clippy::use_self)]
 
-#[cfg(test)]
-mod tests;
-
 mod channel_message;
 mod delivery;
+mod on_mail;
 mod processing;
-mod receiver;
 mod runtime;
 mod server;
 
+mod receiver {
+    pub mod handler;
+    mod post_transaction;
+    pub mod pre_transaction;
+}
+
 pub use channel_message::ProcessMessage;
-pub use receiver::{AbstractIO, Connection, MailHandler, OnMail};
+pub use on_mail::{MailHandler, OnMail};
+pub use receiver::handler::Handler;
+pub use receiver::pre_transaction::ValidationVSL;
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
 use anyhow::Context;
-use vsmtp_common::{
-    mail_context::{Finished, MailContext},
-    transfer::SmtpConnection,
-};
+use vsmtp_common::transfer::SmtpConnection;
+use vsmtp_common::ContextFinished;
 use vsmtp_mail_parser::MessageBody;
 
 /// tag for a specific email process.
@@ -65,15 +68,16 @@ pub enum Process {
 /// delegate a message to another service.
 pub(crate) fn delegate(
     delegator: &SmtpConnection,
-    context: &MailContext<Finished>,
+    context: &ContextFinished,
     message: &MessageBody,
 ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
     use lettre::Transport;
 
     let envelope = lettre::address::Envelope::new(
-        Some(context.reverse_path().full().parse()?),
+        Some(context.mail_from.reverse_path.full().parse()?),
         context
-            .forward_paths()
+            .rcpt_to
+            .forward_paths
             .iter()
             .map(|rcpt| {
                 rcpt.address

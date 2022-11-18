@@ -114,7 +114,7 @@ pub fn start_runtime(
         delivery::start(
             config.clone(),
             rule_engine.clone(),
-            resolvers.clone(),
+            resolvers,
             queue_manager.clone(),
             delivery_channel.1,
             sender,
@@ -143,7 +143,6 @@ pub fn start_runtime(
             let server = match Server::new(
                 config.clone(),
                 rule_engine.clone(),
-                resolvers.clone(),
                 queue_manager.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),

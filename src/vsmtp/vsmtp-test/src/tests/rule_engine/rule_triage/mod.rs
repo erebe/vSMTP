@@ -20,13 +20,9 @@
 
 use crate::run_test;
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::{
-    mail_context::{MailContext, TransactionType},
-    CodeID,
-};
+use vsmtp_common::CodeID;
+use vsmtp_common::{ContextFinished, TransactionType};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
 run_test! {
@@ -36,18 +32,18 @@ run_test! {
         "MAIL FROM: <john.doe@other.com>\r\n",
         "RCPT TO: <green@example.com>\r\n",
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "0 incoming main\r\n",
         "0 incoming example.com\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_triage/config/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }
 
 run_test! {
@@ -57,18 +53,18 @@ run_test! {
         "MAIL FROM: <john.doe@example.com>\r\n",
         "RCPT TO: <green@example.com>\r\n",
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "0 sender outgoing example.com\r\n",
         "0 internal example.com\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_triage/config/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap()
 }
 
 const INTERNAL_EMAIL: &str = r#"X-CUSTOM: An internal email
@@ -96,14 +92,16 @@ run_test! {
         "RCPT TO: <green@example.com>\r\n",
         "RCPT TO: <bar@other.com>\r\n",
         "DATA\r\n",
-        "From: john.doe@example.com\r\n",
-        "To: green@example.com, bar@other.com\r\n",
-        "Date: 0\r\n",
-        "\r\n",
-        "Hi !\r\n",
-        ".\r\n",
+        concat!(
+            "From: john.doe@example.com\r\n",
+            "To: green@example.com, bar@other.com\r\n",
+            "Date: 0\r\n",
+            "\r\n",
+            "Hi !\r\n",
+            ".\r\n",
+        ),
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
@@ -111,28 +109,26 @@ run_test! {
         "0 internal example.com\r\n",
         "0 rcpt outgoing example.com\r\n",
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250-Ok\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_triage/config/vsmtp.vsl"
-    ])).unwrap(),,
+    ])).unwrap(),
     mail_handler = {
         struct T;
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                context: Box<MailContext<Finished>>,
+                context: Box<ContextFinished>,
                 body: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                match context.transaction_type() {
+                match context.rcpt_to.transaction_type {
                     TransactionType::Internal => {
                         assert_eq!(body.get_header("X-OUTGOING"), None);
                         assert_eq!(body.get_header("X-INTERNAL"), Some("green@example.com".to_owned()));
@@ -140,7 +136,7 @@ run_test! {
 
                         assert_eq!(body.inner().to_string(), INTERNAL_EMAIL.replace('\n', "\r\n"));
                     },
-                    TransactionType::Outgoing(domain) => {
+                    TransactionType::Outgoing { domain } => {
                         assert_eq!(domain.as_str(), "example.com");
                         assert_eq!(body.get_header("X-OUTGOING"), Some("bar@other.com".to_owned()));
                         assert_eq!(body.get_header("X-INTERNAL"), None);
@@ -157,7 +153,7 @@ run_test! {
         }
 
         T
-    },,
+    },
 }
 
 run_test! {
@@ -169,7 +165,7 @@ run_test! {
         "RCPT TO: <green@unknown.example.com>\r\n",
         "RCPT TO: <green@mta.example.com>\r\n",
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
@@ -177,9 +173,9 @@ run_test! {
         "0 incoming example.com\r\n",
         "0 incoming mta.example.com\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_triage/config/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }

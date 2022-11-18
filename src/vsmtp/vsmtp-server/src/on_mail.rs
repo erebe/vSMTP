@@ -15,10 +15,10 @@
  *
 */
 
-use crate::{Connection, Process, ProcessMessage};
+use crate::{Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
+use vsmtp_common::ContextFinished;
 use vsmtp_common::{
-    mail_context::{Finished, MailContext},
     state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
@@ -30,18 +30,18 @@ use vsmtp_mail_parser::MessageBody;
 #[async_trait::async_trait]
 pub trait OnMail {
     /// the server executes this function once the email as been received.
-    async fn on_mail<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    async fn on_mail(
         &mut self,
-        conn: &mut Connection<S>,
-        mail: Box<MailContext<Finished>>,
+        mail: Box<ContextFinished>,
         message: MessageBody,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
-    ) -> CodeID;
+    ) -> CodeID
+    where
+        Self: Sized;
 }
 
 /// Send the email to the queue.
+#[derive(Clone)]
 pub struct MailHandler {
     pub(crate) working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     pub(crate) delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -74,19 +74,15 @@ impl MailHandler {
     }
 
     #[allow(clippy::too_many_lines)]
-    async fn on_mail_priv<
-        'a,
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    async fn on_mail_priv(
         &self,
-        _: &mut Connection<S>,
-        mut mail_context: Box<MailContext<Finished>>,
+        mut mail_context: Box<ContextFinished>,
         mail_message: MessageBody,
-        queue_manager: &'a std::sync::Arc<dyn GenericQueueManager>,
+        queue_manager: &std::sync::Arc<dyn GenericQueueManager>,
     ) -> Result<(), MailHandlerError> {
         let (mut message_id, skipped) = (
-            mail_context.message_id().to_string(),
-            mail_context.skipped().cloned(),
+            mail_context.mail_from.message_id.to_string(),
+            mail_context.connect.skipped.clone(),
         );
 
         let mut write_to_queue = Option::<QueueID>::None;
@@ -123,7 +119,7 @@ impl MailHandler {
                 send_to_next_process = Some(Process::Processing);
             }
             Some(Status::Deny(code)) => {
-                for rcpt in mail_context.forward_paths_mut() {
+                for rcpt in &mut mail_context.rcpt_to.forward_paths {
                     rcpt.email_status = EmailTransferStatus::failed(
                         TransferErrorsVariant::RuleEngine(RuleEngineVariants::Denied(code.clone())),
                     );
@@ -176,16 +172,13 @@ impl MailHandler {
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
     #[tracing::instrument(name = "preq", skip_all)]
-    async fn on_mail<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    async fn on_mail(
         &mut self,
-        conn: &mut Connection<S>,
-        mail: Box<MailContext<Finished>>,
+        mail: Box<ContextFinished>,
         message: MessageBody,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
-        match self.on_mail_priv(conn, mail, message, &queue_manager).await {
+        match self.on_mail_priv(mail, message, &queue_manager).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
                 tracing::warn!(%error, "Mail processing failure");

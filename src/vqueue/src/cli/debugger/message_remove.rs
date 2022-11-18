@@ -91,7 +91,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -133,7 +133,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -176,7 +176,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())

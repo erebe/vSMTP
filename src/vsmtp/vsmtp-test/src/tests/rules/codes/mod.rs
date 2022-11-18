@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{run_test, tests::auth::unsafe_auth_config};
+use crate::{run_test, tests::protocol::auth::unsafe_auth_config};
 
 run_test! {
     fn info_message,
-    input = concat![
+    input = [
         "HELO someone\r\n",
         "HELO foo\r\n",
         "HELO bar\r\n",
@@ -30,7 +30,7 @@ run_test! {
         ".\r\n",
         "QUIT\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 cannot identify with 'someone'.\r\n",
         "250 2.0.0 foo is not accepted as a helo value.\r\n",
@@ -42,50 +42,56 @@ run_test! {
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "500 I decided that you cannot send data.\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,,
-    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_info_pre_rcpt.vsl"))?.add_fallback_rules(include_str!("custom_codes_info.vsl"))?.build()),
+    ],
+    hierarchy_builder = |builder| Ok(builder
+        .add_main_rules(include_str!("custom_codes_info_pre_rcpt.vsl"))?
+        .add_fallback_rules(include_str!("custom_codes_info.vsl"))?
+        .build()),
 }
 
 run_test! {
     fn deny_message_1,
-    input = concat![
+    input = [
         "HELO someone\r\n",
         "MAIL FROM:<a@satan.org>\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "501 4.7.1 satan is blacklisted on this server\r\n",
-    ],,,,
-    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
+    ],
+    hierarchy_builder = |builder| Ok(builder
+        .add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
     fn deny_message_2,
-    input = concat![
+    input = [
         "HELO someone\r\n",
         "MAIL FROM:<a@evil.com>\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "501 4.7.1 evil is blacklisted on this server\r\n",
-    ],,,,
-    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
+    ],
+    hierarchy_builder = |builder| Ok(builder
+        .add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
     fn deny_message_3,
-    input = concat![
+    input = [
         "HELO someone\r\n",
         "MAIL FROM:<a@unpleasant.eu>\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "501 4.7.1 unpleasant is blacklisted on this server\r\n",
-    ],,,,
-    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
+    ],
+    hierarchy_builder = |builder| Ok(builder
+        .add_main_rules(include_str!("custom_codes_deny.vsl"))?.build()),
 }
 
 run_test! {
@@ -95,14 +101,15 @@ run_test! {
         &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "admin", "password"))),
         "MAIL FROM:<admin@company.com>\r\n",
         "QUIT\r\n",
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "235 2.7.0 Authentication succeeded\r\n",
         "250 welcome aboard chief\r\n",
         "221 Service closing transmission channel\r\n"
-    ].concat(),
-    config = unsafe_auth_config(),,,
-    hierarchy_builder = |builder| Ok(builder.add_main_rules(include_str!("custom_codes_accept.vsl"))?.build()),
+    ],
+    config = unsafe_auth_config(),
+    hierarchy_builder = |builder| Ok(builder
+        .add_main_rules(include_str!("custom_codes_accept.vsl"))?.build()),
 }

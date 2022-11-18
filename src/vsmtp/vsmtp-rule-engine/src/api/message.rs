@@ -187,13 +187,12 @@ mod message_rhai {
     #[rhai_fn(global, return_raw, pure)]
     pub fn get_header_untouched(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
         let guard = vsl_guard_ok!(this.read());
-        let name_lowercase = name.to_lowercase();
 
         Ok(guard
             .inner()
-            .headers(true)
+            .headers()
             .iter()
-            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
             .map(|(key, value)| rhai::Dynamic::from(format!("{key}:{value}")))
             .collect::<Vec<_>>())
     }
@@ -223,10 +222,10 @@ mod message_rhai {
     /// # "#)?.build()), Some(msg));
     /// # use vsmtp_common::{state::State};
     /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
-    /// #   "X-My-Header: 250 foo".to_string(),
-    /// #   "Subject: Unit test are cool".to_string(),
-    /// #   "X-My-Header-2: bar".to_string(),
-    /// #   "X-My-Header-3: baz".to_string(),
+    /// #   "X-My-Header: 250 foo\r\n".to_string(),
+    /// #   "Subject: Unit test are cool\r\n".to_string(),
+    /// #   "X-My-Header-2: bar\r\n".to_string(),
+    /// #   "X-My-Header-3: baz\r\n".to_string(),
     /// # ]);
     /// ```
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
@@ -270,10 +269,10 @@ mod message_rhai {
     /// # "#)?.build()), Some(msg));
     /// # use vsmtp_common::{state::State};
     /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
-    /// #   "X-My-Header-3: baz".to_string(),
-    /// #   "X-My-Header-2: bar".to_string(),
-    /// #   "X-My-Header: 250 foo".to_string(),
-    /// #   "Subject: Unit test are cool".to_string(),
+    /// #   "X-My-Header-3: baz\r\n".to_string(),
+    /// #   "X-My-Header-2: bar\r\n".to_string(),
+    /// #   "X-My-Header: 250 foo\r\n".to_string(),
+    /// #   "Subject: Unit test are cool\r\n".to_string(),
     /// # ]);
     /// ```
     #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
@@ -475,13 +474,12 @@ impl Impl {
     /// to return.
     fn get_all_headers(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
         let guard = vsl_guard_ok!(this.read());
-        let name_lowercase = name.to_lowercase();
 
         Ok(guard
             .inner()
-            .headers(true)
+            .headers()
             .into_iter()
-            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
             .map(|(_, value)| rhai::Dynamic::from(value))
             .collect())
     }

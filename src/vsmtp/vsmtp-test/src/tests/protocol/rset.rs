@@ -16,32 +16,33 @@
 */
 use crate::run_test;
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::{addr, mail_context::MailContext, CodeID};
+use vsmtp_common::ContextFinished;
+use vsmtp_common::{addr, CodeID};
 use vsmtp_mail_parser::BodyType;
 use vsmtp_mail_parser::Mail;
 use vsmtp_mail_parser::MailHeaders;
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
 run_test! {
     fn reset_helo,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "RSET\r\n",
         "MAIL FROM:<a@b>\r\n",
         "RCPT TO:<b@c>\r\n",
         "DATA\r\n",
-        "from: a b <a@b>\r\n",
-        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-        "\r\n",
-        "mail content wow\r\n",
-        ".\r\n",
+        concat!(
+            "from: a b <a@b>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+            "\r\n",
+            "mail content wow\r\n",
+            ".\r\n",
+        ),
         "QUIT\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -50,25 +51,23 @@ run_test! {
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,
+    ],
     mail_handler = {
+
         struct T;
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                mail: Box<MailContext<Finished>>,
+                mail: Box<ContextFinished>,
                 mut message: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
 
-                assert_eq!(mail.client_name(), "foo");
-                assert_eq!(mail.reverse_path().full(), "a@b");
-                assert_eq!(*mail.forward_paths(), vec![addr!("b@c").into()]);
+                assert_eq!(mail.helo.client_name.to_string(), "foo");
+                assert_eq!(mail.mail_from.reverse_path.full(), "a@b");
+                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
 
                 assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
@@ -91,31 +90,31 @@ run_test! {
         }
 
         T
-    },,
+    },
 }
 
 run_test! {
     fn reset_mail_from_error,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM:<a@b>\r\n",
         "RSET\r\n",
         "RCPT TO:<b@c>\r\n",
         "QUIT\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "503 Bad sequence of commands\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,,,
+    ],
 }
 
 run_test! {
     fn reset_mail_ok,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM:<a@b>\r\n",
         "RSET\r\n",
@@ -123,7 +122,7 @@ run_test! {
         "RCPT TO:<b@c>\r\n",
         "QUIT\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -131,12 +130,12 @@ run_test! {
         "250 Ok\r\n",
         "503 Bad sequence of commands\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,,,
+    ],
 }
 
 run_test! {
     fn reset_rcpt_to_ok,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM:<a@b>\r\n",
         "RSET\r\n",
@@ -147,7 +146,7 @@ run_test! {
         ".\r\n",
         "QUIT\r\n"
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -158,24 +157,22 @@ run_test! {
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,
+    ],
     mail_handler = {
+
         struct T;
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                mail: Box<MailContext<Finished>>,
+                mail: Box<ContextFinished>,
                 mut message: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.client_name(), "foo2");
-                assert_eq!(mail.reverse_path().full(), "d@e");
-                assert_eq!(*mail.forward_paths(), vec![addr!("b@c").into()]);
+                assert_eq!(mail.helo.client_name.to_string(), "foo2");
+                assert_eq!(mail.mail_from.reverse_path.full(), "d@e");
+                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
                 assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
                     Mail {
@@ -188,12 +185,12 @@ run_test! {
         }
 
         T
-    },,
+    },
 }
 
 run_test! {
     fn reset_rcpt_to_error,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM:<foo@foo>\r\n",
         "RCPT TO:<toto@bar>\r\n",
@@ -201,7 +198,7 @@ run_test! {
         "RCPT TO:<toto2@bar>\r\n",
         "QUIT\r\n"
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -209,12 +206,12 @@ run_test! {
         "250 Ok\r\n",
         "503 Bad sequence of commands\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,,,
+    ],
 }
 
 run_test! {
     fn reset_rcpt_to_multiple_rcpt,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM:<foo@foo>\r\n",
         "RCPT TO:<toto@bar>\r\n",
@@ -223,12 +220,14 @@ run_test! {
         "RCPT TO:<toto2@bar>\r\n",
         "RCPT TO:<toto3@bar>\r\n",
         "DATA\r\n",
-        "from: foo2 foo <foo2@foo>\r\n",
-        "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-        ".\r\n",
+        concat!(
+            "from: foo2 foo <foo2@foo>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+            ".\r\n",
+        ),
         "QUIT\r\n"
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -240,24 +239,22 @@ run_test! {
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
-    ],,,
+    ],
     mail_handler = {
+
         struct T;
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                mail: Box<MailContext<Finished>>,
+                mail: Box<ContextFinished>,
                 mut message: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                assert_eq!(mail.client_name(), "foo");
-                assert_eq!(mail.reverse_path().full(), "foo2@foo");
-                assert_eq!(*mail.forward_paths(),
+                assert_eq!(mail.helo.client_name.to_string(), "foo");
+                assert_eq!(mail.mail_from.reverse_path.full(), "foo2@foo");
+                assert_eq!(*mail.rcpt_to.forward_paths,
                    vec![addr!("toto2@bar").into(), addr!("toto3@bar").into()]
                 );
 
@@ -281,5 +278,5 @@ run_test! {
         }
 
         T
-    },,
+    },
 }

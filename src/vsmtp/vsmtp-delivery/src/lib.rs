@@ -67,11 +67,7 @@ fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::a
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
-    use vsmtp_common::{
-        mail_context::{Finished, MailContext},
-        rcpt::Rcpt,
-        Address,
-    };
+    use vsmtp_common::{rcpt::Rcpt, Address, ContextFinished};
     use vsmtp_config::Config;
 
     ///
@@ -81,7 +77,7 @@ pub mod transport {
         async fn deliver(
             self,
             config: &Config,
-            context: &MailContext<Finished>,
+            context: &ContextFinished,
             from: &Address,
             to: Vec<Rcpt>,
             content: &str,

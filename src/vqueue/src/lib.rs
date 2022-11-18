@@ -69,7 +69,7 @@ pub use extension::FilesystemQueueManagerExt;
 
 mod implementation {
     /// The filesystem implementation of the queue manager,
-    /// writing mails ([`MailContext`](vsmtp_common::mail_context::MailContext) and [`MessageBody`](vsmtp_mail_parser::MessageBody))
+    /// writing mails ([`MailContext`](vsmtp_common::Context) and [`MessageBody`](vsmtp_mail_parser::MessageBody))
     /// to the `/var/spool/vsmtp` directory (path configurable).
     ///
     /// The structure of the spool is the following:

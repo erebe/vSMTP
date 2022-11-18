@@ -18,10 +18,9 @@ use super::Transport;
 use crate::{to_lettre_envelope, Sender, SenderParameters};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{Finished, MailContext},
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, ForwardTarget, TransferErrorsVariant},
-    Address, SMTP_PORT,
+    Address, ContextFinished, SMTP_PORT,
 };
 use vsmtp_config::Config;
 extern crate alloc;
@@ -69,7 +68,7 @@ impl Forward<'_> {
 
     async fn deliver_inner(
         &mut self,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         from: &Address,
         to: &[Rcpt],
         message: &str,
@@ -115,7 +114,7 @@ impl Forward<'_> {
             .send(
                 &SenderParameters {
                     server,
-                    hello_name: ctx.server_name().to_owned(),
+                    hello_name: ctx.connect.server_name.clone(),
                     pool_idle_timeout: core::time::Duration::from_secs(60),
                     pool_max_size: 3,
                     pool_min_idle: 1,
@@ -137,7 +136,7 @@ impl Transport for Forward<'_> {
     async fn deliver(
         mut self,
         _: &Config,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         from: &Address,
         mut to: Vec<Rcpt>,
         message: &str,

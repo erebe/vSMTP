@@ -14,21 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::transport::Deliver;
-use crate::transport::Forward;
-use crate::transport::MBox;
-use crate::transport::Maildir;
-use crate::transport::Transport;
+use crate::transport::{Deliver, Forward, MBox, Maildir, Transport};
 use crate::Sender;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::transfer::EmailTransferStatus;
-use vsmtp_common::transfer::ForwardTarget;
-use vsmtp_common::transfer::Transfer;
-use vsmtp_common::transfer::TransferErrorsVariant;
-use vsmtp_config::Config;
-use vsmtp_config::DnsResolvers;
+use vsmtp_common::{
+    rcpt::Rcpt,
+    transfer::{EmailTransferStatus, ForwardTarget, Transfer, TransferErrorsVariant},
+    ContextFinished,
+};
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 extern crate alloc;
 
@@ -49,14 +42,15 @@ pub enum SenderOutcome {
 #[tracing::instrument(name = "send", skip_all)]
 pub async fn split_and_sort_and_send(
     config: &Config,
-    message_ctx: &mut MailContext<Finished>,
+    message_ctx: &mut ContextFinished,
     message_body: &MessageBody,
     resolvers: alloc::sync::Arc<DnsResolvers>,
     sender: alloc::sync::Arc<Sender>,
 ) -> SenderOutcome {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
-        .forward_paths()
+        .rcpt_to
+        .forward_paths
         .iter()
         .filter(|r| r.email_status.is_sendable())
     {
@@ -72,7 +66,7 @@ pub async fn split_and_sort_and_send(
 
     let message_content = message_body.inner().to_string();
 
-    let from = &message_ctx.reverse_path();
+    let from = &message_ctx.mail_from.reverse_path;
 
     let futures = acc.into_iter().map(|(key, to)| match key {
         Transfer::Forward(forward_target) => {
@@ -103,19 +97,18 @@ pub async fn split_and_sort_and_send(
         Transfer::Maildir => Maildir.deliver(config, message_ctx, from, to, &message_content),
     });
 
-    message_ctx.set_forward_paths(
-        futures_util::future::join_all(futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>(),
-    );
+    message_ctx.rcpt_to.forward_paths = futures_util::future::join_all(futures)
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
-    tracing::debug!(rcpt = ?message_ctx.forward_paths().iter().map(ToString::to_string).collect::<Vec<_>>(), "Sending.");
-    tracing::trace!(rcpt = ?message_ctx.reverse_path());
+    tracing::debug!(rcpt = ?message_ctx.rcpt_to.forward_paths
+        .iter().map(ToString::to_string).collect::<Vec<_>>(), "Sending.");
+    tracing::trace!(rcpt = ?message_ctx.rcpt_to.forward_paths);
 
     // updating retry count, set status to Failed if threshold reached.
-    for rcpt in message_ctx.forward_paths_mut() {
+    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
         if matches!(&rcpt.email_status, &EmailTransferStatus::HeldBack{ ref errors }
             if errors.len() >= config.server.queues.delivery.deferred_retry_max)
         {
@@ -126,13 +119,14 @@ pub async fn split_and_sort_and_send(
         }
     }
 
-    if message_ctx.forward_paths().is_empty() {
+    if message_ctx.rcpt_to.forward_paths.is_empty() {
         tracing::warn!("No recipients to send to, or all transfer method are set to none.");
         return SenderOutcome::MoveToDead;
     }
 
     if message_ctx
-        .forward_paths()
+        .rcpt_to
+        .forward_paths
         .iter()
         .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
     {
@@ -141,7 +135,8 @@ pub async fn split_and_sort_and_send(
     }
 
     if message_ctx
-        .forward_paths()
+        .rcpt_to
+        .forward_paths
         .iter()
         .all(|rcpt| !rcpt.email_status.is_sendable())
     {
@@ -149,7 +144,7 @@ pub async fn split_and_sort_and_send(
         return SenderOutcome::MoveToDead;
     }
 
-    for rcpt in message_ctx.forward_paths_mut() {
+    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
         if matches!(&rcpt.email_status, &EmailTransferStatus::Waiting { .. }) {
             rcpt.email_status
                 .held_back(TransferErrorsVariant::StillWaiting);
@@ -158,10 +153,12 @@ pub async fn split_and_sort_and_send(
 
     tracing::warn!("Some send operations failed, email deferred.");
     tracing::debug!(failed = ?message_ctx
-        .forward_paths().iter()
-        .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
-        .map(|r| (r.address.to_string(), r.email_status.clone()))
-        .collect::<Vec<_>>()
+            .rcpt_to
+            .forward_paths
+            .iter()
+            .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
+            .map(|r| (r.address.to_string(), r.email_status.clone()))
+            .collect::<Vec<_>>()
     );
 
     SenderOutcome::MoveToDeferred

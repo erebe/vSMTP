@@ -18,10 +18,9 @@ use super::Transport;
 use crate::{to_lettre_envelope, Sender, SenderParameters};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{Finished, MailContext},
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, TransferErrorsVariant},
-    Address, SMTP_PORT,
+    Address, ContextFinished, SMTP_PORT,
 };
 use vsmtp_config::Config;
 extern crate alloc;
@@ -65,7 +64,7 @@ impl Deliver<'_> {
 
     async fn deliver_one_domain(
         &self,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         message: &str,
         from: &Address,
         domain: String,
@@ -105,7 +104,7 @@ impl Deliver<'_> {
 
     async fn deliver_one_domain_inner(
         &self,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         message: &str,
         from: &Address,
         domain: &str,
@@ -137,7 +136,7 @@ impl Deliver<'_> {
                 .send(
                     &SenderParameters {
                         server: domain.to_owned(),
-                        hello_name: ctx.server_name().to_owned(),
+                        hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
                         pool_min_idle: 1,
@@ -179,7 +178,7 @@ impl Deliver<'_> {
                 .send(
                     &SenderParameters {
                         server: host.to_string(),
-                        hello_name: ctx.server_name().to_owned(),
+                        hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
                         pool_min_idle: 1,
@@ -212,7 +211,7 @@ impl Transport for Deliver<'_> {
     async fn deliver(
         self,
         _: &Config,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         from: &vsmtp_common::Address,
         to: Vec<Rcpt>,
         message: &str,

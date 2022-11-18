@@ -14,10 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use vsmtp_common::mail_context::{Finished, MailContext};
+use vsmtp_common::ContextFinished;
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
-
 extern crate alloc;
 
 /// identifiers for all mail queues.
@@ -90,7 +89,7 @@ mod tests {
 ///
 #[derive(Debug, Clone)]
 pub struct DetailedMailContext {
-    pub(crate) ctx: MailContext<Finished>,
+    pub(crate) ctx: ContextFinished,
     pub(crate) modified_at: std::time::SystemTime,
 }
 
@@ -114,7 +113,7 @@ where
     fn get_config(&self) -> &Config;
 
     ///
-    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext<Finished>) -> anyhow::Result<()>;
+    async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()>;
 
     ///
     async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
@@ -124,16 +123,14 @@ where
     async fn write_both(
         &self,
         queue: &QueueID,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
         msg: &MessageBody,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
     {
-        let msg_id = ctx.message_id();
-
         self.write_ctx(queue, ctx).await?;
-        self.write_msg(msg_id, msg).await?;
+        self.write_msg(&ctx.mail_from.message_id, msg).await?;
         Ok(())
     }
 
@@ -158,8 +155,7 @@ where
     async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
 
     ///
-    async fn get_ctx(&self, queue: &QueueID, msg_id: &str)
-        -> anyhow::Result<MailContext<Finished>>;
+    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<ContextFinished>;
 
     ///
     async fn get_detailed_ctx(
@@ -177,7 +173,7 @@ where
         &self,
         queue: &QueueID,
         msg_id: &str,
-    ) -> anyhow::Result<(MailContext<Finished>, MessageBody)>
+    ) -> anyhow::Result<(ContextFinished, MessageBody)>
     where
         Self: Sized,
     {
@@ -212,7 +208,7 @@ where
         &self,
         before: &QueueID,
         after: &QueueID,
-        ctx: &MailContext<Finished>,
+        ctx: &ContextFinished,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
@@ -222,7 +218,7 @@ where
         tracing::debug!(from = %before, to = %after, "Moving email.");
 
         self.write_ctx(after, ctx).await?;
-        self.remove_ctx(before, ctx.message_id()).await?;
+        self.remove_ctx(before, &ctx.mail_from.message_id).await?;
 
         Ok(())
     }

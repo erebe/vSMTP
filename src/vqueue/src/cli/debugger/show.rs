@@ -15,9 +15,8 @@
  *
  */
 use crate::{api::DetailedMailContext, cli::args::Commands, GenericQueueManager, QueueID};
+use vsmtp_common::ClientName;
 extern crate alloc;
-
-type Domain = String;
 
 #[derive(Debug)]
 struct Content {
@@ -25,7 +24,7 @@ struct Content {
     now: std::time::SystemTime,
     inner: Vec<anyhow::Result<DetailedMailContext>>,
     error_count: usize,
-    result: std::collections::HashMap<Domain, MessageByLifetime>,
+    result: std::collections::HashMap<ClientName, MessageByLifetime>,
     empty_token: char,
     exists: bool,
 }
@@ -44,7 +43,7 @@ impl Content {
             .collect()
     }
 
-    fn add_entry(&mut self, key: &str, mut values: Vec<DetailedMailContext>) {
+    fn add_entry(&mut self, key: ClientName, mut values: Vec<DetailedMailContext>) {
         let mut out = MessageByLifetime::new();
 
         for lifetime in Self::lifetimes() {
@@ -69,8 +68,8 @@ impl Content {
         }
         out.insert(u64::MAX, values);
 
-        assert!(!self.result.contains_key(key));
-        self.result.insert(key.to_owned(), out);
+        assert!(!self.result.contains_key(&key));
+        self.result.insert(key, out);
     }
 }
 
@@ -220,14 +219,14 @@ impl Commands {
                         .collect::<Vec<_>>();
 
                     valid_entries
-                        .sort_by(|a, b| Ord::cmp(&a.ctx.client_name(), &b.ctx.client_name()));
+                        .sort_by(|a, b| Ord::cmp(&a.ctx.helo.client_name, &b.ctx.helo.client_name));
 
                     for (key, values) in
                         &itertools::Itertools::group_by(valid_entries.into_iter(), |i| {
-                            i.ctx.client_name().to_owned()
+                            i.ctx.helo.client_name.clone()
                         })
                     {
-                        content.add_entry(&key, values.into_iter().collect::<Vec<_>>());
+                        content.add_entry(key, values.into_iter().collect::<Vec<_>>());
                     }
                 }
                 Ok(_) => {}
@@ -385,7 +384,7 @@ mod tests {
 
         let msg = local_msg();
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
         queue_manager
             .write_both(&QueueID::Dead, &ctx, &msg)
             .await

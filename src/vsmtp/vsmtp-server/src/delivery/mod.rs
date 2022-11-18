@@ -24,8 +24,8 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::{mail_context::MailContext, status::Status};
+use vsmtp_common::status::Status;
+use vsmtp_common::ContextFinished;
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_delivery::Sender;
 use vsmtp_mail_parser::MessageBody;
@@ -51,9 +51,6 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     )
     .await;
 
-    // NOTE: emails stored in the deferred queue are likely to slow down the process.
-    //       the pickup process of this queue should be slower than pulling from the delivery queue.
-    //       https://www.postfix.org/QSHAPE_README.html#queues
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
 
@@ -89,50 +86,36 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
 
 // <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
-    ctx: &MailContext<Finished>,
+    ctx: &ContextFinished,
     message: &mut MessageBody,
-    rule_engine_result: &Status,
+    status: &Status,
 ) -> anyhow::Result<()> {
     message.prepend_header(
         "X-VSMTP",
-        &create_vsmtp_status_stamp(
-            ctx.message_id(),
-            env!("CARGO_PKG_VERSION"),
-            rule_engine_result,
+        &format!(
+            "id=\"{message_id}\"; version=\"{version}\"; status=\"{status}\"",
+            message_id = ctx.mail_from.message_id,
+            version = env!("CARGO_PKG_VERSION"),
+            status = status.as_ref()
         ),
     );
 
     message.prepend_header(
         "Received",
-        &create_received_stamp(
-            ctx.client_name(),
-            ctx.server_name(),
-            ctx.message_id(),
-            ctx.mail_timestamp(),
-        )
-        .context("failed to create Receive header timestamp")?,
+        &format!(
+            "from {client_helo} by {server_domain} with SMTP id {message_id}; {date}",
+            client_helo = ctx.helo.client_name,
+            server_domain = ctx.connect.server_name,
+            message_id = ctx.mail_from.message_id,
+            date = ctx
+                .mail_from
+                .mail_timestamp
+                .format(&Rfc2822)
+                .context("failed to create Receive header timestamp")?
+        ),
     );
 
     Ok(())
-}
-
-fn create_received_stamp(
-    client_helo: &str,
-    server_domain: &str,
-    message_id: &str,
-    received_timestamp: &time::OffsetDateTime,
-) -> anyhow::Result<String> {
-    let date = received_timestamp.format(&Rfc2822)?;
-    Ok(format!(
-        "from {client_helo} by {server_domain} with SMTP id {message_id}; {date}"
-    ))
-}
-
-fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
-    format!(
-        "id=\"{message_id}\"; version=\"{version}\"; status=\"{}\"",
-        status.as_ref()
-    )
 }
 
 #[cfg(test)]
@@ -143,42 +126,13 @@ mod test {
     use vsmtp_mail_parser::{MessageBody, RawBody};
     use vsmtp_test::config::local_ctx;
 
-    /*
-    /// This test produce side-effect and may make other test fails
-    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
-    async fn start() {
-        let mut config = config::local_test();
-        config.server.queues.dirpath = "./tmp".into();
-
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::from_script("#{}").unwrap(),
-        ));
-
-        let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
-
-        let task = tokio::spawn(super::start(
-            std::sync::Arc::new(config),
-            rule_engine,
-            delivery_receiver,
-        ));
-
-        delivery_sender
-            .send(ProcessMessage {
-                message_id: "test".to_string(),
-            })
-            .await
-            .unwrap();
-
-        task.await.unwrap().unwrap();
-    }
-    */
-
     #[test]
+    #[function_name::named]
     fn test_add_trace_information() {
         let mut ctx = local_ctx();
 
         let mut message = MessageBody::default();
-        ctx.set_message_id("test_message_id".to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         add_trace_information(&ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
@@ -188,12 +142,13 @@ mod test {
                     "Received: from client.testserver.com".to_string(),
                     " by testserver.com".to_string(),
                     " with SMTP".to_string(),
-                    " id test_message_id; ".to_string(),
-                    { ctx.mail_timestamp().format(&Rfc2822).unwrap() }
+                    " id test_add_trace_information; ".to_string(),
+                    ctx.mail_from.mail_timestamp.format(&Rfc2822).unwrap(),
+                    "\r\n".to_string()
                 ]
                 .concat(),
                 format!(
-                    "X-VSMTP: id=\"test_message_id\"; version=\"{ver}\"; status=\"next\"",
+                    "X-VSMTP: id=\"test_add_trace_information\"; version=\"{ver}\"; status=\"next\"\r\n",
                     ver = env!("CARGO_PKG_VERSION"),
                 ),
             ])

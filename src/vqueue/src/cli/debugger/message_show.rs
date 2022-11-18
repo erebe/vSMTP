@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -20,6 +18,7 @@ use crate::{
     cli::args::{Commands, MessageShowFormat},
     GenericQueueManager, QueueID,
 };
+use anyhow::Context;
 extern crate alloc;
 
 #[allow(clippy::multiple_inherent_impl)]
@@ -79,7 +78,7 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -95,18 +94,18 @@ mod tests {
         .await
         .unwrap();
 
-        let connect_timestamp = ctx.connection_timestamp();
+        let connect_timestamp = ctx.connect.connect_timestamp;
         let connect_timestamp =
-            time::serde::iso8601::serialize(connect_timestamp, serde_json::value::Serializer)
+            time::serde::iso8601::serialize(&connect_timestamp, serde_json::value::Serializer)
                 .unwrap()
                 .as_str()
                 .unwrap()
                 .to_owned();
         let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
 
-        let mail_timestamp = ctx.mail_timestamp();
+        let mail_timestamp = ctx.mail_from.mail_timestamp;
         let mail_timestamp =
-            time::serde::iso8601::serialize(mail_timestamp, serde_json::value::Serializer)
+            time::serde::iso8601::serialize(&mail_timestamp, serde_json::value::Serializer)
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -126,11 +125,12 @@ mod tests {
   "tls": null,
   "auth": null,
   "client_name": "client.testserver.com",
+  "using_deprecated": false,
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_json",
   "outgoing": false,
-  "forward_path": [],
+  "forward_paths": [],
   "transaction_type": {{
     "incoming": null
   }},
@@ -141,10 +141,10 @@ Message body:
 {{
   "raw": {{
     "headers": [
-      "From: NoBody <nobody@domain.tld>",
-      "Reply-To: Yuin <yuin@domain.tld>",
-      "To: Hei <hei@domain.tld>",
-      "Subject: Happy new year"
+      "From: NoBody <nobody@domain.tld>\r\n",
+      "Reply-To: Yuin <yuin@domain.tld>\r\n",
+      "To: Hei <hei@domain.tld>\r\n",
+      "Subject: Happy new year\r\n"
     ],
     "body": "Be happy!\r\n"
   }},
@@ -163,7 +163,7 @@ Message body:
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.set_message_id(function_name!().to_owned());
+        ctx.mail_from.message_id = function_name!().to_owned();
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -179,18 +179,18 @@ Message body:
         .await
         .unwrap();
 
-        let connect_timestamp = ctx.connection_timestamp();
+        let connect_timestamp = ctx.connect.connect_timestamp;
         let connect_timestamp =
-            time::serde::iso8601::serialize(connect_timestamp, serde_json::value::Serializer)
+            time::serde::iso8601::serialize(&connect_timestamp, serde_json::value::Serializer)
                 .unwrap()
                 .as_str()
                 .unwrap()
                 .to_owned();
         let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
 
-        let mail_timestamp = ctx.mail_timestamp();
+        let mail_timestamp = ctx.mail_from.mail_timestamp;
         let mail_timestamp =
-            time::serde::iso8601::serialize(mail_timestamp, serde_json::value::Serializer)
+            time::serde::iso8601::serialize(&mail_timestamp, serde_json::value::Serializer)
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -210,11 +210,12 @@ Message body:
   "tls": null,
   "auth": null,
   "client_name": "client.testserver.com",
+  "using_deprecated": false,
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_id": "show1_eml",
   "outgoing": false,
-  "forward_path": [],
+  "forward_paths": [],
   "transaction_type": {{
     "incoming": null
   }},

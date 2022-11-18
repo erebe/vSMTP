@@ -1,26 +1,19 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{
-    mail_context::{Finished, MailContext},
-    CodeID, ConnectionKind,
-};
+use vsmtp_common::{CodeID, ContextFinished};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
-use vsmtp_server::{Connection, OnMail};
-use vsmtp_test::receiver::Mock;
+use vsmtp_server::OnMail;
 
 struct FuzzOnMail;
 
 #[async_trait::async_trait]
 impl OnMail for FuzzOnMail {
-    async fn on_mail<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    async fn on_mail(
         &mut self,
-        _: &mut Connection<S>,
-        _: Box<MailContext<Finished>>,
+        _: Box<ContextFinished>,
         _: MessageBody,
         _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
@@ -55,6 +48,9 @@ fuzz_target!(|data: &[u8]| {
 
     let config = std::sync::Arc::new(config);
 
+    todo!();
+
+    /*
     let mut written_data = Vec::new();
     let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut conn = Connection::new(
@@ -79,4 +75,5 @@ fuzz_target!(|data: &[u8]| {
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(conn.receive(None, re, dns_resolvers, queue_manager, &mut FuzzOnMail));
+    */
 });

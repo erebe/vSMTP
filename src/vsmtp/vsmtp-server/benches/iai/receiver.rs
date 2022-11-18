@@ -48,7 +48,6 @@ fn run_benchmark(body_size: u64, port: u16) {
                 Server::new(
                     config.clone(),
                     rule_engine.clone(),
-                    resolvers.clone(),
                     queue_manager.clone(),
                     working_channel.0.clone(),
                     delivery_channel.0.clone(),

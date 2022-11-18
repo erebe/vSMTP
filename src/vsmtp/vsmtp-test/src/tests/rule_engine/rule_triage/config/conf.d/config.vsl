@@ -9,12 +9,6 @@ fn on_config(config) {
         addr_submissions: ["192.168.1.254:465"],
     };
 
-    // NOTE: `certificate`, `private_key` & `dirpath` keys use relative paths for
-    //        to automatically test our examples. Use absolute or relative paths
-    //        relative to your own system instead of those.
-    //
-    //        (for example: config.app.vsl.dirpath = "/etc/vsmtp/domain-available")
-
     config.server.queues.dirpath = "./spool";
     config.app.dirpath = "./app";
     config.app.vsl.dirpath = "src/tests/rule_engine/rule_triage/config/domain-available";

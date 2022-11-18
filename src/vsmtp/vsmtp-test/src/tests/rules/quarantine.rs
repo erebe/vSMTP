@@ -23,33 +23,32 @@ const QUARANTINE_RULE: &str = r#"
 #{
     {stage}: [
         rule "quarantine john" || {
-            quarantine("john")
+            quarantine("john/{stage}")
         }
     ]
 }
 "#;
 
 async fn actual_test(stage: State) {
-    let config = std::sync::Arc::new(crate::config::local_test());
+    let (delivery_sender, _d) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
 
-    let (delivery_sender, _d) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
+    let (working_sender, _w) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
 
-    let (working_sender, _w) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
+    let rules = QUARANTINE_RULE.replace("{stage}", &stage.to_string());
 
     let queue_manager = run_test! {
         input = [
             "HELO foobar\r\n",
-            "MAIL FROM:<john.doe@example.com>\r\n",
-            "RCPT TO:<aa@bb>\r\n",
+            "MAIL FROM:<john.doe@mydomain.com>\r\n",
+            "RCPT TO:<aa@mydomain.com>\r\n",
             "DATA\r\n",
-            "from: 'abc'\r\n",
-            "to: 'def'\r\n",
-            ".\r\n",
+            concat!(
+                "from: 'abc'\r\n",
+                "to: 'def'\r\n",
+                ".\r\n",
+            ),
             "QUIT\r\n",
-        ]
-        .concat(),
+        ],
         expected = [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -58,25 +57,27 @@ async fn actual_test(stage: State) {
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
-        ]
-        .concat(),,
-        config_arc = config.clone(),
+        ],
         mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
         hierarchy_builder = move |builder| Ok(
+            // not ideal since some stages won't ever be run in main / fallback, but it works fine that way.
             builder
-                // not ideal since some stages won't ever be run in main / fallback, but it works fine that way.
-                .add_main_rules(&QUARANTINE_RULE.replace("{stage}", &stage.to_string()))?
-                .add_fallback_rules(&QUARANTINE_RULE.replace("{stage}", &stage.to_string()))?
+                .add_main_rules(&rules.clone()).unwrap()
+                .add_fallback_rules(&rules.clone()).unwrap()
+                    .add_domain_rules("mydomain.com")
+                        .with_incoming(&rules.clone()).unwrap()
+                        .with_outgoing(&rules.clone()).unwrap()
+                        .with_internal(&rules.clone()).unwrap()
+                    .build()
                 .build()
             ),
-    }
-    .unwrap();
+    };
 
     assert_eq!(
         std::fs::read_dir(vqueue::FilesystemQueueManagerExt::get_queue_path(
             &*queue_manager,
             &vqueue::QueueID::Quarantine {
-                name: "john".to_string()
+                name: format!("john/{stage}")
             }
         ))
         .unwrap()
@@ -86,15 +87,17 @@ async fn actual_test(stage: State) {
 }
 
 #[rstest::rstest]
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn test_quarantine(
     #[values(
-        // State::Connect,
-        // State::Helo,
-        // State::Authenticate,
+        // TODO
+        State::Connect,
+        State::Helo,
         State::MailFrom,
         State::RcptTo,
-        State::PreQ
+        State::PreQ,
+        // State::PostQ,
+        // State::Delivery
     )]
     stage: State,
 ) {

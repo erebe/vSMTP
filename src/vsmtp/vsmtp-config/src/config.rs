@@ -174,15 +174,15 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerInterfaces {
-        /// List of address for the protocol SMTP. see [`vsmtp_common::ConnectionKind::Relay`]
+        /// List of address for the protocol SMTP.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr: Vec<std::net::SocketAddr>,
-        /// List of address for the protocol ESMTPA. see [`vsmtp_common::ConnectionKind::Submission`]
+        /// List of address for the protocol ESMTPA.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr_submission: Vec<std::net::SocketAddr>,
-        /// List of address for the protocol ESMTPSA. see [`vsmtp_common::ConnectionKind::Tunneled`]
+        /// List of address for the protocol ESMTPSA.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr_submissions: Vec<std::net::SocketAddr>,

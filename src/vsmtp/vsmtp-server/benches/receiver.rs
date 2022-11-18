@@ -18,13 +18,11 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vqueue::GenericQueueManager;
-use vsmtp_common::{
-    mail_context::{Finished, MailContext},
-    CodeID,
-};
+use vsmtp_common::CodeID;
+use vsmtp_common::ContextFinished;
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::{Connection, OnMail};
+use vsmtp_server::OnMail;
 use vsmtp_test::run_test;
 
 #[derive(Clone)]
@@ -32,12 +30,9 @@ struct DefaultMailHandler;
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
-    async fn on_mail<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-    >(
+    async fn on_mail(
         &mut self,
-        _: &mut Connection<S>,
-        _: Box<MailContext<Finished>>,
+        _: Box<ContextFinished>,
         _: MessageBody,
         _: std::sync::Arc<dyn GenericQueueManager>,
     ) -> CodeID {
@@ -74,17 +69,16 @@ fn get_test_config() -> std::sync::Arc<Config> {
 
 fn make_bench(
     b: &mut Bencher<WallTime>,
-    (input, output, config): &(String, String, std::sync::Arc<Config>),
+    (input, output, config): &(Vec<String>, Vec<String>, std::sync::Arc<Config>),
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
             let _ = run_test! {
                 input = input,
-                expected = output,,
+                expected = output,
                 config_arc = config.clone(),
-                mail_handler = DefaultMailHandler,,
-            }
-            .unwrap();
+                mail_handler = DefaultMailHandler,
+            };
         })
 }
 
@@ -93,25 +87,23 @@ fn criterion_benchmark(c: &mut Criterion) {
         c.bench_with_input(
             BenchmarkId::new("receiver", 0),
             &(
-                [
-                    "HELO foobar\r\n",
-                    "MAIL FROM:<john@doe>\r\n",
-                    "RCPT TO:<aa@bb>\r\n",
-                    "DATA\r\n",
-                    ".\r\n",
-                    "QUIT\r\n",
-                ]
-                .concat(),
-                [
-                    "220 testserver.com Service ready\r\n",
-                    "250 Ok\r\n",
-                    "250 Ok\r\n",
-                    "250 Ok\r\n",
-                    "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-                    "250 Ok\r\n",
-                    "221 Service closing transmission channel\r\n",
-                ]
-                .concat(),
+                vec![
+                    "HELO foobar\r\n".to_string(),
+                    "MAIL FROM:<john@doe>\r\n".to_string(),
+                    "RCPT TO:<aa@bb>\r\n".to_string(),
+                    "DATA\r\n".to_string(),
+                    ".\r\n".to_string(),
+                    "QUIT\r\n".to_string(),
+                ],
+                vec![
+                    "220 testserver.com Service ready\r\n".to_string(),
+                    "250 Ok\r\n".to_string(),
+                    "250 Ok\r\n".to_string(),
+                    "250 Ok\r\n".to_string(),
+                    "354 Start mail input; end with <CRLF>.<CRLF>\r\n".to_string(),
+                    "250 Ok\r\n".to_string(),
+                    "221 Service closing transmission channel\r\n".to_string(),
+                ],
                 get_test_config(),
             ),
             make_bench,
@@ -121,12 +113,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_with_input(
         BenchmarkId::new("receiver", 1),
         &(
-            ["foo\r\n"].concat(),
-            [
-                "220 testserver.com Service ready\r\n",
-                "501 Syntax error in parameters or arguments\r\n",
-            ]
-            .concat(),
+            vec!["foo\r\n".to_string()],
+            vec![
+                "220 testserver.com Service ready\r\n".to_string(),
+                "501 Syntax error in parameters or arguments\r\n".to_string(),
+            ],
             get_test_config(),
         ),
         make_bench,

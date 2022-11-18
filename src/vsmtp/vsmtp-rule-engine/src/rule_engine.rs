@@ -14,26 +14,28 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use crate::api::Server;
-use crate::api::{rule_state::deny, EngineResult, StandardVSLPackage};
-use crate::dsl::cmd::plugin::Cmd;
-use crate::dsl::directives::{Directive, Directives};
-use crate::dsl::smtp::{plugin, service};
-use crate::rule_state::RuleState;
-use crate::server_api::ServerAPI;
-use crate::sub_domain_hierarchy::{Builder, DomainDirectives, Script, SubDomainHierarchy};
+use crate::{
+    api::{rule_state::deny, EngineResult, Server, StandardVSLPackage},
+    dsl::{
+        cmd::plugin::Cmd,
+        directives::{Directive, Directives},
+        smtp::{plugin, service},
+    },
+    rule_state::RuleState,
+    server_api::ServerAPI,
+    sub_domain_hierarchy::{Builder, DomainDirectives, Script, SubDomainHierarchy},
+};
 use anyhow::Context;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope};
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::mail_context::{Empty, MailContext, MailContextAPI, StateSMTP, TransactionType};
-use vsmtp_common::{state::State, status::Status};
-use vsmtp_common::{CodeID, Domain, ReplyOrCodeID};
+use vsmtp_common::{state::State, status::Status, CodeID, Domain, ReplyOrCodeID, TransactionType};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugin_vsl::plugin::Objects;
-use vsmtp_plugins::managers::native::NativeVSL;
-use vsmtp_plugins::managers::PluginManager;
-use vsmtp_plugins::rhai;
+use vsmtp_plugins::{
+    managers::{native::NativeVSL, PluginManager},
+    rhai,
+};
 
 macro_rules! block_on {
     ($future:expr) => {
@@ -174,19 +176,18 @@ impl RuleEngine {
         })
     }
 
-    pub(crate) fn spawn(&self) -> RuleState {
-        self.spawn_with(
-            MailContextAPI::Empty(MailContext::<Empty>::empty()),
-            MessageBody::default(),
-        )
+    ///
+    #[must_use]
+    pub fn spawn(&self) -> std::sync::Arc<RuleState> {
+        self.spawn_with(vsmtp_common::Context::Empty, MessageBody::default())
     }
 
     /// build a cheap rhai engine with vsl's api.
-    pub(crate) fn spawn_with(
+    pub fn spawn_with(
         &self,
-        mail_context: MailContextAPI,
+        mail_context: vsmtp_common::Context,
         message: MessageBody,
-    ) -> RuleState {
+    ) -> std::sync::Arc<RuleState> {
         let (mail_context, message) = (
             std::sync::Arc::new(std::sync::RwLock::new(mail_context)),
             std::sync::Arc::new(std::sync::RwLock::new(message)),
@@ -257,13 +258,12 @@ impl RuleEngine {
         )
         .expect("plugins should already have been analyzed by the main engine.");
 
-        RuleState {
+        std::sync::Arc::new(RuleState {
             engine,
             server: self.server.clone(),
             mail_context,
             message,
-            skip: None,
-        }
+        })
     }
 
     /// Runs all rules from a stage using the current transaction state.
@@ -273,19 +273,22 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
-    #[tracing::instrument(name = "rule", skip_all, fields(stage = %smtp_state))]
-    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: State) -> Status {
+    #[tracing::instrument(name = "rule", skip_all, fields(stage = %smtp_state, skipped), ret)]
+    pub fn run_when(
+        &self,
+        rule_state: &RuleState,
+        skipped: &mut Option<Status>,
+        smtp_state: State,
+    ) -> Status {
+        match &skipped {
+            Some(status) if status.is_finished() => return status.clone(),
+            _ => (),
+        }
+
         // Extract the correct set of rules, comparing the domains of the sender and recipients.
         let script = {
             let context = rule_state.context();
-            let context = match context.read() {
-                Ok(context) => context,
-                Err(error) => {
-                    tracing::error!(%error, "context mutex poisoned");
-
-                    return Status::Deny(ReplyOrCodeID::Left(CodeID::Denied));
-                }
-            };
+            let context = context.read().expect("Mutex poisoned");
 
             match self.get_directives_for_smtp_state(&context, smtp_state) {
                 Ok(script) => script,
@@ -301,72 +304,74 @@ impl RuleEngine {
         };
 
         // check if we need to skip directive execution or resume because of a delegation.
-        let directive_set = match rule_state.skipped() {
+        let directive_set = match &skipped {
             #[cfg(feature = "delegation")]
             Some(Status::DelegationResult) if smtp_state.is_email_received() => {
-                if let Some(header) = rule_state
+                let delegation_header = rule_state
                     .message()
                     .read()
                     .expect("Mutex poisoned")
-                    .get_header("X-VSMTP-DELEGATION")
-                {
-                    let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
+                    .get_header("X-VSMTP-DELEGATION");
 
-                    let (stage, directive_name, message_id) =
-                        if let (Some(stage), Some(directive_name), Some(message_id)) = (
-                            header.args.get("stage"),
-                            header.args.get("directive"),
-                            header.args.get("id"),
-                        ) {
-                            (stage, directive_name, message_id)
-                        } else {
-                            return Status::DelegationResult;
+                let header = match delegation_header {
+                    None => return Status::DelegationResult,
+                    Some(header) => header,
+                };
+                let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
+
+                let (directive_name, message_id) = match (
+                    header.args.get("stage"),
+                    header.args.get("directive"),
+                    header.args.get("id"),
+                ) {
+                    (Some(stage), Some(directive_name), Some(message_id)) => {
+                        match stage.parse::<State>() {
+                            Ok(stage) if stage == smtp_state => (),
+                            _ => return Status::DelegationResult,
                         };
-
-                    if *stage == smtp_state.to_string() {
-                        if let Some(d) = directive_set
-                            .iter()
-                            .position(|directive| directive.name() == directive_name)
-                        {
-                            // If delegation results are coming in and that this is the correct
-                            // directive that has been delegated, we need to pull
-                            // the old context because its state has been lost
-                            // when the delegation happened.
-                            //
-                            // There is however no need to discard the old email because it
-                            // will be overridden by the results once it's time to write
-                            // in the 'mail' queue.
-
-                            // FIXME: this is only useful for preq, the other processes
-                            //        already fetch the old context.
-                            let mut ctx = rule_state
-                                .server
-                                .queue_manager
-                                .get_ctx(&QueueID::Delegated, message_id);
-                            match block_on!(&mut ctx) {
-                                Ok(mut context) => {
-                                    context.set_skipped(None);
-                                    *rule_state.context().write().unwrap() =
-                                        MailContextAPI::Finished(context);
-                                }
-                                Err(error) => {
-                                    tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
-                                }
-                            }
-
-                            tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
-
-                            rule_state.resume();
-                            &directive_set[d..]
-                        } else {
-                            return Status::DelegationResult;
-                        }
-                    } else {
-                        return Status::DelegationResult;
+                        (directive_name, message_id)
                     }
-                } else {
-                    return Status::DelegationResult;
+                    _ => return Status::DelegationResult,
+                };
+
+                let position = match directive_set
+                    .iter()
+                    .position(|directive| directive.name() == directive_name)
+                {
+                    Some(position) => position,
+                    None => return Status::DelegationResult,
+                };
+
+                // If delegation results are coming in and that this is the correct
+                // directive that has been delegated, we need to pull
+                // the old context because its state has been lost
+                // when the delegation happened.
+                //
+                // There is however no need to discard the old email because it
+                // will be overridden by the results once it's time to write
+                // in the 'mail' queue.
+
+                // FIXME: this is only useful for preq, the other processes
+                //        already fetch the old context.
+                let mut ctx = rule_state
+                    .server
+                    .queue_manager
+                    .get_ctx(&QueueID::Delegated, message_id);
+                match block_on!(&mut ctx) {
+                    Ok(mut context) => {
+                        context.connect.skipped = None;
+                        *rule_state.context().write().unwrap() =
+                            vsmtp_common::Context::Finished(context);
+                    }
+                    Err(error) => {
+                        tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
+                    }
                 }
+
+                tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
+
+                *skipped = None;
+                &directive_set[position..]
             }
             Some(status) => return (*status).clone(),
             None => &directive_set[..],
@@ -378,9 +383,10 @@ impl RuleEngine {
 
                 if status.is_finished() {
                     tracing::debug!(
-                        "The rule engine will skip all rules because of the previous result."
+                        "The rule engine will skip all rules because of the previous result: {:?}",
+                        status
                     );
-                    rule_state.skipping(status.clone());
+                    *skipped = Some(status.clone());
                 }
 
                 status
@@ -388,13 +394,11 @@ impl RuleEngine {
             Err(error) => {
                 tracing::error!(%error, "Rule engine error.");
 
-                #[cfg(debug_assertions)]
-                println!("Rule engine error: {error:?}");
-
                 // TODO: keep the error for the `deferred` info.
 
                 // if an error occurs, the engine denies the connection by default.
-                rule_state.skipping(deny());
+                *skipped = Some(deny());
+
                 deny()
             }
         }
@@ -406,24 +410,17 @@ impl RuleEngine {
     ///
     /// A tuple with the mail context, body, result status, and skip status.
     #[must_use]
-    pub fn just_run_when<S: StateSMTP>(
+    pub fn just_run_when(
         &self,
+        skipped: &mut Option<Status>,
         state: State,
-        mail_context: MailContext<S>,
+        mail_context: vsmtp_common::Context,
         mail_message: MessageBody,
-    ) -> (MailContextAPI, MessageBody, Status, Option<Status>)
-    where
-        MailContextAPI: From<MailContext<S>>,
-    {
-        let mut rule_state = RuleState::with_context(self, mail_context.into(), mail_message);
-
-        let result = self.run_when(&mut rule_state, state);
-
-        let (mail_context, mail_message, skipped) = rule_state
-            .take()
-            .expect("should not have strong reference here");
-
-        (mail_context, mail_message, result, skipped)
+    ) -> (vsmtp_common::Context, MessageBody, Status) {
+        let rule_state = self.spawn_with(mail_context, mail_message);
+        let result = self.run_when(&rule_state, skipped, state);
+        let (mail_context, mail_message) = rule_state.take();
+        (mail_context, mail_message, result)
     }
 
     /// Get the desired batch of directives for the current smtp state and transaction context.
@@ -432,7 +429,7 @@ impl RuleEngine {
     #[allow(clippy::too_many_lines)]
     fn get_directives_for_smtp_state<'a>(
         &'a self,
-        context: &MailContextAPI,
+        context: &vsmtp_common::Context,
         smtp_state: State,
     ) -> anyhow::Result<&'a Script> {
         match smtp_state {
@@ -440,54 +437,53 @@ impl RuleEngine {
             State::Connect | State::Helo | State::Authenticate => Ok(&self.rules.main),
 
             State::MailFrom => {
-                let sender = context.reverse_path();
+                let sender = context.reverse_path().context("bad state")?;
 
-                #[allow(clippy::option_if_let_else)]
-                match sender {
-                    // Outgoing email, we execute the outgoing script from the sender's domain.
-                    Some(sender) if context.is_outgoing() => self.get_domain_directives(sender.domain()).map_or_else(|| {
-                            tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
-
-                            Ok(&self.rules.fallback)
-                        }, |rules| Ok(&rules.outgoing)),
-                    // incoming, execute main "mail from" rules by default.
-                    _ => Ok(&self.rules.main)
+                // Outgoing email, we execute the outgoing script from the sender's domain.
+                if context.is_outgoing().context("bad state")? {
+                    if let Some(domain_directives) = self.get_domain_directives(sender.domain()) {
+                        return Ok(&domain_directives.outgoing);
+                    }
+                    tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                    Ok(&self.rules.fallback)
+                } else {
+                    Ok(&self.rules.main)
                 }
             }
 
             // Sender domain handled, running outgoing / internal rules for each recipient which the domain is handled by the configuration,
             // otherwise run the fallback script.
-            State::RcptTo if context.is_outgoing() => {
+            State::RcptTo if context.is_outgoing().context("bad state")? => {
                 let sender = context
                     .reverse_path()
-                    .ok_or_else(|| anyhow::anyhow!("sender not found in rcpt stage"))?;
-                let recipient = context
+                    .context("sender not found in rcpt stage")?;
+                let rcpt = context
                     .forward_paths()
-                    .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?
+                    .context("rcpt not found in rcpt stage")?
                     .last()
                     .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
                 let transaction_type = context
                     .transaction_type()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
+                    .context("could not get the transaction type")?;
 
                 match (
                     self.get_domain_directives(sender.domain()),
                     transaction_type,
                 ) {
                     (Some(rules), TransactionType::Internal) => {
-                        tracing::debug!(rcpt = %recipient, %sender, "Internal email for current recipient.");
+                        tracing::debug!(%rcpt, %sender, "Internal email for current recipient.");
 
                         Ok(&rules.internal)
                     }
-                    (Some(rules), TransactionType::Outgoing(_)) => {
-                        tracing::debug!(rcpt = %recipient, %sender, "Outgoing email for current recipient.");
+                    (Some(rules), TransactionType::Outgoing { .. }) => {
+                        tracing::debug!(%rcpt, %sender, "Outgoing email for current recipient.");
 
                         Ok(&rules.outgoing)
                     }
 
                     // Edge case that should never happen because incoming is never paired with is_outgoing = true.
                     _ => {
-                        tracing::error!(rcpt = %recipient, %sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                        tracing::error!(%rcpt, %sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
 
                         Ok(&self.rules.fallback)
                     }
@@ -497,37 +493,39 @@ impl RuleEngine {
             // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
             // otherwise run the fallback script.
             State::RcptTo => {
-                let recipient = context
+                let rcpt = context
                     .forward_paths()
-                    .ok_or_else(|| anyhow::anyhow!("rcpt not found in rcpt stage"))?
+                    .context("rcpt not found in rcpt stage")?
                     .last()
                     .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
                 let transaction_type = context
                     .transaction_type()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
+                    .context("could not get the transaction type")?;
 
                 if let (Some(rules), TransactionType::Incoming(Some(_))) = (
-                    self.get_domain_directives(recipient.address.domain()),
+                    self.get_domain_directives(rcpt.address.domain()),
                     transaction_type,
                 ) {
-                    tracing::debug!(rcpt = %recipient, "Incoming recipient.");
+                    tracing::debug!(%rcpt, "Incoming recipient.");
 
                     Ok(&rules.incoming)
                 } else {
-                    tracing::debug!(rcpt = %recipient, "Recipient unknown in unknown sender context, running fallback script.");
+                    tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
 
                     Ok(&self.rules.fallback)
                 }
             }
 
             // Sender domain known. Run the outgoing / internal preq rules.
-            State::PreQ | State::PostQ | State::Delivery if context.is_outgoing() => {
+            State::PreQ | State::PostQ | State::Delivery
+                if context.is_outgoing().context("bad state")? =>
+            {
                 let sender = context
                     .reverse_path()
-                    .ok_or_else(|| anyhow::anyhow!("sender not found in rcpt stage"))?;
+                    .context("sender not found in rcpt stage")?;
                 let transaction_type = context
                     .transaction_type()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
+                    .context("could not get the transaction type")?;
 
                 match (
                     self.get_domain_directives(sender.domain()),
@@ -536,7 +534,7 @@ impl RuleEngine {
                     // Current batch of recipients is marked as internal, we execute the internal rules.
                     (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
                     // Otherwise, we call the outgoing rules.
-                    (Some(rules), TransactionType::Outgoing(_)) => Ok(&rules.outgoing),
+                    (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
                     // Should never happen.
                     _ => {
                         tracing::error!(%sender, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
@@ -551,7 +549,7 @@ impl RuleEngine {
             State::PreQ | State::PostQ | State::Delivery => {
                 let transaction_type = context
                     .transaction_type()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the transaction type"))?;
+                    .context("could not get the transaction type")?;
 
                 match transaction_type {
                     TransactionType::Incoming(Some(domain)) => self
@@ -564,7 +562,7 @@ impl RuleEngine {
 
                         Ok(&self.rules.fallback)
                     }
-                    TransactionType::Outgoing(_) | TransactionType::Internal => {
+                    TransactionType::Outgoing { .. } | TransactionType::Internal => {
                         tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
 
                         Ok(&self.rules.fallback)
@@ -588,7 +586,7 @@ impl RuleEngine {
     }
 
     fn execute_directives(
-        rule_state: &mut RuleState,
+        rule_state: &RuleState,
         ast: &rhai::AST,
         directives: &[Directive],
         smtp_state: State,
@@ -596,7 +594,6 @@ impl RuleEngine {
         let mut status = Status::Next;
 
         for directive in directives {
-            tracing::debug!("Executing {} '{}'", directive.as_ref(), directive.name());
             status = directive.execute(rule_state, ast, smtp_state)?;
 
             if status != Status::Next {
@@ -865,10 +862,10 @@ impl RuleEngine {
 
     /// Check if the rule engine have configuration available for the domain of the given address.
     ///
-    /// NOTE: Check recursivly all parents of the given domain,
+    /// NOTE: Check recursively all parents of the given domain,
     /// return true if any parent domain is handled by the configuration.
     #[must_use]
-    pub fn handle_domain(&self, address: &vsmtp_common::Address) -> bool {
+    pub fn is_handled_domain(&self, address: &vsmtp_common::Address) -> bool {
         let domain = address.domain();
 
         if self.rules.domains.contains_key(domain) {

@@ -146,7 +146,7 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == "from")
+            .find(|(header, _)| header.eq_ignore_ascii_case("from"))
         {
             *old = value.to_string();
         } else {
@@ -160,7 +160,7 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == "to")
+            .find(|(header, _)| header.eq_ignore_ascii_case("to"))
         {
             *rcpts = rcpts.replace(old, new);
         } else {
@@ -174,7 +174,7 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == "to")
+            .find(|(header, _)| header.eq_ignore_ascii_case("to"))
         {
             *rcpts = format!("{rcpts}, {new}");
         } else {
@@ -187,7 +187,7 @@ impl Mail {
         self.headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == "to")
+            .find(|(header, _)| header.eq_ignore_ascii_case("to"))
             .and_then::<(), _>(|(_, rcpts)| {
                 if rcpts.find(old) == Some(0) {
                     *rcpts = rcpts.replace(format!("{old}, ").as_str(), "");
@@ -204,7 +204,7 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
+            .find(|(header, _)| header.eq_ignore_ascii_case(name))
         {
             *old_value = value.to_string();
         } else {
@@ -219,7 +219,7 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header.to_lowercase() == old.to_lowercase())
+            .find(|(header, _)| header.eq_ignore_ascii_case(old))
         {
             *old_name = new.to_string();
         }
@@ -231,7 +231,7 @@ impl Mail {
         self.headers
             .0
             .iter()
-            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
+            .find(|(header, _)| header.eq_ignore_ascii_case(name))
             .map(|(_, value)| value.as_str())
     }
 
@@ -243,7 +243,7 @@ impl Mail {
             .0
             .iter()
             .rev()
-            .find(|(header, _)| header.to_lowercase() == name.to_lowercase())
+            .find(|(header, _)| header.eq_ignore_ascii_case(name))
             .map(|(_, value)| value.as_str())
     }
 
@@ -253,7 +253,7 @@ impl Mail {
         self.headers
             .0
             .iter()
-            .filter(|(header, _)| header.to_lowercase() == name.to_lowercase())
+            .filter(|(header, _)| header.eq_ignore_ascii_case(name))
             .count()
     }
 
@@ -274,7 +274,7 @@ impl Mail {
             .headers
             .0
             .iter()
-            .position(|header| header.0.to_lowercase() == name.to_lowercase())
+            .position(|header| header.0.eq_ignore_ascii_case(name))
         {
             self.headers.0.remove(index);
             true

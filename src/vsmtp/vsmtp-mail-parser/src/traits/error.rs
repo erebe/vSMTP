@@ -21,6 +21,9 @@
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ParserError {
     ///
+    #[error("{0}")]
+    IoError(String),
+    ///
     #[error("parsing email failed: {0}")]
     InvalidMail(String),
     ///

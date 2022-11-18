@@ -18,6 +18,7 @@
 use crate::ReplyCode;
 
 /// SMTP message send by the server to the client as defined in RFC5321#4.2
+#[must_use]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
     code: ReplyCode,
@@ -51,7 +52,7 @@ impl<'de> serde::Deserialize<'de> for Reply {
             where
                 E: serde::de::Error,
             {
-                Reply::parse_str(v).map_err(serde::de::Error::custom)
+                <Reply as std::str::FromStr>::from_str(v).map_err(serde::de::Error::custom)
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -181,21 +182,20 @@ impl Reply {
     }
 
     ///
-    /// # Errors
-    ///
-    /// * @line is not a valid SMTP reply format
-    pub fn parse_str(line: &str) -> anyhow::Result<Self> {
-        let (code, text) = ReplyCode::parse(line)?;
-        Ok(Self::new(code, text.to_string()))
-    }
-
-    ///
-    #[must_use]
     pub fn combine(informational: &Self, response: &Self) -> Self {
         Self {
             code: response.code.clone(),
             text: format!("{}\r\n{}", informational.text, response.text),
         }
+    }
+}
+
+impl std::str::FromStr for Reply {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (code, text) = ReplyCode::parse(s)?;
+        Ok(Self::new(code, text.to_string()))
     }
 }
 
@@ -310,7 +310,7 @@ mod tests {
         #[test]
         fn basic() {
             assert_eq!(
-                Reply::parse_str("250 Ok").unwrap(),
+                "250 Ok".parse::<Reply>().unwrap(),
                 Reply {
                     code: ReplyCode::Code { code: 250 },
                     text: "Ok".to_string()
@@ -321,7 +321,7 @@ mod tests {
         #[test]
         fn no_word() {
             assert_eq!(
-                Reply::parse_str("250 ").unwrap(),
+                "250 ".parse::<Reply>().unwrap(),
                 Reply {
                     code: ReplyCode::Code { code: 250 },
                     text: String::new()
@@ -332,7 +332,7 @@ mod tests {
         #[test]
         fn basic_enhanced() {
             assert_eq!(
-                Reply::parse_str("501 5.1.7 Invalid address").unwrap(),
+                "501 5.1.7 Invalid address".parse::<Reply>().unwrap(),
                 Reply {
                     code: ReplyCode::Enhanced {
                         code: 501,

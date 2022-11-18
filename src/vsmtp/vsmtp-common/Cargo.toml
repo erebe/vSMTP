@@ -51,6 +51,11 @@ time = { version = "0.3.17", default-features = false, features = [
     "serde-well-known",
 ] }
 libc = { version = "0.2.137", default-features = false, features = ["std"] }
+tracing = { version = "0.1.37", default-features = false, features = [
+    "std",
+    "attributes",
+    "release_max_level_info",
+] }
 
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
@@ -85,7 +90,18 @@ thiserror = { version = "1.0.37", default-features = false }
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
 
 base64 = { version = "0.13.1", default-features = false, features = ["std"] }
-
+rsasl = { git = "https://github.com/Mathieu-Lala/rsasl", branch = "fix/callback-static", version = "=2.0.0-rc.3", default-features = false, features = [
+    "provider",
+    "config_builder",
+    # "registry_static",
+    # "scram-sha-1",
+    # "scram-sha-2",
+    "anonymous",
+    # "external",
+    # "xoauth2",
+    "plain",
+    "login",
+] }
 [dev-dependencies]
 serde_json = { version = "1.0.88", default-features = false, features = [
     "std",

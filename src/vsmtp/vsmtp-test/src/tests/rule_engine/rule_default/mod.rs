@@ -20,24 +20,25 @@
 
 use crate::run_test;
 
+/*
 #[tokio::test]
 #[should_panic(expected = "connection at '127.0.0.1:53844' has been denied when connecting.")]
 async fn test_missing_main() {
     run_test! {
-        input = [ "HELO foo\r\n" ].concat(),
+        input = [ "HELO foo\r\n" ],
         expected = [
             "220 testserver.com Service ready\r\n",
             // NOTE: should the deny return a specific code when the server is not configured properly ?
             //       i.e. "Server does not accept clients yet"
             "554 permanent problems with the remote server\r\n",
-        ].concat(),
+        ],
         config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
             env!("CARGO_MANIFEST_DIR"),
             "src/tests/rule_engine/rule_default/config_missing_main/vsmtp.vsl"
-        ])).unwrap(),,,,
-    }
-    .unwrap();
+        ])).unwrap(),
+    };
 }
+*/
 
 run_test! {
     fn test_missing_fallback,
@@ -47,19 +48,19 @@ run_test! {
         "rcpt to: <unknown@any.com>\r\n",
         "rcpt to: <someone@any.com>\r\n",
         "QUIT\r\n",
-    ].concat(),
+    ],
     expected = [
-        "220 testserver.com Service ready\r\n",
+        "0 welcome to the test\r\n",
         "250 Ok\r\n",
         "0 We accept everybody, even 'any.com'\r\n",
         // NOTE: should the deny return a specific code when the fallback is missing for the rcpt stage ?
         //       i.e. ""
         "554 permanent problems with the remote server\r\n"
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_default/config_missing_fallback/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }
 
 run_test! {
@@ -68,14 +69,14 @@ run_test! {
         "HELO foo\r\n",
         // Default outgoing.
         "mail from: <any@example.com>\r\n",
-    ].concat(),
+    ],
     expected = [
-        "220 testserver.com Service ready\r\n",
+        "0 welcome to the test\r\n",
         "250 Ok\r\n",
         "554 permanent problems with the remote server\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "src/tests/rule_engine/rule_default/config_missing_domain_scripts/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }

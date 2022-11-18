@@ -14,8 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::mail_context::Finished;
-use vsmtp_common::mail_context::{Empty, MailContext, TransactionType};
+use vsmtp_common::{
+    ClientName, ConnectProperties, ContextFinished, FinishedProperties, HeloProperties,
+    MailFromProperties, RcptToProperties, TransactionType,
+};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
@@ -60,7 +62,7 @@ pub fn local_test() -> Config {
         .without_auth()
         .with_app_at_location("./tmp/app")
         .with_vsl(format!(
-            "{}/src/tests/ignore_vsl",
+            "{}/src/template/ignore_vsl",
             env!("CARGO_MANIFEST_DIR")
         ))
         .with_default_app_logs()
@@ -72,16 +74,36 @@ pub fn local_test() -> Config {
 
 ///
 #[must_use]
-pub fn local_ctx() -> MailContext<Finished> {
-    MailContext::<Empty>::connect(
-        "127.0.0.1:25".parse().expect(""),
-        "127.0.0.1:5977".parse().expect(""),
-        "testserver.com".to_string(),
-    )
-    .helo("client.testserver.com".to_string())
-    .mail_from("client@client.testserver.com".parse().expect(""), false)
-    .rcpt_to(vec![], TransactionType::Incoming(None))
-    .finish()
+pub fn local_ctx() -> ContextFinished {
+    ContextFinished {
+        connect: ConnectProperties {
+            connect_timestamp: time::OffsetDateTime::now_utc(),
+            client_addr: "127.0.0.1:25".parse().expect(""),
+            server_addr: "127.0.0.1:5977".parse().expect(""),
+            server_name: "testserver.com".to_string(),
+            auth: None,
+            tls: None,
+            skipped: None,
+        },
+        helo: HeloProperties {
+            client_name: ClientName::Domain("client.testserver.com".to_string()),
+            using_deprecated: false,
+        },
+        mail_from: MailFromProperties {
+            mail_timestamp: time::OffsetDateTime::now_utc(),
+            message_id: "test".to_string(),
+            outgoing: false,
+            reverse_path: "client@client.testserver.com".parse().expect(""),
+        },
+        rcpt_to: RcptToProperties {
+            forward_paths: vec![],
+            transaction_type: TransactionType::Incoming(None),
+        },
+        finished: FinishedProperties {
+            dkim: None,
+            spf: None,
+        },
+    }
 }
 
 ///
@@ -89,10 +111,10 @@ pub fn local_ctx() -> MailContext<Finished> {
 pub fn local_msg() -> MessageBody {
     MessageBody::new(
         [
-            "From: NoBody <nobody@domain.tld>",
-            "Reply-To: Yuin <yuin@domain.tld>",
-            "To: Hei <hei@domain.tld>",
-            "Subject: Happy new year",
+            "From: NoBody <nobody@domain.tld>\r\n",
+            "Reply-To: Yuin <yuin@domain.tld>\r\n",
+            "To: Hei <hei@domain.tld>\r\n",
+            "Subject: Happy new year\r\n",
         ]
         .into_iter()
         .map(str::to_string)

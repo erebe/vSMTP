@@ -15,15 +15,17 @@
  *
 */
 use crate::{
-    channel_message::ProcessMessage,
-    receiver::{Connection, MailHandler},
+    channel_message::ProcessMessage, on_mail::MailHandler, receiver::handler::Handler,
+    ValidationVSL,
 };
 use anyhow::Context;
 use time::format_description::well_known::Iso8601;
 use tokio_rustls::rustls;
+use tokio_stream::StreamExt;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{CodeID, ConnectionKind};
-use vsmtp_config::{get_rustls_config, Config, DnsResolvers};
+use vsmtp_common::CodeID;
+use vsmtp_config::{get_rustls_config, Config};
+use vsmtp_protocol::ConnectionKind;
 use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -31,7 +33,6 @@ pub struct Server {
     config: std::sync::Arc<Config>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -63,8 +64,7 @@ fn listener_to_stream(
 ) -> impl tokio_stream::Stream<Item = ListenerStreamItem> + '_ {
     async_stream::try_stream! {
         loop {
-            let client = listener.accept().await?;
-            yield client;
+            yield listener.accept().await?;
         }
     }
 }
@@ -80,7 +80,6 @@ impl Server {
     pub fn new(
         config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -101,7 +100,6 @@ impl Server {
                 None
             },
             rule_engine,
-            resolvers,
             queue_manager,
             config,
             working_sender,
@@ -153,17 +151,16 @@ impl Server {
 
         client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
+        let connection_timestamp = time::OffsetDateTime::now_utc();
         let session = Self::run_session(
-            Connection::new(
-                kind,
-                client_addr,
-                stream.local_addr().expect("retrieve local address"),
-                self.config.clone(),
-                stream,
-            ),
+            connection_timestamp,
+            client_addr,
+            stream.local_addr().expect("retrieve local address"),
+            stream,
+            kind,
             self.tls_config.clone(),
+            self.config.clone(),
             self.rule_engine.clone(),
-            self.resolvers.clone(),
             self.queue_manager.clone(),
             self.working_sender.clone(),
             self.delivery_sender.clone(),
@@ -253,29 +250,46 @@ impl Server {
 
     ///
     /// # Errors
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip_all, err, fields(
-        id = conn.context.connect_timestamp.format(&Iso8601::DEFAULT).unwrap())
-    )]
+        id = connect_timestamp.format(&Iso8601::DEFAULT).unwrap()
+    ))]
     pub async fn run_session(
-        mut conn: Connection<tokio::net::TcpStream>,
+        connect_timestamp: time::OffsetDateTime,
+        client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
+        tcp_stream: tokio::net::TcpStream,
+        kind: ConnectionKind,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+        config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
-        resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
-        conn.receive(
-            tls_config,
-            rule_engine,
-            resolvers,
-            queue_manager,
-            &mut MailHandler {
+        let smtp_handler = Handler::new(
+            Box::new(MailHandler {
                 working_sender,
                 delivery_sender,
-            },
-        )
-        .await?;
+            }),
+            config.clone(),
+            tls_config,
+            rule_engine,
+            queue_manager,
+        );
+        let smtp_receiver = vsmtp_protocol::Receiver::<_, ValidationVSL, _, _>::new(
+            tcp_stream,
+            kind,
+            smtp_handler,
+            config.server.smtp.error.soft_count,
+            config.server.smtp.error.hard_count,
+            config.server.message_size_limit,
+        );
+        let smtp_stream = smtp_receiver.into_stream(client_addr, server_addr);
+        tokio::pin!(smtp_stream);
+
+        while let Some(Ok(())) = smtp_stream.next().await {}
+
         log::info!("Connection closed cleanly.");
         Ok(())
     }
@@ -320,7 +334,6 @@ mod tests {
                     RuleEngine::new(config.clone(), None, resolvers, queue_manager.clone())
                         .unwrap(),
                 ),
-                std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap()),
                 queue_manager,
                 working.0,
                 delivery.0,
@@ -375,7 +388,7 @@ mod tests {
         ];
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 8))]
     async fn one_client_max_ok() {
         let server = tokio::spawn(async move {
             listen_with![
@@ -411,7 +424,7 @@ mod tests {
         // client transaction is ok, but has been denied (because there is no rules)
         assert_eq!(
             format!("{}", client.unwrap().unwrap_err()),
-            "permanent error (554): permanent problems with the remote server"
+            "response error: incomplete response"
         );
     }
 

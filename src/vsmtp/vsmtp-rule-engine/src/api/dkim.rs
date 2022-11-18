@@ -15,8 +15,6 @@
  *
 */
 
-use vsmtp_plugins::rhai;
-
 use crate::api::{Context, EngineResult, Message, Server};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -25,8 +23,9 @@ use rhai::plugin::{
 use vsmtp_auth::dkim::{
     sign, verify, Canonicalization, PublicKey, Signature, VerificationResult, VerifierError,
 };
-use vsmtp_common::mail_context::{Finished, MailContext};
+use vsmtp_common::ContextFinished;
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_plugins::rhai;
 
 pub use dkim_rhai::*;
 
@@ -37,7 +36,10 @@ mod dkim_rhai {
     #[rhai_fn(global, get = "has_dkim_result", pure, return_raw)]
     pub fn has_dkim_result(ctx: &mut Context) -> EngineResult<bool> {
         let guard = vsl_guard_ok!(ctx.read());
-        Ok(guard.dkim().is_some())
+        Ok(guard
+            .dkim()
+            .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+            .is_some())
     }
 
     /// Return the DKIM signature verification result in the `ctx()` or
@@ -46,15 +48,18 @@ mod dkim_rhai {
     pub fn dkim_result(ctx: &mut Context) -> EngineResult<rhai::Map> {
         let guard = vsl_guard_ok!(ctx.read());
 
-        guard.dkim().map_or_else(
-            || Err("no `dkim_result` available".into()),
-            |dkim_result| {
-                Ok(rhai::Map::from_iter([(
-                    "status".into(),
-                    dkim_result.status.clone().into(),
-                )]))
-            },
-        )
+        guard
+            .dkim()
+            .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+            .map_or_else(
+                || Err("no `dkim_result` available".into()),
+                |dkim_result| {
+                    Ok(rhai::Map::from_iter([(
+                        "status".into(),
+                        dkim_result.status.clone().into(),
+                    )]))
+                },
+            )
     }
 
     /// Store the result produced by the DKIM signature verification in the `ctx()`.
@@ -330,19 +335,18 @@ mod dkim_rhai {
         let mut message_guard = vsl_guard_ok!(message.write());
         let context_guard = vsl_guard_ok!(context.read());
 
-        let ctx: Result<&MailContext<Finished>, _> =
-            std::ops::Deref::deref(&context_guard).try_into();
-        let ctx = ctx.map_err::<Box<rhai::EvalAltResult>, _>(|_| "not valid state".into())?;
-
-        super::Impl::generate_signature_dkim(
-            &mut message_guard,
-            ctx,
-            &server,
-            selector,
-            &headers_field,
-            canonicalization,
-        )
-        .map_err(Into::into)
+        match &*context_guard {
+            vsmtp_common::Context::Finished(ctx) => super::Impl::generate_signature_dkim(
+                &mut message_guard,
+                ctx,
+                &server,
+                selector,
+                &headers_field,
+                canonicalization,
+            )
+            .map_err(Into::into),
+            _ => Err("bad state".into()),
+        }
     }
 }
 
@@ -480,13 +484,13 @@ impl Impl {
     #[tracing::instrument(skip(server), ret, err)]
     fn generate_signature_dkim(
         message: &mut MessageBody,
-        context: &MailContext<Finished>,
+        context: &ContextFinished,
         server: &Server,
         selector: &str,
         headers_field: &rhai::Array,
         canonicalization: &str,
     ) -> Result<String, DkimErrors> {
-        let sdid = context.server_name();
+        let sdid = &context.connect.server_name;
         let dkim_params = server
             .config
             .server

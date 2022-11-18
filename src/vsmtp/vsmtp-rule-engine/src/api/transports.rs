@@ -499,7 +499,7 @@ fn set_transport_for_one(
     method: &Transfer,
 ) -> EngineResult<()> {
     vsl_missing_ok!(
-        ref vsl_guard_ok!(context.write()).forward_paths_mut(),
+        ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",
         State::RcptTo
     )
@@ -511,7 +511,7 @@ fn set_transport_for_one(
 
 fn set_transport_foreach(context: &mut Context, method: &Transfer) -> EngineResult<()> {
     vsl_missing_ok!(
-        ref vsl_guard_ok!(context.write()).forward_paths_mut(),
+        ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",
         State::RcptTo
     )

@@ -15,13 +15,15 @@
  *
 */
 
-use crate::{run_test, tests::auth::unsafe_auth_config};
+use crate::run_test;
+use crate::tests::protocol::auth::unsafe_auth_config;
 use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
+use vsmtp_common::ContextFinished;
 
 run_test! {
     fn getters,
-    input = concat!(
+    input = [
         "EHLO foo\r\n",
         "AUTH ANONYMOUS dG9rZW5fYWJjZGVm\r\n",
         "MAIL FROM:<replace@example.com>\r\n",
@@ -29,8 +31,8 @@ run_test! {
         "DATA\r\n",
         ".\r\n",
         "QUIT\r\n"
-    ),
-    expected = concat!(
+    ],
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250-testserver.com\r\n",
         "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
@@ -43,26 +45,24 @@ run_test! {
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
-    ),
-    config = unsafe_auth_config(),,mail_handler = {
+    ],
+    config = unsafe_auth_config(),
+    mail_handler = {
         #[derive(Default)]
         struct MailHandler;
 
         #[async_trait::async_trait]
         impl vsmtp_server::OnMail for MailHandler {
-            async fn on_mail<
-                S: tokio::io::AsyncWrite + tokio::io::AsyncRead + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut  vsmtp_server::Connection<S>,
-                ctx: Box<vsmtp_common::mail_context::MailContext<vsmtp_common::mail_context::Finished>>,
+                ctx: Box<ContextFinished>,
                 _:  vsmtp_mail_parser::MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> vsmtp_common::CodeID {
 
                 assert_eq!(
                     "john.doe@example.com",
-                    ctx.reverse_path().full()
+                    ctx.mail_from.reverse_path.full()
                 );
 
                 assert_eq!(
@@ -71,7 +71,7 @@ run_test! {
                         addr!("add4@example.com"),
                         addr!("replace4@example.com"),
                     ],
-                    *ctx.forward_paths().iter()
+                    *ctx.rcpt_to.forward_paths.iter()
                         .map(|i| i.address.clone())
                         .collect::<Vec<_>>()
                 );
@@ -83,11 +83,10 @@ run_test! {
         MailHandler
     },
     hierarchy_builder = |builder| {
-        Ok(
-            builder
-                .add_main_rules(include_str!("getters-auth.vsl"))?
-                .add_fallback_rules(include_str!("getters.vsl"))?
-                .build()
+        Ok(builder
+            .add_main_rules(include_str!("getters-auth.vsl"))?
+            .add_fallback_rules(include_str!("getters.vsl"))?
+            .build()
         )
     },
 }

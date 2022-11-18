@@ -24,18 +24,17 @@ run_test! {
         // Basic open-relay tentative.
         "MAIL FROM: <john.doe@foobar.com>\r\n",
         "RCPT TO: <satan@any.com>\r\n",
-        "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "554 5.7.1 Relay access denied\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "../../../examples/anti_relaying/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }
 
 run_test! {
@@ -44,17 +43,16 @@ run_test! {
         "HELO foo\r\n",
         // Untrusted address.
         "MAIL FROM: <satan@testserver.com>\r\n",
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "451 4.7.1 Sender is not authorized. Please try again.\r\n",
-    ]
-    .concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "../../../examples/anti_relaying/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }
 
 run_test! {
@@ -65,18 +63,18 @@ run_test! {
         "MAIL FROM: <john.doe@example.com>\r\n",
         "RCPT TO: <green@testserver.com>\r\n",
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "../../../examples/anti_relaying/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap(),
 }
 
 run_test! {
@@ -87,16 +85,16 @@ run_test! {
         "MAIL FROM: <john.doe@example.com>\r\n",
         "RCPT TO: <green@example.com>\r\n",
         "QUIT\r\n"
-    ].concat(),
+    ],
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n",
-    ].concat(),
+    ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
         env!("CARGO_MANIFEST_DIR"),
         "../../../examples/anti_relaying/vsmtp.vsl"
-    ])).unwrap(),,,,
+    ])).unwrap()
 }

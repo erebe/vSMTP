@@ -17,7 +17,6 @@
 
 use crate::config::{local_ctx, local_msg, local_test};
 use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::MailContextAPI;
 use vsmtp_common::state::State;
 use vsmtp_common::status::Status;
 use vsmtp_config::DnsResolvers;
@@ -30,7 +29,7 @@ use vsmtp_rule_engine::RuleEngine;
 pub fn run_with_msg(
     callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
     msg: Option<MessageBody>,
-) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
+) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
@@ -42,10 +41,9 @@ pub fn run_with_msg(
 
     let msg = msg.unwrap_or_else(local_msg);
 
-    let mut out = std::collections::HashMap::<
-        State,
-        (MailContextAPI, MessageBody, Status, Option<Status>),
-    >::new();
+    let mut out =
+        std::collections::HashMap::<State, (vsmtp_common::Context, MessageBody, Status)>::new();
+
     for i in [
         State::Connect,
         State::Helo,
@@ -60,8 +58,16 @@ pub fn run_with_msg(
             .expect("runtime");
         let re = rule_engine.clone();
         let msg = msg.clone();
+        let mut skipped = None;
 
-        let state = runtime.block_on(async move { re.just_run_when(i, local_ctx(), msg) });
+        let state = runtime.block_on(async move {
+            re.just_run_when(
+                &mut skipped,
+                i,
+                vsmtp_common::Context::Finished(local_ctx()),
+                msg,
+            )
+        });
         out.insert(i, state);
     }
     out
@@ -71,6 +77,6 @@ pub fn run_with_msg(
 #[must_use]
 pub fn run(
     sub_domain_hierarchy_builder: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
-) -> std::collections::HashMap<State, (MailContextAPI, MessageBody, Status, Option<Status>)> {
+) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
     run_with_msg(sub_domain_hierarchy_builder, None)
 }

@@ -15,19 +15,17 @@
  *
 */
 
-use vqueue::GenericQueueManager;
-use vsmtp_common::mail_context::{Finished, TransactionType};
-use vsmtp_common::{addr, mail_context::MailContext, CodeID};
-use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::Connection;
-use vsmtp_server::OnMail;
-
 use crate::run_test;
+use vqueue::GenericQueueManager;
+use vsmtp_common::{addr, CodeID};
+use vsmtp_common::{ContextFinished, TransactionType};
+use vsmtp_mail_parser::MessageBody;
+use vsmtp_server::OnMail;
 
 // TODO: add examples with outgoing & internal transaction types.
 run_test! {
     fn test_aliases,
-    input = concat![
+    input = [
         "HELO foo\r\n",
         "MAIL FROM: <someone@example.com>\r\n",
         "RCPT TO: <jenny@mydomain.com>\r\n",
@@ -35,15 +33,17 @@ run_test! {
         "RCPT TO: <john@gmail.com>\r\n",
         "RCPT TO: <oliver@mydomain.com>\r\n",
         "DATA\r\n",
-        "From: <someone@example.com>\r\n",
-        "To: jenny@mydomain.com, joe@mydomain.com, john@gmail.com, oliver@mydomain.com\r\n",
-        "Subject: test\r\n",
-        "\r\n",
-        "test\r\n",
-        ".\r\n",
+        concat!(
+            "From: <someone@example.com>\r\n",
+            "To: jenny@mydomain.com, joe@mydomain.com, john@gmail.com, oliver@mydomain.com\r\n",
+            "Subject: test\r\n",
+            "\r\n",
+            "test\r\n",
+            ".\r\n",
+        ),
         "QUIT\r\n"
     ],
-    expected = concat![
+    expected = [
         "220 mydomain.com Service ready\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -60,25 +60,22 @@ run_test! {
         env!("CARGO_MANIFEST_DIR"),
         "../../../examples/alias/vsmtp.vsl"
     ]))
-    .unwrap(),,
+    .unwrap(),
     mail_handler = {
         struct MailHandler;
 
         #[async_trait::async_trait]
         impl OnMail for MailHandler {
-            async fn on_mail<
-                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-            >(
+            async fn on_mail(
                 &mut self,
-                _: &mut Connection<S>,
-                ctx: Box<MailContext<Finished>>,
+                ctx: Box<ContextFinished>,
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                let fp = ctx.forward_paths();
+                let fp = ctx.rcpt_to.forward_paths;
 
                 assert_eq!(fp.len(), 2);
-                assert_eq!(ctx.transaction_type(), &TransactionType::Incoming(Some("mydomain.com".to_owned())));
+                assert_eq!(ctx.rcpt_to.transaction_type, TransactionType::Incoming(Some("mydomain.com".to_owned())));
 
                 assert_eq!(fp[0].address, addr!("oliver@mydomain.com"));
 
@@ -92,5 +89,5 @@ run_test! {
         }
 
         MailHandler
-    },,
+    },
 }

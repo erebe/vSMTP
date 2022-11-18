@@ -23,27 +23,27 @@ const CONFIG: &str = concat!(
 );
 
 run_test! {
-    multi fn test_dnsbl_1,
-    input = concat![
+    fn test_dnsbl_1,
+    input = [
         "EHLO [222.11.16.196]\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "451 4.7.1 Sender is not authorized. Please try again.\r\n",
     ],
-    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
 }
 
 run_test! {
-    multi fn test_dnsbl_2,
-    input = concat![
+    fn test_dnsbl_2,
+    input = [
         "HELO foo\r\n",
         "QUIT\r\n",
     ],
-    expected = concat![
+    expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
         "221 Service closing transmission channel\r\n"
     ],
-    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),,,,
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
 }

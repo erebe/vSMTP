@@ -43,19 +43,19 @@ impl TryFrom<&str> for MessageBody {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut lines = value
-            .split("\r\n")
-            .map(ToString::to_string)
-            .collect::<Vec<_>>();
-
-        if let Some(last) = lines.last() {
-            if last.is_empty() {
-                lines.pop();
-            }
+        let mut bytes = vec![];
+        let splitted = value.split("\r\n").collect::<Vec<_>>();
+        for (idx, mut line) in splitted.iter().map(|l| l.as_bytes().to_vec()).enumerate() {
+            bytes.push({
+                if idx != splitted.len() - 1 {
+                    line.extend_from_slice(b"\r\n");
+                }
+                line
+            });
         }
 
         Ok(MessageBody {
-            raw: BasicParser::default().parse_sync(lines)?.unwrap_left(),
+            raw: BasicParser::default().parse_sync(bytes)?.unwrap_left(),
             parsed: None,
         })
     }
@@ -86,10 +86,14 @@ impl MessageBody {
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<String> {
-        self.parsed.as_ref().map_or_else(
-            || self.raw.get_header(name, false, true),
+        let header = self.parsed.as_ref().map_or_else(
+            || self.raw.get_header(name, false),
             |p| p.get_header(name).map(str::to_string),
-        )
+        );
+        header
+            .as_ref()
+            .map(|header| header.strip_suffix("\r\n").unwrap_or(header))
+            .map(str::to_string)
     }
 
     /// Count the number of headers with the given name.
@@ -103,10 +107,10 @@ impl MessageBody {
     /// rewrite a header with a new value or add it to the header section.
     pub fn set_header(&mut self, name: &str, value: &str) {
         if let Some(parsed) = &mut self.parsed {
-            parsed.set_header(name, value);
+            parsed.set_header(name, &format!("{value}\r\n"));
         }
 
-        self.raw.set_header(name, value);
+        self.raw.set_header(name, &format!("{value}\r\n"));
     }
 
     /// Rename a header.
@@ -126,7 +130,7 @@ impl MessageBody {
             parsed.push_headers([(name.to_string(), value.to_string())]);
         }
 
-        self.raw.add_header(name, value);
+        self.raw.add_header(name, &format!("{value}\r\n"));
     }
 
     /// prepend a header to the header section.
@@ -137,7 +141,7 @@ impl MessageBody {
             parsed.prepend_headers([(name.to_string(), value.to_string())]);
         }
 
-        self.raw.prepend_header([format!("{name}: {value}")]);
+        self.raw.prepend_header([format!("{name}: {value}\r\n")]);
     }
 
     /// Remove a header from the list.

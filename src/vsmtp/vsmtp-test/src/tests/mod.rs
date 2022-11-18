@@ -14,8 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod auth;
-mod clair;
 mod examples {
     mod aliases;
     mod anti_relaying;
@@ -23,10 +21,19 @@ mod examples {
     mod family;
     mod message;
 }
-mod message_max_size;
-mod rset;
+mod protocol {
+    mod clair;
+    mod message_max_size;
+    mod rset;
+    mod vrfy;
+
+    pub mod auth;
+    mod tls;
+    mod utf8;
+}
 mod rule_engine {
     mod actions;
+    // mod todo;
     mod getters;
     mod rule_default;
     mod rule_triage;
@@ -35,7 +42,4 @@ mod rules {
     mod codes;
     mod quarantine;
 }
-mod tls;
-mod utf8;
 mod vqueue;
-mod vrfy;

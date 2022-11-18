@@ -23,7 +23,6 @@ use rhai::plugin::{
     TypeId,
 };
 use vsmtp_auth::spf;
-use vsmtp_common::state::State;
 use vsmtp_plugins::rhai;
 
 pub use security::*;
@@ -43,7 +42,10 @@ mod security {
     pub fn check_spf(ctx: &mut Context, srv: Server) -> EngineResult<rhai::Map> {
         {
             let guard = vsl_guard_ok!(ctx.read());
-            if let Some(previous_spf) = guard.spf() {
+            if let Some(previous_spf) = guard
+                .spf()
+                .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+            {
                 return Ok(result_to_map(previous_spf.clone()));
             }
         }
@@ -51,7 +53,9 @@ mod security {
         let (mail_from, ip) = {
             let ctx = vsl_guard_ok!(ctx.read());
             (
-                vsl_missing_ok!(ref ctx.reverse_path().cloned(), "mail_from", State::MailFrom),
+                ctx.reverse_path()
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+                    .clone(),
                 ctx.client_addr().ip(),
             )
         };

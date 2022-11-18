@@ -50,7 +50,7 @@ fn parse() {
                 CodeID::Help => Reply::new(ReplyCode::Code{ code: 214 },
                     "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
                         .to_string()),
-                CodeID::Greetings => Reply::parse_str("220 {name} ESMTP Service ready").unwrap(),
+                CodeID::Greetings => "220 {name} ESMTP Service ready".parse().unwrap(),
                 CodeID::TlsRequired => Reply::new(
                     ReplyCode::Enhanced{code: 451, enhanced: "5.7.3".to_string() }, "STARTTLS is required to send mail"
                 )
