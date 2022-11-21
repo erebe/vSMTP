@@ -39,7 +39,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "forward (str/str)" || {
@@ -140,7 +140,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "forward_all" || {
@@ -200,7 +200,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "deliver (str/str)" || {
@@ -265,7 +265,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "deliver_all" || {
@@ -308,7 +308,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup mbox" || {
@@ -359,7 +359,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup mbox" || {
@@ -403,7 +403,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup maildir" || {
@@ -454,7 +454,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup maildir" || {

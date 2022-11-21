@@ -81,7 +81,7 @@ mod utils_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "user_exist" || {
@@ -123,7 +123,7 @@ mod utils_rhai {
     ///
     /// ```
     /// # vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "hostname" || {
@@ -195,7 +195,7 @@ mod utils_rhai {
     ///
     /// ```
     /// # vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   preq: [
     ///     action "lookup recipients" || {
@@ -232,7 +232,7 @@ mod utils_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_main_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   connect: [
     ///     rule "rlookup" || {

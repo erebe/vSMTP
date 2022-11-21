@@ -3,4 +3,9 @@
     // Check the sender domain if it's not `doe-family.com`.
     rule "blacklist" || if mail_from().domain == "spam-domain.org" { deny(code_greylist) } else { next() }
   ],
+
+  // Prevent relaying by denying the connection if the sender / recipient domain is not 'doe-family.com'.
+  rcpt: [
+    rule "anti-relaying" || deny(code554_7_1),
+  ]
 }

@@ -48,7 +48,7 @@ const my_command = cmd(#{
 
         RuleEngine::with_hierarchy(
             config,
-            |builder| Ok(builder.add_fallback_rules(VSL)?.build()),
+            |builder| Ok(builder.add_root_incoming_rules(VSL)?.build()),
             dns_resolvers,
             queue_manger,
         )
@@ -67,8 +67,7 @@ const my_command = cmd(#{
             config,
             |builder| {
                 Ok(builder
-                    .add_main_rules("#{}")?
-                    .add_fallback_rules(include_str!("test/main.vsl"))?
+                    .add_root_incoming_rules(include_str!("test/main.vsl"))?
                     .build())
             },
             dns_resolvers,

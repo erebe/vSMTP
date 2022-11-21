@@ -38,12 +38,7 @@ fn time_api() {
 
     RuleEngine::with_hierarchy(
         config,
-        |builder| {
-            Ok(builder
-                .add_main_rules("#{}")?
-                .add_fallback_rules(TIME)?
-                .build())
-        },
+        |builder| Ok(builder.add_root_incoming_rules(TIME)?.build()),
         dns_resolvers,
         queue_manger,
     )

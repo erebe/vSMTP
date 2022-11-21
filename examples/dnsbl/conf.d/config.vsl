@@ -18,5 +18,8 @@ fn on_config(config) {
     config.app.dirpath = "examples/dnsbl/app";
     config.app.vsl.dirpath = "../../../examples/dnsbl/domain-available";
 
+    // NOTE: lookup results depends on the dns type that you use.
+    config.server.dns.type = "cloudflare";
+
     config
 }

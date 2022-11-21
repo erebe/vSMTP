@@ -41,29 +41,6 @@ async fn test_missing_main() {
 */
 
 run_test! {
-    fn test_missing_fallback,
-    input = [
-        "HELO foo\r\n",
-        "mail from: <any@any.com>\r\n",
-        "rcpt to: <unknown@any.com>\r\n",
-        "rcpt to: <someone@any.com>\r\n",
-        "QUIT\r\n",
-    ],
-    expected = [
-        "0 welcome to the test\r\n",
-        "250 Ok\r\n",
-        "0 We accept everybody, even 'any.com'\r\n",
-        // NOTE: should the deny return a specific code when the fallback is missing for the rcpt stage ?
-        //       i.e. ""
-        "554 permanent problems with the remote server\r\n"
-    ],
-    config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
-        env!("CARGO_MANIFEST_DIR"),
-        "src/tests/rule_engine/rule_default/config_missing_fallback/vsmtp.vsl"
-    ])).unwrap(),
-}
-
-run_test! {
     fn test_missing_domain_scripts,
     input = [
         "HELO foo\r\n",

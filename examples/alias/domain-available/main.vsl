@@ -1,4 +1,0 @@
-#{
-    // For the sake of this example, we don't want to filter before the rcpt stage, so this file
-    // does not contain any rules.
-}

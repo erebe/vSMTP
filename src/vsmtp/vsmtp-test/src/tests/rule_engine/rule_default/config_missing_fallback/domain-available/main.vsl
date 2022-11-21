@@ -1,9 +1,0 @@
-#{
-    connect: [
-        rule "accept any connection" || accept(code(0, "welcome to the test")),
-    ],
-
-    mail: [
-        rule "accept any sender" || accept(code(0, `We accept everybody, even '${mail_from().domain}'`)),
-    ]
-}

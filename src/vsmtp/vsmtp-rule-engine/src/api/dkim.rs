@@ -220,7 +220,7 @@ mod dkim_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    ///     |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    ///     |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -293,7 +293,7 @@ mod dkim_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_main_rules("#{}")?.add_fallback_rules(r#"
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {

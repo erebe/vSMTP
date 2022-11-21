@@ -83,10 +83,10 @@ run_test! {
         MailHandler
     },
     hierarchy_builder = |builder| {
-        Ok(builder
-            .add_main_rules(include_str!("getters-auth.vsl"))?
-            .add_fallback_rules(include_str!("getters.vsl"))?
-            .build()
+        Ok(
+            builder
+                .add_root_incoming_rules(include_str!("getters.vsl"))?
+                .build()
         )
     },
 }

@@ -19,9 +19,9 @@ use crate::{dsl::directives::Directives, RuleEngine};
 use anyhow::Context;
 use vsmtp_plugins::rhai;
 
-const DEFAULT_MAIN_RULES: &str = include_str!("../api/default/main_rules.rhai");
+/// Rules that automatically deny the transaction once run.
+const DEFAULT_ROOT_INCOMING_RULES: &str = include_str!("../api/default/root_incoming_rules.rhai");
 const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default/fallback_rules.rhai");
-
 const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default/incoming_rules.rhai");
 const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default/outgoing_rules.rhai");
 const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules.rhai");
@@ -29,9 +29,9 @@ const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules
 /// Encapsulate all ASTs of rules split by domain and transaction type.
 #[derive(Debug)]
 pub struct SubDomainHierarchy {
-    /// basic rules called for pre-mail stages.
-    pub main: Script,
-    /// Post-mail rules executed if the sender's domain isn't found in [`Self::domains`].
+    /// Generic rules called for pre-mail stages to every transactions.
+    pub root_incoming: Script,
+    /// Used if an error occurred in the hierarchy's logic.
     pub fallback: Script,
     /// Domain specific rules, executed following the transaction context.
     pub domains: std::collections::BTreeMap<String, DomainDirectives>,
@@ -127,18 +127,14 @@ impl SubDomainHierarchy {
         }
 
         Ok(Self {
-            main: Self::rules_from_path_or_default(
+            root_incoming: Self::rules_from_path_or_default(
                 engine,
-                &path.join("main.vsl"),
-                DEFAULT_MAIN_RULES,
+                &path.join("incoming.vsl"),
+                DEFAULT_INCOMING_RULES,
             )
-            .context("failed to load your rule entrypoint file (main.vsl)")?,
-            fallback: Self::rules_from_path_or_default(
-                engine,
-                &path.join("fallback.vsl"),
-                DEFAULT_FALLBACK_RULES,
-            )
-            .context("failed to load your rule fallback file (fallback.vsl)")?,
+            .context("failed to load your root incoming file (incoming.vsl)")?,
+            fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)
+                .context("failed to load fallback rules: this is a bug, please report it.")?,
             domains: hierarchy,
         })
     }
@@ -149,7 +145,7 @@ impl SubDomainHierarchy {
     /// * Fail to compile default scripts.
     pub fn new_empty(engine: &rhai::Engine) -> anyhow::Result<Self> {
         Ok(Self {
-            main: Self::rules_from_script(engine, DEFAULT_MAIN_RULES)?,
+            root_incoming: Self::rules_from_script(engine, DEFAULT_ROOT_INCOMING_RULES)?,
             fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)?,
             domains: std::collections::BTreeMap::new(),
         })
@@ -209,18 +205,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Errors
     /// * Failed to compile the script.
-    pub fn add_main_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.main = SubDomainHierarchy::rules_from_script(self.engine, script)?;
-        Ok(self)
-    }
-
-    /// compile a fallback script and add it to the hierarchy.
-    ///     ///
-    /// # Errors
-    /// * Failed to compile the script.
-
-    pub fn add_fallback_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.fallback = SubDomainHierarchy::rules_from_script(self.engine, script)?;
+    pub fn add_root_incoming_rules(mut self, script: &str) -> anyhow::Result<Self> {
+        self.inner.root_incoming = SubDomainHierarchy::rules_from_script(self.engine, script)?;
         Ok(self)
     }
 

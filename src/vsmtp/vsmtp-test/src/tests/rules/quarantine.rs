@@ -62,13 +62,7 @@ async fn actual_test(stage: State) {
         hierarchy_builder = move |builder| Ok(
             // not ideal since some stages won't ever be run in main / fallback, but it works fine that way.
             builder
-                .add_main_rules(&rules.clone()).unwrap()
-                .add_fallback_rules(&rules.clone()).unwrap()
-                    .add_domain_rules("mydomain.com")
-                        .with_incoming(&rules.clone()).unwrap()
-                        .with_outgoing(&rules.clone()).unwrap()
-                        .with_internal(&rules.clone()).unwrap()
-                    .build()
+                .add_root_incoming_rules(&rules.clone())?
                 .build()
             ),
     };

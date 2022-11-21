@@ -17,11 +17,15 @@
 
 //! ### Default Fallback Rules
 //!
-//! Rules loaded by default if no configuration as been found for the fallback script.
+//! Rules loaded by default when an error occurs in sub domain logic.
 
 #{
-    rcpt:       [ rule "rcpt deny by default" || deny() ],
-    preq:       [ rule "preq deny by default" || deny() ],
-    postq:      [ rule "postq deny by default" || deny() ],
-    delivery:   [ rule "delivery deny by default" || deny() ],
+    connect:      [ rule "connect deny by default" || deny() ],
+    helo:         [ rule "helo deny by default" || deny() ],
+    mail:         [ rule "mail deny by default" || deny() ],
+    authenticate: [ rule "authenticate deny by default" || deny() ],
+    rcpt:         [ rule "rcpt deny by default" || deny() ],
+    preq:         [ rule "preq deny by default" || deny() ],
+    postq:        [ rule "postq deny by default" || deny() ],
+    delivery:     [ rule "delivery deny by default" || deny() ],
 }

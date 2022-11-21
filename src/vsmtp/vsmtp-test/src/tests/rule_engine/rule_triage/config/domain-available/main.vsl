@@ -1,5 +1,0 @@
-#{
-    mail: [
-        rule "accept with code" || accept(code(0, "incoming main"))
-    ]
-}

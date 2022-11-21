@@ -30,16 +30,15 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     hierarchy_builder = |builder| {
-        Ok(builder.add_main_rules("#{}")?.add_fallback_rules(
-        r#"#{
-          connect: [
-            rule "test_connect" || {
-              log("trace", `${client_ip()}`);
-              if client_ip() is "127.0.0.1" { next() } else { deny() }
-            }
-          ],
-        }
-        "#)?.build())
+        Ok(builder.add_root_incoming_rules(r#"#{
+                    connect: [
+                      rule "test_connect" || {
+                        log("trace", `${client_ip()}`);
+                        if client_ip() is "127.0.0.1" { next() } else { deny() }
+                      }
+                    ],
+                  }
+                  "#,)?.build())
     },
 }
 
@@ -79,6 +78,14 @@ const CTX_TEMPLATE: &str = concat!(
 const RULE: &str = r#"
 #{
   {stage}: [
+    rule "write to disk preq" || {
+      prepend_header("X-VSMTP-INIT", "done.");
+      {action}("tests/generated/{action}");
+      accept()
+    },
+  ],
+
+  preq: [
     action "write to disk preq" || {
       prepend_header("X-VSMTP-INIT", "done.");
       {action}("tests/generated/{action}");
@@ -123,11 +130,7 @@ async fn context_write(
             "221 Service closing transmission channel\r\n",
         ],
         hierarchy_builder = |builder| {
-            Ok(builder.add_main_rules(&RULE
-                .replace("{action}", action)
-                .replace("{stage}", stage))?
-                .add_fallback_rules("#{}")?
-                .build())
+            Ok(builder.add_root_incoming_rules(&RULE.replace("{action}", action).replace("{stage}", stage))?.build())
         },
     };
 

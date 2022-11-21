@@ -2,5 +2,5 @@
     rcpt: [
         // Deny any email that is not handled by our 'example.com' configuration.
         rule "anti-relaying" || deny(code554_7_1),
-    ]
+    ],
 }

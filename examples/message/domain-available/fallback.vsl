@@ -1,3 +1,0 @@
-#{
-    rcpt: [ rule "reject relay" || deny(code554_7_1) ]
-}

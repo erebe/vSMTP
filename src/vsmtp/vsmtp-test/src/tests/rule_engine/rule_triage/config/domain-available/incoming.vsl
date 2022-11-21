@@ -1,4 +1,8 @@
 #{
+    mail: [
+        rule "accept with code" || accept(code(0, "incoming main"))
+    ],
+
     rcpt: [
         rule "unhandled domain" || deny(code(550, `unhandled domain. sender='${mail_from().domain}', rcpt='${rcpt().domain}'`)),
     ],

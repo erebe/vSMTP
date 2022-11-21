@@ -433,8 +433,8 @@ impl RuleEngine {
         smtp_state: State,
     ) -> anyhow::Result<&'a Script> {
         match smtp_state {
-            // running main script, the sender has not been received yet.
-            State::Connect | State::Helo | State::Authenticate => Ok(&self.rules.main),
+            // running root script, the sender has not been received yet.
+            State::Connect | State::Helo | State::Authenticate => Ok(&self.rules.root_incoming),
 
             State::MailFrom => {
                 let sender = context.reverse_path().context("bad state")?;
@@ -447,7 +447,7 @@ impl RuleEngine {
                     tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
                     Ok(&self.rules.fallback)
                 } else {
-                    Ok(&self.rules.main)
+                    Ok(&self.rules.root_incoming)
                 }
             }
 
@@ -512,7 +512,7 @@ impl RuleEngine {
                 } else {
                     tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
 
-                    Ok(&self.rules.fallback)
+                    Ok(&self.rules.root_incoming)
                 }
             }
 
@@ -537,6 +537,7 @@ impl RuleEngine {
                     (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
                     // Should never happen.
                     _ => {
+                        // Should never happen.
                         tracing::error!(%sender, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
 
                         Ok(&self.rules.fallback)
@@ -558,9 +559,9 @@ impl RuleEngine {
                         .get(domain)
                         .map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming)),
                     TransactionType::Incoming(None) => {
-                        tracing::warn!("No recipient has a domain handled by your configuration, running fallback script");
+                        tracing::warn!("No recipient has a domain handled by your configuration, running root incoming script");
 
-                        Ok(&self.rules.fallback)
+                        Ok(&self.rules.root_incoming)
                     }
                     TransactionType::Outgoing { .. } | TransactionType::Internal => {
                         tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
@@ -892,22 +893,20 @@ impl RuleEngine {
             })
         }
 
-        // Search for a matching delegation rule with the same socket from main -> fallback -> domains.
-        get_matching_delegation_inner(&self.rules.main.directives, socket).or_else(|| {
-            get_matching_delegation_inner(&self.rules.fallback.directives, socket).or_else(|| {
-                self.rules.domains.iter().find_map(|(_, directives)| {
-                    get_matching_delegation_inner(&directives.incoming.directives, socket).or_else(
-                        || {
-                            get_matching_delegation_inner(&directives.outgoing.directives, socket)
-                                .or_else(|| {
-                                    get_matching_delegation_inner(
-                                        &directives.internal.directives,
-                                        socket,
-                                    )
-                                })
-                        },
-                    )
-                })
+        // Search for a matching delegation rule with the same socket from root incoming -> domains.
+        get_matching_delegation_inner(&self.rules.root_incoming.directives, socket).or_else(|| {
+            self.rules.domains.iter().find_map(|(_, directives)| {
+                get_matching_delegation_inner(&directives.incoming.directives, socket).or_else(
+                    || {
+                        get_matching_delegation_inner(&directives.outgoing.directives, socket)
+                            .or_else(|| {
+                                get_matching_delegation_inner(
+                                    &directives.internal.directives,
+                                    socket,
+                                )
+                            })
+                    },
+                )
             })
         })
     }

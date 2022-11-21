@@ -1,6 +1,0 @@
-#{
-  // Prevent relaying by denying the connexion if the sender / recipient domain is not 'doe-family.com'.
-  rcpt: [
-    rule "anti-relaying" || deny(code554_7_1),
-  ]
-}

@@ -36,7 +36,7 @@ fuzz_target!(|data: &[u8]| {
     let _ = String::from_utf8(data.to_vec()).map(|script| {
         RuleEngine::with_hierarchy(
             config,
-            move |builder| Ok(builder.add_main_rules(&script)?.build()),
+            move |builder| Ok(builder.add_root_incoming_rules(&script)?.build()),
             dns_resolvers,
             queue_manager,
         )

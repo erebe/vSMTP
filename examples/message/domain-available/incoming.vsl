@@ -22,4 +22,6 @@ import "objects/mail" as mail;
             prepend_header(mail::info_header, "processing");
         }
     ],
+
+    rcpt: [ rule "reject relay" || deny(code554_7_1) ]
 }
