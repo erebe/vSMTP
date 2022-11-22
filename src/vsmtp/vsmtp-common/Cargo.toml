@@ -65,7 +65,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
     "pool",
     "serde",
 ] }
-tokio = { version = "1.21.2", default-features = false, features = [
+tokio = { version = "1.22.0", default-features = false, features = [
     "macros",
     "sync",
     "fs",
