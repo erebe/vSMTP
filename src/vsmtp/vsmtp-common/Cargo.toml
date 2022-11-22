@@ -103,7 +103,7 @@ rsasl = { git = "https://github.com/Mathieu-Lala/rsasl", branch = "fix/callback-
     "login",
 ] }
 [dev-dependencies]
-serde_json = { version = "1.0.88", default-features = false, features = [
+serde_json = { version = "1.0.89", default-features = false, features = [
     "std",
 ] }
 users = { version = "0.11.0", features = [] }
