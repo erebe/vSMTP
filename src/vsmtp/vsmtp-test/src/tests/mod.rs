@@ -23,11 +23,13 @@ mod examples {
 }
 mod protocol {
     mod clair;
+    mod mail_from;
     mod message_max_size;
     mod rset;
     mod vrfy;
 
     pub mod auth;
+    mod helo;
     mod tls;
     mod utf8;
 }

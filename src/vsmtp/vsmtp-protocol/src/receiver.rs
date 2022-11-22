@@ -15,8 +15,10 @@
  *
 */
 use crate::{
-    sink::Sink, stream::Stream, AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, HeloArgs,
-    MailFromArgs, RcptToArgs, ReceiverHandler, Verb,
+    sink::Sink,
+    stream::{Error, Stream},
+    AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError,
+    RcptToArgs, ReceiverHandler, Verb,
 };
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
@@ -308,6 +310,7 @@ where
     /// # Returns
     ///
     /// * the `Vec<u8>` is the bytes read with the SMTP verb "DATA\r\n"
+    #[allow(clippy::too_many_lines)]
     async fn smtp_handshake(&mut self) -> std::io::Result<HandshakeOutcome> {
         macro_rules! handle_args {
             ($args_output:ty, $args:expr, $on_event:tt) => {
@@ -324,10 +327,52 @@ where
             };
         }
 
-        let command_stream = self.stream.as_command_stream();
+        let command_stream = self
+            .stream
+            .as_command_stream()
+            .timeout(std::time::Duration::from_secs(30));
         tokio::pin!(command_stream);
 
-        while let Some((verb, args)) = command_stream.try_next().await? {
+        loop {
+            let command = match command_stream.try_next().await {
+                Ok(Some(command)) => command,
+                Ok(None) => return Ok(HandshakeOutcome::Quit),
+                Err(e) => {
+                    tracing::warn!("Closing after {} without receiving a command", e);
+                    self.sink
+                        .send_reply(
+                            &mut self.context,
+                            &mut self.error_counter,
+                            &mut self.handler,
+                            "451 Timeout - closing connection\r\n".parse().unwrap(),
+                        )
+                        .await?;
+
+                    return Ok(HandshakeOutcome::Quit);
+                }
+            };
+
+            let (verb, args) = match command {
+                Ok(command) => command,
+                Err(e) => match e {
+                    Error::BufferTooLong { expected, got } => {
+                        let reply = self
+                            .handler
+                            .on_args_error(ParseArgsError::BufferTooLong { expected, got })
+                            .await;
+                        self.sink
+                            .send_reply(
+                                &mut self.context,
+                                &mut self.error_counter,
+                                &mut self.handler,
+                                reply,
+                            )
+                            .await?;
+                        continue;
+                    }
+                    Error::Io(io) => return Err(io),
+                },
+            };
             tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));
 
             let stage = self.handler.get_stage();
@@ -377,7 +422,5 @@ where
                 return Ok(done);
             }
         }
-
-        Ok(HandshakeOutcome::Quit)
     }
 }

@@ -30,8 +30,24 @@ pub struct Stream<R: tokio::io::AsyncRead + Unpin + Send> {
     additional_reserve: usize,
 }
 
+/// Error while processing the TCP/IP stream.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// The buffer is longer than expected.
+    #[error("buffer is not supposed to be longer than {expected} bytes but got {got}")]
+    BufferTooLong {
+        /// Maximum size expected.
+        expected: usize,
+        /// Actual size.
+        got: usize,
+    },
+    /// Other IO error.
+    // TODO: enhance that
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+}
+
 // TODO: handle PIPELINING
-// TODO: handle line length max
 impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
     #[must_use]
     pub const fn new(tcp_stream: R) -> Self {
@@ -76,18 +92,12 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
     pub fn as_message_stream(
         &mut self,
         size_limit: usize,
-    ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + '_ {
+    ) -> impl tokio_stream::Stream<Item = Result<Vec<u8>, Error>> + '_ {
         async_stream::stream! {
             let mut size = 0;
 
             for await line in self.as_line_stream() {
-                let mut line = match line {
-                    Ok(line) => line,
-                    Err(err) => {
-                        yield Err(err);
-                        return;
-                    }
-                };
+                let mut line = line?;
 
                 if line == b".\r\n" {
                     return;
@@ -96,12 +106,11 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
                         line = line[1..].to_vec();
                     }
 
+                    // TODO: handle line length max ?
+
                     size += line.len();
                     if size >= size_limit {
-                        yield Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "message size limit reached"
-                        ));
+                        yield Err(Error::BufferTooLong { expected: size_limit, got: size });
                         return;
                     }
 
@@ -111,28 +120,28 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
         }
     }
 
-    // TODO: handle line len max
     pub fn as_command_stream(
         &mut self,
-    ) -> impl tokio_stream::Stream<Item = std::io::Result<Command<Verb, UnparsedArgs>>> + '_ {
-        async_stream::try_stream! {
+    ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
+        async_stream::stream! {
             for await line in self.as_line_stream() {
                 let line = line?;
 
-                let verb_parsed = <Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
-                    if line.len() < i.len() {
-                        return false;
-                    }
-                    line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
-                });
+                // TODO: put value as a parameter
+                if line.len() >= 512 {
+                    yield Err(Error::BufferTooLong { expected: 512, got: line.len() });
+                    return;
+                }
 
-                yield verb_parsed.map_or_else(
+                yield Ok(<Verb as strum::VariantNames>::VARIANTS.iter().find(|i| {
+                    line.len() >= i.len() && line[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+                }).map_or_else(
                     || (Verb::Unknown, UnparsedArgs(line.clone())),
-                    |verb_parsed| { (
-                        verb_parsed.parse().expect("verb found above"),
-                        UnparsedArgs(line[verb_parsed.len()..].to_vec()),
+                    |verb| { (
+                        verb.parse().expect("verb found above"),
+                        UnparsedArgs(line[verb.len()..].to_vec()),
                     ) },
-                );
+                ));
             }
         }
     }

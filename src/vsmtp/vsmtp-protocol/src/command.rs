@@ -45,15 +45,31 @@ pub struct EhloArgs {
     pub client_name: ClientName,
 }
 
+/// See "SMTP Service Extension for 8-bit MIME Transport"
+/// <https://datatracker.ietf.org/doc/html/rfc6152>
+#[derive(strum::EnumVariantNames, strum::EnumString)]
+pub enum MimeBodyType {
+    ///
+    #[strum(serialize = "7BIT")]
+    SevenBit,
+    ///
+    #[strum(serialize = "8BITMIME")]
+    EightBitMime,
+    // TODO: https://datatracker.ietf.org/doc/html/rfc3030
+    // Binary,
+}
+
 /// Information received from the client at the MAIL FROM command.
 pub struct MailFromArgs {
     /// Sender address.
     // TODO: wrap in a type mailbox
     pub reverse_path: Option<String>,
+    /// (8BITMIME)
+    pub mime_body_type: Option<MimeBodyType>,
     // TODO:
-    // Option<MimeBodyType> (8BITMIME)
     // Option<String>       (AUTH)
     // Option<usize>        (SIZE)
+    // use_smtputf8: bool,
 }
 
 /// Information received from the client at the RCPT TO command.
@@ -78,6 +94,13 @@ pub enum ParseArgsError {
     InvalidUtf8(std::string::FromUtf8Error),
     /// Invalid IP address.
     BadTypeAddr(std::net::AddrParseError),
+    /// The buffer is too big (between each "\r\n").
+    BufferTooLong {
+        /// buffer size limit
+        expected: usize,
+        /// actual size of the buffer we got
+        got: usize,
+    },
     /// Other
     // FIXME: improve that
     InvalidArgs,
@@ -87,15 +110,18 @@ impl TryFrom<UnparsedArgs> for HeloArgs {
     type Error = ParseArgsError;
 
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
+        let value = value
+            .0
+            .strip_suffix(b"\r\n")
+            .ok_or(ParseArgsError::InvalidArgs)?
+            .to_vec();
+
         Ok(Self {
-            client_name: String::from_utf8(
-                value
-                    .0
-                    .strip_suffix(b"\r\n")
-                    .ok_or(ParseArgsError::InvalidArgs)?
-                    .to_vec(),
+            client_name: addr::parse_domain_name(
+                &String::from_utf8(value).map_err(ParseArgsError::InvalidUtf8)?,
             )
-            .map_err(ParseArgsError::InvalidUtf8)?,
+            .map_err(|_| ParseArgsError::InvalidArgs)?
+            .to_string(),
         })
     }
 }
@@ -170,19 +196,6 @@ impl TryFrom<UnparsedArgs> for AuthArgs {
     }
 }
 
-// NOTE: from [`[u8]::trim_ascii_start`]
-const fn trim_ascii_start(slice: &[u8]) -> &[u8] {
-    let mut bytes = slice;
-    while let [first, rest @ ..] = bytes {
-        if first.is_ascii_whitespace() {
-            bytes = rest;
-        } else {
-            break;
-        }
-    }
-    bytes
-}
-
 impl TryFrom<UnparsedArgs> for MailFromArgs {
     type Error = ParseArgsError;
 
@@ -191,17 +204,47 @@ impl TryFrom<UnparsedArgs> for MailFromArgs {
             .0
             .strip_suffix(b"\r\n")
             .ok_or(ParseArgsError::InvalidArgs)?;
-        let mut buffer = trim_ascii_start(value).to_vec();
 
-        if buffer.remove(0) != b'<' {
-            return Err(ParseArgsError::InvalidArgs);
-        }
-        if buffer.remove(buffer.len() - 1) != b'>' {
-            return Err(ParseArgsError::InvalidArgs);
+        let mut word = value
+            .split(u8::is_ascii_whitespace)
+            .filter(|s| !s.is_empty());
+
+        let mailbox = if let Some(s) = word.next() {
+            String::from_utf8(
+                s.strip_prefix(b"<")
+                    .ok_or(ParseArgsError::InvalidArgs)?
+                    .strip_suffix(b">")
+                    .ok_or(ParseArgsError::InvalidArgs)?
+                    .to_vec(),
+            )
+            .map_err(ParseArgsError::InvalidUtf8)?
+        } else {
+            return Ok(Self {
+                reverse_path: None,
+                mime_body_type: None,
+            });
+        };
+
+        let mut mime_body_type = None;
+
+        for i in word {
+            match i.strip_prefix(b"BODY=") {
+                Some(body) if mime_body_type.is_none() => {
+                    mime_body_type = <MimeBodyType as strum::VariantNames>::VARIANTS
+                        .iter()
+                        .find(|i| {
+                            body.len() >= i.len()
+                                && body[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+                        })
+                        .map(|body| body.parse().expect("body found above"));
+                }
+                _ => return Err(ParseArgsError::InvalidArgs),
+            }
         }
 
         Ok(Self {
-            reverse_path: Some(String::from_utf8(buffer).map_err(ParseArgsError::InvalidUtf8)?),
+            reverse_path: Some(mailbox),
+            mime_body_type,
         })
     }
 }
@@ -214,17 +257,26 @@ impl TryFrom<UnparsedArgs> for RcptToArgs {
             .0
             .strip_suffix(b"\r\n")
             .ok_or(ParseArgsError::InvalidArgs)?;
-        let mut buffer = trim_ascii_start(value).to_vec();
 
-        if buffer.remove(0) != b'<' {
+        let mut word = value
+            .split(u8::is_ascii_whitespace)
+            .filter(|s| !s.is_empty());
+
+        let mailbox = if let Some(s) = word.next() {
+            String::from_utf8(
+                s.strip_prefix(b"<")
+                    .ok_or(ParseArgsError::InvalidArgs)?
+                    .strip_suffix(b">")
+                    .ok_or(ParseArgsError::InvalidArgs)?
+                    .to_vec(),
+            )
+            .map_err(ParseArgsError::InvalidUtf8)?
+        } else {
             return Err(ParseArgsError::InvalidArgs);
-        }
-        if buffer.remove(buffer.len() - 1) != b'>' {
-            return Err(ParseArgsError::InvalidArgs);
-        }
+        };
 
         Ok(Self {
-            forward_path: String::from_utf8(buffer).map_err(ParseArgsError::InvalidUtf8)?,
+            forward_path: mailbox,
         })
     }
 }

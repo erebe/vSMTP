@@ -47,3 +47,4 @@ pub use connection_kind::ConnectionKind;
 pub use receiver::{Receiver, ReceiverContext};
 pub use receiver_handler::ReceiverHandler;
 pub use smtp_sasl::AuthError;
+pub use stream::Error;

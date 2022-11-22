@@ -32,7 +32,9 @@ serde = { version = "1.0.147", default-features = false, features = [
 ] }
 thiserror = { version = "1.0.37", default-features = false }
 
-tokio-stream = { version = "0.1.11", default-features = false }
+tokio-stream = { version = "0.1.11", default-features = false, features = [
+    "time",
+] }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
 # TODO : remove me

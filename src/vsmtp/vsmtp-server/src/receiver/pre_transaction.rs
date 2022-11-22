@@ -43,7 +43,6 @@ impl<M: OnMail + Send> Handler<M> {
         {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next => either::Left(default),
-            // TODO
             Status::Deny(code) => {
                 ctx.deny();
                 code

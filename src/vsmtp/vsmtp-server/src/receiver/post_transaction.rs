@@ -16,9 +16,10 @@
 */
 
 use crate::{Handler, OnMail};
+use tokio_stream::StreamExt;
 use vsmtp_common::{state::State, status::Status, Reply};
-use vsmtp_mail_parser::{BasicParser, Mail, MailParser, MessageBody, RawBody};
-use vsmtp_protocol::ReceiverContext;
+use vsmtp_mail_parser::{BasicParser, Mail, MailParser, MessageBody, ParserError, RawBody};
+use vsmtp_protocol::{Error, ReceiverContext};
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 impl<M: OnMail + Send> Handler<M> {
@@ -70,17 +71,25 @@ impl<M: OnMail + Send> Handler<M> {
     pub(super) async fn on_message_inner(
         &mut self,
         ctx: &mut ReceiverContext,
-        stream: impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + Send + Unpin,
+        stream: impl tokio_stream::Stream<Item = Result<Vec<u8>, Error>> + Send + Unpin,
     ) -> Reply {
         tracing::info!("SMTP handshake completed, fetching email...");
+        let stream = stream.map(|l| match l {
+            Ok(l) => Ok(l),
+            Err(Error::Io(io)) => Err(ParserError::Io(io)),
+            Err(Error::BufferTooLong { expected, got }) => {
+                Err(ParserError::BufferTooLong { expected, got })
+            }
+        });
+
         let mail = match BasicParser::default().parse(stream).await {
             Ok(mail) => mail,
-            // TODO: handle error cleanly
-            Err(_) => {
+            Err(ParserError::BufferTooLong { .. }) => {
                 return "552 4.3.1 Message size exceeds fixed maximum message size\r\n"
                     .parse()
                     .unwrap();
             }
+            otherwise => todo!("handle error cleanly {:?}", otherwise),
         };
         tracing::info!("Message body fully received, processing...");
 

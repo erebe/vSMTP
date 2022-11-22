@@ -38,7 +38,6 @@ impl vsmtp_server::OnMail for DefaultMailHandler {
 }
 
 /// run a connection and assert output produced by `vSMTP` and `expected_output`
-// TODO: handle trailing comma correctly
 #[macro_export]
 macro_rules! run_test {
     (
@@ -84,10 +83,10 @@ macro_rules! run_test {
                 .unwrap()
         }
 
-        let expected: Vec<String> = $expected.into_iter().map(ToString::to_string).collect::<Vec<_>>();
-        let input: Vec<String> = $input.into_iter().map(ToString::to_string).collect::<Vec<_>>();
+        let expected: Vec<String> = $expected.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let input: Vec<String> = $input.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
 
-        $( let secured_input: Vec<String> = $secured_input.into_iter().map(ToString::to_string).collect::<Vec<_>>(); )?
+        $( let secured_input: Vec<String> = $secured_input.into_iter().map(|s| s.to_string()).collect::<Vec<_>>(); )?
 
         $( let server_name: &str = $server_name_tunnel; )?
         $( let server_name: &str = $server_name_starttls; )?

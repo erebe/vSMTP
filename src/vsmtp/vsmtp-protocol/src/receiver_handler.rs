@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    receiver::ReceiverContext, AcceptArgs, AuthArgs, AuthError, EhloArgs, HeloArgs, MailFromArgs,
-    ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
+    receiver::ReceiverContext, stream::Error, AcceptArgs, AuthArgs, AuthError, EhloArgs, HeloArgs,
+    MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
 };
 // TODO: should we move these type in this crate
 use vsmtp_common::{Reply, Stage};
@@ -72,7 +72,7 @@ pub trait ReceiverHandler {
     async fn on_message(
         &mut self,
         ctx: &mut ReceiverContext,
-        stream: impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + Send + Unpin,
+        stream: impl tokio_stream::Stream<Item = Result<Vec<u8>, Error>> + Send + Unpin,
     ) -> Reply;
 
     /// Called when the number of reply considered as error reached a threshold (hard).

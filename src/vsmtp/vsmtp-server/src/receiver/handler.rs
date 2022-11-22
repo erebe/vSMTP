@@ -20,7 +20,8 @@ use vqueue::GenericQueueManager;
 use vsmtp_common::{state::State, status::Status, CodeID, Reply, Stage, TransactionType};
 use vsmtp_config::{field::TlsSecurityLevel, Config};
 use vsmtp_protocol::{
-    AcceptArgs, AuthArgs, AuthError, EhloArgs, HeloArgs, MailFromArgs, RcptToArgs, ReceiverContext,
+    AcceptArgs, AuthArgs, AuthError, EhloArgs, Error, HeloArgs, MailFromArgs, RcptToArgs,
+    ReceiverContext,
 };
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -185,7 +186,6 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
         {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
-            // TODO
             Status::Deny(code) => {
                 ctx.deny();
                 code
@@ -341,7 +341,7 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
     async fn on_message(
         &mut self,
         ctx: &mut ReceiverContext,
-        stream: impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + Send + Unpin,
+        stream: impl tokio_stream::Stream<Item = Result<Vec<u8>, Error>> + Send + Unpin,
     ) -> Reply {
         self.on_message_inner(ctx, stream).await
     }

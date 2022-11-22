@@ -39,14 +39,11 @@ pub trait MailParser: Default {
     /// * the input is not compliant
     async fn parse<'a>(
         &'a mut self,
-        mut stream: impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + Unpin + Send + 'a,
+        mut stream: impl tokio_stream::Stream<Item = Result<Vec<u8>, ParserError>> + Unpin + Send + 'a,
     ) -> ParserResult<either::Either<RawBody, Mail>> {
-        let mut buffer = vec![];
+        let mut buffer = Vec::with_capacity(20_000_000);
 
-        while let Some(i) = tokio_stream::StreamExt::try_next(&mut stream)
-            .await
-            .map_err(|e| ParserError::IoError(e.to_string()))?
-        {
+        while let Some(i) = tokio_stream::StreamExt::try_next(&mut stream).await? {
             buffer.push(i);
         }
 
