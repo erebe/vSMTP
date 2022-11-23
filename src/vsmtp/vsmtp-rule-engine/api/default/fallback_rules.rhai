@@ -20,12 +20,12 @@
 //! Rules loaded by default when an error occurs in sub domain logic.
 
 #{
-    connect:      [ rule "connect deny by default" || deny() ],
-    helo:         [ rule "helo deny by default" || deny() ],
-    mail:         [ rule "mail deny by default" || deny() ],
-    authenticate: [ rule "authenticate deny by default" || deny() ],
-    rcpt:         [ rule "rcpt deny by default" || deny() ],
-    preq:         [ rule "preq deny by default" || deny() ],
-    postq:        [ rule "postq deny by default" || deny() ],
-    delivery:     [ rule "delivery deny by default" || deny() ],
+    connect:      [ rule "fallback connect deny by default" || deny() ],
+    helo:         [ rule "fallback helo deny by default" || deny() ],
+    mail:         [ rule "fallback mail deny by default" || deny() ],
+    authenticate: [ rule "fallback authenticate deny by default" || deny() ],
+    rcpt:         [ rule "fallback rcpt deny by default" || deny() ],
+    preq:         [ rule "fallback preq deny by default" || deny() ],
+    postq:        [ rule "fallback postq deny by default" || deny() ],
+    delivery:     [ rule "fallback delivery deny by default" || deny() ],
 }

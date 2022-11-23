@@ -21,6 +21,6 @@
 
 #{
     connect: [
-        rule "reject by default" || deny(),
+        rule "root incoming reject by default" || deny(),
     ]
 }
