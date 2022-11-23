@@ -100,7 +100,7 @@ impl Directive {
     }
 
     /// Execute the content of the directive.
-    #[tracing::instrument(skip_all, fields(self, stage), ret, err)]
+    #[tracing::instrument(skip_all, fields(stage), ret, err)]
     pub fn execute(
         &self,
         rule_state: &RuleState,

@@ -554,9 +554,7 @@ impl RuleEngine {
 
                 match transaction_type {
                     TransactionType::Incoming(Some(domain)) => self
-                        .rules
-                        .domains
-                        .get(domain)
+                        .get_domain_directives(domain)
                         .map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming)),
                     TransactionType::Incoming(None) => {
                         tracing::warn!("No recipient has a domain handled by your configuration, running root incoming script");
