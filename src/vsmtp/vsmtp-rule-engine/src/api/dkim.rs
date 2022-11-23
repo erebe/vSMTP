@@ -21,9 +21,9 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_auth::dkim::{
-    sign, verify, Canonicalization, PublicKey, Signature, VerificationResult, VerifierError,
+    sign, verify, Canonicalization, PrivateKey, PublicKey, Signature, VerificationResult,
+    VerifierError,
 };
-use vsmtp_common::ContextFinished;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_plugins::rhai;
 
@@ -114,6 +114,23 @@ mod dkim_rhai {
         Ok(strum::EnumMessage::get_message(&dkim_error)
             .expect("`DkimErrors` must have a `message` for each variant")
             .to_string())
+    }
+
+    /// Get the list of DKIM private keys associated with this sdid
+    #[rhai_fn(global, pure)]
+    pub fn get_private_keys(server: &mut Server, sdid: &str) -> rhai::Array {
+        let dkim = server
+            .config
+            .server
+            .r#virtual
+            .get(sdid)
+            .map_or_else(|| &server.config.server.dkim, |r#virtual| &r#virtual.dkim);
+        dkim.as_ref().map_or_else(Vec::new, |dkim| {
+            dkim.private_key
+                .iter()
+                .map(|key| rhai::Dynamic::from(key.inner.clone()))
+                .collect()
+        })
     }
 
     /// return the `sdid` property of the [`Signature`]
@@ -220,7 +237,7 @@ mod dkim_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    ///     |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #    |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -245,6 +262,8 @@ mod dkim_rhai {
     /// # use vsmtp_common::{state::State, status::Status, CodeID};
     /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
+    ///
+    /// Changing the header `Subject` will result in a dkim verification failure.
     ///
     /// ```
     /// # let msg = r#"
@@ -321,26 +340,88 @@ mod dkim_rhai {
         super::Impl::verify_dkim(&guard, signature, key).map_err(Into::into)
     }
 
+    /// Create a new signature of the message for the DKIM.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = r#"
+    /// Date: Wed, 26 Oct 2022 14:30:51 -0700
+    /// From: Mathieu Lala <noreply@github.com>
+    /// To: mlala@negabit.com
+    /// Subject: Testing and documenting the dkim signature
+    ///
+    /// This message has not been signed yet, meaning someone could change it...
+    /// # "#;
+    /// ; // .eml ends here
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
+    ///
+    /// # let mut rng = <rand_chacha::ChaCha12Rng as rand::SeedableRng>::seed_from_u64(0xCAFECAFE);
+    /// # let private_key = rsa::RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate a key");
+    /// # let mut config = vsmtp_test::config::local_test();
+    /// # config.server.dkim = Some(vsmtp_config::field::FieldDkim{
+    /// #   private_key: vec![
+    /// #     vsmtp_config::field::SecretFile {
+    /// #       inner: std::sync::Arc::new(
+    /// #         vsmtp_auth::dkim::PrivateKey::Rsa(Box::new(private_key))
+    /// #       ),
+    /// #       path: "./dummy".into(),
+    /// #     }
+    /// #   ]
+    /// # });
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg_and_config(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   postq: [
+    ///     action "add a DKIM signature" || {
+    ///       for i in get_private_keys(srv(), "testserver.com") {
+    ///         sign_dkim("2022-09", i, ["From", "To", "Date", "Subject", "From"], "simple/relaxed");
+    ///       }
+    ///     },
+    ///     rule "check signature" || {
+    ///       let signature = "v=1; a=rsa-sha256; d=testserver.com; s=2022-09;\r\n\
+    ///           \tc=simple/relaxed; q=dns/txt; h=From:To:Date:Subject:From;\r\n\
+    ///           \tbh=ATHiC1KD8OegIorswWts+SlujGUpgqR6pqXYlNWA01Y=;\r\n\tb=Ur\
+    ///           /frdH3beyU3LRQMGBdI6OdxRvfpu+s04hmHcVkpBYzR4cXuDPByWpUCqhO4C\
+    ///           sEwpPRDcWQtsCfuzSK1FTf7XCWgsKKGPmsdQ40pUviA0UrrzpIDIziMxSI/S\
+    ///           8ohNnxvqxrtxZoN6Wo2lnQ+kYAATYxJPOjC57JIBJ89RGrf+6Wbvz6/PofcU\
+    ///           9VwpylegZRU5Cial69lN2qaIkoVFOE9fz8ZIz9VV2A9Lh/xgKFM7eipBWCR6\
+    ///           ZUU1HZTbSiqiL9Q6A823az/E2jqOUZXtsGK/Bo/vDjTV166d5vY34JA3189C\
+    ///           x83Rbif9A/kdCO6C8gGK0WOasp5R0ONmVz41TaGQ==";
+    ///
+    ///       if get_header("DKIM-Signature") == signature {
+    ///         accept()
+    ///       } else {
+    ///         deny()
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg), config);
+    ///
+    /// # use vsmtp_common::{state::State, status::Status, CodeID};
+    /// # assert_eq!(states[&State::PostQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// ```
     #[rhai_fn(global, pure, return_raw)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn generate_signature_dkim(
         message: &mut Message,
         context: Context,
-        server: Server,
         selector: &str,
+        private_key: std::sync::Arc<PrivateKey>,
         headers_field: rhai::Array,
         canonicalization: &str,
     ) -> EngineResult<String> {
-        let mut message_guard = vsl_guard_ok!(message.write());
+        let message_guard = vsl_guard_ok!(message.read());
         let context_guard = vsl_guard_ok!(context.read());
 
         match &*context_guard {
             vsmtp_common::Context::Finished(ctx) => super::Impl::generate_signature_dkim(
-                &mut message_guard,
-                ctx,
-                &server,
+                &message_guard,
+                &ctx.connect.server_name,
                 selector,
+                &private_key,
                 &headers_field,
                 canonicalization,
             )
@@ -481,46 +562,31 @@ impl Impl {
         })
     }
 
-    #[tracing::instrument(skip(server), ret, err)]
+    #[tracing::instrument(ret, err)]
     fn generate_signature_dkim(
-        message: &mut MessageBody,
-        context: &ContextFinished,
-        server: &Server,
+        message: &MessageBody,
+        sdid: &str,
         selector: &str,
+        private_key: &PrivateKey,
         headers_field: &rhai::Array,
         canonicalization: &str,
     ) -> Result<String, DkimErrors> {
-        let sdid = &context.connect.server_name;
-        let dkim_params = server
-            .config
-            .server
-            .r#virtual
-            .get(sdid)
-            .map_or_else(|| &server.config.server.dkim, |i| &i.dkim);
+        let signature = sign(
+            message.inner(),
+            private_key,
+            sdid.to_string(),
+            selector.to_string(),
+            <Canonicalization as std::str::FromStr>::from_str(canonicalization).map_err(|e| {
+                DkimErrors::InvalidArgument {
+                    inner: e.to_string(),
+                }
+            })?,
+            headers_field.iter().map(ToString::to_string).collect(),
+        )
+        .map_err(|e| DkimErrors::InvalidArgument {
+            inner: format!("the signature failed: `{e}`"),
+        })?;
 
-        match dkim_params {
-            None => Err(DkimErrors::InvalidArgument {
-                inner: format!("dkim params are empty for this `{sdid}`"),
-            }),
-            Some(dkim_params) => {
-                let signature = sign(
-                    message.inner(),
-                    &dkim_params.private_key.inner,
-                    sdid.to_string(),
-                    selector.to_string(),
-                    <Canonicalization as std::str::FromStr>::from_str(canonicalization).map_err(
-                        |e| DkimErrors::InvalidArgument {
-                            inner: e.to_string(),
-                        },
-                    )?,
-                    headers_field.iter().map(ToString::to_string).collect(),
-                )
-                .map_err(|e| DkimErrors::InvalidArgument {
-                    inner: format!("the signature failed: `{e}`"),
-                })?;
-
-                Ok(signature.get_signature_value())
-            }
-        }
+        Ok(signature.get_signature_value())
     }
 }

@@ -120,19 +120,26 @@ mod message_rhai {
     /// # Examples
     ///
     /// ```
-    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
-    /// "X-My-Header: 250 foo\r\n",
-    /// "Subject: Unit test are cool\r\n",
-    /// "\r\n",
-    /// "Hello world!\r\n",
-    /// # )).unwrap();
+    /// # let msg = r#"
+    /// X-My-Header: 250 foo
+    /// Subject: Unit test are cool
+    ///
+    /// Hello world!
+    /// # "#
+    /// ; // .eml ends here
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
     /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "get_header" || {
-    ///       accept(`${get_header("X-My-Header")} ${get_header(identifier("Subject"))}`);
+    ///       if get_header("X-My-Header") != "250 foo"
+    ///         || get_header(identifier("Subject")) != "Unit test are cool" {
+    ///         deny();
+    ///       } else {
+    ///         accept(`${get_header("X-My-Header")} ${get_header(identifier("Subject"))}`);
+    ///       }
     ///     }
     ///   ]
     /// }

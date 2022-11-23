@@ -420,6 +420,8 @@ fn verify_dkim() {
 /// ### Args
 ///
 /// * `selector` - the DNS selector to expose the public key & for the verifier
+/// * `private_key` - the private key to sign the mail,
+///     associated with the public key in the `selector._domainkey.sdid` DNS record
 /// * `headers_field` - list of headers to sign
 /// * `canonicalization` - the canonicalization algorithm to use (ex: "simple/relaxed")
 ///
@@ -440,16 +442,24 @@ fn verify_dkim() {
 /// ```
 ///
 /// ### Module:Security
-fn sign_dkim(selector, headers_field, canonicalization) {
-    let signature = sys::generate_signature_dkim(msg(), ctx(), srv(), selector, headers_field, canonicalization);
+fn sign_dkim(selector, private_key, headers_field, canonicalization) {
+    let signature = sys::generate_signature_dkim(msg(), ctx(), selector, private_key, headers_field, canonicalization);
     prepend_header("DKIM-Signature", signature);
 }
 
-/// Alias for `sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")`
+/// Syntactic sugar for:
+/// ```
+/// sign_dkim(
+///   selector,
+///   private_key,
+///   ["From", "To", "Date", "Subject", "From"],
+///   "simple/relaxed"
+/// )
+/// ```
 ///
 /// ### Module:Security
-fn sign_dkim(selector) {
-    sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
+fn sign_dkim(selector, private_key) {
+    sign_dkim(selector, private_key, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
 }
 
 /// Apply the DMARC policy to the mail.

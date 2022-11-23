@@ -19,18 +19,20 @@ use crate::config::{local_ctx, local_msg, local_test};
 use vqueue::GenericQueueManager;
 use vsmtp_common::state::State;
 use vsmtp_common::status::Status;
+use vsmtp_config::Config;
 use vsmtp_config::DnsResolvers;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::sub_domain_hierarchy::{Builder, SubDomainHierarchy};
 use vsmtp_rule_engine::RuleEngine;
 
-///
+#[doc(hidden)]
 #[must_use]
-pub fn run_with_msg(
+pub fn run_with_msg_and_config(
     callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
     msg: Option<MessageBody>,
+    config: Config,
 ) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
-    let config = arc!(local_test());
+    let config = arc!(config);
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
@@ -73,7 +75,16 @@ pub fn run_with_msg(
     out
 }
 
-///
+#[doc(hidden)]
+#[must_use]
+pub fn run_with_msg(
+    callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
+    msg: Option<MessageBody>,
+) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
+    run_with_msg_and_config(callback, msg, local_test())
+}
+
+#[doc(hidden)]
 #[must_use]
 pub fn run(
     sub_domain_hierarchy_builder: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,

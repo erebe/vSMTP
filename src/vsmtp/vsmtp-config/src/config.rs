@@ -82,7 +82,6 @@ pub mod field {
         #[serde(default)]
         pub queues: FieldServerQueues,
         /// see [`FieldServerTls`]
-        // TODO: should not be an Option<> and should be under #[cfg(feature = "smtps")]
         pub tls: Option<FieldServerTls>,
         /// see [`FieldServerSMTP`]
         #[serde(default)]
@@ -103,7 +102,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldDkim {
         /// The private key used to sign the mail.
-        pub private_key: SecretFile<dkim::PrivateKey>,
+        pub private_key: Vec<SecretFile<std::sync::Arc<dkim::PrivateKey>>>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
