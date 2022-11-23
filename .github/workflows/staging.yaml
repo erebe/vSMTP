@@ -37,7 +37,8 @@ jobs:
       - uses: baptiste0928/cargo-install@v1
         with:
           crate: cargo-fuzz
-      - run: cargo +nightly fuzz run receiver -- -max_total_time=1200 -dict="./fuzz/dict/receiver.dict"
+      - run: cargo run --bin vsmtp -- -c ./fuzz/server/vsmtp.vsl --no-daemon --stdout & \
+          && cargo +nightly fuzz run client -- -dict="./fuzz/dict/command.dict" -max_total_time=1200 && pkill vsmtp
       - uses: actions/upload-artifact@v1
         if: failure() && steps.check.outcome == 'success'
         with:
