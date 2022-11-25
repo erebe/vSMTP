@@ -19,78 +19,6 @@
 //!
 //! This module contains multiple security functions that you can use to protect your server.
 
-/// Do not accept a message from a known internal domain if the client is unknown.
-///
-/// ### Args
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
-///
-/// ### Return
-/// * `deny()`
-/// * `next()`
-///
-/// ### Effective smtp stage
-/// `mail` and onwards.
-///
-/// ### Example
-/// ```js
-/// mail: [
-///    rule "check mail relay" || {
-///        const allowed_hosts = [
-///            ip4("192.168.1.254"),
-///            fqdn("mta-internal.foobar.com")
-///        ];
-///        check_mail_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// ### Module:Security
-/// ```
-fn check_mail_relay(allowed_hosts) {
-    if in_domain(ctx().mail_from)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        deny(code554_7_1)
-    } else {
-        next()
-    }
-}
-
-/// Do not accept open relaying.
-///
-/// ### Args
-///
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
-///
-/// ### Return
-/// * `deny()`
-/// * `next()`
-///
-/// ### Effective smtp stage
-/// `rcpt` only.
-///
-/// ### Example
-/// ```js
-/// rcpt: [
-///    rule "check rcpt relay" || {
-///        const allowed_hosts = [
-///            ip4("192.168.1.254"),
-///            fqdn("mta-internal.foobar.com")
-///        ];
-///        check_rcpt_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// ### Module:Security
-/// ```
-fn check_rcpt_relay(allowed_hosts) {
-    if !in_domain(ctx().rcpt)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt_envelop(ctx().rcpt);
-        info(code554_7_1)
-    } else {
-        next()
-    }
-}
-
 /// create key-value pairs of spf results
 /// to inject into the spf or auth headers.
 private fn spf_key_value_list(query) {
@@ -212,11 +140,6 @@ fn check_spf_inner() { sys::check_spf(ctx(), srv()) }
 ///
 /// ### Module:Security
 fn check_spf(header, policy) {
-
-    if in_domain(ctx().mail_from) {
-        return next();
-    }
-
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
