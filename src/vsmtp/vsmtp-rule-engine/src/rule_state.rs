@@ -16,7 +16,6 @@
 */
 use crate::api::{Context, Message, Server};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_plugins::rhai;
 
 /// a state container that bridges rhai's & rust contexts.
 #[derive(Debug)]

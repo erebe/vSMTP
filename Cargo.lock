@@ -40,9 +40,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57e6e951cfbb2db8de1828d49073a113a29fd7117b1596caa781a258c7e38d72"
+checksum = "bf6ccdb167abbf410dcb915cabd428929d7f6a04980b54a11f26a39f1c7f7107"
 dependencies = [
  "cfg-if",
  "const-random",
@@ -2135,8 +2135,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.10.1"
-source = "git+https://github.com/schungx/rhai#6b24cc151e455a89754feca155cc3b22a9fb17a8"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f61559c2ea5fef5af856ae95443111dc14e7c9ce73d29c257a840249c0ed298"
 dependencies = [
  "ahash",
  "bitflags",
@@ -2150,9 +2151,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhai-dylib"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20914ec40e9cc0b2e86b38353c29d4b880c9ea9702fbbe2bb3bb20c068c2731d"
+dependencies = [
+ "libloading",
+ "rhai",
+]
+
+[[package]]
 name = "rhai_codegen"
 version = "1.4.2"
-source = "git+https://github.com/schungx/rhai#6b24cc151e455a89754feca155cc3b22a9fb17a8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36791b0b801159db25130fd46ac726d2751c070260bba3a4a0a3eeb6231bb82a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3337,27 +3349,17 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-vsl"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "addr",
+ "anyhow",
  "either",
  "ipnet",
  "iprange",
  "regex",
+ "rhai",
  "strum",
  "vsmtp-common",
- "vsmtp-plugins",
-]
-
-[[package]]
-name = "vsmtp-plugins"
-version = "1.3.4"
-dependencies = [
- "anyhow",
- "libloading",
- "rhai",
- "serde",
- "tracing",
 ]
 
 [[package]]
@@ -3396,6 +3398,8 @@ dependencies = [
  "pretty_assertions",
  "rand",
  "rand_chacha",
+ "rhai",
+ "rhai-dylib",
  "rsa",
  "rstest",
  "serde",
@@ -3413,7 +3417,6 @@ dependencies = [
  "vsmtp-config",
  "vsmtp-mail-parser",
  "vsmtp-plugin-vsl",
- "vsmtp-plugins",
  "vsmtp-test",
  "wait-timeout",
 ]

@@ -17,25 +17,21 @@
 use crate::{
     api::{rule_state::deny, EngineResult, Server, StandardVSLPackage},
     dsl::{
-        cmd::plugin::Cmd,
         directives::{Directive, Directives},
-        smtp::{plugin, service},
+        smtp::service,
     },
     rule_state::RuleState,
     server_api::ServerAPI,
     sub_domain_hierarchy::{Builder, DomainDirectives, Script, SubDomainHierarchy},
 };
 use anyhow::Context;
+use rhai::module_resolvers::ModuleResolversCollection;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope};
+use rhai_dylib::module_resolvers::libloading::DylibModuleResolver;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{state::State, status::Status, CodeID, Domain, ReplyOrCodeID, TransactionType};
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_plugin_vsl::plugin::Objects;
-use vsmtp_plugins::{
-    managers::{native::NativeVSL, PluginManager},
-    rhai,
-};
 
 macro_rules! block_on {
     ($future:expr) => {
@@ -52,8 +48,6 @@ pub struct RuleEngine {
     pub(super) global_modules: Vec<rhai::Shared<rhai::Module>>,
     /// vSMTP static modules with their associated names.
     pub(super) static_modules: Vec<(String, rhai::Shared<rhai::Module>)>,
-    /// Handle to vSL plugins.
-    pub(super) vsl_service_plugin_manager: rhai::Shared<NativeVSL>,
     /// Readonly server API to inject into the context of Rhai.
     pub(super) server: Server,
 
@@ -112,13 +106,14 @@ impl RuleEngine {
         resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
+        if rhai::config::hashing::get_ahash_seed().is_none() {
+            rhai::config::hashing::set_ahash_seed(Some([1, 2, 3, 4]))
+                .map_err(|_| anyhow::anyhow!("Rhai ahash seed has been set before the rule engine as been built. This is a bug, please report it at https://github.com/viridIT/vSMTP/issues."))?;
+        }
+
         tracing::debug!("Building rhai engine ...");
 
         let mut engine = Self::new_rhai_engine();
-
-        tracing::debug!("Loading plugins ...");
-
-        let vsl_service_plugin_manager = Self::load_plugins(&config, &mut engine)?;
 
         tracing::debug!("Building static modules ...");
 
@@ -130,17 +125,28 @@ impl RuleEngine {
 
         engine.set_module_resolver(match &input {
             // TODO: handle canonicalization.
-            either::Either::Left(Some(path)) => FileModuleResolver::new_with_path_and_extension(
-                path.parent().ok_or_else(|| {
+            either::Either::Left(Some(path)) => {
+                let path = path.parent().ok_or_else(|| {
                     anyhow::anyhow!(
                         "file '{}' does not have a valid parent directory for rules",
                         path.display()
                     )
-                })?,
-                "vsl",
-            ),
+                })?;
+
+                let mut resolvers = ModuleResolversCollection::new();
+
+                resolvers.push(FileModuleResolver::new_with_path_and_extension(path, "vsl"));
+                resolvers.push(DylibModuleResolver::with_path(path));
+
+                resolvers
+            }
             either::Either::Left(None) | either::Either::Right(_) => {
-                FileModuleResolver::new_with_extension("vsl")
+                let mut resolvers = ModuleResolversCollection::new();
+
+                resolvers.push(FileModuleResolver::new_with_extension("vsl"));
+                resolvers.push(DylibModuleResolver::new());
+
+                resolvers
             }
         });
 
@@ -163,10 +169,15 @@ impl RuleEngine {
 
         tracing::info!("Rule engine initialized.");
 
+        #[cfg(debug_assertions)]
+        {
+            // Checking if TypeIDs are the same as plugins.
+            dbg!(std::any::TypeId::of::<rhai::ImmutableString>());
+        }
+
         Ok(Self {
             global_modules,
             static_modules,
-            vsl_service_plugin_manager,
             server: std::sync::Arc::new(ServerAPI {
                 config,
                 resolvers,
@@ -250,13 +261,6 @@ impl RuleEngine {
         );
 
         engine.set_fast_operators(false);
-
-        // FIXME: No need to re-apply that.
-        vsmtp_plugins::managers::PluginManager::apply(
-            &*self.vsl_service_plugin_manager,
-            &mut engine,
-        )
-        .expect("plugins should already have been analyzed by the main engine.");
 
         std::sync::Arc::new(RuleState {
             engine,
@@ -664,12 +668,27 @@ impl RuleEngine {
 
         engine.register_global_module(std_module.clone());
 
+        let vsl_objects_module = vsmtp_plugin_vsl::new_module();
+        let cmd_module = crate::dsl::cmd::new_module();
+        let smtp_module = crate::dsl::smtp::new_module();
+
+        engine
+            .register_global_module(vsl_objects_module.clone())
+            .register_global_module(cmd_module.clone())
+            .register_global_module(smtp_module.clone());
+
         let vsl_rhai_module =
             rhai::Shared::new(Self::compile_api(engine).context("failed to compile vsl's api")?);
 
         engine.register_global_module(vsl_rhai_module.clone());
 
-        Ok(vec![std_module, vsl_rhai_module])
+        Ok(vec![
+            std_module,
+            vsl_objects_module,
+            vsl_rhai_module,
+            cmd_module,
+            smtp_module,
+        ])
     }
 
     ///
@@ -832,31 +851,6 @@ impl RuleEngine {
         }
 
         Ok(directives)
-    }
-
-    /// Load vsl service plugins from the configuration paths and apply them to the rhai engine.
-    fn load_plugins(
-        config: &std::sync::Arc<Config>,
-        engine: &mut rhai::Engine,
-    ) -> anyhow::Result<rhai::Shared<NativeVSL>> {
-        let mut vsl_plugin_manager = NativeVSL::default();
-
-        // Registering native service plugins.
-        vsl_plugin_manager
-            .add_native_plugin("smtp", Box::new(plugin::Smtp {}))
-            .add_native_plugin("cmd", Box::new(Cmd {}))
-            .add_native_plugin("objects", Box::new(Objects {}));
-
-        for (name, path) in &config.app.vsl.plugins {
-            vsl_plugin_manager.load(name, path)?;
-            tracing::debug!(%name, ?path, "vSL plugin loaded.");
-        }
-
-        vsl_plugin_manager.apply(engine)?;
-
-        tracing::debug!("Plugins applied to vSL.");
-
-        Ok(rhai::Shared::new(vsl_plugin_manager))
     }
 
     /// Check if the rule engine have configuration available for the domain of the given address.

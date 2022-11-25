@@ -16,8 +16,12 @@
 */
 
 pub mod api;
-pub mod plugin;
 pub mod service;
+
+/// Create a new command module.
+pub fn new_module() -> rhai::Shared<rhai::Module> {
+    rhai::exported_module!(api::cmd).into()
+}
 
 #[cfg(test)]
 mod tests {

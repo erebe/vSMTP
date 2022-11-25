@@ -25,5 +25,15 @@
 pub mod api;
 /// vSL objects and their implementation.
 pub mod objects;
-/// Plugin declaration.
-pub mod plugin;
+
+/// Build a module that can be registered by a Rhai engine.
+pub fn new_module() -> rhai::Shared<rhai::Module> {
+    let mut module = rhai::Module::new();
+
+    module
+        .combine(rhai::exported_module!(api::objects))
+        .combine(rhai::exported_module!(api::utils))
+        .combine(rhai::exported_module!(api::comparisons));
+
+    module.into()
+}

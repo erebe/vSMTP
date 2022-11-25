@@ -55,7 +55,7 @@ pub mod api {
     use vsmtp_mail_parser::MessageBody;
 
     /// Error produced by the vsl's Rust API function calls.
-    pub type EngineResult<T> = Result<T, Box<vsmtp_plugins::rhai::EvalAltResult>>;
+    pub type EngineResult<T> = Result<T, Box<rhai::EvalAltResult>>;
     /// Alias for `ctx()`
     pub type Context = std::sync::Arc<std::sync::RwLock<vsmtp_common::Context>>;
     /// Alias for `msg()`
@@ -91,24 +91,24 @@ pub mod api {
     /// API to write of the message on disk.
     pub mod write;
 
-    vsmtp_plugins::rhai::def_package! {
+    rhai::def_package! {
         /// vsl's standard api.
         pub StandardVSLPackage(module) {
-            vsmtp_plugins::rhai::packages::StandardPackage::init(module);
+            rhai::packages::StandardPackage::init(module);
 
             module
-                .combine(vsmtp_plugins::rhai::exported_module!(logging))
-                .combine(vsmtp_plugins::rhai::exported_module!(dkim))
-                .combine(vsmtp_plugins::rhai::exported_module!(dmarc))
-                .combine(vsmtp_plugins::rhai::exported_module!(rule_state))
-                .combine(vsmtp_plugins::rhai::exported_module!(spf))
-                .combine(vsmtp_plugins::rhai::exported_module!(transports))
-                .combine(vsmtp_plugins::rhai::exported_module!(utils))
-                .combine(vsmtp_plugins::rhai::exported_module!(write))
-                .combine(vsmtp_plugins::rhai::exported_module!(types))
-                .combine(vsmtp_plugins::rhai::exported_module!(mail_context))
-                .combine(vsmtp_plugins::rhai::exported_module!(message))
-                .combine(vsmtp_plugins::rhai::exported_module!(message_parsed));
+                .combine(rhai::exported_module!(logging))
+                .combine(rhai::exported_module!(dkim))
+                .combine(rhai::exported_module!(dmarc))
+                .combine(rhai::exported_module!(rule_state))
+                .combine(rhai::exported_module!(spf))
+                .combine(rhai::exported_module!(transports))
+                .combine(rhai::exported_module!(utils))
+                .combine(rhai::exported_module!(write))
+                .combine(rhai::exported_module!(types))
+                .combine(rhai::exported_module!(mail_context))
+                .combine(rhai::exported_module!(message))
+                .combine(rhai::exported_module!(message_parsed));
         }
     }
 }

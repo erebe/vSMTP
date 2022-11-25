@@ -15,8 +15,6 @@
  *
 */
 
-use vsmtp_plugins::rhai;
-
 use crate::api::EngineResult;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,

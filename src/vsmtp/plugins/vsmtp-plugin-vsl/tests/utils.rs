@@ -15,34 +15,34 @@
  *
 */
 
-use vsmtp_plugins::eval_with_plugin;
+// use vsmtp_plugins::eval_with_plugin;
 
-eval_with_plugin!(get_local_part, vsmtp_plugin_vsl::plugin::Objects {}, {
-    const expected = "john.doe";
-    const user = address("john.doe@example.com").local_part;
+// eval_with_plugin!(get_local_part, vsmtp_plugin_vsl::plugin::Objects {}, {
+//     const expected = "john.doe";
+//     const user = address("john.doe@example.com").local_part;
 
-    if user != expected {
-        throw "local part isn't equals to " + expected + ", got: " + user;
-    }
-});
+//     if user != expected {
+//         throw "local part isn't equals to " + expected + ", got: " + user;
+//     }
+// });
 
-eval_with_plugin!(get_local_parts, vsmtp_plugin_vsl::plugin::Objects {}, {
-    const expected = ["john.doe", "green.foo"];
-    const users = [
-        address("john.doe@example.com"),
-        "green.foo@example.com"
-    ].local_parts;
+// eval_with_plugin!(get_local_parts, vsmtp_plugin_vsl::plugin::Objects {}, {
+//     const expected = ["john.doe", "green.foo"];
+//     const users = [
+//         address("john.doe@example.com"),
+//         "green.foo@example.com"
+//     ].local_parts;
 
-    if users != expected {
-        throw "local parts are not equals to " + expected + ", got: " + users;
-    }
-});
+//     if users != expected {
+//         throw "local parts are not equals to " + expected + ", got: " + users;
+//     }
+// });
 
-eval_with_plugin!(get_domain, vsmtp_plugin_vsl::plugin::Objects {}, {
-    const expected = "example.com";
-    const fqdn = address("john.doe@example.com").domain;
+// eval_with_plugin!(get_domain, vsmtp_plugin_vsl::plugin::Objects {}, {
+//     const expected = "example.com";
+//     const fqdn = address("john.doe@example.com").domain;
 
-    if fqdn != expected {
-        throw "domain isn't equals to " + expected + ", got: " + fqdn;
-    }
-});
+//     if fqdn != expected {
+//         throw "domain isn't equals to " + expected + ", got: " + fqdn;
+//     }
+// });

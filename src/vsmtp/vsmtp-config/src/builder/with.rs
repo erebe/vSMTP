@@ -564,7 +564,6 @@ impl Builder<WantsAppVSL> {
             state: WantsAppLogs {
                 parent: self.state,
                 dirpath: None,
-                plugins: std::collections::BTreeMap::new(),
             },
         }
     }
@@ -576,7 +575,6 @@ impl Builder<WantsAppVSL> {
             state: WantsAppLogs {
                 parent: self.state,
                 dirpath: Some(entry_point.into()),
-                plugins: std::collections::BTreeMap::new(),
             },
         }
     }

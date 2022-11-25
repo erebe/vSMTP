@@ -15,7 +15,6 @@
  *
 */
 use vsmtp_common::state::State;
-use vsmtp_plugins::rhai;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -146,7 +145,7 @@ macro_rules! vsl_generic_ok {
 /// checks if the mutex is poisoned & return a rhai runtime error if it is.
 macro_rules! vsl_guard_ok {
     ($guard:expr) => {
-        $guard.map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| {
+        $guard.map_err::<Box<rhai::EvalAltResult>, _>(|e| {
             $crate::error::RuntimeError::PoisonedGuard {
                 source: anyhow::anyhow!("{e}"),
             }

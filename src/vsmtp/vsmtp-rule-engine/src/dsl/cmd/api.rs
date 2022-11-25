@@ -15,13 +15,30 @@
  *
 */
 
-use vsmtp_plugins::rhai;
-
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
 
 use rhai::Module;
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CmdParameters {
+    /// The command to execute in the subprocess
+    pub command: String,
+    /// Optional: parameters directly given to the executed program (argc, argv)
+    pub args: Option<Vec<String>>,
+    /// A duration after which the subprocess will be forced-kill
+    #[serde(default = "default_timeout", with = "humantime_serde")]
+    pub timeout: std::time::Duration,
+    /// Optional: a user to run the subprocess under
+    pub user: Option<String>,
+    /// Optional: a group to run the subprocess under
+    pub group: Option<String>,
+}
+
+const fn default_timeout() -> std::time::Duration {
+    std::time::Duration::from_secs(30)
+}
 
 #[rhai::plugin::export_module]
 pub mod cmd {
@@ -31,9 +48,7 @@ pub mod cmd {
 
     #[rhai_fn(global, return_raw)]
     pub fn cmd(parameters: rhai::Map) -> EngineResult<Cmd> {
-        let parameters: crate::dsl::cmd::plugin::CmdParameters =
-            vsmtp_plugins::plugins::vsl::native::deserialize_rhai_map("cmd", parameters)
-                .map_err::<rhai::EvalAltResult, _>(|err| err.to_string().into())?;
+        let parameters = rhai::serde::from_dynamic::<CmdParameters>(&parameters.into())?;
 
         Ok(rhai::Shared::new(crate::dsl::cmd::service::Cmd {
             timeout: parameters.timeout,

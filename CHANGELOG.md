@@ -15,7 +15,16 @@ release. They will however *never* happen in a patch release.
 
 ### Added
 
-* A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
+* The `rhai-dylib` crate to handle Rust dynamic libraries with a Rhai API. (#753)
+
+```rust
+// import the dynamic library in Rhai.
+import "/usr/lib/vsmtp/libvsmtp-plugin-csv" as db;
+
+// use functions defined in the library.
+db::csv(#{ ... });
+```
+
 * A delegation feature gate on `vsmtp-rule-engine`. (#660)
 
 ### Changed

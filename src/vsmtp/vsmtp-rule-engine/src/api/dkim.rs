@@ -25,7 +25,6 @@ use vsmtp_auth::dkim::{
     VerifierError,
 };
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_plugins::rhai;
 
 pub use dkim_rhai::*;
 

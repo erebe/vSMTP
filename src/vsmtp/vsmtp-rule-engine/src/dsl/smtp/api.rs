@@ -16,7 +16,6 @@
 */
 
 use vsmtp_common::transfer::SmtpConnection;
-use vsmtp_plugins::rhai;
 
 use lettre;
 use rhai::plugin::{
@@ -53,9 +52,7 @@ pub mod smtp {
     /// Build a new SMTP service.
     #[rhai_fn(global, return_raw)]
     pub fn smtp(parameters: rhai::Map) -> crate::api::EngineResult<Smtp> {
-        let parameters: SmtpParameters =
-            vsmtp_plugins::plugins::vsl::native::deserialize_rhai_map("smtp", parameters)
-                .map_err::<rhai::EvalAltResult, _>(|err| err.to_string().into())?;
+        let parameters = rhai::serde::from_dynamic::<SmtpParameters>(&parameters.into())?;
 
         Ok(rhai::Shared::new(crate::dsl::smtp::service::Smtp {
             delegator: SmtpConnection(std::sync::Arc::new(std::sync::Mutex::new(

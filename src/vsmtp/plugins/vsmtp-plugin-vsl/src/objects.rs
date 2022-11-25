@@ -17,8 +17,6 @@
 
 use std::str::FromStr;
 
-use vsmtp_plugins::{anyhow, rhai};
-
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
 ///

@@ -15,10 +15,9 @@
  *
 */
 use crate::{api::EngineResult, error::CompilationError};
-use vsmtp_plugins::rhai;
 
 pub fn create(
-    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_, '_, '_, '_>,
+    context: &mut rhai::EvalContext<'_, '_, '_, '_, '_, '_>,
     input: &[rhai::Expression<'_>],
     _state: &rhai::Dynamic,
 ) -> EngineResult<rhai::Dynamic> {

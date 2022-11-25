@@ -15,8 +15,6 @@
  *
 */
 
-use vsmtp_plugins::rhai;
-
 use crate::api::{
     EngineResult, {Message, SharedObject},
 };

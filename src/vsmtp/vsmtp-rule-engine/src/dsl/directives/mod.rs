@@ -17,7 +17,6 @@
 
 use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::State, status::Status};
-use vsmtp_plugins::rhai;
 
 pub mod action;
 #[cfg(feature = "delegation")]

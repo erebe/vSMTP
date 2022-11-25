@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_plugins::rhai;
 
 use crate::api::SharedObject;
 use rhai::plugin::{

@@ -15,8 +15,6 @@
  *
 */
 
-use vsmtp_plugins::rhai;
-
 use crate::objects::{Object, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, NativeCallContext, PluginFunction,
@@ -27,11 +25,9 @@ use rhai::Module;
 /// Wrap a new object in it's sync/async wrapper.
 macro_rules! new_object {
     ($object:expr) => {
-        Ok(rhai::Shared::new($object.map_err::<Box<
-            vsmtp_plugins::rhai::EvalAltResult,
-        >, _>(|e| {
-            e.to_string().into()
-        })?))
+        Ok(rhai::Shared::new(
+            $object.map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
+        ))
     };
 }
 
@@ -88,7 +84,7 @@ pub mod objects {
     #[rhai_fn(global, return_raw)]
     pub fn file(path: &str, content_type: &str) -> Result<rhai::Array, Box<rhai::EvalAltResult>> {
         Object::new_file(path, content_type)
-            .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())
+            .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
     }
 
     /// a user identifier.
@@ -101,8 +97,7 @@ pub mod objects {
     #[rhai_fn(global, name = "code", return_raw)]
     pub fn code(code: rhai::INT, text: &str) -> Result<VSLObject, Box<rhai::EvalAltResult>> {
         Ok(rhai::Shared::new(Object::new_code(
-            u16::try_from(code)
-                .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
+            u16::try_from(code).map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
             text,
         )))
     }
@@ -115,8 +110,7 @@ pub mod objects {
         text: &str,
     ) -> Result<VSLObject, Box<rhai::EvalAltResult>> {
         Ok(rhai::Shared::new(Object::new_code_enhanced(
-            u16::try_from(code)
-                .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
+            u16::try_from(code).map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?,
             enhanced,
             text,
         )))
@@ -172,9 +166,7 @@ pub mod utils {
                     // NOTE: Using this instead of [`Object::new_address`] because it would need an extra match.
                     <vsmtp_common::Address as std::str::FromStr>::from_str(item.as_str())
                         .map(|addr| rhai::Dynamic::from(addr.local_part().to_string()))
-                        .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| {
-                            e.to_string().into()
-                        })
+                        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
                 } else {
                     Err(format!(
                         "cannot extract local part from a {} object.",
@@ -208,9 +200,7 @@ pub mod utils {
                     // NOTE: Using this instead of [`Object::new_address`] because it would need an extra match.
                     <vsmtp_common::Address as std::str::FromStr>::from_str(item.as_str())
                         .map(|addr| rhai::Dynamic::from(addr.domain().to_string()))
-                        .map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| {
-                            e.to_string().into()
-                        })
+                        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
                 } else {
                     Err(format!("cannot extract domain from a {} object.", item.type_name()).into())
                 }

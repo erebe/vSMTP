@@ -17,7 +17,6 @@
 
 use crate::{dsl::directives::Directives, RuleEngine};
 use anyhow::Context;
-use vsmtp_plugins::rhai;
 
 /// Rules that automatically deny the transaction once run.
 const DEFAULT_ROOT_INCOMING_RULES: &str = include_str!("../api/default/root_incoming_rules.rhai");

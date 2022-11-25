@@ -3,7 +3,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   [ Updated by ltabis ]
 
 * Added
-  * A `vsmtp-plugin` crate to handle Rust dylibs. (#625)
+  * `rhai-dylib` crate to handle Rust dylibs. (#753)
   * A delegation feature gate on `vsmtp-rule-engine`. (#660)
 * Changed
   * BREAKING: Configuration is written using Rhai. (#685)

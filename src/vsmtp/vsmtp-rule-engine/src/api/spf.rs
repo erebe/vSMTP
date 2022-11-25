@@ -23,7 +23,6 @@ use rhai::plugin::{
     TypeId,
 };
 use vsmtp_auth::spf;
-use vsmtp_plugins::rhai;
 
 pub use security::*;
 

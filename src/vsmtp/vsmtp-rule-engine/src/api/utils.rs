@@ -16,7 +16,6 @@
 */
 
 use vsmtp_plugin_vsl::objects::Object;
-use vsmtp_plugins::rhai;
 
 use crate::api::{EngineResult, Server, SharedObject};
 use anyhow::Context;

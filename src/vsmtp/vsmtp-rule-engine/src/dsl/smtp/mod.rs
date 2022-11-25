@@ -16,5 +16,9 @@
 */
 
 pub mod api;
-pub mod plugin;
 pub mod service;
+
+/// Create a new smtp module.
+pub fn new_module() -> rhai::Shared<rhai::Module> {
+    rhai::exported_module!(api::smtp).into()
+}

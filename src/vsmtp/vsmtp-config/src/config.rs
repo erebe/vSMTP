@@ -554,9 +554,6 @@ pub mod field {
     pub struct FieldAppVSL {
         /// Entry point of the vsl application.
         pub dirpath: Option<std::path::PathBuf>,
-        /// Plugins locations.
-        #[serde(default)]
-        pub plugins: std::collections::BTreeMap<String, std::path::PathBuf>,
     }
 
     /// Application's parameter of the logs, same properties than [`FieldServerLogs`].
