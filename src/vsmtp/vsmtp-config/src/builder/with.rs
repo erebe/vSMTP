@@ -29,7 +29,7 @@ use crate::{
         FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
-        ResolverOptsWrapper, SecretFile, TlsSecurityLevel,
+        ResolverOptsWrapper, SecretFile,
     },
     parser::{tls_certificate, tls_private_key},
 };
@@ -362,7 +362,6 @@ impl Builder<WantsServerTLSConfig> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
                 tls: Some(FieldServerTls {
-                    security_level: TlsSecurityLevel::May,
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
                     protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
@@ -505,13 +504,8 @@ impl Builder<WantsServerSMTPAuth> {
 
     ///
     #[must_use]
-    pub fn with_safe_auth(
-        self,
-        must_be_authenticated: bool,
-        attempt_count_max: i64,
-    ) -> Builder<WantsApp> {
+    pub fn with_safe_auth(self, attempt_count_max: i64) -> Builder<WantsApp> {
         self.with_auth(
-            must_be_authenticated,
             FieldServerSMTPAuth::default_enable_dangerous_mechanism_in_clair(),
             FieldServerSMTPAuth::default_mechanisms(),
             attempt_count_max,
@@ -522,7 +516,6 @@ impl Builder<WantsServerSMTPAuth> {
     #[must_use]
     pub fn with_auth(
         self,
-        must_be_authenticated: bool,
         enable_dangerous_mechanism_in_clair: bool,
         mechanisms: Vec<Mechanism>,
         attempt_count_max: i64,
@@ -531,7 +524,6 @@ impl Builder<WantsServerSMTPAuth> {
             state: WantsApp {
                 parent: self.state,
                 auth: Some(FieldServerSMTPAuth {
-                    must_be_authenticated,
                     enable_dangerous_mechanism_in_clair,
                     mechanisms,
                     attempt_count_max,

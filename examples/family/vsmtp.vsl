@@ -1,24 +1,23 @@
 fn on_config(config) {
     config.version_requirement = ">=1.3.3, <2.0.0";
-    
+
     config.server.name = "doe-family.com";
-    
+
     config.server.interfaces = #{
         // Replace 192.168.1.254 by your own IP.
         addr: ["192.168.1.254:25", "192.168.1.254:10025"],
         addr_submission: ["192.168.1.254:587"],
         addr_submissions: ["192.168.1.254:465"],
     };
-    
+
     config.server.tls = #{
-        security_level: "May",
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
         protocol_version: ["TLSv1.2", "TLSv1.3"],
         certificate: "../../../examples/config/tls/certificate.crt",
         private_key: "../../../examples/config/tls/private_key.key",
     };
-    
+
     config.server.queues.dirpath = "examples/family/spool";
     config.app.dirpath = "examples/family/app";
     config.app.vsl.dirpath = "../../../examples/family/domain-available";

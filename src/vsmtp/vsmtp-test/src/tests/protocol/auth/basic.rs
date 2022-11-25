@@ -382,18 +382,17 @@ run_test! {
         "250-8BITMIME\r\n",
         "250 SMTPUTF8\r\n",
         "530 5.7.0 Authentication required\r\n",
-        "221 Service closing transmission channel\r\n"
     ],
-    config = {
-        let mut config = unsafe_auth_config();
-        config
-            .server
-            .smtp
-            .auth
-            .as_mut()
-            .unwrap()
-            .must_be_authenticated = true;
-        config
+    config = unsafe_auth_config(),
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be authenticated" || {
+              if is_authenticated() { next() } else { deny(code(530, "5.7.0", "Authentication required\r\n")) }
+            }
+          ],
+        }
+      "#).unwrap().build())
     }
 }
 

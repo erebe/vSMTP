@@ -16,7 +16,6 @@ fn on_config(config) {
     //        (for example: config.app.vsl.dirpath = "/etc/vsmtp/domain-available")
 
     config.server.tls = #{
-        security_level: "May",
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
         protocol_version: ["TLSv1.2", "TLSv1.3"],

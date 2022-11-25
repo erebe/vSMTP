@@ -16,7 +16,7 @@
 */
 use super::get_tls_config;
 use crate::run_test;
-use vsmtp_config::field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel};
+use vsmtp_config::field::{FieldServerVirtual, FieldServerVirtualTls};
 
 run_test! {
     fn simple,
@@ -40,11 +40,17 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = {
-        let mut config = get_tls_config();
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-        config
-    },
+    config = get_tls_config(),
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be tls encrypted" || {
+              if is_secured() { next() } else { deny() }
+            }
+          ],
+        }
+      "#).unwrap().build())
+    }
 }
 
 run_test! {
@@ -61,11 +67,17 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = {
-        let mut config = get_tls_config();
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-        config
-    },
+    config = get_tls_config(),
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be tls encrypted" || {
+              if is_secured() { next() } else { deny() }
+            }
+          ],
+        }
+      "#).unwrap().build())
+    }
 }
 
 run_test! {
@@ -82,7 +94,6 @@ run_test! {
     config = {
         let mut config = get_tls_config();
         config.app.vsl.dirpath = Some("./src/template/sni".into());
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
         config.server.r#virtual.insert(
             "second.testserver.com".to_string(),
             FieldServerVirtual {
@@ -99,6 +110,16 @@ run_test! {
         );
         config
     },
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be tls encrypted" || {
+              if is_secured() { next() } else { deny() }
+            }
+          ],
+        }
+      "#).unwrap().build())
+    }
 }
 
 #[should_panic]

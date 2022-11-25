@@ -20,10 +20,9 @@ use crate::{
         FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking, FieldServer,
         FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
-        SyslogSocket, TlsSecurityLevel,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, ResolverOptsWrapper,
+        SyslogSocket,
     },
-    field::FieldServerVirtual,
     Config,
 };
 use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
@@ -280,12 +279,6 @@ impl FieldServerVirtual {
     }
 }
 
-impl FieldServerVirtualTls {
-    pub(crate) const fn default_sender_security_level() -> TlsSecurityLevel {
-        TlsSecurityLevel::Encrypt
-    }
-}
-
 impl Default for FieldServerSMTPAuth {
     fn default() -> Self {
         Self {
@@ -293,7 +286,6 @@ impl Default for FieldServerSMTPAuth {
             ),
             mechanisms: Self::default_mechanisms(),
             attempt_count_max: Self::default_attempt_count_max(),
-            must_be_authenticated: Self::default_must_be_authenticated(),
         }
     }
 }
@@ -311,10 +303,6 @@ impl FieldServerSMTPAuth {
 
     pub(crate) const fn default_attempt_count_max() -> i64 {
         -1
-    }
-
-    pub(crate) const fn default_must_be_authenticated() -> bool {
-        false
     }
 }
 
@@ -400,9 +388,6 @@ impl FieldServerSMTP {
             CodeID::AlreadyUnderTLS => Reply::new(
                 ReplyCode::Enhanced{ code: 554, enhanced: "5.5.1".to_string() }, "Error: TLS already active\r\n"
             ),
-            CodeID::TlsRequired => Reply::new(
-                ReplyCode::Code{ code: 530 }, "Must issue a STARTTLS command first\r\n"
-            ),
             CodeID::AuthSucceeded => Reply::new(
                 ReplyCode::Enhanced{ code: 235, enhanced: "2.7.0".to_string() }, "Authentication succeeded\r\n"
             ),
@@ -418,9 +403,6 @@ impl FieldServerSMTP {
             ),
             CodeID::AuthInvalidCredentials => Reply::new(
                 ReplyCode::Enhanced{ code: 535, enhanced: "5.7.8".to_string() }, "Authentication credentials invalid\r\n"
-            ),
-            CodeID::AuthRequired => Reply::new(
-                ReplyCode::Enhanced{ code: 530, enhanced: "5.7.0".to_string() }, "Authentication required\r\n"
             ),
             CodeID::AuthClientCanceled => Reply::new(
                 ReplyCode::Code{ code: 501 }, "Authentication canceled by client\r\n"

@@ -64,7 +64,7 @@ macro_rules! assert_mechanism_list {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
-            .with_auth(false, false, $required.to_vec(), -1)
+            .with_auth(false, $required.to_vec(), -1)
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()

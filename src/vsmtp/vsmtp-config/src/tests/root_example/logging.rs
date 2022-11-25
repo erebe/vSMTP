@@ -51,9 +51,6 @@ fn parse() {
                     "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
                         .to_string()),
                 CodeID::Greetings => "220 {name} ESMTP Service ready".parse().unwrap(),
-                CodeID::TlsRequired => Reply::new(
-                    ReplyCode::Enhanced{code: 451, enhanced: "5.7.3".to_string() }, "STARTTLS is required to send mail"
-                )
             })
             .without_auth()
             .with_default_app()

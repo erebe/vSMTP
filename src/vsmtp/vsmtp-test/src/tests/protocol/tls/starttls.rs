@@ -16,7 +16,6 @@
 */
 use super::get_tls_config;
 use crate::run_test;
-use vsmtp_config::field::TlsSecurityLevel;
 
 // TODO: add a test starttls + sni
 
@@ -50,11 +49,21 @@ run_test! {
         ".\r\n",
         "QUIT\r\n",
     ],
-    config = {
-        let mut config = get_tls_config();
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-        config
-    },
+    config = get_tls_config(),
+    hierarchy_builder = |builder| {
+      Ok(builder.add_root_incoming_rules(r#"#{
+        mail: [
+          rule "must be tls encrypted" || {
+            if is_secured() {
+              next()
+            } else {
+              deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n"))
+            }
+          }
+        ],
+      }
+    "#).unwrap().build())
+    }
 }
 
 run_test! {
@@ -81,11 +90,17 @@ run_test! {
         "STARTTLS\r\n",
         "QUIT\r\n"
     ],
-    config = {
-        let mut config = get_tls_config();
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-        config
-    },
+    config = get_tls_config(),
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be tls encrypted" || {
+              if is_secured() { next() } else { deny() }
+            }
+          ],
+        }
+      "#).unwrap().build())
+    }
 }
 
 run_test! {
@@ -111,7 +126,6 @@ run_test! {
     input = [
         "EHLO foobar\r\n",
         "MAIL FROM: <foo@bar>\r\n",
-        "QUIT\r\n"
     ],
     expected = [
         "220 testserver.com Service ready\r\n",
@@ -119,13 +133,18 @@ run_test! {
         "250-STARTTLS\r\n",
         "250-8BITMIME\r\n",
         "250 SMTPUTF8\r\n",
-        "530 Must issue a STARTTLS command first\r\n",
-        "221 Service closing transmission channel\r\n",
+        "451 5.7.3 Must issue a STARTTLS command first\r\n",
     ],
-    config = {
-        let mut config = get_tls_config();
-        config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-        config
+    config = get_tls_config(),
+    hierarchy_builder = |builder| {
+        Ok(builder.add_root_incoming_rules(r#"#{
+          mail: [
+            rule "must be tls encrypted" || {
+              if is_secured() { next() } else { deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n")) }
+            }
+          ],
+        }
+      "#).unwrap().build())
     }
 }
 

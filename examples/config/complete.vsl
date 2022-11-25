@@ -1,36 +1,36 @@
 fn on_config(config) {
     config.version_requirement = ">=1.3.3, <2.0.0";
-    
+
     config.server.name = "domain.com";
     config.server.client_count_max = 16;
-    
+
     config.server.system = #{
         user: "vsmtp",
         group: "vsmtp",
         group_local: "vsmtp",
     };
-    
+
     config.server.system.thread_pool = #{
         receiver: 6,
         processing: 6,
         delivery: 6,
     };
-    
+
     config.server.interfaces = #{
         addr: ["127.0.0.1:25"],
         addr_submission: ["127.0.0.1:587"],
         addr_submissions: ["127.0.0.1:465"],
     };
-    
+
     config.server.logs = #{
         filepath: "/var/log/vsmtp/vsmtp.log",
         format: "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}",
         size_limit: 10485760,
         archive_count: 10,
     }
-    
+
     config.server.logs.level.default = "WARN";
-    
+
     config.server.queues.dirpath = "/var/spool/vsmtp";
     config.server.queues.working.channel_size = 32;
     config.server.queues.delivery = #{
@@ -38,20 +38,19 @@ fn on_config(config) {
         deferred_retry_max: 100,
         deferred_retry_period: "5m",
     };
-    
+
     config.server.tls = #{
-        security_level: "Encrypt",
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
         protocol_version: "TLSv1.3",
         certificate: "/etc/vsmtp/tls/domain.com.certificate.crt",
         private_key: "/etc/vsmtp/tls/domain.com.private_key.key",
     }
-    
+
     config.server.virtual["mta1.domain.com"] = #{};
-    
+
     config.server.virtual["mta2.domain.com"] = #{ dns: #{ type: "system" } };
-    
+
     config.server.virtual["mta3.domain.com"] = #{
         tls: #{
             protocol_version: "TLSv1.3",
@@ -59,7 +58,7 @@ fn on_config(config) {
             private_key: "/etc/vsmtp/tls/mta3.domain.com.private_key.key",
         }
     };
-    
+
     config.server.virtual["mta4.domain.com"] = #{
         tls: #{
             protocol_version: "TLSv1.3",
@@ -67,22 +66,22 @@ fn on_config(config) {
             private_key: "/etc/vsmtp/tls/mta4.domain.com.private_key.key",
         }
     }
-    
+
     config.server.virtual["mta4.domain.com"] = #{ dns: #{ type: "google" } };
-    
-    
+
+
     config.server.smtp = #{
         rcpt_count_max: 1000,
         disable_ehlo: false,
         required_extension: ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"],
     };
-    
+
     config.server.smtp.error = #{
         soft_count: 10,
         hard_count: 20,
         delay: "5s",
     };
-    
+
     config.server.smtp.timeout_client = #{
         connect: "5m",
         helo: "5m",
@@ -90,7 +89,7 @@ fn on_config(config) {
         rcpt_to: "5m",
         data: "5m",
     };
-    
+
     config.server.smtp.codes = #{
         Greetings: "220 doe-Nitro-AN515-54 Service ready\r\n",
         Help: "214 joining us https://viridit.com/support\r\n",
@@ -107,13 +106,11 @@ fn on_config(config) {
         BadSequence: "503 Bad sequence of commands\r\n",
         TlsNotAvailable: "454 TLS not available due to temporary reason\r\n",
         AlreadyUnderTls: "554 5.5.1 Error: TLS already active\r\n",
-        TlsRequired: "530 Must issue a STARTTLS command first\r\n",
         AuthSucceeded: "235 2.7.0 Authentication succeeded\r\n",
         AuthMechNotSupported: "504 5.5.4 Mechanism is not supported\r\n",
         AuthClientMustNotStart: "501 5.7.0 Client must not start with this mechanism\r\n",
         AuthMechanismMustBeEncrypted: "538 5.7.11 Encryption required for requested authentication mechanism\r\n",
         AuthInvalidCredentials: "535 5.7.8 Authentication credentials invalid\r\n",
-        AuthRequired: "530 5.7.0 Authentication required\r\n",
         AuthClientCanceled: "501 Authentication canceled by client\r\n",
         AuthErrorDecode64: "501 5.5.2 Invalid, not base64\r\n",
         ConnectionMaxReached: "554 Cannot process connection, closing\r\n",
@@ -121,21 +118,21 @@ fn on_config(config) {
         Timeout: "451 Timeout - closing connection\r\n",
         TooManyRecipients: "452 Requested action not taken: too many recipients\r\n",
     };
-    
+
     config.server.smtp.auth = #{
         must_be_authenticated: true,
         enable_dangerous_mechanism_in_clair: true,
         mechanism: ["PLAIN", "LOGIN", "CRAM-MD5", "ANONYMOUS"],
     }
-    
+
     config.server.dns = #{ type: "custom" };
-    
+
     config.server.dns.config = #{
         domain: "example.dns.com",
         search: ["example.dns.com"],
         name_servers: [],
     }
-    
+
     config.server.dns.options = #{
         // Sets the number of dots that must appear (unless it's a final dot representing the root)
         //  that must appear before a query is assumed to include the TLD. The default is one, which
@@ -166,11 +163,11 @@ fn on_config(config) {
         // Try queries over TCP if they fail over UDP.
         try_tcp_on_error: false,
     };
-    
+
     config.app.dirpath = "/var/spool/vsmtp/app";
-    
+
     config.app.vsl.dirpath = "/etc/vsmtp/main.vsl";
-    
+
     config.app.logs = #{
         filepath: "/var/log/vsmtp/app.log",
         level: "WARN",

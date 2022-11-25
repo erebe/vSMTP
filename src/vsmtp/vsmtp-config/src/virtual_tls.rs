@@ -124,7 +124,6 @@ impl FieldServerVirtualTls {
                 inner: tls_private_key::from_string(private_key)?,
                 path: private_key.into(),
             },
-            sender_security_level: Self::default_sender_security_level(),
         })
     }
 }

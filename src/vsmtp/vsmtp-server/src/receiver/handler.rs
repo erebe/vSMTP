@@ -18,7 +18,7 @@ use crate::on_mail::OnMail;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_common::{state::State, status::Status, CodeID, Reply, Stage, TransactionType};
-use vsmtp_config::{field::TlsSecurityLevel, Config};
+use vsmtp_config::Config;
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, EhloArgs, Error, HeloArgs, MailFromArgs, RcptToArgs,
     ReceiverContext,
@@ -130,41 +130,6 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
     }
 
     async fn on_mail_from(&mut self, ctx: &mut ReceiverContext, args: MailFromArgs) -> Reply {
-        // TODO: move this logics as a vsl rule
-        if self
-            .config
-            .server
-            .tls
-            .as_ref()
-            .map_or(false, |tls| tls.security_level == TlsSecurityLevel::Encrypt)
-            && !self
-                .state
-                .context()
-                .read()
-                .expect("state poisoned")
-                .is_secured()
-        {
-            return self.reply_in_config(CodeID::TlsRequired);
-        }
-
-        // TODO: move this logics as a vsl rule
-        if self
-            .config
-            .server
-            .smtp
-            .auth
-            .as_ref()
-            .map_or(false, |auth| auth.must_be_authenticated)
-            && !self
-                .state
-                .context()
-                .read()
-                .expect("state poisoned")
-                .is_authenticated()
-        {
-            return self.reply_in_config(CodeID::AuthRequired);
-        }
-
         let reverse_path = args
             .reverse_path
             .expect("TODO: handle null reverse path")

@@ -350,26 +350,6 @@ pub mod field {
         pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
         pub private_key: SecretFile<rustls::PrivateKey>,
-        /// Policy of security for the TLS connection.
-        #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
-        pub sender_security_level: TlsSecurityLevel,
-    }
-
-    /// The policy of security for the TLS connection.
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-    pub enum TlsSecurityLevel {
-        /// Connection **MAY stay in plain text** for theirs transaction
-        ///
-        /// Connection **MAY UPGRADE** at any moment with a TLS tunnel (using STARTTLS mechanism)
-        May,
-        /// Connection **MUST BE UNDER TLS** tunnel (using STARTTLS mechanism or using port 465)
-        #[default]
-        Encrypt,
-        /// DANE protocol using TLSA dns records to establish a secure connection with a distant server.
-        Dane {
-            /// port
-            port: u16,
-        },
     }
 
     #[doc(hidden)]
@@ -386,9 +366,6 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
-        /// Policy of security for the TLS connection.
-        #[serde(default)]
-        pub security_level: TlsSecurityLevel,
         /// Ignore the client’s ciphersuite order.
         /// Instead, choose the top ciphersuite in the server list which is supported by the client.
         #[serde(default)]
@@ -459,10 +436,6 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTPAuth {
-        /// If `true`, the server will reject `MAIL FROM` commands if the client is not authenticated,
-        /// sending [`CodeID::AuthRequired`]
-        #[serde(default = "FieldServerSMTPAuth::default_must_be_authenticated")]
-        pub must_be_authenticated: bool,
         /// Some mechanisms are considered unsecure under non-TLS connections.
         /// If `false`, the server will allow to use them even on clair connections.
         ///
