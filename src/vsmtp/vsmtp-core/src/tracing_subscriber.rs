@@ -185,7 +185,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
     std::fs::create_dir_all(config.server.logs.filepath.clone())
         .context("Cannot create `server.logs` directory")?;
 
-    let writer_backend = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp");
+    let writer_backend = tracing_appender::rolling::never(&config.server.logs.filepath, "vsmtp");
     let writer_backend = writer_backend.with_filter(|metadata| {
         metadata.target() != "vsmtp_rule_engine::api::logging::logging_rhai"
     });
@@ -193,7 +193,7 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
     std::fs::create_dir_all(config.app.logs.filepath.clone())
         .context("Cannot create `app.logs` directory")?;
 
-    let writer_app = tracing_appender::rolling::daily(&config.app.logs.filepath, "app");
+    let writer_app = tracing_appender::rolling::never(&config.app.logs.filepath, "app");
     let writer_app = writer_app.with_filter(|metadata| {
         metadata.target() == "vsmtp_rule_engine::api::logging::logging_rhai"
     });
