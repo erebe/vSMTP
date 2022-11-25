@@ -421,13 +421,13 @@ fn check_dmarc() {
     });
     let spf_result = sys::check_spf(ctx(), srv());
 
-    let header = `${get_root_domain(ctx().server_name)};
+    let header = `${get_root_domain(server_name())};
   dkim=${dkim_result.status}
   spf=${spf_result.result}
   reason="${spf_key_value_list(spf_result)}"
-  smtp.mailfrom=${ctx().mail_from}`;
+  smtp.mailfrom=${mail_from()}`;
 
-    let dmarc_pass = dmarc_check(record, rfc5322_from, dkim_result, ctx().mail_from.domain, spf_result.result);
+    let dmarc_pass = dmarc_check(record, rfc5322_from.to_string(), dkim_result, mail_from().domain.to_string(), spf_result.result);
 
     prepend_header("Authentication-Results", `${header}
   dmarc=${if dmarc_pass { "pass" } else { "fail" }}`);
