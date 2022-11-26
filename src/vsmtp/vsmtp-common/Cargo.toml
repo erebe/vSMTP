@@ -90,10 +90,9 @@ thiserror = { version = "1.0.37", default-features = false }
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
 
 base64 = { version = "0.13.1", default-features = false, features = ["std"] }
-rsasl = { git = "https://github.com/Mathieu-Lala/rsasl", branch = "fix/callback-static", version = "=2.0.0-rc.3", default-features = false, features = [
+rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
     "provider",
     "config_builder",
-    # "registry_static",
     # "scram-sha-1",
     # "scram-sha-2",
     "anonymous",

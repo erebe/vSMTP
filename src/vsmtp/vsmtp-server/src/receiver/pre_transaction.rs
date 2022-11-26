@@ -18,7 +18,8 @@
 use crate::{Handler, OnMail};
 use vsmtp_common::{auth::Credentials, state::State, status::Status, ClientName, CodeID, Reply};
 use vsmtp_protocol::{
-    AcceptArgs, AuthArgs, AuthError, ConnectionKind, EhloArgs, HeloArgs, ReceiverContext,
+    AcceptArgs, AuthArgs, AuthError, CallbackWrap, ConnectionKind, EhloArgs, HeloArgs,
+    ReceiverContext,
 };
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -103,11 +104,11 @@ impl<M: OnMail + Send> Handler<M> {
         self.reply_or_code_in_config(e)
     }
 
-    pub(super) fn generate_sasl_callback_inner(&self) -> Box<dyn rsasl::callback::SessionCallback> {
-        Box::new(RsaslSessionCallback {
+    pub(super) fn generate_sasl_callback_inner(&self) -> CallbackWrap {
+        CallbackWrap(Box::new(RsaslSessionCallback {
             rule_engine: self.rule_engine.clone(),
             state: self.state.clone(),
-        })
+        }))
     }
 
     pub(super) fn on_post_tls_handshake_inner(&mut self, sni: Option<String>) -> Reply {

@@ -15,11 +15,34 @@
  *
 */
 
+use crate::{Receiver, ReceiverHandler};
 use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt;
 use vsmtp_common::auth::Mechanism;
 
-use crate::{Receiver, ReceiverHandler};
+///
+#[repr(transparent)]
+pub struct CallbackWrap(pub Box<dyn rsasl::callback::SessionCallback + Send + Sync>);
+
+impl rsasl::callback::SessionCallback for CallbackWrap {
+    fn callback(
+        &self,
+        session_data: &rsasl::callback::SessionData,
+        context: &rsasl::callback::Context<'_>,
+        request: &mut rsasl::callback::Request<'_>,
+    ) -> Result<(), rsasl::prelude::SessionError> {
+        self.0.callback(session_data, context, request)
+    }
+
+    fn validate(
+        &self,
+        session_data: &rsasl::callback::SessionData,
+        context: &rsasl::callback::Context<'_>,
+        validate: &mut rsasl::validate::Validate<'_>,
+    ) -> Result<(), rsasl::validate::ValidationError> {
+        self.0.validate(session_data, context, validate)
+    }
+}
 
 /// The possible outcomes of a SMTP-SASL handshake.
 #[derive(Debug, thiserror::Error)]
@@ -89,7 +112,6 @@ where
 
         let rsasl_config = rsasl::config::SASLConfig::builder()
             .with_default_mechanisms()
-            .with_defaults()
             .with_callback(callback)
             .unwrap();
 

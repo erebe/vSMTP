@@ -20,8 +20,8 @@ use vqueue::GenericQueueManager;
 use vsmtp_common::{state::State, status::Status, CodeID, Reply, Stage, TransactionType};
 use vsmtp_config::Config;
 use vsmtp_protocol::{
-    AcceptArgs, AuthArgs, AuthError, EhloArgs, Error, HeloArgs, MailFromArgs, RcptToArgs,
-    ReceiverContext,
+    AcceptArgs, AuthArgs, AuthError, CallbackWrap, EhloArgs, Error, HeloArgs, MailFromArgs,
+    RcptToArgs, ReceiverContext,
 };
 use vsmtp_rule_engine::{RuleEngine, RuleState};
 
@@ -93,7 +93,7 @@ impl<M: OnMail + Send> Handler<M> {
 
 #[async_trait::async_trait]
 impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
-    fn generate_sasl_callback(&self) -> Box<dyn rsasl::callback::SessionCallback> {
+    fn generate_sasl_callback(&self) -> CallbackWrap {
         self.generate_sasl_callback_inner()
     }
 

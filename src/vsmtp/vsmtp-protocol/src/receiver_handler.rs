@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    receiver::ReceiverContext, stream::Error, AcceptArgs, AuthArgs, AuthError, EhloArgs, HeloArgs,
-    MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
+    receiver::ReceiverContext, smtp_sasl::CallbackWrap, stream::Error, AcceptArgs, AuthArgs,
+    AuthError, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
 };
 // TODO: should we move these type in this crate
 use vsmtp_common::{Reply, Stage};
@@ -32,7 +32,7 @@ pub trait ReceiverHandler {
     fn get_stage(&self) -> Stage;
 
     /// Create an instance capable to handle the SASL handshake.
-    fn generate_sasl_callback(&self) -> Box<dyn rsasl::callback::SessionCallback>;
+    fn generate_sasl_callback(&self) -> CallbackWrap;
 
     /// Called when the client connects to the server.
     async fn on_accept(&mut self, ctx: &mut ReceiverContext, args: AcceptArgs) -> Reply;

@@ -2283,8 +2283,9 @@ dependencies = [
 
 [[package]]
 name = "rsasl"
-version = "2.0.0-rc.3"
-source = "git+https://github.com/Mathieu-Lala/rsasl?branch=fix/callback-static#63963389d624c03e9cab101939c3a846f578d00a"
+version = "2.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffa4318e392905b8221cb5e4b33f67e8e658091858e18793460079b526e28e2b"
 dependencies = [
  "acid_io",
  "serde_json",
