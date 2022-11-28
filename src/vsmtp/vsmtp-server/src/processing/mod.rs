@@ -15,37 +15,31 @@
  *
 */
 use crate::{delegate, ProcessMessage};
+use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::{state::State, status::Status, transfer::EmailTransferStatus};
-use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_common::{
+    state::State,
+    status::Status,
+    transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
+};
 use vsmtp_rule_engine::RuleEngine;
 
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
-    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
     loop {
         if let Some(pm) = working_receiver.recv().await {
-            let config = config.clone();
             let rule_engine = rule_engine.clone();
-            let resolvers = resolvers.clone();
             let queue_manager = queue_manager.clone();
             let delivery_sender = delivery_sender.clone();
 
             tokio::spawn(async move {
-                let _err = handle_one_in_working_queue(
-                    config,
-                    rule_engine,
-                    resolvers,
-                    queue_manager,
-                    pm,
-                    delivery_sender,
-                )
-                .await;
+                let _err =
+                    handle_one_in_working_queue(rule_engine, queue_manager, pm, delivery_sender)
+                        .await;
             });
         }
     }
@@ -54,9 +48,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
 #[allow(clippy::too_many_lines)]
 #[tracing::instrument(name = "working", skip_all)]
 async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
-    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -67,16 +59,19 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
         QueueID::Working
     };
 
-    let (ctx, mail_message) = queue_manager.get_both(&queue, &process_message.message_id)?;
+    let (ctx, mail_message) = queue_manager
+        .get_both(&queue, &process_message.message_id)
+        .await?;
 
-    let (mut ctx, mail_message, _, skipped) = rule_engine.just_run_when(
+    let mut skipped = ctx.connect.skipped.clone();
+    let (ctx, mail_message, _) = rule_engine.just_run_when(
+        &mut skipped,
         State::PostQ,
-        config.clone(),
-        resolvers,
-        queue_manager.clone(),
-        ctx,
+        vsmtp_common::Context::Finished(ctx),
         mail_message,
     );
+
+    let mut ctx = ctx.unwrap_finished().context("context is not finished")?;
 
     let mut move_to_queue = Option::<QueueID>::None;
     let mut send_to_delivery = false;
@@ -92,7 +87,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             tracing::warn!(stage = %State::PostQ, status = "quarantine", "Rules skipped.");
         }
         Some(status @ Status::Delegated(delegator)) => {
-            ctx.metadata.skipped = Some(Status::DelegationResult);
+            ctx.connect.skipped = Some(Status::DelegationResult);
 
             // NOTE:  moving here because the delegation process could try to
             //        pickup the email before it's written on disk.
@@ -101,7 +96,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 .move_to(&queue, &QueueID::Delegated, &ctx)
                 .await?;
 
-            queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+            queue_manager
+                .write_msg(&process_message.message_id, &mail_message)
+                .await?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -117,11 +114,10 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             delegated = true;
         }
         Some(Status::Deny(code)) => {
-            for rcpt in &mut ctx.envelop.rcpt {
-                rcpt.email_status = EmailTransferStatus::Failed {
-                    timestamp: std::time::SystemTime::now(),
-                    reason: format!("rule engine denied the message in postq: {code:?}."),
-                };
+            for rcpt in &mut ctx.rcpt_to.forward_paths {
+                rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
+                    RuleEngineVariants::Denied(code.clone()),
+                ));
             }
 
             move_to_queue = Some(QueueID::Dead);
@@ -139,7 +135,9 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     if write_email {
-        queue_manager.write_msg(&process_message.message_id, &mail_message)?;
+        queue_manager
+            .write_msg(&process_message.message_id, &mail_message)
+            .await?;
     }
 
     if let Some(next_queue) = move_to_queue {
@@ -161,6 +159,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vsmtp_config::DnsResolvers;
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
@@ -174,13 +173,19 @@ mod tests {
 
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
         assert!(handle_one_in_working_queue(
-            config.clone(),
-            std::sync::Arc::new(RuleEngine::from_script(config, "#{}").unwrap()),
-            resolvers,
+            std::sync::Arc::new(
+                RuleEngine::with_hierarchy(
+                    config,
+                    |builder| Ok(builder.add_root_incoming_rules("#{}")?.build()),
+                    resolvers.clone(),
+                    queue_manager.clone()
+                )
+                .unwrap()
+            ),
             queue_manager,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
@@ -193,20 +198,15 @@ mod tests {
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn basic() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_basic".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -217,12 +217,18 @@ mod tests {
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_working_queue(
-            config.clone(),
-            std::sync::Arc::new(RuleEngine::from_script(config.clone(), "#{}").unwrap()),
-            resolvers,
-            queue_manager,
+            std::sync::Arc::new(
+                RuleEngine::with_hierarchy(
+                    config.clone(),
+                    |builder| Ok(builder.add_root_incoming_rules("#{}")?.build()),
+                    resolvers.clone(),
+                    queue_manager.clone(),
+                )
+                .unwrap(),
+            ),
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -232,37 +238,28 @@ mod tests {
 
         assert_eq!(
             delivery_receiver.recv().await.unwrap().message_id,
-            "message_uid"
+            function_name!()
         );
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join("working/message_uid.json")
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join("deliver/message_uid.json")
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Deliver, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn denied() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_denied".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -273,18 +270,25 @@ mod tests {
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_working_queue(
-            config.clone(),
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", State::PostQ),
+                    |builder| {
+                        Ok(builder
+                            .add_root_incoming_rules(&format!(
+                                r#"#{{ {}: [ rule "abc" || deny(), ] }}"#,
+                                State::PostQ
+                            ))?
+                            .build())
+                    },
+                    resolvers.clone(),
+                    queue_manager.clone(),
                 )
                 .unwrap(),
             ),
-            resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -292,37 +296,27 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Working.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Dead.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
+    #[function_name::named]
     async fn quarantine() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_quarantine".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "message_uid";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        ctx.mail_from.message_id = function_name!().to_string();
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -333,21 +327,25 @@ mod tests {
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         handle_one_in_working_queue(
-            config.clone(),
             std::sync::Arc::new(
-                RuleEngine::from_script(
+                RuleEngine::with_hierarchy(
                     config.clone(),
-                    &format!(
-                        "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
-                        State::PostQ
-                    ),
+                    |builder| {
+                        Ok(builder
+                            .add_root_incoming_rules(&format!(
+                                "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
+                                State::PostQ
+                            ))?
+                            .build())
+                    },
+                    resolvers.clone(),
+                    queue_manager.clone(),
                 )
                 .unwrap(),
             ),
-            resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_id: function_name!().to_string(),
                 delegated: false,
             },
             delivery_sender,
@@ -355,31 +353,23 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(config
-            .app
-            .dirpath
-            .join(
-                QueueID::Quarantine {
-                    name: "unit-test".to_string()
-                }
-                .to_string()
+        queue_manager
+            .get_ctx(
+                &QueueID::Quarantine {
+                    name: "unit-test".to_string(),
+                },
+                function_name!(),
             )
-            .join(format!("{msg_id}.json"))
-            .exists());
+            .await
+            .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Working.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(QueueID::Dead.to_string())
-            .join(format!("{msg_id}.json"))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Working, function_name!())
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Dead, function_name!())
+            .await
+            .unwrap_err();
     }
 }

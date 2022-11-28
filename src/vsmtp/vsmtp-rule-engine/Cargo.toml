@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -14,7 +14,6 @@ homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-rule-engine/"
 
-readme = "../../../README.md"
 keywords = [
   "vsmtp",
   "scripting-engine",
@@ -26,78 +25,54 @@ categories = ["config"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"={{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.3.4" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.3.4" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.4" }
-vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.4" }
-vqueue = { path = "../../vqueue", version = "1.3.4" }
+vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.0" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "=1.4.0-rc.0" }
+vsmtp-auth = { path = "../vsmtp-auth", version = "=1.4.0-rc.0" }
+vqueue = { path = "../../vqueue", version = "=1.4.0-rc.0" }
 
-tracing = { version = "0.1.36", default-features = false, features = [
-  "std",
-  "attributes",
-] }
-anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
-
-thiserror = { version = "1.0.37", default-features = false }
-
-regex = { version = "1.6.0", default-features = false, features = [
-  "std",
-  "perf",
-  "unicode",
-] }
-iprange = { version = "0.6.7", default-features = false, features = [
-  # "serde" # TODO
-] }
-ipnet = { version = "2.5.0", default-features = false, features = [
-  # "serde", # TODO
-] }
-addr = { version = "0.15.6", default-features = false, features = [
-  "std",
-  # "serde", # TODO
-] }
-either = { version = "1.8.0", default-features = false, features = ["use_std"] }
-
-r2d2 = { version = "0.8.10", default-features = false }
-csv = { version = "1.1.6", default-features = false }
-mysql = { version = "22.2.0", optional = true, default-features = false, features = [
-  "rustls-tls",
-  "buffer-pool",
-] }
-flate2 = { version = "1.0.24", optional = true, default-features = false, features = [
-  "zlib",
-] }
-mysql_common = { version = "0.28.2", optional = true, default-features = false, features = [
-  "bigdecimal03",
-  "rust_decimal",
-  "time03",
-  "uuid",
-  "frunk",
-] }
-
-log = { version = "0.4.17", default-features = false, features = ["std"] }
-
-serde_json = { version = "1.0.85", default-features = false, features = [
-  "std",
-] }
-serde = { version = "1.0.145", default-features = false, features = [
-  "std",
-  "derive",
-] }
-rhai = { version = "1.10.1", default-features = false, features = [
-  "std",
+# Plugins
+vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.0" }
+rhai-dylib = { version = "0.1.4", features = ["sync"] }
+rhai = { version = "1.11.0", features = [
   "unchecked",
   "sync",
   "internals",
   "no_closure",
-  "serde",
+  "metadata",
+] }
+tracing = { version = "0.1.37", default-features = false, features = [
+  "std",
+  "attributes",
+  "release_max_level_info",
+] }
+
+anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+
+thiserror = { version = "1.0.37", default-features = false }
+
+either = { version = "1.8.0", default-features = false, features = ["use_std"] }
+
+strum = { version = "0.24.1", default-features = false, features = [
+  "std",
+  "derive",
+] }
+
+
+serde_json = { version = "1.0.89", default-features = false, features = [
+  "std",
+] }
+serde = { version = "1.0.147", default-features = false, features = [
+  "std",
+  "derive",
 ] }
 lettre = { version = "0.10.0", default-features = false, features = [
   "smtp-transport",
@@ -106,16 +81,12 @@ lettre = { version = "0.10.0", default-features = false, features = [
   "tracing",
   "pool",
 ] }
-strum = { version = "0.24.1", default-features = false, features = [
-  "std",
-  "derive",
-] }
 
 wait-timeout = { version = "0.2.0", default-features = false }
 users = { version = "0.11.0", default-features = false }
 
 hostname = { version = "0.3.1", default-features = false }
-time = { version = "0.3.14", default-features = false, features = [
+time = { version = "0.3.17", default-features = false, features = [
   "std",
   "formatting",
   "macros",
@@ -126,7 +97,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "tokio-runtime",
 ] }
 
-tokio = { version = "1.21.2", default-features = false, features = [
+tokio = { version = "1.22.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -136,12 +107,18 @@ tokio = { version = "1.21.2", default-features = false, features = [
 ] }
 humantime-serde = { version = "1.1.1", default-features = false }
 
-[package.metadata.cargo-udeps.ignore]
-normal = ["r2d2"]
+[features]
+default = ["delegation"]
+delegation = []          # Add the delegation system.
 
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.3.0"
-
-[features]
-mysql = ["dep:mysql", "dep:flate2", "dep:mysql_common"]
+rstest = "0.15.0"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+rsa = { version = "0.6.1", default-features = false, features = [
+  "std",
+  "pem",
+  # "serde" # TODO
+] }

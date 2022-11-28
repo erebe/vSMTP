@@ -19,13 +19,13 @@ use crate::{message::message_body::MessageBody, MailMimeParser};
 
 fn generate_test_bodies() -> (MessageBody, MessageBody) {
     let headers = [
-        "From: john <john@example.com>",
-        "To: green@example.com",
-        "Date: tue, 30 nov 2021 20:54:27 +0100",
-        "Content-Language: en-US",
-        "Subject: test message",
-        "Content-Type: text/html; charset=UTF-8",
-        "Content-Transfer-Encoding: 7bit",
+        "From: john <john@example.com>\r\n",
+        "To: green@example.com\r\n",
+        "Date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+        "Content-Language: en-US\r\n",
+        "Subject: test message\r\n",
+        "Content-Type: text/html; charset=UTF-8\r\n",
+        "Content-Transfer-Encoding: 7bit\r\n",
     ];
     let body = r#"<html>
   <head>

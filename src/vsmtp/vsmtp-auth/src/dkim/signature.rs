@@ -117,7 +117,7 @@ impl Signature {
     pub(super) fn get_header_for_hash(&self, message: &RawBody) -> String {
         let mut last_index = std::collections::HashMap::<&str, usize>::new();
 
-        let headers = message.headers(true);
+        let headers = message.headers();
 
         let mut output = vec![];
         for header in &self.headers_field {
@@ -128,13 +128,13 @@ impl Signature {
             if let Some((pos, (key, value))) = headers[..idx]
                 .iter()
                 .enumerate()
-                .rfind(|(_, (key, _))| key.to_lowercase() == header.to_lowercase())
+                .rfind(|(_, (key, _))| key.eq_ignore_ascii_case(header))
             {
                 last_index
                     .entry(key.as_str())
                     .and_modify(|v| *v = pos)
                     .or_insert(pos);
-                output.push(format!("{key}:{value}\r\n"));
+                output.push(format!("{key}:{value}"));
             }
         }
 
@@ -342,8 +342,7 @@ impl std::str::FromStr for Signature {
                 // TODO: extend blacklist header
                 } else if headers_field
                     .iter()
-                    .map(|s| s.to_lowercase())
-                    .any(|s| &s == "dkim-signature")
+                    .any(|s| s.eq_ignore_ascii_case("dkim-signature"))
                 {
                     return Err(ParseError::InvalidArgument {
                         reason: "`headers_field` must not contains `DKIM-Signature`".to_string(),

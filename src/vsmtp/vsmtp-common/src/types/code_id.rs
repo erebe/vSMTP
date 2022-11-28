@@ -87,9 +87,6 @@ pub enum CodeID {
     TlsNotAvailable,
     ///
     AlreadyUnderTLS,
-    /// The policy of the server require the client to be in a secured connection for a mail transaction,
-    /// must use `STARTTLS`
-    TlsRequired,
     //
     // Auth extension
     //
@@ -103,8 +100,6 @@ pub enum CodeID {
     AuthMechanismMustBeEncrypted,
     ///
     AuthInvalidCredentials,
-    /// The policy of the server require the client to be authenticated for a mail transaction
-    AuthRequired,
     ///
     AuthClientCanceled,
     ///

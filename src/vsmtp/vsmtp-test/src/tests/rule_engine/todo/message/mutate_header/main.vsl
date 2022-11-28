@@ -1,0 +1,148 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+fn mutate_headers() {
+
+    const header_name = "X-New-Header";
+    const header_value = "value of header";
+    const another_header_value = "value of header";
+    const from_header = "From";
+    const green = address("green@foo.net");
+
+    append_header(header_name, header_value);
+    append_header("X-Another-Header", another_header_value);
+    append_header(from_header, "<john@doe.com>");
+    append_header("To", green);
+
+    const status = "X-VSMTP-STATUS";
+    const status_delivered = "delivered";
+
+    const tracing = "X-VSMTP-TRACING";
+    const default_sender = fqdn("example.com");
+
+    prepend_header(status, status_delivered);
+    prepend_header(tracing, "empty");
+    prepend_header("X-VSMTP-SENDER", default_sender);
+
+    if !has_header(header_name)
+    || !has_header("X-Another-Header")
+    || !has_header("From")
+    || !has_header("To")
+    || !has_header("X-VSMTP-STATUS")
+    || !has_header("X-VSMTP-TRACING")
+    || !has_header("X-VSMTP-SENDER")
+    {
+        return deny();
+    }
+
+    const new_value = "blah blah blah";
+
+    set_header(header_name, header_value);
+    set_header(header_name, "new value!");
+    set_header("X-Another-Header", "value of another");
+    set_header("X-Yet-Another-Header", new_value);
+
+    print(get_header(header_name));
+    print(get_header("X-Yet-Another-Header"));
+    print(get_header("X-VSMTP-STATUS"));
+
+    if !has_header("X-New-Header")
+    || !has_header("X-Another-Header")
+    || !has_header("X-Yet-Another-Header")
+    {
+        return deny();
+    }
+
+    if !(get_header("X-New-Header") == "new value!")
+    && !(get_header("X-Another-Header") == "value of another")
+    && !(get_header("From") == "<john@doe.com>")
+    && !(get_header("To") == "green@foo.net")
+    && !(get_header("X-Yet-Another-Header") == "blah blah blah")
+    && !(get_header("X-VSMTP-STATUS") == "delivered")
+    && !(get_header("X-VSMTP-TRACING") == "empty")
+    && !(get_header("X-VSMTP-SENDER") == "example.com")
+    {
+        return deny();
+    }
+
+print("passed");
+    prepend_header("X-To-Rename", "Value should not change");
+print("passed");
+
+    if get_header("X-To-Rename") != "Value should not change"
+    {
+        print(`to rename: ${get_header("X-To-Rename")}`);
+        return deny();
+    }
+print("passed");
+
+    rename_header("X-To-Rename", "X-Renamed");
+
+print("passed");
+    if has_header("X-To-Rename")
+    || get_header("X-Renamed") != "Value should not change"
+    {
+        print(`to rename: ${get_header("X-To-Rename")}`);
+        print(`renamed: ${get_header("X-Renamed")}`);
+        return deny();
+    }
+
+    print(get_all_headers());
+
+    prepend_header("X-Multi-Header", "1");
+    prepend_header("X-Multi-Header", "2");
+    prepend_header("X-Multi-Header", "3");
+    prepend_header("X-Multi-Header", "4");
+    prepend_header("X-Multi-Header", "5");
+
+    if has_header("X-Multi-Header") == false
+    || count_header("X-Multi-Header") != 5
+    || get_all_headers("X-Multi-Header") != [" 5", " 4", " 3", " 2", " 1"] {
+        return deny();
+    }
+
+    while remove_header("X-Multi-Header") {}
+    remove_header("X-Another-Header");
+    remove_header(status);
+
+    print(get_all_headers());
+
+    if !has_header("X-Another-Header")
+    && !has_header("X-Multi-Header")
+    && !has_header(status) {
+        next()
+    } else {
+        deny()
+    }
+}
+
+#{
+    connect: [
+        rule "adding headers when body is empty" || mutate_headers(),
+        rule "trailing connect" || accept(),
+    ],
+
+    preq: [
+        rule "adding headers to raw email" || mutate_headers(),
+        rule "trailing preq" || accept(),
+    ],
+
+    postq: [
+        rule "adding headers to parsed email" || mutate_headers(),
+        rule "trailing postq" || accept(),
+    ],
+}

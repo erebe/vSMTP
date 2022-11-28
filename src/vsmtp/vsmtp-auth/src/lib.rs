@@ -30,6 +30,7 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+// #![warn(clippy::restriction)]
 //
 #![allow(clippy::use_self)] // false positive with enums
 

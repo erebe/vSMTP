@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-test"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -20,22 +20,35 @@ vsmtp-config = { path = "../vsmtp-config" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
 vsmtp-server = { path = "../vsmtp-server" }
-vqueue = { path = "../../vqueue" }
+vqueue = { path = "../../vqueue", features = ["testing"] }
+vsmtp-protocol = { path = "../vsmtp-protocol" }
 
-async-trait = "0.1.57"
-pretty_assertions = "1.3.0"
+async-trait = "0.1.58"
 lettre = { version = "0.10.1", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
   "tracing",
 ] }
+time = { version = "0.3.15", default-features = false, features = [
+  "std",
+  "formatting",
+  "macros",
+  "serde-well-known",
+] }
+trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
+  "system-config",
+  "serde-config",
+  "tokio-runtime",
+] }
 
 tokio-rustls = "0.23.4"
-rustls-pemfile = "1.0.1"
+rustls-pemfile = { version = "1.0.1", default-features = false }
+rand = "0.8.5"
 
+lazy_static = "1.4.0"
 
-rsasl = { version = "=2.0.0-rc.2", default-features = false, features = [
+rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
   "provider",
   "config_builder",
   # "registry_static",
@@ -47,11 +60,11 @@ rsasl = { version = "=2.0.0-rc.2", default-features = false, features = [
   "plain",
   "login",
 ] }
-anyhow = "1.0.65"
+anyhow = "1.0.66"
 
-serde_json = "1.0.85"
+serde_json = "1.0.89"
 
-tokio = { version = "1.21.2", default-features = false, features = [
+tokio = { version = "1.22.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -59,4 +72,22 @@ tokio = { version = "1.21.2", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
+tokio-stream = { version = "0.1.11", default-features = false, features = [
+  "time",
+] }
+
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
+
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = [
+  "env-filter",
+  "fmt",
+] }
+
+[dev-dependencies]
+function_name = "0.3.0"
+pretty_assertions = "1.3.0"
+rstest = "0.15.0"
+# rstest_reuse = "0.4.0"
+test-log = { version = "0.2.11", features = ["trace"] }
+env_logger = "0.10.0"

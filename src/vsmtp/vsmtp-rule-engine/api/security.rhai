@@ -19,78 +19,6 @@
 //!
 //! This module contains multiple security functions that you can use to protect your server.
 
-/// Do not accept a message from a known internal domain if the client is unknown.
-///
-/// ### Args
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
-///
-/// ### Return
-/// * `deny()`
-/// * `next()`
-///
-/// ### Effective smtp stage
-/// `mail` and onwards.
-///
-/// ### Example
-/// ```js
-/// mail: [
-///    rule "check mail relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
-///        check_mail_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// ### Module:Security
-/// ```
-fn check_mail_relay(allowed_hosts) {
-    if in_domain(ctx().mail_from)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        deny(code554_7_1)
-    } else {
-        next()
-    }
-}
-
-/// Do not accept open relaying.
-///
-/// ### Args
-///
-/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
-///
-/// ### Return
-/// * `deny()`
-/// * `next()`
-///
-/// ### Effective smtp stage
-/// `rcpt` only.
-///
-/// ### Example
-/// ```js
-/// rcpt: [
-///    rule "check rcpt relay" || {
-///        object allowed_hosts group = [
-///            object mta_ip ip4 = "192.168.1.254",
-///            object mta_fqdn fqdn = "mta-internal.foobar.com"
-///        ];
-///        check_rcpt_relay(allowed_hosts)
-///    }
-/// ]
-///
-/// ### Module:Security
-/// ```
-fn check_rcpt_relay(allowed_hosts) {
-    if !in_domain(ctx().rcpt)
-    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt_envelop(ctx().rcpt);
-        info(code554_7_1)
-    } else {
-        next()
-    }
-}
-
 /// create key-value pairs of spf results
 /// to inject into the spf or auth headers.
 private fn spf_key_value_list(query) {
@@ -212,11 +140,6 @@ fn check_spf_inner() { sys::check_spf(ctx(), srv()) }
 ///
 /// ### Module:Security
 fn check_spf(header, policy) {
-
-    if in_domain(ctx().mail_from) {
-        return next();
-    }
-
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
@@ -420,6 +343,8 @@ fn verify_dkim() {
 /// ### Args
 ///
 /// * `selector` - the DNS selector to expose the public key & for the verifier
+/// * `private_key` - the private key to sign the mail,
+///     associated with the public key in the `selector._domainkey.sdid` DNS record
 /// * `headers_field` - list of headers to sign
 /// * `canonicalization` - the canonicalization algorithm to use (ex: "simple/relaxed")
 ///
@@ -440,16 +365,24 @@ fn verify_dkim() {
 /// ```
 ///
 /// ### Module:Security
-fn sign_dkim(selector, headers_field, canonicalization) {
-    let signature = sys::generate_signature_dkim(msg(), ctx(), srv(), selector, headers_field, canonicalization);
+fn sign_dkim(selector, private_key, headers_field, canonicalization) {
+    let signature = sys::generate_signature_dkim(msg(), ctx(), selector, private_key, headers_field, canonicalization);
     prepend_header("DKIM-Signature", signature);
 }
 
-/// Alias for `sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")`
+/// Syntactic sugar for:
+/// ```
+/// sign_dkim(
+///   selector,
+///   private_key,
+///   ["From", "To", "Date", "Subject", "From"],
+///   "simple/relaxed"
+/// )
+/// ```
 ///
 /// ### Module:Security
-fn sign_dkim(selector) {
-    sign_dkim(selector, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
+fn sign_dkim(selector, private_key) {
+    sign_dkim(selector, private_key, ["From", "To", "Date", "Subject", "From"], "simple/relaxed")
 }
 
 /// Apply the DMARC policy to the mail.
@@ -488,13 +421,13 @@ fn check_dmarc() {
     });
     let spf_result = sys::check_spf(ctx(), srv());
 
-    let header = `${get_root_domain(ctx().server_name)};
+    let header = `${get_root_domain(server_name())};
   dkim=${dkim_result.status}
   spf=${spf_result.result}
   reason="${spf_key_value_list(spf_result)}"
-  smtp.mailfrom=${ctx().mail_from}`;
+  smtp.mailfrom=${mail_from()}`;
 
-    let dmarc_pass = dmarc_check(record, rfc5322_from, dkim_result, ctx().mail_from.domain, spf_result.result);
+    let dmarc_pass = dmarc_check(record, rfc5322_from.to_string(), dkim_result, mail_from().domain.to_string(), spf_result.result);
 
     prepend_header("Authentication-Results", `${header}
   dmarc=${if dmarc_pass { "pass" } else { "fail" }}`);

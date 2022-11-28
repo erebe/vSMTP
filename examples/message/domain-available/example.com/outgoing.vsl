@@ -1,0 +1,6 @@
+#{
+    // For the sake of this example, only the internal emails are authorized.
+    rcpt: [
+        rule "deny outgoing" || deny(),
+    ]
+}

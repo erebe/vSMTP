@@ -14,17 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    api::{
-        EngineResult, {Context, Server, SharedObject},
-    },
-    dsl::object::Object,
+
+use vsmtp_plugin_vsl::objects::Object;
+
+use crate::api::{
+    EngineResult, {Context, Server, SharedObject},
 };
 use rhai::plugin::{
-    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
+    mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::{auth::Credentials, state::State, Address};
 
 pub use mail_context_rhai::*;
@@ -35,88 +34,78 @@ mod mail_context_rhai {
     /// Get the peer address of the client.
     #[rhai_fn(global, get = "client_address", return_raw, pure)]
     pub fn client_address(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read())
-            .connection
-            .client_addr
-            .to_string())
+        Ok(vsl_guard_ok!(context.read()).client_addr().to_string())
     }
 
     /// Get the peer ip address of the client.
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
     pub fn client_ip(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read())
-            .connection
-            .client_addr
-            .ip()
-            .to_string())
+        Ok(vsl_guard_ok!(context.read()).client_addr().ip().to_string())
     }
 
     /// Get the peer port of the client.
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
-    pub fn client_port(context: &mut Context) -> EngineResult<i64> {
-        Ok(i64::from(
-            vsl_guard_ok!(context.read()).connection.client_addr.port(),
+    pub fn client_port(context: &mut Context) -> EngineResult<rhai::INT> {
+        Ok(rhai::INT::from(
+            vsl_guard_ok!(context.read()).client_addr().port(),
         ))
     }
 
     /// Get the server address which served this connection.
     #[rhai_fn(global, get = "server_address", return_raw, pure)]
     pub fn server_address(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read())
-            .connection
-            .server_addr
-            .to_string())
+        Ok(vsl_guard_ok!(context.read()).server_addr().to_string())
     }
 
     /// Get the server ip address which served this connection.
     #[rhai_fn(global, get = "server_ip", return_raw, pure)]
     pub fn server_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(vsl_guard_ok!(context.read()).connection.server_addr.ip())
+        Ok(vsl_guard_ok!(context.read()).server_addr().ip())
     }
 
     /// Get the server port which served this connection.
     #[rhai_fn(global, get = "server_port", return_raw, pure)]
-    pub fn server_port(context: &mut Context) -> EngineResult<i64> {
-        Ok(i64::from(
-            context
-                .read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                .connection
-                .server_addr
-                .port(),
+    pub fn server_port(context: &mut Context) -> EngineResult<rhai::INT> {
+        Ok(rhai::INT::from(
+            vsl_guard_ok!(context.read()).server_addr().port(),
         ))
     }
 
     /// Get the timestamp when the client connected to the server.
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
-    pub fn connection_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(vsl_guard_ok!(context.read()).connection.timestamp)
+    pub fn connection_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
+        Ok(*vsl_guard_ok!(context.read()).connection_timestamp())
     }
 
     /// Get server name under which the client has been served.
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
     pub fn server_name(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).connection.server_name.clone())
+        Ok(vsl_guard_ok!(context.read()).server_name().clone())
     }
 
     /// Is the connection under TLS?
     #[rhai_fn(global, get = "is_secured", return_raw, pure)]
     pub fn is_secured(context: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(context.read()).connection.is_secured)
+        Ok(vsl_guard_ok!(context.read()).tls().is_some())
     }
 
     /// Has the connection validated the client credentials?
     #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
     pub fn is_authenticated(context: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(context.read()).connection.is_authenticated)
+        Ok(vsl_guard_ok!(context.read()).auth().is_some())
     }
 
     /// Get the `auth` property of the connection.
     #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(context: &mut Context) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).connection.credentials,
-            "auth",
+            vsl_missing_ok!(
+                vsl_guard_ok!(context.read()).auth(),
+                "auth",
+                State::Authenticate
+            )
+            .credentials,
+            "credentials",
             State::Authenticate
         )
         .clone())
@@ -166,26 +155,39 @@ mod mail_context_rhai {
     /// Get the domain named introduced by the client.
     #[rhai_fn(global, get = "helo", return_raw, pure)]
     pub fn helo(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).envelop.helo.clone())
+        Ok(vsl_missing_ok!(
+            ref vsl_guard_ok!(context.read()).client_name().ok(),
+            "helo",
+            State::Helo
+        )
+        .to_string())
     }
 
     /// Get the `MailFrom` envelope.
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
     pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
-        Ok(std::sync::Arc::new(Object::Address(
-            vsl_guard_ok!(context.read()).envelop.mail_from.clone(),
-        )))
+        let reverse_path = vsl_guard_ok!(context.read()).reverse_path().cloned();
+        Ok(std::sync::Arc::new(Object::Address(vsl_missing_ok!(
+            ref reverse_path.ok(),
+            "mail_from",
+            State::MailFrom
+        ))))
     }
 
     /// Get the `RcptTo` envelope.
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
-    pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<SharedObject>> {
-        Ok(vsl_guard_ok!(context.read())
-            .envelop
-            .rcpt
-            .iter()
-            .map(|rcpt| std::sync::Arc::new(Object::Address(rcpt.address.clone())))
-            .collect())
+    pub fn rcpt_list(context: &mut Context) -> EngineResult<rhai::Array> {
+        Ok(vsl_missing_ok!(
+            vsl_guard_ok!(context.read()).forward_paths().ok(),
+            "rcpt_list",
+            State::RcptTo
+        )
+        .iter()
+        .map(|rcpt| rcpt.address.clone())
+        .map(Object::Address)
+        .map(std::sync::Arc::new)
+        .map(rhai::Dynamic::from)
+        .collect())
     }
 
     /// Get the lase element in the `RcptTo` envelope.
@@ -193,7 +195,12 @@ mod mail_context_rhai {
     pub fn rcpt(context: &mut Context) -> EngineResult<SharedObject> {
         Ok(std::sync::Arc::new(Object::Address(
             vsl_missing_ok!(
-                vsl_guard_ok!(context.read()).envelop.rcpt.last(),
+                vsl_missing_ok!(
+                    vsl_guard_ok!(context.read()).forward_paths().ok(),
+                    "rcpt",
+                    State::RcptTo
+                )
+                .last(),
                 "rcpt",
                 State::RcptTo
             )
@@ -204,11 +211,11 @@ mod mail_context_rhai {
 
     /// Get the timestamp when the client started to send the message.
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
-    pub fn mail_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(*vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).metadata.timestamp,
+    pub fn mail_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
+        Ok(**vsl_missing_ok!(
+            vsl_guard_ok!(context.read()).mail_timestamp().ok(),
             "mail_timestamp",
-            State::PreQ
+            State::MailFrom
         ))
     }
 
@@ -216,11 +223,11 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).metadata.message_id,
+            ref vsl_guard_ok!(context.read()).message_id().ok(),
             "message_id",
-            State::PreQ
+            State::MailFrom
         )
-        .clone())
+        .to_string())
     }
 
     /// Convert a `Context` to a `String`.
@@ -313,15 +320,15 @@ mod mail_context_rhai {
 
     /// add a recipient to the envelop.
     #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
-    pub fn add_rcpt_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-        super::add_rcpt(context, new_addr)
+    pub fn add_rcpt_envelop_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+        super::add_rcpt_envelop(context, new_addr)
     }
 
     /// add a recipient to the envelop.
     #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn add_rcpt_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
-        super::add_rcpt(context, &new_addr.to_string())
+    pub fn add_rcpt_envelop_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
+        super::add_rcpt_envelop(context, &new_addr.to_string())
     }
 
     /// remove a recipient from the envelop.
@@ -338,16 +345,15 @@ mod mail_context_rhai {
     }
 }
 
-/// internal generic function to rewrite the `mail_from` value of the envelop.
 fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-    vsl_guard_ok!(context.write()).envelop.mail_from = vsl_conversion_ok!(
-        "address",
-        <Address as std::str::FromStr>::from_str(new_addr)
-    );
-    Ok(())
+    vsl_guard_ok!(context.write())
+        .set_reverse_path(vsl_conversion_ok!(
+            "address",
+            <Address as std::str::FromStr>::from_str(new_addr)
+        ))
+        .map_err(|e| e.to_string().into())
 }
 
-/// internal generic function to rewrite a recipient of the envelop.
 fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
     let old_addr = vsl_conversion_ok!(
         "address",
@@ -359,49 +365,31 @@ fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> Engine
     );
 
     let mut context = vsl_guard_ok!(context.write());
+    context
+        .remove_forward_path(&old_addr)
+        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
+    context
+        .add_forward_path(new_addr)
+        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
 
-    context.envelop.rcpt.push(Rcpt::new(new_addr));
-
-    if let Some(index) = context
-        .envelop
-        .rcpt
-        .iter()
-        .position(|rcpt| rcpt.address == old_addr)
-    {
-        context.envelop.rcpt.swap_remove(index);
-    }
     Ok(())
 }
 
-/// internal generic function to add a recipient to the envelop.
-fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+fn add_rcpt_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
     vsl_guard_ok!(context.write())
-        .envelop
-        .rcpt
-        .push(Rcpt::new(vsl_conversion_ok!(
+        .add_forward_path(vsl_conversion_ok!(
             "address",
             <Address as std::str::FromStr>::from_str(new_addr)
-        )));
-
-    Ok(())
+        ))
+        .map_err(|err| format!("failed to run `add_rcpt_envelop`: {err}").into())
 }
 
-/// internal generic function to remove a recipient to the envelop.
 fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {
     let addr = vsl_conversion_ok!("address", <Address as std::str::FromStr>::from_str(addr));
 
-    let mut email = vsl_guard_ok!(context.write());
-
-    email
-        .envelop
-        .rcpt
-        .iter()
-        .position(|rcpt| rcpt.address == addr)
-        .map_or_else(
-            || Ok(()),
-            |index| {
-                email.envelop.rcpt.remove(index);
-                Ok(())
-            },
-        )
+    let mut context = vsl_guard_ok!(context.write());
+    context
+        .remove_forward_path(&addr)
+        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
+    Ok(())
 }

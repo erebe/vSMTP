@@ -1,0 +1,34 @@
+// This example is out of date.
+
+fn on_config(config) {
+    config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+
+    config.server.interfaces = #{
+        addr: ["127.0.0.1:10025"],
+        addr_submission: ["127.0.0.1:10587"],
+        addr_submissions: ["127.0.0.1:10465"],
+    };
+
+    config.server.logs.filepath = "./tmp/dev/vsmtp.log";
+    config.server.logs.level.default = "trace";
+
+    config.server.queues.dirpath = "./tmp/dev/spool2";
+
+    config.server.smtp.auth = #{
+        must_be_authenticated: true,
+        enable_dangerous_mechanism_in_clair: true,
+    };
+
+    config.app.vsl.dirpath = "./examples/auth/main.vsl";
+
+    config.app.logs.filepath = "./tmp/dev/app.log";
+
+    config.app.services.saslauthd = #{
+        type: "shell"
+        timeout: "100ms"
+        command: "testsaslauthd"
+        args: "-u {authid} -p {authpass}"
+    };
+
+    config
+}

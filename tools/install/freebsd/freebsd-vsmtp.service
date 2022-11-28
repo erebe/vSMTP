@@ -17,7 +17,7 @@ rcvar="${name}_enable"
 load_rc_config $name
 
 : ${vsmtp_enable:=NO}
-: ${vsmtp_config:=/etc/vsmtp/vsmtp.toml}
+: ${vsmtp_config:=/etc/vsmtp/vsmtp.vsl}
 : ${vsmtp_flags:=--config}
 
 command="/usr/sbin/vsmtp"

@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-common"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -20,55 +20,86 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"{{version}}\" }", prerelease = true },
-    { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"={{version}}\"" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"={{version}}\"" },
 ]
 
-[dependencies]
-vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.4" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.4" }
+[dependencies.vsmtp-auth]
+version = "=1.4.0-rc.0"
+path = "../vsmtp-auth"
 
-anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
-log = { version = "0.4.17", default-features = false, features = ["std"] }
-addr = { version = "0.15.6", default-features = false, features = [
-    "std",
-    # "serde", # TODO
-] }
+[dependencies.vsmtp-mail-parser]
+version = "=1.4.0-rc.0"
+path = "../vsmtp-mail-parser"
+
+[dependencies]
+anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+addr = { version = "0.15.6", default-features = false, features = ["std"] }
+fastrand = { version = "1.8.0", default-features = false }
 
 strum = { version = "0.24.1", default-features = false, features = [
     "std",
     "derive",
 ] }
-libc = { version = "0.2.134", default-features = false, features = ["std"] }
+time = { version = "0.3.17", default-features = false, features = [
+    "std",
+    "formatting",
+    "macros",
+    "serde-well-known",
+] }
+libc = { version = "0.2.137", default-features = false, features = ["std"] }
+tracing = { version = "0.1.37", default-features = false, features = [
+    "std",
+    "attributes",
+    "release_max_level_info",
+] }
+
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",
     "tracing",
     "pool",
+    "serde",
 ] }
-tokio = { version = "1.21.2", default-features = false, features = [
+tokio = { version = "1.22.0", default-features = false, features = [
     "macros",
     "sync",
     "fs",
     "libc",
     "mio",
 ] }
-serde = { version = "1.0.145", default-features = false, features = [
+trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
+    "dns-over-rustls",
+    "dnssec-ring",
+    "tokio-runtime",
+] }
+serde = { version = "1.0.147", default-features = false, features = [
     "std",
     "derive",
 ] }
-serde_with = { version = "2.0.1", default-features = false, features = [
+serde_with = { version = "2.1.0", default-features = false, features = [
     "std",
     "macros",
 ] }
+thiserror = { version = "1.0.37", default-features = false }
 
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
 
-base64 = { version = "0.13.0", default-features = false, features = ["std"] }
-
+base64 = { version = "0.13.1", default-features = false, features = ["std"] }
+rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
+    "provider",
+    "config_builder",
+    # "scram-sha-1",
+    # "scram-sha-2",
+    "anonymous",
+    # "external",
+    # "xoauth2",
+    "plain",
+    "login",
+] }
 [dev-dependencies]
-serde_json = { version = "1.0.85", default-features = false, features = [
+serde_json = { version = "1.0.89", default-features = false, features = [
     "std",
 ] }
 users = { version = "0.11.0", features = [] }

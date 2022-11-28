@@ -71,7 +71,7 @@ fn canonicalize_ex1() {
     );
 
     assert_eq!(
-        msg.headers(false)
+        msg.headers()
             .into_iter()
             .map(|(key, value)| CanonicalizationAlgorithm::Relaxed
                 .canonicalize_header(&format!("{key}:{value}")))
@@ -85,7 +85,7 @@ fn canonicalize_ex1() {
 
     assert_eq!(
         CanonicalizationAlgorithm::Relaxed.canonicalize_headers(
-            &msg.headers(false)
+            &msg.headers()
                 .iter()
                 .map(|(key, value)| format!("{key}:{value}"))
                 .collect::<Vec<_>>()
@@ -111,7 +111,7 @@ fn canonicalize_ex2() {
     );
 
     assert_eq!(
-        msg.headers(false)
+        msg.headers()
             .into_iter()
             .map(|(key, value)| CanonicalizationAlgorithm::Simple
                 .canonicalize_header(&format!("{key}:{value}")))
@@ -124,7 +124,7 @@ fn canonicalize_ex2() {
 
     assert_eq!(
         CanonicalizationAlgorithm::Simple.canonicalize_headers(
-            &msg.headers(false)
+            &msg.headers()
                 .iter()
                 .map(|(key, value)| format!("{key}:{value}"))
                 .collect::<Vec<_>>()

@@ -14,110 +14,121 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::test_receiver;
+use crate::run_test;
 use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
-use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::CodeID;
+use vsmtp_common::{ContextFinished, TransactionType};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
-#[tokio::test]
-async fn test_message() {
-    #[derive(Clone)]
-    struct T;
+const CONFIG: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../examples/message/vsmtp.vsl"
+);
 
-    #[async_trait::async_trait]
-    impl OnMail for T {
-        async fn on_mail<
-            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
-        >(
-            &mut self,
-            _: &mut Connection<S>,
-            mail: Box<MailContext>,
-            body: MessageBody,
-            _: std::sync::Arc<dyn GenericQueueManager>,
-        ) -> CodeID {
-            assert_eq!(mail.envelop.helo, "foo");
-            assert_eq!(mail.envelop.mail_from.full(), "john.doe@example.com");
-            assert_eq!(mail.envelop.rcpt, vec![addr!("green@example.com").into()]);
-
-            assert!(body.get_header("X-Connect").is_some());
-            assert_eq!(
-                body.get_header("X-Info"),
-                Some("email processed by me.".to_string())
-            );
-
-            assert_eq!(
-                body.get_header("From"),
-                Some("anonymous@example.com".to_string())
-            );
-
-            assert_eq!(
-                body.get_header("To"),
-                Some("anonymous@example.com, john.doe@example.com".to_string())
-            );
-
-            CodeID::Ok
-        }
-    }
-
-    let toml = include_str!("../../../../../../examples/message/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
-
-    let config = arc!(config);
-
-    // testing the forward rule.
-    assert!(test_receiver! {
-        with_config => config.clone(),
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@example.com>\r\n",
-            "RCPT TO: <someone@example.com>\r\n",
-            "DATA\r\n",
+run_test! {
+    fn test_message_1,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@example.com>\r\n",
+        "RCPT TO: <someone@example.com>\r\n",
+        "DATA\r\n",
+        concat!(
             "Date: 0\r\n",
             "From: john.doe@example.com\r\n",
             "Subject: FWD: you account has been suspended\r\n",
             ".\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "501  this server does not accept FWD messages\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+        )
+    ],
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "501 this server does not accept FWD messages\r\n"
+    ],
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
+}
 
-    assert!(test_receiver! {
-        on_mail => &mut T { },
-        with_config => config,
-        [
-            "HELO foo\r\n",
-            "MAIL FROM: <john.doe@example.com>\r\n",
-            "RCPT TO: <green@example.com>\r\n",
-            "DATA\r\n",
+run_test! {
+    fn test_message_2,
+    input = [
+        "HELO foo\r\n",
+        "MAIL FROM: <john.doe@example.com>\r\n",
+        "RCPT TO: <green@example.com>\r\n",
+        "RCPT TO: <grey@example.com>\r\n",
+        "DATA\r\n",
+        concat!(
             "Date: 0\r\n",
             "From: john.doe@example.com\r\n",
-            "To: green@example.com\r\n",
+            "To: green@example.com, grey@example.com\r\n",
             "Subject: you account has been suspended\r\n",
             ".\r\n",
-            "QUIT\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+        ),
+        "QUIT\r\n",
+    ],
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "250 Ok\r\n",
+        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
+    mail_handler = {
+        struct T;
+
+        #[async_trait::async_trait]
+        impl OnMail for T {
+            async fn on_mail(
+                &mut self,
+                mail: Box<ContextFinished>,
+                body: MessageBody,
+                _: std::sync::Arc<dyn GenericQueueManager>,
+            ) -> CodeID {
+
+                match mail.rcpt_to.transaction_type {
+                    TransactionType::Internal => {
+
+                        println!("Internal");
+
+                        assert_eq!(mail.helo.client_name.to_string(), "foo");
+                        assert_eq!(mail.mail_from.reverse_path.full(), "john.doe@example.com");
+                        assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("green@example.com").into(), addr!("grey@example.com").into()]);
+
+                        assert!(body.get_header("X-Connect").is_some());
+                        assert_eq!(
+                            body.get_header("X-Info"),
+                            Some("email processed by me.".to_string())
+                        );
+
+                        assert_eq!(
+                            body.get_header("From"),
+                            Some("anonymous@example.com".to_string())
+                        );
+
+                        assert_eq!(
+                            body.get_header("To"),
+                            Some("anonymous@example.com, grey@example.com, john.doe@example.com".to_string())
+                        );
+                    },
+                    TransactionType::Outgoing { domain } => {
+                        println!("Outgoing");
+
+                        assert_eq!(domain.as_str(), "example.com");
+                        assert_eq!(mail.rcpt_to.forward_paths.len(), 0);
+                    },
+                    TransactionType::Incoming(_) => panic!("The email should be internal & outgoing"),
+                }
+
+                CodeID::Ok
+            }
+        }
+        T
+    },
 }

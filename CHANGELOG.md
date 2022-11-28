@@ -13,6 +13,103 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+* The `rhai-dylib` crate to handle Rust dynamic libraries with a Rhai API. (#753)
+
+```rust
+// import the dynamic library in Rhai.
+import "/usr/lib/vsmtp/libvsmtp-plugin-csv" as db;
+
+// use functions defined in the library.
+db::csv(#{ ... });
+```
+
+* A delegation feature gate on `vsmtp-rule-engine`. (#660)
+
+### Changed
+
+* Configuration is written using Rhai. (#685)
+
+```rust
+fn on_config(config) {
+  config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+
+  config.server.name = "my.fqdn.com";
+
+  config.server.system = #{
+      user: "root",
+      group: "root",
+  };
+
+  config.server.interfaces = #{
+      addr: ["127.0.0.1:25"],
+      addr_submission: ["127.0.0.1:587"],
+      addr_submissions: ["127.0.0.1:465"],
+  };
+
+  config
+}
+```
+
+* vSL scripts are split between transaction types and handled sub domains. (#709)
+
+```
+/etc/vsmtp
+┣ vsmtp.vsl
+┣ conf.d/
+┃     ┣ config.vsl
+┃     ┣ interfaces.vsl
+┃     ┣ logs.vsl
+┃     ┗ other.vsl
+┣ domain-available/
+┃     ┣ main.vsl            # Rules executed before the 'mail' stage
+┃     ┣ fallback.vsl        # Rules executed if the domain is not handled.
+┃     ┣ example.com/
+┃     ┃    ┣ incoming.vsl   # Sender domain unknown, recipient domain is 'example.com'.
+┃     ┃    ┣ outgoing.vsl   # Sender domain is 'example.com', recipient domain is different.
+┃     ┃    ┗ internal.vsl   # Sender & recipient domain are both 'example.com'.
+┃     ┗ test.com/
+┃         ┗ ...
+┗ domain-enabled/
+      ┗ example.com -> /etc/vsmtp/domain-available/example.com
+```
+
+* The `toml` vsl module has been renamed to `cfg`. (#709)
+* Changed the API of objects to be simple rhai functions, removing implicit `export` of
+  objects. (#647)
+
+```js
+// Old syntax
+object localhost ip4 = "127.0.0.1";
+// New syntax
+const localhost = ip4("127.0.0.1");
+```
+
+* Moved the csv database to an external plugin. (#625)
+* Moved the mysql database to an external plugin. (#625)
+* Moved vSL syntax to a crate for better reusability. (#660)
+* Remove Group object & function, replaced by Rhai arrays. (#660)
+
+```js
+const localhost = ip4("127.0.0.1");
+const john = identifier("john.doe");
+
+// declaration of a group.
+const group = [ localhost, john ];
+```
+
+* Remove File object, replaced by Rhai arrays. (#660)
+
+```js
+// This returns an Array of addresses.
+const whitelist = file("/etc/vsmtp/whitelist.txt", "address");
+
+for addr in whitelist {
+  // ...
+}
+```
+
 ## [1.3.4] - 2022-10-20
 
 ### Fixed

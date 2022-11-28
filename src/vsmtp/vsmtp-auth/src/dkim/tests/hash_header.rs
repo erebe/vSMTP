@@ -23,10 +23,7 @@ fn mail_5() {
     let body = MessageBody::try_from(include_str!("mail_5.eml")).unwrap();
 
     let signature = <Signature as std::str::FromStr>::from_str(
-        &body
-            .inner()
-            .get_header("DKIM-Signature", true, true)
-            .unwrap(),
+        &body.inner().get_header("DKIM-Signature", true).unwrap(),
     )
     .unwrap();
 
@@ -40,7 +37,7 @@ fn mail_5() {
             "Subject: after dns update\r\nDKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=example.com; s=mail;\r\n",
             "\tt=1659541683; bh=Touenr7dUe0Mxv9r3OfnQ+GHpFRIdDa3Wa3TWnDOQKs=;\r\n",
             "\th=Date:To:From:Subject:From;\r\n",
-            "\tb="
+            "\tb=\r\n"
         )
     );
 

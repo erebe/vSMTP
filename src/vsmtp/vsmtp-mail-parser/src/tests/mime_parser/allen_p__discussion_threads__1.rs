@@ -30,7 +30,11 @@ const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 fn mime_parser() {
     pretty_assertions::assert_eq!(
         MailMimeParser::default()
-            .parse_sync(MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
+            .parse_sync(
+                MAIL.lines()
+                    .map(|l| l.as_bytes().to_vec())
+                    .collect::<Vec<_>>()
+            )
             .unwrap()
             .unwrap_right(),
         Mail {

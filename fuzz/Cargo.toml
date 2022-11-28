@@ -26,25 +26,7 @@ vsmtp-test = { path = "../src/vsmtp/vsmtp-test" }
 members = ["."]
 
 [[bin]]
-name = "receiver"
-path = "fuzz_targets/receiver.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "rules"
-path = "fuzz_targets/rules.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "server_config"
-path = "fuzz_targets/server_config.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "mime_parser"
-path = "fuzz_targets/mime_parser.rs"
+name = "client"
+path = "fuzz_targets/client.rs"
 test = false
 doc = false

@@ -38,51 +38,6 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
         .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty: '{}'", path.display()))
 }
 
-// TODO: should be used only for debug build
-/*
-pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::PrivateKey, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    struct PrivateKeyVisitor;
-
-    impl<'de> serde::de::Visitor<'de> for PrivateKeyVisitor {
-        type Value = rustls::PrivateKey;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("[...]")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            from_string(v).map_err(serde::de::Error::custom)
-        }
-    }
-
-    deserializer.deserialize_any(PrivateKeyVisitor)
-}
-
-pub fn serialize<S>(this: &rustls::PrivateKey, serializer: S) -> Result<S::Ok, S::Error>
-where
-S: serde::Serializer,
-{
-    let key = base64::encode(&this.0)
-        .chars()
-        .collect::<Vec<_>>()
-        .chunks(64)
-        .map(|c| c.iter().collect::<String>())
-        .collect::<Vec<_>>();
-
-        let mut seq = serializer.serialize_seq(Some(key.len()))?;
-    for i in key {
-        serde::ser::SerializeSeq::serialize_element(&mut seq, &i)?;
-    }
-    serde::ser::SerializeSeq::end(seq)
-}
-*/
-
 #[cfg(test)]
 mod tests {
     use std::io::Write;

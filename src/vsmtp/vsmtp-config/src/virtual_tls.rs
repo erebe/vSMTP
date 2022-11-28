@@ -1,5 +1,3 @@
-use vsmtp_auth::dkim;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -20,6 +18,7 @@ use crate::{
     field::{FieldServerVirtualTls, SecretFile},
     parser::{tls_certificate, tls_private_key},
 };
+use vsmtp_auth::dkim;
 
 impl<'de> serde::Deserialize<'de> for SecretFile<rustls::PrivateKey> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -64,7 +63,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<rsa::RsaPrivateKey> {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SecretFile<dkim::PrivateKey> {
+impl<'de> serde::Deserialize<'de> for SecretFile<std::sync::Arc<dkim::PrivateKey>> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -81,7 +80,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<dkim::PrivateKey> {
 
         if let Ok(rsa) = rsa {
             return Ok(Self {
-                inner: dkim::PrivateKey::Rsa(Box::new(rsa)),
+                inner: std::sync::Arc::new(dkim::PrivateKey::Rsa(Box::new(rsa))),
                 path: filepath.into(),
             });
         }
@@ -101,7 +100,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<dkim::PrivateKey> {
         })?;
 
         Ok(Self {
-            inner: dkim::PrivateKey::Ed25519(Box::new(ed25519)),
+            inner: std::sync::Arc::new(dkim::PrivateKey::Ed25519(Box::new(ed25519))),
             path: filepath.into(),
         })
     }
@@ -125,7 +124,6 @@ impl FieldServerVirtualTls {
                 inner: tls_private_key::from_string(private_key)?,
                 path: private_key.into(),
             },
-            sender_security_level: Self::default_sender_security_level(),
         })
     }
 }

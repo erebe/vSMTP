@@ -1,0 +1,7 @@
+kw1="HELO"
+kw2="mydomain.com"
+kw3="someoneelse.com"
+kw4="MAIL FROM"
+kw5="RCPT TO"
+kw6="DATA"
+kw7="."

@@ -1,0 +1,23 @@
+// You can filter spam using DNSBL with the `lookup` function.
+//
+// See https://fr.wikipedia.org/wiki/DNS_Black_Listing
+
+#{
+    helo: [
+        // The database we will query is spamhaus in this case.
+        rule "spamhaus block list" || {
+            try {
+                const records = lookup(`${helo()}.zen.spamhaus.org.`);
+
+                // If a record is found, that means that the recipient domain
+                // is probably a spam.
+                log("error", `${helo()}: SPAM DETECTED. Records: ${records}`);
+                return deny(code_greylist);
+            } catch (err) {
+                // No record were found, the email is probably not a spam.
+                log("debug", `Seems ${helo()} was not not found in dnsbl. (eventual error: ${err})`);
+                return next();
+            }
+        }
+    ]
+}

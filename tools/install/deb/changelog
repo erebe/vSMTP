@@ -1,190 +1,221 @@
 vsmtp (x.y.z) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Fixed
-    - `forward` functions take port into account in sockets. (#695)
+
+* Added
+  * `rhai-dylib` crate to handle Rust dylibs. (#753)
+  * A delegation feature gate on `vsmtp-rule-engine`. (#660)
+* Changed
+  * BREAKING: Configuration is written using Rhai. (#685)
+  * BREAKING: vSL scripts are split between transaction types
+      and handled sub domains. (#709)
+  * BREAKING: `toml` vsl module has been renamed to `cfg`. (#709)
+  * BREAKING: refactored vSL object syntax. (#647)
+  * BREAKING: Moved the csv database to an external plugin. (#625)
+  * BREAKING: Moved the mysql database
+      to an external plugin. (#625)
+  * Moved vSL syntax to a crate for better reusability. (#660)
+  * Remove Group object & function, replaced by Rhai arrays. (#660)
+  * Remove File object, replaced by Rhai arrays. (#660)
+
+ -- ltabis <l.tabis@viridit.com>  Tue, 04 Oct 2022 11:49:23 +0200
+
+vsmtp (1.3.4) UNRELEASED; urgency=low
+  [ Updated by ltabis ]
+
+* Fixed
+  * `forward` functions take port into account in sockets. (#695)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 20 Oct 2022 13:22:54 +0200
 
 vsmtp (1.3.3) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Added
-    - `--stdout` flag, print logs to stdout. (#579)
-    - Message size limit configuration. (#580)
-  * Changed
-    - BREAKING: MSRV bumped to 1.63.0 (#638)
-    - `--no-daemon` flag do not print logs to
+
+* Added
+  * `--stdout` flag, print logs to stdout. (#579)
+  * Message size limit configuration. (#580)
+* Changed
+  * BREAKING: MSRV bumped to 1.63.0 (#638)
+  * `--no-daemon` flag do not print logs to
       the standard output anymore. (#579)
-    - Refactorization of services parsing. (#576)
-    - `vsmtp` & `vqueue` `version` flag display build commit. (#585)
-    - `vqueue` display error if no subcommands are specified. (#585)
-    - Updated logs to communicate better the state of vSMTP. (#587)
+  * Refactorization of services parsing. (#576)
+  * `vsmtp` & `vqueue` `version` flag display build commit. (#585)
+  * `vqueue` display error if no subcommands are specified. (#585)
+  * Updated logs to communicate better the state of vSMTP. (#587)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 08 Sep 2022 22:00:10 +0200
 
 vsmtp (1.3.0) UNRELEASED; urgency=low
 
   [ Updated by mlala ]
-  * Added
-    - support for `MySQL` databases. see `/examples/greylist/mysql`. (#548)
-  * Changed
-    - update the backend of the `SASL` protocol, using a state-of-the-art Rust
-      implementation `rsasl` instead of binding the `gsasl` C library. (#536)
-    - update the vsl api with more consistent syntax. (#545)
-    - Greylist sender domain & return code. (#566, #571)
 
-  * Fixed
-    - IPv6 address for `EHLO` command. (#530)
-    - Log level ordering. (#565)
-  * Documented
-    - improve the vsl api documentation. (#545, #553)
+* Added
+  * support for `MySQL` databases. see `/examples/greylist/mysql`. (#548)
+* Changed
+  * update the backend of the `SASL` protocol, using a state-of-the-art Rust
+      implementation `rsasl` instead of binding the `gsasl` C library. (#536)
+  * update the vsl api with more consistent syntax. (#545)
+  * Greylist sender domain & return code. (#566, #571)
+
+* Fixed
+  * IPv6 address for `EHLO` command. (#530)
+  * Log level ordering. (#565)
+* Documented
+  * improve the vsl api documentation. (#545, #553)
 
  -- mlala <m.lala@viridit.com>  Wed, 07 Sep 2022 10:02:31 +0200
 
 vsmtp (1.2.1) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Added
-    - `check_dmarc` vsl function. (#506)
-    - Syslog configuration. (#509)
-    - journald support (#482)
-  * Fixed
-    - Missing documentation for vsl api. (#503, #513, #518)
-    - Don't send greeting code right after receiving STARTTLS. (#504)
-    - Initialize logs before privilege drop. (#506)
-    - Documentation errors in Readme and other files.
+
+* Added
+  * `check_dmarc` vsl function. (#506)
+  * Syslog configuration. (#509)
+  * journald support (#482)
+* Fixed
+  * Missing documentation for vsl api. (#503, #513, #518)
+  * Don't send greeting code right after receiving STARTTLS. (#504)
+  * Initialize logs before privilege drop. (#506)
+  * Documentation errors in Readme and other files.
 
  -- ltabis <l.tabis@viridit.com>  Fri, 26 Aug 2022 20:17:16 +0200
 
 vsmtp (1.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Added
-    - "Deliver-To" header to local delivery. (mbox & maildir) (#443)
-    - `lookup` & `rlookup` vsl functions. (#473)
-    - Support for DKIM. (#457)
-    - Support for syslogs. (#475)
-  * Changed
-    - Stabilization of vsl's api. (#452)
-    - Replaced `log4rs` by the `tracing` crate for logs. (#460)
+
+* Added
+  * "Deliver-To" header to local delivery. (mbox & maildir) (#443)
+  * `lookup` & `rlookup` vsl functions. (#473)
+  * Support for DKIM. (#457)
+  * Support for syslogs. (#475)
+* Changed
+  * Stabilization of vsl's api. (#452)
+  * Replaced `log4rs` by the `tracing` crate for logs. (#460)
 
  -- ltabis <l.tabis@viridit.com>  Tue, 12 Jul 2022 15:11:20 +0200
 
 vsmtp (1.1.3) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * changed
-    - delegation directives sets the X-VSMTP-DELEGATION
+
+* changed
+  * delegation directives sets the X-VSMTP-DELEGATION
       header in the email to pick up where processing left of. (#438)
-    - refactored the queue system to make it simpler. (#438)
-    - multiple delegation directives can be used in a single
+  * refactored the queue system to make it simpler. (#438)
+  * multiple delegation directives can be used in a single
       stage with one or multiple services. (#438)
-    - delegation is available for `postq` & `delivery` only. (#438)
+  * delegation is available for `postq` & `delivery` only. (#438)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 07 Jul 2022 17:04:34 +0200
 
 vsmtp (1.1.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * fixed
-    - doc requirements for docs.rs.
-    - deployment system with cargo release.
+
+* fixed
+  * doc requirements for docs.rs.
+  * deployment system with cargo release.
 
  -- ltabis <l.tabis@viridit.com>  Thu, 07 Jul 2022 17:04:34 +0200
 
 vsmtp (1.1.1) UNRELEASED; urgency=low
 
   [ Updated by mlala ]
-  * added
-    - a `prepend_header` and `append_header` in `vsl` api to push front/back
+
+* added
+  * a `prepend_header` and `append_header` in `vsl` api to push front/back
       headers in message (#410).
-    - run the deliveries of message concurrently (by transport method
+  * run the deliveries of message concurrently (by transport method
       maildir/mbox/...) (#425).
 
-  * changed
-    - you can now add headers to a message at any stages (instead of preq an
+* changed
+  * you can now add headers to a message at any stages (instead of preq an
       later) (#410).
 
-  * fixed
-    - improve SPF policies (#400).
-    - produce an error at startup with invalid rules stages (#391).
-    - fixed a bug where the delivery system would place successfully sent
+* fixed
+  * improve SPF policies (#400).
+  * produce an error at startup with invalid rules stages (#391).
+  * fixed a bug where the delivery system would place successfully sent
       emails into deferred queue when only one MX record was available (#427).
 
-  * breaking changes
-    - `vsl` api of SPF has changed (see the documentation
+* breaking changes
+  * `vsl` api of SPF has changed (see the documentation
       <https://vsmtp.rs/start/configuration/hardening.html#using-the-spf-protocol>).
-    - split `check_relay` to `check_mail_relay` and `check_rcpt_relay` (#412).
+  * split `check_relay` to `check_mail_relay` and `check_rcpt_relay` (#412).
 
  -- mlala <m.lala@viridit.com>  Wed, 06 Jul 2022 16:07:44 +0200
 
 vsmtp (1.1.0) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Added
-    - SMTP Delegation via vsl. (#330)
-    - Catching signals and responding accordingly. (#364)
-    - An anti relaying vsl function called `check_relay`. (#372)
 
-  * Changed
-    - Splitting headers & body for emails to improve performances. (#368)
-    - Renamed the `shell` service to `cmd`. (#365)
-    - Rename `rcpt` vsl getter to `rcpt_list`. (#374)
-    - `rcpt` getter now return the recipient
+* Added
+  * SMTP Delegation via vsl. (#330)
+  * Catching signals and responding accordingly. (#364)
+  * An anti relaying vsl function called `check_relay`. (#372)
+
+* Changed
+  * Splitting headers & body for emails to improve performances. (#368)
+  * Renamed the `shell` service to `cmd`. (#365)
+  * Rename `rcpt` vsl getter to `rcpt_list`. (#374)
+  * `rcpt` getter now return the recipient
       from the latest `RCPT TO:` command. (#374)
-    - The `quarantine(quarantine_path)` function can no longer get out
+  * The `quarantine(quarantine_path)` function can no longer get out
       of the application path specified in toml
       by the [app.dirpath] field (#377).
-    - Paths specified in vsl need to be absolute. (#380)
+  * Paths specified in vsl need to be absolute. (#380)
 
-  * Fixed
-    - `config-show` command now displays tls private key & certificate
+* Fixed
+  * `config-show` command now displays tls private key & certificate
       paths correctly. (#367)
-    - Minor fixes in the delivery process. (#382)
+  * Minor fixes in the delivery process. (#382)
 
  -- ltabis <l.tabis@viridit.com>  Mon, 20 Jun 2022 19:27:27 +0200
 
 vsmtp (1.0.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Added
-    - doc
-      - a 'doe family' example to setup a basic
+
+* Added
+  * doc
+    * a 'doe family' example to setup a basic
         vSMTP config for personal purposes. (#320)
-    - vsl
-      - Sender Policy Framework (SPF) support via the
+  * vsl
+    * Sender Policy Framework (SPF) support via the
         `check_spf(ctx, srv, identity)` vsl function. (#327)
-      - `accept` & `faccept` functions can now return custom codes. (#328)
-    - mail parsing
-      - headers pushed to the email are folded if necessary. (#342)
-    - sasl
-      - support for the anonymous sasl mechanism. (#350)
-      - the `get_anonymous_token` vsl function returns
+    * `accept` & `faccept` functions can now return custom codes. (#328)
+  * mail parsing
+    * headers pushed to the email are folded if necessary. (#342)
+  * sasl
+    * support for the anonymous sasl mechanism. (#350)
+    * the `get_anonymous_token` vsl function returns
         the token received by the sasl exchange. (#350)
-  * Changed
-    - delivery
-      - AAAA records are used when receiving an empty list of MX records (#321)
-      - if a null MX record is received,
+* Changed
+  * delivery
+    * AAAA records are used when receiving an empty list of MX records (#321)
+    * if a null MX record is received,
         the email is moved to the dead queue (#323)
-      - message are separated from metadata / envelop (#335)
-    - vsl
-      - `base` field from custom codes has been changed to `code`. (#324)
-      - `forward` & `forward_all` can now use ip6 string parameters (#341)
+    * message are separated from metadata / envelop (#335)
+  * vsl
+    * `base` field from custom codes has been changed to `code`. (#324)
+    * `forward` & `forward_all` can now use ip6 string parameters (#341)
         with scope ids. (#356)
-    - config
-      - `interfaces` section in toml is optional. (#346)
-    - mail parsing
-      - email are parsed automatically when the email
+  * config
+    * `interfaces` section in toml is optional. (#346)
+  * mail parsing
+    * email are parsed automatically when the email
         is edited via the rule engine. (#347)
-  * Fixed
-    - logs
-      - scoped level now works properly,
+* Fixed
+  * logs
+    * scoped level now works properly,
         `default` module has been changed to `server`. (#345)
-    - quarantine
-      - `quarantine(q_folder)` can now be called
+  * quarantine
+    * `quarantine(q_folder)` can now be called
         in `postq` & `delivery` stages. (#357)
-      - quarantine folder are chowned properly
+    * quarantine folder are chowned properly
         using `server.system.user` & `server.system.user`
         config variables. (#344)
 
@@ -193,14 +224,15 @@ vsmtp (1.0.2) UNRELEASED; urgency=low
 vsmtp (1.0.1) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Rule Engine Enhancements:
-    - Preventing variable shadowing for CTX & SRV constants.
-    - registered display names for complex objects like CTX & SRV
-    - added add_to, remove_to, rewrite_to vsl actions to manipulate
+
+* Rule Engine Enhancements:
+  * Preventing variable shadowing for CTX & SRV constants.
+  * registered display names for complex objects like CTX & SRV
+  * added add_to, remove_to, rewrite_to vsl actions to manipulate
       the 'To' header from a mail. add_rcpt, remove_rcpt & rewrite_rcpt
       no longer change the content of the email body, only those in the envelop.
-  * Bug fixes
-    - the quarantine action postpone writing to a quarantine queue
+* Bug fixes
+  * the quarantine action postpone writing to a quarantine queue
       when the message body is received.
 
  -- ltabis <l.tabis@viridit.com>  Tue, 17 May 2022 10:40:31 +0100
@@ -208,9 +240,10 @@ vsmtp (1.0.1) UNRELEASED; urgency=low
 vsmtp (1.0.0) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
-  * Initial release:
-    - RFC compliant Mail Transfer Agent.
-    - Filtering system using a custom scripting language (vsl).
-    - Services system (shell & csv databases).
+
+* Initial release:
+  * RFC compliant Mail Transfer Agent.
+  * Filtering system using a custom scripting language (vsl).
+  * Services system (shell & csv databases).
 
  -- Pag <pag@viridit.com>  Sat, 7 May 2022 00:37:31 +0100

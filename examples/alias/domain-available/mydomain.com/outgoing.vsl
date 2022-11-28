@@ -1,0 +1,6 @@
+// The sender's domain is 'mydomain.com' but no recipient domain matches 'mydomain.com'.
+
+#{
+    // We simply send the message without any processing, no alias need to change since
+    // we are sending an email.
+}

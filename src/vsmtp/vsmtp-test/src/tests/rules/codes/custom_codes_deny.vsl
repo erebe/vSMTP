@@ -2,15 +2,15 @@
     mail: [
         rule "blacklist" || {
             if mail_from().domain == "satan.org" {
-                object deny_satan code = #{
-                    code: 501,
-                    enhanced: "4.7.1",
-                    text: "satan is blacklisted on this server",
-                };
+                const deny_satan = code(
+                    501,
+                    "4.7.1",
+                    "satan is blacklisted on this server",
+                );
 
                 deny(deny_satan)
             } else if mail_from().domain == "evil.com" {
-                object deny_evil code = "501 4.7.1 evil is blacklisted on this server";
+                const deny_evil = code(501, "4.7.1", "evil is blacklisted on this server");
 
                 deny(deny_evil)
             } else if mail_from().domain == "unpleasant.eu" {

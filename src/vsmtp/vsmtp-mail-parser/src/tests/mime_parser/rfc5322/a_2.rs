@@ -7,7 +7,7 @@ fn simple() {
         .parse_sync(
             include_str!("../../mail/rfc5322/A.2.a.eml")
                 .lines()
-                .map(ToString::to_string)
+                .map(|l| l.as_bytes().to_vec())
                 .collect::<Vec<_>>(),
         )
         .unwrap()
@@ -47,7 +47,7 @@ fn reply_simple() {
         .parse_sync(
             include_str!("../../mail/rfc5322/A.2.b.eml")
                 .lines()
-                .map(ToString::to_string)
+                .map(|l| l.as_bytes().to_vec())
                 .collect::<Vec<_>>(),
         )
         .unwrap()
@@ -93,7 +93,7 @@ fn reply_reply() {
         .parse_sync(
             include_str!("../../mail/rfc5322/A.2.c.eml")
                 .lines()
-                .map(ToString::to_string)
+                .map(|l| l.as_bytes().to_vec())
                 .collect::<Vec<_>>(),
         )
         .unwrap()

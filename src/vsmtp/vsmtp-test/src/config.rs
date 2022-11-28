@@ -1,7 +1,3 @@
-use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext, MessageMetadata},
-    Envelop,
-};
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,6 +14,10 @@ use vsmtp_common::{
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use vsmtp_common::{
+    ClientName, ConnectProperties, ContextFinished, FinishedProperties, HeloProperties,
+    MailFromProperties, RcptToProperties, TransactionType,
+};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 
@@ -48,6 +48,7 @@ pub fn local_test() -> Config {
     Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
+        .without_path()
         .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
         .unwrap()
@@ -60,7 +61,10 @@ pub fn local_test() -> Config {
         .with_default_smtp_codes()
         .without_auth()
         .with_app_at_location("./tmp/app")
-        .with_vsl("src/tests/empty_main.vsl")
+        .with_vsl(format!(
+            "{}/src/template/ignore_vsl",
+            env!("CARGO_MANIFEST_DIR")
+        ))
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()
@@ -70,30 +74,34 @@ pub fn local_test() -> Config {
 
 ///
 #[must_use]
-pub fn local_ctx() -> MailContext {
-    MailContext {
-        connection: ConnectionContext {
-            timestamp: std::time::SystemTime::now(),
-            credentials: None,
+pub fn local_ctx() -> ContextFinished {
+    ContextFinished {
+        connect: ConnectProperties {
+            connect_timestamp: time::OffsetDateTime::now_utc(),
+            client_addr: "127.0.0.1:25".parse().expect(""),
+            server_addr: "127.0.0.1:5977".parse().expect(""),
             server_name: "testserver.com".to_string(),
-            server_addr: "127.0.0.1:25".parse().expect(""),
-            client_addr: "127.0.0.1:5977".parse().expect(""),
-            is_authenticated: false,
-            is_secured: false,
-            error_count: 0,
-            authentication_attempt: 0,
-        },
-        envelop: Envelop {
-            helo: "client.testserver.com".to_string(),
-            mail_from: "client@client.testserver.com".parse().expect(""),
-            rcpt: vec![],
-        },
-        metadata: MessageMetadata {
-            timestamp: None,
-            message_id: None,
+            auth: None,
+            tls: None,
             skipped: None,
-            spf: None,
+        },
+        helo: HeloProperties {
+            client_name: ClientName::Domain("client.testserver.com".to_string()),
+            using_deprecated: false,
+        },
+        mail_from: MailFromProperties {
+            mail_timestamp: time::OffsetDateTime::now_utc(),
+            message_id: "test".to_string(),
+            outgoing: false,
+            reverse_path: "client@client.testserver.com".parse().expect(""),
+        },
+        rcpt_to: RcptToProperties {
+            forward_paths: vec![],
+            transaction_type: TransactionType::Incoming(None),
+        },
+        finished: FinishedProperties {
             dkim: None,
+            spf: None,
         },
     }
 }
@@ -103,10 +111,10 @@ pub fn local_ctx() -> MailContext {
 pub fn local_msg() -> MessageBody {
     MessageBody::new(
         [
-            "From: NoBody <nobody@domain.tld>",
-            "Reply-To: Yuin <yuin@domain.tld>",
-            "To: Hei <hei@domain.tld>",
-            "Subject: Happy new year",
+            "From: NoBody <nobody@domain.tld>\r\n",
+            "Reply-To: Yuin <yuin@domain.tld>\r\n",
+            "To: Hei <hei@domain.tld>\r\n",
+            "Subject: Happy new year\r\n",
         ]
         .into_iter()
         .map(str::to_string)

@@ -16,7 +16,7 @@
  */
 
 // A simple smtp service.
-service my_delegation smtp = #{
+export const my_delegation = smtp(#{
     // vSMTP socket where delegation results will be received.
     receiver: "127.0.0.1:10025",
 
@@ -27,15 +27,15 @@ service my_delegation smtp = #{
         // Timeout between each SMTP commands. (Optional, 30 seconds by default)
         timeout: "60s",
     },
-};
+});
 
 // A smtp service that will send emails to clamsmtpd.
-service clamsmtpd smtp = #{
+export const clamsmtpd = smtp(#{
     receiver: "127.0.0.1:10025",
     delegator: #{
         address: "127.0.0.1:10026",
     },
-};
+});
 
 
 // Use the service to delegate the email to another server.

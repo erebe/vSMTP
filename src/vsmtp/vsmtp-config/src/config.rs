@@ -19,7 +19,7 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 /// This structure contains all the field to configure the server at the startup.
 ///
 /// This structure will be loaded from a configuration file `-c, --config`
-/// argument of the program. See [`crate::Config::from_toml`].
+/// argument of the program. See [`crate::Config::from_vsl_file`].
 ///
 /// All field are optional and defaulted if missing.
 ///
@@ -33,12 +33,14 @@ use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 pub struct Config {
     /// vSMTP's version requirement to parse this configuration file.
     pub version_requirement: semver::VersionReq,
-    /// see [`field::FieldServer`]
+    /// See [`field::FieldServer`]
     #[serde(default)]
     pub server: field::FieldServer,
-    /// see [`field::FieldApp`]
+    /// See [`field::FieldApp`]
     #[serde(default)]
     pub app: field::FieldApp,
+    /// Optional path of the configuration on disk.
+    pub path: Option<std::path::PathBuf>,
 }
 
 /// The inner field of the `vSMTP`'s configuration.
@@ -55,9 +57,8 @@ pub mod field {
         ///
         /// Used with the response [`CodeID::Greetings`], and [`CodeID::Helo`],
         /// and [`CodeID::EhloPain`], and [`CodeID::EhloSecured`].
-        // TODO: parse valid fqdn
         #[serde(default = "FieldServer::hostname")]
-        pub domain: String,
+        pub name: String,
         /// Maximum number of client served at the same time.
         ///
         /// The client will be rejected if the server is full.
@@ -81,7 +82,6 @@ pub mod field {
         #[serde(default)]
         pub queues: FieldServerQueues,
         /// see [`FieldServerTls`]
-        // TODO: should not be an Option<> and should be under #[cfg(feature = "smtps")]
         pub tls: Option<FieldServerTls>,
         /// see [`FieldServerSMTP`]
         #[serde(default)]
@@ -102,7 +102,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldDkim {
         /// The private key used to sign the mail.
-        pub private_key: SecretFile<dkim::PrivateKey>,
+        pub private_key: Vec<SecretFile<std::sync::Arc<dkim::PrivateKey>>>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
@@ -173,15 +173,15 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerInterfaces {
-        /// List of address for the protocol SMTP. see [`vsmtp_common::ConnectionKind::Relay`]
+        /// List of address for the protocol SMTP.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr: Vec<std::net::SocketAddr>,
-        /// List of address for the protocol ESMTPA. see [`vsmtp_common::ConnectionKind::Submission`]
+        /// List of address for the protocol ESMTPA.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr_submission: Vec<std::net::SocketAddr>,
-        /// List of address for the protocol ESMTPSA. see [`vsmtp_common::ConnectionKind::Tunneled`]
+        /// List of address for the protocol ESMTPSA.
         #[serde(default)]
         #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
         pub addr_submissions: Vec<std::net::SocketAddr>,
@@ -314,21 +314,7 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerQueues {
-        /// Path of the spool folder.
-        ///
-        /// The structure of the spool is the following:
-        ///
-        /// ```shell
-        /// $> tree -L 2 /var/spool/vsmtp
-        /// /var/spool/vsmtp
-        /// ├── dead                   # mail failed to be delivered too many times
-        /// ├── deferred               # mail failed to be delivered (1..N) times
-        /// ├── deliver                # mail to be delivered
-        /// ├── mails                  # the message body (received between DATA and "<CRLF>.<CRLF>"
-        /// │   ├── <msg-id>.eml       # this file has not been modified (and stay in eml format)
-        /// │   └── <msg-id-2>.json    # this file has been parsed, and stored in .json
-        /// └── working                # mail to be processed
-        ///
+        /// The root directory for the queuer system.
         pub dirpath: std::path::PathBuf,
         /// see [`FieldQueueWorking`]
         #[serde(default)]
@@ -364,26 +350,6 @@ pub mod field {
         pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
         pub private_key: SecretFile<rustls::PrivateKey>,
-        /// Policy of security for the TLS connection.
-        #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
-        pub sender_security_level: TlsSecurityLevel,
-    }
-
-    /// The policy of security for the TLS connection.
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-    pub enum TlsSecurityLevel {
-        /// Connection **MAY stay in plain text** for theirs transaction
-        ///
-        /// Connection **MAY UPGRADE** at any moment with a TLS tunnel (using STARTTLS mechanism)
-        May,
-        /// Connection **MUST BE UNDER TLS** tunnel (using STARTTLS mechanism or using port 465)
-        #[default]
-        Encrypt,
-        /// DANE protocol using TLSA dns records to establish a secure connection with a distant server.
-        Dane {
-            /// port
-            port: u16,
-        },
     }
 
     #[doc(hidden)]
@@ -400,9 +366,6 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerTls {
-        /// Policy of security for the TLS connection.
-        #[serde(default)]
-        pub security_level: TlsSecurityLevel,
         /// Ignore the client’s ciphersuite order.
         /// Instead, choose the top ciphersuite in the server list which is supported by the client.
         #[serde(default)]
@@ -473,10 +436,6 @@ pub mod field {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerSMTPAuth {
-        /// If `true`, the server will reject `MAIL FROM` commands if the client is not authenticated,
-        /// sending [`CodeID::AuthRequired`]
-        #[serde(default = "FieldServerSMTPAuth::default_must_be_authenticated")]
-        pub must_be_authenticated: bool,
         /// Some mechanisms are considered unsecure under non-TLS connections.
         /// If `false`, the server will allow to use them even on clair connections.
         ///
@@ -594,7 +553,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldAppVSL {
         /// Entry point of the vsl application.
-        pub filepath: Option<std::path::PathBuf>,
+        pub dirpath: Option<std::path::PathBuf>,
     }
 
     /// Application's parameter of the logs, same properties than [`FieldServerLogs`].

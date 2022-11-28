@@ -1,0 +1,23 @@
+#{
+  helo: [
+    rule "test helo using a fqdn object" || {
+      const bar = fqdn("example.com");
+
+      if helo() is bar && bar is helo() {
+        next()
+      } else {
+        deny()
+      }
+    },
+
+    rule "test helo using a regex object" || {
+      const com = regex("^[a-z0-9.]+.com$");
+
+      if helo() is com {
+        next()
+      } else {
+        deny()
+      }
+    },
+  ]
+}

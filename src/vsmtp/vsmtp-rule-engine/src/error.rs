@@ -19,7 +19,6 @@ use vsmtp_common::state::State;
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum CompilationError {
-    Object,
     Rule,
     Action,
     Stage,
@@ -28,25 +27,6 @@ pub enum CompilationError {
 impl CompilationError {
     pub const fn as_str(&self) -> &'static str {
         match self {
-            Self::Object => {
-                r#"failed to parse an object.
-    use the extended syntax:
-
-    obj "type" "name" "value";
-
-    or
-
-    obj "type" "name" #{
-        value: ...,
-        ..., // any field are accepted using the extended syntax.
-    };
-
-    or use the inline syntax:
-
-    obj "type" "name" "value";
-"#
-            }
-
             Self::Rule => {
                 r#"failed to parse a rule.
     use the following syntax:
@@ -154,6 +134,14 @@ macro_rules! vsl_ok {
 }
 
 #[macro_export]
+/// Transforms a generic error into the rhai boxed eval alt result.
+macro_rules! vsl_generic_ok {
+    ($result:expr) => {
+        $result.map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())?
+    };
+}
+
+#[macro_export]
 /// checks if the mutex is poisoned & return a rhai runtime error if it is.
 macro_rules! vsl_guard_ok {
     ($guard:expr) => {
@@ -174,6 +162,12 @@ macro_rules! vsl_missing_ok {
                 field: $field.to_string(),
                 stage: $stage,
             })?
+    };
+    (ref $option:expr, $field:expr, $stage:expr) => {
+        $option.ok_or_else(|| $crate::error::RuntimeError::MissingField {
+            field: $field.to_string(),
+            stage: $stage,
+        })?
     };
     (mut $option:expr, $field:expr,  $stage:expr) => {
         $option
@@ -214,15 +208,22 @@ mod test {
 
     #[test]
     fn test_error_formatting() {
-        println!("{}", CompilationError::Object);
         println!("{}", CompilationError::Rule);
         println!("{}", CompilationError::Action);
         println!("{}", CompilationError::Stage);
+
+        println!("{:?}", CompilationError::Rule);
+        println!("{:?}", CompilationError::Action);
+        println!("{:?}", CompilationError::Stage);
     }
 
     #[test]
     fn test_error_from_rhai_error() {
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Rule.into();
+        println!("{}", rhai_err);
+        let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Action.into();
+        println!("{}", rhai_err);
+        let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Stage.into();
         println!("{}", rhai_err);
     }
 }

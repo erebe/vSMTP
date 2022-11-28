@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-          # Workspace stable
+            # Workspace stable
           - toolchain: stable
             path: ./Cargo.toml
             # Workspace MSRV
@@ -78,6 +78,16 @@ jobs:
           rust-version: ${{ env.RUST_MSRV }}
           command: check
           arguments: ""
+  cargo-hack-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-hack
+      - run: cargo hack check --each-feature --no-dev-deps
   nextest:
     runs-on: ubuntu-latest
     needs: check
@@ -157,11 +167,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
         with:
           command: doc
           args: "--workspace --no-deps --all-features"
         env:
-          RUSTDOCFLAGS: -D warnings
+          RUSTDOCFLAGS: -D warnings --cfg docsrs

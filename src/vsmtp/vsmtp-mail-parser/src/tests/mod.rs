@@ -76,7 +76,11 @@ fn test_parse_whole_folder() {
                 .unwrap();
 
             MailMimeParser::default()
-                .parse_sync(mail.lines().map(ToString::to_string).collect::<Vec<_>>())
+                .parse_sync(
+                    mail.lines()
+                        .map(|l| l.as_bytes().to_vec())
+                        .collect::<Vec<_>>(),
+                )
                 .map(|_| {
                     std::io::Write::write(
                         &mut output,

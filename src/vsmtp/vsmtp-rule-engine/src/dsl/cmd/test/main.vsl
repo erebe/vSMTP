@@ -1,0 +1,54 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+const echo = cmd(#{
+    timeout: "2s",
+    command: "echo",
+    args: ["-e", "using cmd to print to stdout\r\n"],
+});
+
+#{
+    connect: [
+        rule "test cmd service" || {
+            print(svc::echo.to_string());
+            print(svc::echo.to_debug());
+
+            let result1 = svc::echo.run();
+            let result2 = svc::echo.run(["-e", "with custom arguments\r\n"]);
+
+            print(`debug: ${result1}`);
+            print(`custom args string: ${result2}`);
+
+            if result1.has_code
+            && result1.code == 0
+            && !result1.has_signal
+            {
+                if result1.signal == () {
+                    return next();
+                } else {
+                    debug("a signal was found");
+                    return deny();
+                }
+            } else {
+                debug(`${result1.has_code} | ${result1.code} | ${result1.has_signal}`);
+                deny()
+            }
+        },
+
+        rule "trailing" || accept(),
+    ]
+}

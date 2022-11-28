@@ -1,5 +1,0 @@
-object deny_forwarding code = #{
-    code: 501,
-    enhanced: "",
-    text: "this server does not accept FWD messages",
-}

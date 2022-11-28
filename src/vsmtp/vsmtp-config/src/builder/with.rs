@@ -14,11 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::wants::{
-    WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
-    WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
-    WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
-    WantsServerVirtual, WantsValidate, WantsVersion,
+use super::{
+    wants::{
+        WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
+        WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
+        WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
+        WantsServerVirtual, WantsValidate, WantsVersion,
+    },
+    WantsPath,
 };
 use crate::{
     field::{
@@ -26,7 +29,7 @@ use crate::{
         FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
         FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
-        ResolverOptsWrapper, SecretFile, TlsSecurityLevel,
+        ResolverOptsWrapper, SecretFile,
     },
     parser::{tls_certificate, tls_private_key},
 };
@@ -43,25 +46,48 @@ impl Builder<WantsVersion> {
     ///
     /// * `CARGO_PKG_VERSION` is not valid
     #[must_use]
-    pub fn with_current_version(self) -> Builder<WantsServer> {
+    pub fn with_current_version(self) -> Builder<WantsPath> {
         self.with_version_str(env!("CARGO_PKG_VERSION")).unwrap()
     }
 
     /// # Errors
     ///
     /// * `version_requirement` is not valid format
-    pub fn with_version_str(
-        self,
-        version_requirement: &str,
-    ) -> anyhow::Result<Builder<WantsServer>> {
+    pub fn with_version_str(self, version_requirement: &str) -> anyhow::Result<Builder<WantsPath>> {
         semver::VersionReq::parse(version_requirement)
             .with_context(|| format!("version is not valid: '{version_requirement}'"))
-            .map(|version_requirement| Builder::<WantsServer> {
-                state: WantsServer {
+            .map(|version_requirement| Builder::<WantsPath> {
+                state: WantsPath {
                     parent: self.state,
                     version_requirement,
                 },
             })
+    }
+}
+
+impl Builder<WantsPath> {
+    ///
+    #[allow(clippy::missing_const_for_fn)] // false positive.
+    #[must_use]
+    pub fn without_path(self) -> Builder<WantsServer> {
+        Builder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                path: None,
+            },
+        }
+    }
+
+    ///
+    #[allow(clippy::missing_const_for_fn)] // false positive.
+    #[must_use]
+    pub fn with_path(self, path: std::path::PathBuf) -> Builder<WantsServer> {
+        Builder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                path: Some(path),
+            },
+        }
     }
 }
 
@@ -97,13 +123,13 @@ impl Builder<WantsServer> {
     #[must_use]
     pub fn with_server_name_and_client_count(
         self,
-        domain: &str,
+        name: &str,
         client_count_max: i64,
     ) -> Builder<WantsServerSystem> {
         Builder::<WantsServerSystem> {
             state: WantsServerSystem {
                 parent: self.state,
-                domain: domain.to_string(),
+                name: name.to_string(),
                 client_count_max,
                 message_size_limit: FieldServer::default_message_size_limit(),
             },
@@ -336,7 +362,6 @@ impl Builder<WantsServerTLSConfig> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
                 tls: Some(FieldServerTls {
-                    security_level: TlsSecurityLevel::May,
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
                     protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
@@ -479,13 +504,8 @@ impl Builder<WantsServerSMTPAuth> {
 
     ///
     #[must_use]
-    pub fn with_safe_auth(
-        self,
-        must_be_authenticated: bool,
-        attempt_count_max: i64,
-    ) -> Builder<WantsApp> {
+    pub fn with_safe_auth(self, attempt_count_max: i64) -> Builder<WantsApp> {
         self.with_auth(
-            must_be_authenticated,
             FieldServerSMTPAuth::default_enable_dangerous_mechanism_in_clair(),
             FieldServerSMTPAuth::default_mechanisms(),
             attempt_count_max,
@@ -496,7 +516,6 @@ impl Builder<WantsServerSMTPAuth> {
     #[must_use]
     pub fn with_auth(
         self,
-        must_be_authenticated: bool,
         enable_dangerous_mechanism_in_clair: bool,
         mechanisms: Vec<Mechanism>,
         attempt_count_max: i64,
@@ -505,7 +524,6 @@ impl Builder<WantsServerSMTPAuth> {
             state: WantsApp {
                 parent: self.state,
                 auth: Some(FieldServerSMTPAuth {
-                    must_be_authenticated,
                     enable_dangerous_mechanism_in_clair,
                     mechanisms,
                     attempt_count_max,
@@ -545,7 +563,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: None,
+                dirpath: None,
             },
         }
     }
@@ -556,7 +574,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: Some(entry_point.into()),
+                dirpath: Some(entry_point.into()),
             },
         }
     }

@@ -1,0 +1,34 @@
+import "objects/mail" as mail;
+import "objects/codes" as codes;
+
+#{
+    // the totality of the message is available at this stage.
+    preq: [
+        // A simple rule that returns a deny code when the incoming email is a forward.
+        rule "deny incoming forwards" || {
+            if "FWD" in get_header("Subject") {
+                deny(codes::deny_forwarding)
+            } else {
+                next()
+            }        
+        },
+
+        // An action that changes the headers of the incoming email.
+        action "rewrite headers" || {
+            // you can rewrite the `From` header.
+            rewrite_mail_from_message(mail::anonymous);
+
+            // you can add, replace or remove recipients to the `To` header.
+            add_rcpt_message("john.doe@example.com");
+
+            // replacing the value of `green` address by `anonymous` in the `To` header.
+            rewrite_rcpt_message(mail::green, mail::anonymous);
+
+            remove_rcpt_message("someone@example.com");
+        },
+
+        // if the `mail::info_header` already exists, it will be replaced.
+        action "update info header" || set_header(mail::info_header, mail::info_value),
+        action "display the email" || log("trace", `${mail()}`),
+    ],
+}

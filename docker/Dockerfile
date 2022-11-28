@@ -3,7 +3,7 @@ FROM rust:alpine as build
 ARG TARGETPLATFORM
 
 RUN apk update && apk add git
-RUN git clone -b develop --single-branch https://github.com/viridIT/vSMTP.git
+RUN git clone -b main --single-branch https://github.com/viridIT/vSMTP.git
 WORKDIR /vSMTP
 
 # Add dependencies

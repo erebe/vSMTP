@@ -1,0 +1,11 @@
+export const john = identifier("johndoe");
+export const bar = fqdn("example.com");
+export const someone = address("staff@example.com");
+
+export const staff = [
+  john,
+  address("green@personal.eu"),
+  address("steven@personal.fr"),
+  address("staff@example.com"),
+  address("ruben@email.ru"),
+];

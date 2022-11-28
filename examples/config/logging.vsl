@@ -1,0 +1,25 @@
+fn on_config(config) {
+    config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+
+    config.server.logs = #{
+        filepath: "/var/log/vsmtp/vsmtp.log",
+        level: [
+            "default=warn",
+            "receiver=info",
+            "rule_engine=warn",
+            "delivery=error",
+            "parser=trace",
+        ]
+    };
+
+    config.server.smtp.codes.set("Greetings", "220 {name} ESMTP Service ready");
+
+    config.server.smtp.codes.set("Help", #{
+        code: 214,
+        text: "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
+    });
+
+    config.app.logs.filepath = "/var/log/vsmtp/app.log";
+
+    config
+}

@@ -1,0 +1,11 @@
+// The sender's domain is not handled by our config but recipients domain match 'mydomain.com'.
+
+import "domain-available/mydomain.com/alias_rule" as alias;
+
+#{
+    preq: [
+        // We known that all recipients domains must match 'mydomain.com', thus whe can
+        // replace any alias by our main address.
+        action "forward aliases to my address" || alias::replace_recipients_by_alias(),
+    ]
+}

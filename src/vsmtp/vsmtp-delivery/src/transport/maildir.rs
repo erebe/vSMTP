@@ -18,9 +18,9 @@ use super::Transport;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
-    mail_context::MessageMetadata,
     rcpt::Rcpt,
-    transfer::{EmailTransferStatus, TransferErrors},
+    transfer::{EmailTransferStatus, TransferErrorsVariant},
+    ContextFinished,
 };
 use vsmtp_config::Config;
 
@@ -28,6 +28,7 @@ use vsmtp_config::Config;
 //
 // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
 #[derive(Default)]
+#[non_exhaustive]
 pub struct Maildir;
 
 #[async_trait::async_trait]
@@ -36,12 +37,12 @@ impl Transport for Maildir {
     async fn deliver(
         self,
         config: &Config,
-        metadata: &MessageMetadata,
+        ctx: &ContextFinished,
         _: &vsmtp_common::Address,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let msg_id = metadata.message_id.as_ref().unwrap();
+        let msg_id = &ctx.mail_from.message_id;
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 Self::write_to_maildir(
@@ -52,17 +53,18 @@ impl Transport for Maildir {
                     content,
                 )
             }) {
-                Some(Ok(_)) => {
+                Some(Ok(())) => {
                     tracing::info!("Email delivered.");
 
-                    rcpt.email_status = EmailTransferStatus::Sent {
-                        timestamp: std::time::SystemTime::now(),
-                    }
+                    rcpt.email_status = EmailTransferStatus::sent();
                 }
                 Some(Err(error)) => {
                     tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.email_status.held_back(error);
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::LocalDeliveryError {
+                            error: error.to_string(),
+                        });
                 }
                 None => {
                     tracing::error!(
@@ -70,9 +72,10 @@ impl Transport for Maildir {
                         "Email delivery failure."
                     );
 
-                    rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
-                        name: rcpt.address.local_part().to_string(),
-                    });
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::NoSuchMailbox {
+                            name: rcpt.address.local_part().to_owned(),
+                        });
                 }
             }
         }
@@ -81,18 +84,20 @@ impl Transport for Maildir {
 }
 
 impl Maildir {
-    #[tracing::instrument(name = "create-maildir", level = "warn", fields(folder = ?path))]
+    // create and set rights for the MailDir & [new,cur,tmp] folder if they don't exists.
+    #[allow(clippy::unreachable, clippy::panic_in_result_fn)] // false positive
+    #[tracing::instrument(name = "create-maildir", fields(folder = ?path.display()))]
     fn create_and_chown(
         path: &std::path::PathBuf,
         user: &users::User,
         group_local: Option<&users::Group>,
     ) -> anyhow::Result<()> {
-        tracing::debug!(to = %path.display(), "Creating folder.");
-
         if path.exists() {
-            tracing::warn!("Folder already exists.");
+            tracing::info!("Folder already exists.");
         } else {
-            std::fs::create_dir(path)
+            tracing::debug!("Creating folder.");
+
+            std::fs::create_dir_all(path)
                 .with_context(|| format!("failed to create {}", path.display()))?;
 
             tracing::trace!(
@@ -102,26 +107,10 @@ impl Maildir {
             );
 
             chown(path, Some(user.uid()), group_local.map(users::Group::gid))
-                .with_context(|| format!("failed to set user rights to {:?}", path))?;
+                .with_context(|| format!("failed to set user rights to {}", path.display()))?;
         }
 
         Ok(())
-    }
-
-    // NOTE: see https://en.wikipedia.org/wiki/Maildir
-    // create and set rights for the MailDir & [new,cur,tmp] folder if they don't exists.
-    fn create_maildir(
-        user: &users::User,
-        group_local: Option<&users::Group>,
-        msg_id: &str,
-    ) -> anyhow::Result<std::path::PathBuf> {
-        let maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
-        Self::create_and_chown(&maildir, user, group_local)?;
-        for dir in ["new", "tmp", "cur"] {
-            Self::create_and_chown(&maildir.join(dir), user, group_local)?;
-        }
-
-        Ok(maildir.join(format!("new/{msg_id}.eml")))
     }
 
     fn write_to_maildir(
@@ -131,7 +120,13 @@ impl Maildir {
         msg_id: &str,
         content: &str,
     ) -> anyhow::Result<()> {
-        let file_in_maildir_inbox = Self::create_maildir(user, group_local, msg_id)?;
+        let maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
+        Self::create_and_chown(&maildir, user, group_local)?;
+        for dir in ["new", "tmp", "cur"] {
+            Self::create_and_chown(&maildir.join(dir), user, group_local)?;
+        }
+
+        let file_in_maildir_inbox = maildir.join(format!("new/{msg_id}.eml"));
 
         let mut email = std::fs::OpenOptions::new()
             .create(true)
@@ -156,50 +151,70 @@ mod test {
 
     use super::*;
     use users::os::unix::UserExt;
-    use vsmtp_common::addr;
+    use vsmtp_common::{addr, transfer::Transfer};
+    use vsmtp_test::config::{local_ctx, local_test};
 
-    #[test]
-    fn test_maildir_path() {
-        let user = users::User::new(10000, "test_user", 10001);
-        let current = users::get_user_by_uid(users::get_current_uid())
-            .expect("current user has been deleted after running this test");
+    #[allow(clippy::std_instead_of_core)]
+    #[rstest::rstest]
+    #[case::not_existing("foobar", Err(TransferErrorsVariant::NoSuchMailbox {
+        name: "foobar".to_owned()
+    }))]
+    #[case::no_privilege("root", Err(TransferErrorsVariant::LocalDeliveryError {
+        error: "failed to create /root/Maildir".to_owned()
+    }))]
+    #[case::valid(users::get_current_username().unwrap().to_str().unwrap().to_owned(), Ok(()))]
+    async fn maildir(#[case] mailbox: String, #[case] expected: Result<(), TransferErrorsVariant>) {
+        let config = local_test();
+        let context = local_ctx();
+        let fake_message = "Hello World!\r\n";
 
-        // NOTE: if a user with uid 10000 exists, this is not guaranteed to fail.
-        // maybe iterate over all users beforehand ?
-        assert!(getpwuid(user.uid()).is_err());
-        assert_eq!(
-            getpwuid(current.uid()).unwrap(),
-            std::path::Path::new(current.home_dir().as_os_str().to_str().unwrap()),
-        );
-    }
+        let result = Maildir::default()
+            .deliver(
+                &config,
+                &context,
+                &addr!("foo@domain.com"),
+                vec![Rcpt {
+                    address: addr!(&format!("{mailbox}@domain.com")),
+                    transfer_method: Transfer::Maildir,
+                    email_status: EmailTransferStatus::default(),
+                }],
+                fake_message,
+            )
+            .await;
 
-    #[test]
-    #[ignore]
-    fn test_writing_to_maildir() {
-        let current = users::get_user_by_uid(users::get_current_uid())
-            .expect("current user has been deleted after running this test");
-        let message_id = "test_message";
-
-        Maildir::write_to_maildir(
-            &Rcpt::new(addr!("john.doe@example.com")),
-            &current,
-            None,
-            message_id,
-            "email content",
-        )
-        .expect("could not write email to maildir");
-
-        let maildir = std::path::PathBuf::from_iter([
-            current.home_dir().as_os_str().to_str().unwrap(),
-            "Maildir",
-            "new",
-            &format!("{}.eml", message_id),
-        ]);
-
-        assert_eq!(
-            "email content".to_string(),
-            std::fs::read_to_string(&maildir)
-                .unwrap_or_else(|_| panic!("could not read current '{:?}'", maildir))
-        );
+        #[allow(
+            clippy::indexing_slicing,
+            clippy::unreachable,
+            clippy::wildcard_enum_match_arm
+        )]
+        match expected {
+            Ok(()) => {
+                assert!(matches!(
+                    result[0].email_status,
+                    EmailTransferStatus::Sent { .. }
+                ));
+                let filepath = std::path::PathBuf::from_iter([
+                    users::get_user_by_uid(users::get_current_uid())
+                        .unwrap()
+                        .home_dir()
+                        .as_os_str()
+                        .to_str()
+                        .unwrap(),
+                    "Maildir",
+                    "new",
+                    &format!("{}.eml", context.mail_from.message_id),
+                ]);
+                assert_eq!(
+                    std::fs::read_to_string(&filepath).unwrap(),
+                    format!("Delivered-To: {mailbox}@domain.com\nHello World!\r\n")
+                );
+            }
+            Err(error) => match result[0].email_status {
+                EmailTransferStatus::HeldBack { ref errors } => {
+                    assert_eq!(errors[0].variant, error);
+                }
+                _ => unreachable!(),
+            },
+        }
     }
 }

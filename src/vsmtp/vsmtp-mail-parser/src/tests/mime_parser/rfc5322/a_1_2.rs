@@ -7,7 +7,9 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.2.eml");
 fn types_mailboxes() {
     let parsed = crate::MailParser::parse_sync(
         &mut MailMimeParser::default(),
-        MAIL.lines().map(ToString::to_string).collect::<Vec<_>>(),
+        MAIL.lines()
+            .map(|l| l.as_bytes().to_vec())
+            .collect::<Vec<_>>(),
     )
     .unwrap()
     .unwrap_right();

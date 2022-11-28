@@ -15,17 +15,26 @@
  *
  */
 use crate::{cli::args::Commands, GenericQueueManager, QueueID};
+extern crate alloc;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn message_move(
         msg_id: &str,
         queue: &QueueID,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
     ) -> anyhow::Result<()> {
-        let old_queue = <QueueID as strum::IntoEnumIterator>::iter()
-            .find(|q| queue_manager.get_ctx(q, msg_id).is_ok());
-
-        match (old_queue, queue_manager.get_msg(msg_id)) {
+        match (futures_util::future::join_all(
+            <QueueID as strum::IntoEnumIterator>::iter()
+                .map(|q| (q, alloc::sync::Arc::clone(&queue_manager)))
+                .map(|(q, manager)| async move { (q.clone(), manager.get_ctx(&q, msg_id).await) }),
+        )
+        .await
+        .into_iter()
+        .find_map(|(q, ctx)| match ctx {
+            Ok(_) => Some(q),
+            Err(_) => None,
+        }), queue_manager.get_msg(msg_id).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }
