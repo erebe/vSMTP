@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-test"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -21,7 +21,7 @@ vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
 vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
-vsmtp-protocol = { path = "../vsmtp-protocol", version = "1.3.4" }
+vsmtp-protocol = { path = "../vsmtp-protocol" }
 
 async-trait = "0.1.58"
 lettre = { version = "0.10.1", default-features = false, features = [

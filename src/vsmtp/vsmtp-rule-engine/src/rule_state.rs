@@ -28,14 +28,12 @@ pub struct RuleState {
 
 impl RuleState {
     /// fetch the email context (possibly) mutated by the user's rules.
-    // FIXME: should return a ref ?
     #[must_use]
     pub fn context(&self) -> Context {
         self.mail_context.clone()
     }
 
     /// fetch the message body (possibly) mutated by the user's rules.
-    // FIXME: should return a ref ?
     #[must_use]
     pub fn message(&self) -> Message {
         self.message.clone()

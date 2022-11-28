@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -25,22 +25,22 @@ categories = ["config"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"={{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.3.4" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.3.4" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.3.4" }
-vsmtp-auth = { path = "../vsmtp-auth", version = "1.3.4" }
-vqueue = { path = "../../vqueue", version = "1.3.4" }
+vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.0" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "=1.4.0-rc.0" }
+vsmtp-auth = { path = "../vsmtp-auth", version = "=1.4.0-rc.0" }
+vqueue = { path = "../../vqueue", version = "=1.4.0-rc.0" }
 
 # Plugins
-vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.3.4" }
+vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.0" }
 rhai-dylib = { version = "0.1.4", features = ["sync"] }
 rhai = { version = "1.11.0", features = [
   "unchecked",

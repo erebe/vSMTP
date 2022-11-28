@@ -76,26 +76,15 @@ mod logging_rhai {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(global, name = "log")]
-    // TODO: inject rule name #[tracing::instrument(name = %rule_name, skip_all)]
     #[allow(clippy::cognitive_complexity)]
     pub fn log(level: &str, message: &str) {
         match <tracing::Level as std::str::FromStr>::from_str(level) {
             Ok(level) => match level {
-                tracing::Level::TRACE => {
-                    tracing::trace!(message);
-                }
-                tracing::Level::DEBUG => {
-                    tracing::debug!(message);
-                }
-                tracing::Level::INFO => {
-                    tracing::info!(message);
-                }
-                tracing::Level::WARN => {
-                    tracing::warn!(message);
-                }
-                tracing::Level::ERROR => {
-                    tracing::error!(message);
-                }
+                tracing::Level::TRACE => tracing::trace!(message),
+                tracing::Level::DEBUG => tracing::debug!(message),
+                tracing::Level::INFO => tracing::info!(message),
+                tracing::Level::WARN => tracing::warn!(message),
+                tracing::Level::ERROR => tracing::error!(message),
             },
             Err(e) => {
                 tracing::warn!(

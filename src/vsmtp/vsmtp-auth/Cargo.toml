@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-auth"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -20,11 +20,11 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"{{version}}\"" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"={{version}}\"" },
 ]
 
 [dependencies.vsmtp-mail-parser]
-version = "1.3.4"
+version = "=1.4.0-rc.0"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
@@ -73,7 +73,6 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
 ] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
-# "serde", # TODO
 [features]
 historic = ["dep:sha1"]
 

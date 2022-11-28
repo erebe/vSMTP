@@ -253,24 +253,6 @@ mod test {
     };
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    /*
-    #[tokio::test]
-    async fn test_get_mx_records() {
-        // FIXME: find a way to guarantee that the mx records exists.
-        let mut config = Config::default();
-        config.server.dns = FieldServerDNS::System;
-        let resolvers = vsmtp_config::build_resolvers(&config).unwrap();
-        let deliver = Deliver::new(resolvers.get(&config.server.name).unwrap());
-
-        deliver
-            .get_mx_records("google.com")
-            .await
-            .expect("couldn't find any mx records for google.com");
-
-        assert!(deliver.get_mx_records("invalid_query").await.is_err());
-    }
-    */
-
     #[test_log::test(tokio::test)]
     async fn test_delivery() {
         let config = local_test();

@@ -114,6 +114,7 @@ impl Sender {
                 .min_idle(params.pool_min_idle),
         );
 
+        // TODO:
         // let builder = builder.tls(tls);
 
         // builder.timeout(timeout)
@@ -121,69 +122,3 @@ impl Sender {
         alloc::sync::Arc::new(builder.build())
     }
 }
-
-/*
-    fn build_transport(
-        config: &Config,
-        // will be used for tlsa record resolving.
-        _: &TokioAsyncResolver,
-        from: &vsmtp_common::Address,
-        target: &str,
-        port: Option<u16>,
-    ) -> anyhow::Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>> {
-        let tls_builder =
-            lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
-
-        // from's domain could match the root domain of the server.
-        let tls_parameters =
-            if config.server.name == from.domain() && config.server.tls.is_some() {
-                tls_builder.add_root_certificate(
-                    lettre::transport::smtp::client::Certificate::from_der(
-                        config
-                            .server
-                            .tls
-                            .as_ref()
-                            .unwrap()
-                            .certificate
-                            .inner
-                            .0
-                            .clone(),
-                    )
-                    .context("failed to parse certificate as der")?,
-                )
-            }
-            // or a domain from one of the virtual domains.
-            else if let Some(tls_config) = config
-                .server
-                .r#virtual
-                .get(from.domain())
-                .and_then(|domain| domain.tls.as_ref())
-            {
-                tls_builder.add_root_certificate(
-                    lettre::transport::smtp::client::Certificate::from_der(
-                        tls_config.certificate.inner.0.clone(),
-                    )
-                    .context("failed to parse certificate as der")?,
-                )
-            // if not, no certificate are used.
-            } else {
-                tls_builder
-            }
-            .build()
-            .context("failed to build tls parameters")?;
-
-        Ok(
-            lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(target)
-                .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
-                    // FIXME: should be the domain of the server.
-                    from.domain().to_string(),
-                ))
-                .port(port.unwrap_or(lettre::transport::smtp::SMTP_PORT))
-                .tls(lettre::transport::smtp::client::Tls::Opportunistic(
-                    tls_parameters,
-                ))
-                .build(),
-        )
-    }
-
-*/
