@@ -22,7 +22,7 @@ publish = false
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"={{version}}\"" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"={{version}}\"" },
     { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-common\\]\nversion = .*", replace = "[dependencies.vsmtp-common]\nversion = \"={{version}}\"" },
 ]
 
@@ -31,8 +31,8 @@ version = "=1.4.0-rc.0"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-common]
-path = "../vsmtp-common"
 version = "=1.4.0-rc.0"
+path = "../vsmtp-common"
 
 [dependencies]
 
