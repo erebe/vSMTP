@@ -52,7 +52,7 @@ jobs:
       # This will create a new comment on each runs on the pull request
       # TODO: Improve using https://github.com/marketplace/actions/create-or-update-comment
       - name: Write result in PR
-        uses: actions/github-script@v5
+        uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
