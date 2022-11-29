@@ -35,21 +35,6 @@ pub enum TransactionType {
     Internal,
 }
 
-#[tracing::instrument(skip_all, ret)]
-fn new_message_id(connect_timestamp: time::OffsetDateTime) -> String {
-    let now = time::OffsetDateTime::now_utc();
-
-    format!(
-        "{}{}{}{}",
-        now.unix_timestamp_nanos(),
-        connect_timestamp.unix_timestamp_nanos(),
-        std::iter::repeat_with(fastrand::alphanumeric)
-            .take(36)
-            .collect::<String>(),
-        std::process::id()
-    )
-}
-
 /// Stage of the step-by-step SMTP transaction
 #[derive(Debug, PartialEq, Eq)]
 pub enum Stage {
@@ -136,12 +121,15 @@ impl Context {
         client_addr: std::net::SocketAddr,
         server_addr: std::net::SocketAddr,
         server_name: String,
+        timestamp: time::OffsetDateTime,
+        uuid: uuid::Uuid,
     ) -> Result<&mut Self, Error> {
         match self {
             Context::Empty => {
                 *self = Self::Connect(ContextConnect {
                     connect: ConnectProperties {
-                        connect_timestamp: time::OffsetDateTime::now_utc(),
+                        connect_timestamp: timestamp,
+                        connect_uuid: uuid,
                         client_addr,
                         server_addr,
                         server_name,
@@ -223,7 +211,7 @@ impl Context {
                     mail_from: MailFromProperties {
                         reverse_path,
                         mail_timestamp: now,
-                        message_id: new_message_id(connect.connect_timestamp),
+                        message_uuid: uuid::Uuid::new_v4(),
                         outgoing,
                     },
                 });
@@ -523,12 +511,12 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::MailFrom`] or after
-    pub const fn message_id(&self) -> Result<&String, Error> {
+    pub const fn message_uuid(&self) -> Result<&uuid::Uuid, Error> {
         match self {
             Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
             Context::MailFrom(ContextMailFrom { mail_from, .. })
             | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.message_id),
+            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.message_uuid),
         }
     }
 
@@ -540,17 +528,10 @@ impl Context {
     pub fn generate_message_id(&mut self) -> Result<(), Error> {
         match self {
             Context::Empty | Context::Connect(_) | Context::Helo(_) => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom {
-                connect, mail_from, ..
-            })
-            | Context::RcptTo(ContextRcptTo {
-                connect, mail_from, ..
-            })
-            | Context::Finished(ContextFinished {
-                connect, mail_from, ..
-            }) => {
-                // TODO: refresh the mail_from.mail_timestamp ??
-                mail_from.message_id = new_message_id(connect.connect_timestamp);
+            Context::MailFrom(ContextMailFrom { mail_from, .. })
+            | Context::RcptTo(ContextRcptTo { mail_from, .. })
+            | Context::Finished(ContextFinished { mail_from, .. }) => {
+                mail_from.message_uuid = uuid::Uuid::new_v4();
                 Ok(())
             }
         }
@@ -819,6 +800,8 @@ pub struct ConnectProperties {
     #[serde(with = "time::serde::iso8601")]
     pub connect_timestamp: time::OffsetDateTime,
     ///
+    pub connect_uuid: uuid::Uuid,
+    ///
     pub client_addr: std::net::SocketAddr,
     ///
     pub server_addr: std::net::SocketAddr,
@@ -851,8 +834,7 @@ pub struct MailFromProperties {
     #[serde(with = "time::serde::iso8601")]
     pub mail_timestamp: time::OffsetDateTime,
     ///
-    // TODO: use UUID format
-    pub message_id: String,
+    pub message_uuid: uuid::Uuid,
     ///
     pub outgoing: bool,
 }

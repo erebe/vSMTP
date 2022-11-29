@@ -23,7 +23,6 @@ async fn init_fail() {
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn write_get_and_delete_ctx() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
@@ -34,69 +33,61 @@ async fn write_get_and_delete_ctx() {
         QueueID::Deferred,
         QueueID::Dead,
     ] {
-        let msg_id = format!("{}-{i}", function_name!());
+        let msg_uuid = uuid::Uuid::new_v4();
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = msg_id.clone();
+        ctx.mail_from.message_uuid = msg_uuid;
         queue_manager.write_ctx(&i, &ctx).await.unwrap();
-        let ctx_read = queue_manager.get_ctx(&i, &msg_id).await.unwrap();
+        let ctx_read = queue_manager.get_ctx(&i, &msg_uuid).await.unwrap();
         pretty_assertions::assert_eq!(ctx, ctx_read);
-        queue_manager.remove_ctx(&i, &msg_id).await.unwrap();
+        queue_manager.remove_ctx(&i, &msg_uuid).await.unwrap();
     }
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn write_ctx_after_dir_deleted() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let i = QueueID::Working;
-    let msg_id = format!("{}-{i}", function_name!());
+    let msg_uuid = uuid::Uuid::new_v4();
     let mut ctx = local_ctx();
-    ctx.mail_from.message_id = msg_id.clone();
+    ctx.mail_from.message_uuid = msg_uuid;
 
     queue_manager.write_ctx(&i, &ctx).await.unwrap();
-    let ctx_read = queue_manager.get_ctx(&i, &msg_id).await.unwrap();
+    let ctx_read = queue_manager.get_ctx(&i, &msg_uuid).await.unwrap();
     pretty_assertions::assert_eq!(ctx, ctx_read);
-    queue_manager.remove_ctx(&i, &msg_id).await.unwrap();
+    queue_manager.remove_ctx(&i, &msg_uuid).await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[function_name::named]
 async fn write_msg_after_dir_deleted() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     std::fs::remove_dir_all(&config.server.queues.dirpath).unwrap();
+    let msg_uuid = uuid::Uuid::new_v4();
 
     let msg = local_msg();
-    queue_manager
-        .write_msg(function_name!(), &msg)
-        .await
-        .unwrap();
-    let msg_read = queue_manager.get_msg(function_name!()).await.unwrap();
+    queue_manager.write_msg(&msg_uuid, &msg).await.unwrap();
+    let msg_read = queue_manager.get_msg(&msg_uuid).await.unwrap();
     pretty_assertions::assert_eq!(msg, msg_read);
-    queue_manager.remove_msg(function_name!()).await.unwrap();
+    queue_manager.remove_msg(&msg_uuid).await.unwrap();
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn write_get_and_delete_msg() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
+    let msg_uuid = uuid::Uuid::new_v4();
 
     let msg = local_msg();
-    queue_manager
-        .write_msg(function_name!(), &msg)
-        .await
-        .unwrap();
-    let msg_read = queue_manager.get_msg(function_name!()).await.unwrap();
+    queue_manager.write_msg(&msg_uuid, &msg).await.unwrap();
+    let msg_read = queue_manager.get_msg(&msg_uuid).await.unwrap();
     pretty_assertions::assert_eq!(msg, msg_read);
-    queue_manager.remove_msg(function_name!()).await.unwrap();
+    queue_manager.remove_msg(&msg_uuid).await.unwrap();
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn write_get_and_delete_both() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
@@ -107,19 +98,19 @@ async fn write_get_and_delete_both() {
         QueueID::Deferred,
         QueueID::Dead,
     ] {
-        let msg_id = format!("{}-{i}", function_name!());
+        let msg_uuid = uuid::Uuid::new_v4();
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = msg_id.clone();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         let msg = local_msg();
         queue_manager.write_both(&i, &ctx, &msg).await.unwrap();
 
-        let (ctx_read, msg_read) = queue_manager.get_both(&i, &msg_id).await.unwrap();
+        let (ctx_read, msg_read) = queue_manager.get_both(&i, &msg_uuid).await.unwrap();
 
         pretty_assertions::assert_eq!(ctx, ctx_read);
         pretty_assertions::assert_eq!(msg, msg_read);
 
-        queue_manager.remove_both(&i, &msg_id).await.unwrap();
+        queue_manager.remove_both(&i, &msg_uuid).await.unwrap();
     }
 }
 
@@ -136,20 +127,21 @@ async fn move_same_queue() {
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn move_to() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let mut ctx = local_ctx();
-    ctx.mail_from.message_id = function_name!().to_string();
+    let msg_uuid = uuid::Uuid::new_v4();
+
+    ctx.mail_from.message_uuid = msg_uuid;
 
     queue_manager
-        .get_ctx(&QueueID::Working, function_name!())
+        .get_ctx(&QueueID::Working, &msg_uuid)
         .await
         .unwrap_err();
     queue_manager
-        .get_ctx(&QueueID::Deliver, function_name!())
+        .get_ctx(&QueueID::Deliver, &msg_uuid)
         .await
         .unwrap_err();
 
@@ -159,11 +151,11 @@ async fn move_to() {
         .unwrap();
 
     queue_manager
-        .get_ctx(&QueueID::Working, function_name!())
+        .get_ctx(&QueueID::Working, &msg_uuid)
         .await
         .unwrap();
     queue_manager
-        .get_ctx(&QueueID::Deliver, function_name!())
+        .get_ctx(&QueueID::Deliver, &msg_uuid)
         .await
         .unwrap_err();
 
@@ -173,39 +165,39 @@ async fn move_to() {
         .unwrap();
 
     queue_manager
-        .get_ctx(&QueueID::Working, function_name!())
+        .get_ctx(&QueueID::Working, &msg_uuid)
         .await
         .unwrap_err();
     queue_manager
-        .get_ctx(&QueueID::Deliver, function_name!())
+        .get_ctx(&QueueID::Deliver, &msg_uuid)
         .await
         .unwrap();
 }
 
 #[tokio::test]
-#[function_name::named]
 async fn move_to_from_id() {
     let config = arc!(local_test());
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
 
     let mut ctx = local_ctx();
-    ctx.mail_from.message_id = function_name!().to_string();
+    let msg_uuid = uuid::Uuid::new_v4();
+    ctx.mail_from.message_uuid = msg_uuid;
 
     queue_manager
         .write_ctx(&QueueID::Deliver, &ctx)
         .await
         .unwrap();
     queue_manager
-        .move_to_from_id(&QueueID::Deliver, &QueueID::Working, function_name!())
+        .move_to_from_id(&QueueID::Deliver, &QueueID::Working, &msg_uuid)
         .await
         .unwrap();
 
     queue_manager
-        .get_ctx(&QueueID::Deliver, function_name!())
+        .get_ctx(&QueueID::Deliver, &msg_uuid)
         .await
         .unwrap_err();
     queue_manager
-        .get_ctx(&QueueID::Working, function_name!())
+        .get_ctx(&QueueID::Working, &msg_uuid)
         .await
         .unwrap();
 }

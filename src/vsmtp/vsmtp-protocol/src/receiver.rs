@@ -179,6 +179,8 @@ where
         mut self,
         client_addr: std::net::SocketAddr,
         server_addr: std::net::SocketAddr,
+        timestamp: time::OffsetDateTime,
+        uuid: uuid::Uuid,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
             let reply = self.handler.on_accept(
@@ -187,6 +189,8 @@ where
                     client_addr,
                     server_addr,
                     kind: self.kind,
+                    timestamp,
+                    uuid,
                 }
             ).await;
 

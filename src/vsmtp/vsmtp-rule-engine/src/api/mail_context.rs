@@ -223,7 +223,7 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            ref vsl_guard_ok!(context.read()).message_id().ok(),
+            ref vsl_guard_ok!(context.read()).message_uuid().ok(),
             "message_id",
             State::MailFrom
         )

@@ -28,6 +28,10 @@ pub struct AcceptArgs {
     pub client_addr: std::net::SocketAddr,
     /// Peer address of the connection.
     pub server_addr: std::net::SocketAddr,
+    ///
+    pub timestamp: time::OffsetDateTime,
+    ///
+    pub uuid: uuid::Uuid,
     /// Kind of connection.
     pub kind: ConnectionKind,
 }

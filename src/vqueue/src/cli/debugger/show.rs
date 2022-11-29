@@ -201,7 +201,10 @@ impl Commands {
                 Ok(list) if !list.is_empty() => {
                     for i in list {
                         content.inner.push(match i {
-                            Ok(msg_id) => queue_manager.get_detailed_ctx(q, &msg_id).await,
+                            Ok(msg_uuid) => match uuid::Uuid::try_parse(&msg_uuid) {
+                                Ok(msg_uuid) => queue_manager.get_detailed_ctx(q, &msg_uuid).await,
+                                Err(e) => Err(anyhow::anyhow!("id is not a valid uuid: {e}")),
+                            },
                             Err(e) => Err(e),
                         });
                     }
@@ -374,7 +377,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[function_name::named]
     async fn dead_with_one() {
         let mut output = vec![];
 
@@ -384,7 +386,9 @@ mod tests {
 
         let msg = local_msg();
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
+
         queue_manager
             .write_both(&QueueID::Dead, &ctx, &msg)
             .await

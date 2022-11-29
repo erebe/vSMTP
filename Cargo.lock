@@ -3214,6 +3214,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "uuid"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
+dependencies = [
+ "getrandom",
+ "rand",
+ "serde",
+]
+
+[[package]]
 name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3271,6 +3282,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "uuid",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
@@ -3345,6 +3357,7 @@ dependencies = [
  "tracing",
  "trust-dns-resolver",
  "users",
+ "uuid",
  "vsmtp-auth",
  "vsmtp-mail-parser",
 ]
@@ -3398,6 +3411,7 @@ dependencies = [
  "tracing-subscriber",
  "trust-dns-resolver",
  "users",
+ "uuid",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
@@ -3464,6 +3478,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-stream",
  "tracing",
+ "uuid",
  "vsmtp-auth",
  "vsmtp-common",
 ]
@@ -3493,6 +3508,7 @@ dependencies = [
  "tracing",
  "trust-dns-resolver",
  "users",
+ "uuid",
  "vqueue",
  "vsmtp-auth",
  "vsmtp-common",
@@ -3535,6 +3551,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
+ "uuid",
  "vqueue",
  "vsmtp-common",
  "vsmtp-config",
@@ -3570,6 +3587,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
+ "uuid",
  "vqueue",
  "vsmtp-common",
  "vsmtp-config",

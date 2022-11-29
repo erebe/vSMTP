@@ -116,7 +116,7 @@ where
     async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()>;
 
     ///
-    async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
+    async fn write_msg(&self, msg_uuid: &uuid::Uuid, msg: &MessageBody) -> anyhow::Result<()>;
 
     ///
     #[inline]
@@ -130,24 +130,24 @@ where
         Self: Sized,
     {
         self.write_ctx(queue, ctx).await?;
-        self.write_msg(&ctx.mail_from.message_id, msg).await?;
+        self.write_msg(&ctx.mail_from.message_uuid, msg).await?;
         Ok(())
     }
 
     ///
-    async fn remove_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()>;
+    async fn remove_ctx(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>;
 
     ///
-    async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()>;
+    async fn remove_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>;
 
     ///
     #[inline]
-    async fn remove_both(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()>
+    async fn remove_both(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>
     where
         Self: Sized,
     {
-        self.remove_ctx(queue, msg_id).await?;
-        self.remove_msg(msg_id).await?;
+        self.remove_ctx(queue, msg_uuid).await?;
+        self.remove_msg(msg_uuid).await?;
         Ok(())
     }
 
@@ -155,31 +155,35 @@ where
     async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
 
     ///
-    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<ContextFinished>;
+    async fn get_ctx(
+        &self,
+        queue: &QueueID,
+        msg_uuid: &uuid::Uuid,
+    ) -> anyhow::Result<ContextFinished>;
 
     ///
     async fn get_detailed_ctx(
         &self,
         queue: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<DetailedMailContext>;
 
     ///
-    async fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody>;
+    async fn get_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<MessageBody>;
 
     ///
     #[inline]
     async fn get_both(
         &self,
         queue: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<(ContextFinished, MessageBody)>
     where
         Self: Sized,
     {
         Ok((
-            self.get_ctx(queue, msg_id).await?,
-            self.get_msg(msg_id).await?,
+            self.get_ctx(queue, msg_uuid).await?,
+            self.get_msg(msg_uuid).await?,
         ))
     }
 
@@ -189,14 +193,14 @@ where
         &self,
         before: &QueueID,
         after: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
     {
         anyhow::ensure!(before != after, "Queues are the same: `{before}`");
 
-        let ctx = self.get_ctx(before, msg_id).await?;
+        let ctx = self.get_ctx(before, msg_uuid).await?;
         self.move_to(before, after, &ctx).await?;
 
         Ok(())
@@ -218,7 +222,7 @@ where
         tracing::debug!(from = %before, to = %after, "Moving email.");
 
         self.write_ctx(after, ctx).await?;
-        self.remove_ctx(before, &ctx.mail_from.message_id).await?;
+        self.remove_ctx(before, &ctx.mail_from.message_uuid).await?;
 
         Ok(())
     }

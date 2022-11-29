@@ -42,14 +42,14 @@ impl Transport for Maildir {
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let msg_id = &ctx.mail_from.message_id;
+        let msg_uuid = &ctx.mail_from.message_uuid;
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 Self::write_to_maildir(
                     rcpt,
                     &user,
                     config.server.system.group_local.as_ref(),
-                    msg_id,
+                    msg_uuid,
                     content,
                 )
             }) {
@@ -117,7 +117,7 @@ impl Maildir {
         rcpt: &Rcpt,
         user: &users::User,
         group_local: Option<&users::Group>,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
         content: &str,
     ) -> anyhow::Result<()> {
         let maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
@@ -126,7 +126,7 @@ impl Maildir {
             Self::create_and_chown(&maildir.join(dir), user, group_local)?;
         }
 
-        let file_in_maildir_inbox = maildir.join(format!("new/{msg_id}.eml"));
+        let file_in_maildir_inbox = maildir.join(format!("new/{msg_uuid}.eml"));
 
         let mut email = std::fs::OpenOptions::new()
             .create(true)
@@ -202,7 +202,7 @@ mod test {
                         .unwrap(),
                     "Maildir",
                     "new",
-                    &format!("{}.eml", context.mail_from.message_id),
+                    &format!("{}.eml", context.mail_from.message_uuid),
                 ]);
                 assert_eq!(
                     std::fs::read_to_string(&filepath).unwrap(),

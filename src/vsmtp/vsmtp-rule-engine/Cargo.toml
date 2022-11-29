@@ -107,6 +107,12 @@ tokio = { version = "1.22.0", default-features = false, features = [
 ] }
 humantime-serde = { version = "1.1.1", default-features = false }
 
+uuid = { version = "1.2.2", default-features = false, features = [
+  "std",
+  "v4",
+  "fast-rng",
+] }
+
 [features]
 default = ["delegation"]
 delegation = []          # Add the delegation system.

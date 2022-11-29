@@ -98,6 +98,14 @@ rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
     "plain",
     "login",
 ] }
+
+uuid = { version = "1.2.2", default-features = false, features = [
+    "std",
+    "v4",
+    "fast-rng",
+    "serde",
+] }
+
 [dev-dependencies]
 serde_json = { version = "1.0.89", default-features = false, features = [
     "std",

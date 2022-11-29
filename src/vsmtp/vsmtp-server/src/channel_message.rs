@@ -18,7 +18,7 @@
 #[derive(Debug)]
 pub struct ProcessMessage {
     /// id of the mail context.
-    pub message_id: String,
+    pub message_uuid: uuid::Uuid,
     /// is the email stored in the delegated queue.
     pub delegated: bool,
 }
@@ -32,7 +32,7 @@ mod test {
         println!(
             "{:?}",
             ProcessMessage {
-                message_id: "foo".to_string(),
+                message_uuid: uuid::Uuid::nil(),
                 delegated: false,
             }
         );

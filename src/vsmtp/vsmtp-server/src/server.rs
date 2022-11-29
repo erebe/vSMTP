@@ -19,13 +19,12 @@ use crate::{
     ValidationVSL,
 };
 use anyhow::Context;
-use time::format_description::well_known::Iso8601;
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
 use vqueue::GenericQueueManager;
 use vsmtp_common::CodeID;
 use vsmtp_config::{get_rustls_config, Config};
-use vsmtp_protocol::ConnectionKind;
+use vsmtp_protocol::{AcceptArgs, ConnectionKind};
 use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -151,13 +150,15 @@ impl Server {
 
         client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
-        let connection_timestamp = time::OffsetDateTime::now_utc();
         let session = Self::run_session(
-            connection_timestamp,
-            client_addr,
-            stream.local_addr().expect("retrieve local address"),
+            AcceptArgs {
+                client_addr,
+                server_addr: stream.local_addr().expect("retrieve local address"),
+                kind,
+                timestamp: time::OffsetDateTime::now_utc(),
+                uuid: uuid::Uuid::new_v4(),
+            },
             stream,
-            kind,
             self.tls_config.clone(),
             self.config.clone(),
             self.rule_engine.clone(),
@@ -251,15 +252,10 @@ impl Server {
     ///
     /// # Errors
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip_all, err, fields(
-        id = connect_timestamp.format(&Iso8601::DEFAULT).unwrap()
-    ))]
+    #[tracing::instrument(skip_all, err, fields(uuid = %args.uuid))]
     pub async fn run_session(
-        connect_timestamp: time::OffsetDateTime,
-        client_addr: std::net::SocketAddr,
-        server_addr: std::net::SocketAddr,
+        args: AcceptArgs,
         tcp_stream: tokio::net::TcpStream,
-        kind: ConnectionKind,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         config: std::sync::Arc<Config>,
         rule_engine: std::sync::Arc<RuleEngine>,
@@ -279,13 +275,18 @@ impl Server {
         );
         let smtp_receiver = vsmtp_protocol::Receiver::<_, ValidationVSL, _, _>::new(
             tcp_stream,
-            kind,
+            args.kind,
             smtp_handler,
             config.server.smtp.error.soft_count,
             config.server.smtp.error.hard_count,
             config.server.message_size_limit,
         );
-        let smtp_stream = smtp_receiver.into_stream(client_addr, server_addr);
+        let smtp_stream = smtp_receiver.into_stream(
+            args.client_addr,
+            args.server_addr,
+            args.timestamp,
+            args.uuid,
+        );
         tokio::pin!(smtp_stream);
 
         while let Some(Ok(())) = smtp_stream.next().await {}

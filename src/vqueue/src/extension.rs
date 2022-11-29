@@ -70,7 +70,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
 
     #[inline]
     async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()> {
-        let message_id = &ctx.mail_from.message_id;
+        let msg_uuid = &ctx.mail_from.message_uuid;
         let queue_path = self.get_queue_path(queue);
 
         if !queue_path.exists() {
@@ -79,7 +79,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
             })?;
         }
 
-        let mut msg_path = queue_path.join(message_id);
+        let mut msg_path = queue_path.join(msg_uuid.to_string());
         msg_path.set_extension("json");
 
         let mut file = std::fs::OpenOptions::new()
@@ -97,13 +97,13 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()> {
+    async fn write_msg(&self, msg_uuid: &uuid::Uuid, msg: &MessageBody) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
         if !mails.exists() {
             std::fs::DirBuilder::new().recursive(true).create(&mails)?;
         }
         {
-            let mails_eml = mails.join(format!("{message_id}.eml"));
+            let mails_eml = mails.join(format!("{msg_uuid}.eml"));
 
             let mut file = std::fs::OpenOptions::new()
                 .create(true)
@@ -114,7 +114,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
             std::io::Write::write_all(&mut file, msg.inner().to_string().as_bytes())?;
         }
         if let &Some(ref parsed) = msg.get_parsed() {
-            let mails_json = mails.join(format!("{message_id}.json"));
+            let mails_json = mails.join(format!("{msg_uuid}.json"));
             let mut file = std::fs::OpenOptions::new()
                 .create(true)
                 .write(true)
@@ -130,8 +130,8 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn remove_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()> {
-        let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
+    async fn remove_ctx(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()> {
+        let mut ctx_filepath = self.get_queue_path(queue).join(msg_uuid.to_string());
 
         ctx_filepath.set_extension("json");
 
@@ -144,14 +144,14 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()> {
+    async fn remove_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
 
-        let mails_eml = mails.join(format!("{msg_id}.eml"));
+        let mails_eml = mails.join(format!("{msg_uuid}.eml"));
         std::fs::remove_file(&mails_eml)
             .with_context(|| format!("failed to remove `{}`", mails_eml.display()))?;
 
-        let mails_json = mails.join(format!("{msg_id}.json"));
+        let mails_json = mails.join(format!("{msg_uuid}.json"));
         if mails_json.exists() {
             std::fs::remove_file(&mails_json)
                 .with_context(|| format!("failed to remove `{}`", mails_json.display()))?;
@@ -180,8 +180,12 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<ContextFinished> {
-        let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
+    async fn get_ctx(
+        &self,
+        queue: &QueueID,
+        msg_uuid: &uuid::Uuid,
+    ) -> anyhow::Result<ContextFinished> {
+        let mut ctx_filepath = self.get_queue_path(queue).join(msg_uuid.to_string());
 
         ctx_filepath.set_extension("json");
 
@@ -196,9 +200,9 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     async fn get_detailed_ctx(
         &self,
         queue: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<DetailedMailContext> {
-        let mut ctx_filepath = self.get_queue_path(queue).join(msg_id);
+        let mut ctx_filepath = self.get_queue_path(queue).join(msg_uuid.to_string());
         ctx_filepath.set_extension("json");
 
         let file = std::fs::OpenOptions::new().read(true).open(&ctx_filepath)?;
@@ -216,11 +220,11 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
-    async fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody> {
+    async fn get_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<MessageBody> {
         let msg_filepath = std::path::PathBuf::from_iter([
             self.get_config().server.queues.dirpath.clone(),
             "mails".into(),
-            format!("{msg_id}.eml").into(),
+            format!("{msg_uuid}.eml").into(),
         ]);
 
         let content = std::fs::read_to_string(&msg_filepath)

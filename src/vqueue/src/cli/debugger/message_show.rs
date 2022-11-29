@@ -24,14 +24,14 @@ extern crate alloc;
 #[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn message_show<OUT: std::io::Write + Send + Sync>(
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
         queue_manager: &alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         format: &MessageShowFormat,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
         let ctx = futures_util::future::join_all(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .map(|q| async move { queue_manager.get_ctx(&q, msg_id).await }),
+                .map(|q| async move { queue_manager.get_ctx(&q, msg_uuid).await }),
         )
         .await;
 
@@ -41,7 +41,7 @@ impl Commands {
             .context("Mail context not found")?;
 
         let msg = queue_manager
-            .get_msg(msg_id)
+            .get_msg(msg_uuid)
             .await
             .context("Message not found")?;
 
@@ -70,7 +70,6 @@ mod tests {
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
-    #[function_name::named]
     async fn show1_json() {
         let mut output = vec![];
 
@@ -78,7 +77,8 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -86,13 +86,15 @@ mod tests {
             .unwrap();
 
         Commands::message_show(
-            function_name!(),
+            &msg_uuid,
             &queue_manager,
             &MessageShowFormat::Json,
             &mut output,
         )
         .await
         .unwrap();
+
+        let connect_uuid = ctx.connect.connect_uuid;
 
         let connect_timestamp = ctx.connect.connect_timestamp;
         let connect_timestamp =
@@ -118,6 +120,7 @@ mod tests {
                 r#"Message context:
 {{
   "connect_timestamp": "{connect_timestamp}",
+  "connect_uuid": "{connect_uuid}",
   "client_addr": "127.0.0.1:25",
   "server_addr": "127.0.0.1:5977",
   "server_name": "testserver.com",
@@ -128,7 +131,7 @@ mod tests {
   "using_deprecated": false,
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
-  "message_id": "show1_json",
+  "message_uuid": "{msg_uuid}",
   "outgoing": false,
   "forward_paths": [],
   "transaction_type": {{
@@ -155,7 +158,6 @@ Message body:
     }
 
     #[tokio::test]
-    #[function_name::named]
     async fn show1_eml() {
         let mut output = vec![];
 
@@ -163,7 +165,8 @@ Message body:
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -171,13 +174,15 @@ Message body:
             .unwrap();
 
         Commands::message_show(
-            function_name!(),
+            &msg_uuid,
             &queue_manager,
             &MessageShowFormat::Eml,
             &mut output,
         )
         .await
         .unwrap();
+
+        let connect_uuid = ctx.connect.connect_uuid;
 
         let connect_timestamp = ctx.connect.connect_timestamp;
         let connect_timestamp =
@@ -203,6 +208,7 @@ Message body:
                 r#"Message context:
 {{
   "connect_timestamp": "{connect_timestamp}",
+  "connect_uuid": "{connect_uuid}",
   "client_addr": "127.0.0.1:25",
   "server_addr": "127.0.0.1:5977",
   "server_name": "testserver.com",
@@ -213,7 +219,7 @@ Message body:
   "using_deprecated": false,
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
-  "message_id": "show1_eml",
+  "message_uuid": "{msg_uuid}",
   "outgoing": false,
   "forward_paths": [],
   "transaction_type": {{
