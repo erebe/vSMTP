@@ -130,7 +130,10 @@ fn staging(
     let sender = SmtpTransport::builder_dangerous(*STAGING_SERVER_MX)
         .port(port)
         .tls(tls.clone())
-        .timeout(Some(std::time::Duration::from_secs(5)));
+        .timeout(Some(std::time::Duration::from_secs(5)))
+        .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
+            "staging.test.com".to_string(),
+        ));
 
     let sender = match mechanism {
         Some(mechanism) => sender
@@ -148,21 +151,20 @@ fn staging(
         .unwrap();
 
     match sender.build().send(&email) {
-        Ok(res) => {
-            assert_eq!(res, "250 Ok\r\n".parse().unwrap());
-        }
+        Ok(res) => assert_eq!(res, "250 Ok\r\n".parse().unwrap()),
+        // case unsecured TLS
+        Err(e) if matches!(tls, Tls::None) &&
+            e.to_string() == "transient error (451): 5.7.3 Must issue a STARTTLS command first" => {}
+        // case certificate name not matching
         Err(e) if tls_domain == crate::DUMMY_DOMAIN &&
             e.to_string() ==
-            "network error: invalid peer certificate contents: invalid peer certificate: CertExpired" => {
-        }
+            "network error: invalid peer certificate contents: invalid peer certificate: CertExpired" => {}
         // case auth bad credentials
         Err(e) if credentials == crate::DUMMY_CREDENTIALS && e.to_string() ==
-            "permanent error (535): 5.7.8 Authentication credentials invalid" => {
-        }
+            "permanent error (535): 5.7.8 Authentication credentials invalid" => {}
         // case unencrypted auth
         Err(e) if mechanism.is_some() && matches!(tls, Tls::None) &&
-            e.to_string() == "internal client error: No compatible authentication mechanism was found" => {
-        }
+            e.to_string() == "internal client error: No compatible authentication mechanism was found" => {}
         // case no auth and unknown sender
         Err(e) if reverse_path == DUMMY_MAILBOX &&
             e.to_string() == "permanent error (554): permanent problems with the remote server" => {},
