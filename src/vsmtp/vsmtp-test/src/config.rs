@@ -81,6 +81,7 @@ pub fn local_ctx() -> ContextFinished {
             client_addr: "127.0.0.1:25".parse().expect(""),
             server_addr: "127.0.0.1:5977".parse().expect(""),
             server_name: "testserver.com".to_string(),
+            connect_uuid: uuid::Uuid::new_v4(),
             auth: None,
             tls: None,
             skipped: None,
@@ -91,7 +92,7 @@ pub fn local_ctx() -> ContextFinished {
         },
         mail_from: MailFromProperties {
             mail_timestamp: time::OffsetDateTime::now_utc(),
-            message_id: "test".to_string(),
+            message_uuid: uuid::Uuid::new_v4(),
             outgoing: false,
             reverse_path: "client@client.testserver.com".parse().expect(""),
         },

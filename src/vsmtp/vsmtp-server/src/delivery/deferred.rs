@@ -36,8 +36,12 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     for i in queued {
-        let msg_id = match i {
-            Ok(msg_id) => msg_id,
+        let message_uuid = match i.map(|i| uuid::Uuid::parse_str(&i)) {
+            Ok(Ok(message_uuid)) => message_uuid,
+            Ok(Err(error)) => {
+                tracing::error!(%error, "Invalid message id in deferred queue.");
+                continue;
+            }
             Err(error) => {
                 tracing::error!(%error, "Deferred message id missing.");
                 continue;
@@ -49,7 +53,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
             resolvers.clone(),
             queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id,
+                message_uuid,
                 delegated: false,
             },
             sender.clone(),
@@ -61,7 +65,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     }
 }
 
-#[tracing::instrument(name = "deferred", skip_all, fields(message_id = %process_message.message_id))]
+#[tracing::instrument(name = "deferred", skip_all, err, fields(uuid = %process_message.message_uuid))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,
@@ -72,7 +76,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     tracing::debug!("Processing email.");
 
     let (mut mail_context, mail_message) = queue_manager
-        .get_both(&QueueID::Deferred, &process_message.message_id)
+        .get_both(&QueueID::Deferred, &process_message.message_uuid)
         .await?;
 
     match split_and_sort_and_send(&config, &mut mail_context, &mail_message, resolvers, sender)
@@ -94,7 +98,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
             .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
         SenderOutcome::RemoveFromDisk => {
             queue_manager
-                .remove_both(&QueueID::Deferred, &process_message.message_id)
+                .remove_both(&QueueID::Deferred, &process_message.message_uuid)
                 .await
         }
     }
@@ -107,7 +111,6 @@ mod tests {
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
-    #[function_name::named]
     async fn move_to_deferred() {
         let config = std::sync::Arc::new(local_test());
         let queue_manager =
@@ -115,7 +118,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let message_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = message_uuid;
         ctx.rcpt_to.forward_paths.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
         ));
@@ -133,7 +137,7 @@ mod tests {
             resolvers,
             queue_manager.clone(),
             ProcessMessage {
-                message_id: function_name!().to_string(),
+                message_uuid,
                 delegated: false,
             },
             sender,
@@ -142,22 +146,21 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_ctx(&QueueID::Deliver, function_name!())
+            .get_ctx(&QueueID::Deliver, &message_uuid)
             .await
             .unwrap_err();
         queue_manager
-            .get_ctx(&QueueID::Dead, function_name!())
+            .get_ctx(&QueueID::Dead, &message_uuid)
             .await
             .unwrap_err();
 
         queue_manager
-            .get_ctx(&QueueID::Deferred, function_name!())
+            .get_ctx(&QueueID::Deferred, &message_uuid)
             .await
             .unwrap();
     }
 
     #[tokio::test]
-    #[function_name::named]
     async fn move_to_dead() {
         let config = std::sync::Arc::new(local_test());
         let queue_manager =
@@ -165,7 +168,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let message_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = message_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -179,7 +183,7 @@ mod tests {
             resolvers,
             queue_manager.clone(),
             ProcessMessage {
-                message_id: function_name!().to_string(),
+                message_uuid,
                 delegated: false,
             },
             sender,
@@ -188,12 +192,12 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_ctx(&QueueID::Deferred, function_name!())
+            .get_ctx(&QueueID::Deferred, &message_uuid)
             .await
             .unwrap_err();
 
         queue_manager
-            .get_ctx(&QueueID::Dead, function_name!())
+            .get_ctx(&QueueID::Dead, &message_uuid)
             .await
             .unwrap();
     }

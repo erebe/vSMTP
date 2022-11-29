@@ -60,7 +60,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     let (ctx, mail_message) = queue_manager
-        .get_both(&queue, &process_message.message_id)
+        .get_both(&queue, &process_message.message_uuid)
         .await?;
 
     let mut skipped = ctx.connect.skipped.clone();
@@ -97,7 +97,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 .await?;
 
             queue_manager
-                .write_msg(&process_message.message_id, &mail_message)
+                .write_msg(&process_message.message_uuid, &mail_message)
                 .await?;
 
             // NOTE: needs to be executed after writing, because the other
@@ -136,7 +136,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
 
     if write_email {
         queue_manager
-            .write_msg(&process_message.message_id, &mail_message)
+            .write_msg(&process_message.message_uuid, &mail_message)
             .await?;
     }
 
@@ -147,7 +147,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     if send_to_delivery {
         delivery_sender
             .send(ProcessMessage {
-                message_id: process_message.message_id.clone(),
+                message_uuid: process_message.message_uuid,
                 delegated,
             })
             .await?;
@@ -188,7 +188,7 @@ mod tests {
             ),
             queue_manager,
             ProcessMessage {
-                message_id: "not_such_message_named_like_this".to_string(),
+                message_uuid: uuid::Uuid::nil(),
                 delegated: false,
             },
             delivery_sender,
@@ -198,7 +198,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[function_name::named]
     async fn basic() {
         let config = std::sync::Arc::new(local_test());
         let queue_manager =
@@ -206,7 +205,8 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let message_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = message_uuid;
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -228,7 +228,7 @@ mod tests {
             ),
             queue_manager.clone(),
             ProcessMessage {
-                message_id: function_name!().to_string(),
+                message_uuid,
                 delegated: false,
             },
             delivery_sender,
@@ -237,21 +237,20 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            delivery_receiver.recv().await.unwrap().message_id,
-            function_name!()
+            delivery_receiver.recv().await.unwrap().message_uuid,
+            message_uuid
         );
         queue_manager
-            .get_ctx(&QueueID::Working, function_name!())
+            .get_ctx(&QueueID::Working, &message_uuid)
             .await
             .unwrap_err();
         queue_manager
-            .get_ctx(&QueueID::Deliver, function_name!())
+            .get_ctx(&QueueID::Deliver, &message_uuid)
             .await
             .unwrap();
     }
 
     #[tokio::test]
-    #[function_name::named]
     async fn denied() {
         let config = std::sync::Arc::new(local_test());
         let queue_manager =
@@ -259,7 +258,9 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let message_uuid = uuid::Uuid::new_v4();
+
+        ctx.mail_from.message_uuid = message_uuid;
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -288,7 +289,7 @@ mod tests {
             ),
             queue_manager.clone(),
             ProcessMessage {
-                message_id: function_name!().to_string(),
+                message_uuid,
                 delegated: false,
             },
             delivery_sender,
@@ -297,18 +298,17 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_ctx(&QueueID::Working, function_name!())
+            .get_ctx(&QueueID::Working, &message_uuid)
             .await
             .unwrap_err();
 
         queue_manager
-            .get_ctx(&QueueID::Dead, function_name!())
+            .get_ctx(&QueueID::Dead, &message_uuid)
             .await
             .unwrap();
     }
 
     #[tokio::test]
-    #[function_name::named]
     async fn quarantine() {
         let config = std::sync::Arc::new(local_test());
         let queue_manager =
@@ -316,7 +316,9 @@ mod tests {
                 .unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let message_uuid = uuid::Uuid::new_v4();
+
+        ctx.mail_from.message_uuid = message_uuid;
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
@@ -345,7 +347,7 @@ mod tests {
             ),
             queue_manager.clone(),
             ProcessMessage {
-                message_id: function_name!().to_string(),
+                message_uuid,
                 delegated: false,
             },
             delivery_sender,
@@ -358,17 +360,17 @@ mod tests {
                 &QueueID::Quarantine {
                     name: "unit-test".to_string(),
                 },
-                function_name!(),
+                &message_uuid,
             )
             .await
             .unwrap();
 
         queue_manager
-            .get_ctx(&QueueID::Working, function_name!())
+            .get_ctx(&QueueID::Working, &message_uuid)
             .await
             .unwrap_err();
         queue_manager
-            .get_ctx(&QueueID::Dead, function_name!())
+            .get_ctx(&QueueID::Dead, &message_uuid)
             .await
             .unwrap_err();
     }

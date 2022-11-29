@@ -107,6 +107,12 @@ tokio = { version = "1.22.0", default-features = false, features = [
 ] }
 humantime-serde = { version = "1.1.1", default-features = false }
 
+uuid = { version = "1.2.2", default-features = false, features = [
+  "std",
+  "v4",
+  "fast-rng",
+] }
+
 [features]
 default = ["delegation"]
 delegation = []          # Add the delegation system.
@@ -114,7 +120,7 @@ delegation = []          # Add the delegation system.
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.3.0"
-rstest = "0.15.0"
+rstest = "0.16.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rsa = { version = "0.6.1", default-features = false, features = [

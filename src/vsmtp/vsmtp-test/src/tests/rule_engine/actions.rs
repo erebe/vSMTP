@@ -54,7 +54,7 @@ const CTX_TEMPLATE: &str = concat!(
     "    \"client_name\": \"foo\",\n",
     "    \"using_deprecated\": false,\n",
     "    \"reverse_path\": \"john@doe.com\",\n",
-    "    \"message_id\": \"{message_id}\",\n",
+    "    \"message_uuid\": \"{message_uuid}\",\n",
     "    \"outgoing\": false,\n",
     "    \"forward_paths\": [\n",
     "      {\n",
@@ -168,7 +168,10 @@ async fn context_write(
                     .any(|p| i.contains(p)))
                     .collect::<Vec<_>>()
                     .join("\n"),
-                CTX_TEMPLATE.replace("{message_id}", path.file_stem().unwrap().to_str().unwrap())
+                CTX_TEMPLATE.replace(
+                    "{message_uuid}",
+                    path.file_stem().unwrap().to_str().unwrap()
+                )
             ),
             _ => unreachable!(),
         }

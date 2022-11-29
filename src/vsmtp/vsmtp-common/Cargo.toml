@@ -20,7 +20,7 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"={{version}}\"" },
+    { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-auth\\]\nversion = .*", replace = "[dependencies.vsmtp-auth]\nversion = \"={{version}}\"" },
     { file = "Cargo.toml", prerelease = true, search = "\\[dependencies.vsmtp-mail-parser\\]\nversion = .*", replace = "[dependencies.vsmtp-mail-parser]\nversion = \"={{version}}\"" },
 ]
 
@@ -98,6 +98,14 @@ rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
     "plain",
     "login",
 ] }
+
+uuid = { version = "1.2.2", default-features = false, features = [
+    "std",
+    "v4",
+    "fast-rng",
+    "serde",
+] }
+
 [dev-dependencies]
 serde_json = { version = "1.0.89", default-features = false, features = [
     "std",

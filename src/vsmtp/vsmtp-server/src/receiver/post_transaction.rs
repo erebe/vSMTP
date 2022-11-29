@@ -150,6 +150,8 @@ impl<M: OnMail + Send> Handler<M> {
                     mail_ctx.connect.client_addr,
                     mail_ctx.connect.server_addr,
                     mail_ctx.connect.server_name.clone(),
+                    mail_ctx.connect.connect_timestamp,
+                    mail_ctx.connect.connect_uuid,
                 )
                 .expect("bad state")
                 .to_helo(

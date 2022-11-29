@@ -80,8 +80,8 @@ impl MailHandler {
         mail_message: MessageBody,
         queue_manager: &std::sync::Arc<dyn GenericQueueManager>,
     ) -> Result<(), MailHandlerError> {
-        let (mut message_id, skipped) = (
-            mail_context.mail_from.message_id.to_string(),
+        let (mut message_uuid, skipped) = (
+            mail_context.mail_from.message_uuid,
             mail_context.connect.skipped.clone(),
         );
 
@@ -112,7 +112,11 @@ impl MailHandler {
                             .cloned()
                     })
                 {
-                    message_id = old_message_id;
+                    message_uuid =
+                        match <uuid::Uuid as std::str::FromStr>::from_str(&old_message_id) {
+                            Ok(id) => id,
+                            Err(_err) => return Err(MailHandlerError::InvalidDelegation),
+                        };
                 }
 
                 delegated = true;
@@ -140,7 +144,7 @@ impl MailHandler {
         };
 
         queue_manager
-            .write_msg(&message_id, &mail_message)
+            .write_msg(&message_uuid, &mail_message)
             .await
             .map_err(|e| MailHandlerError::WriteMessageBody(e.downcast().unwrap()))?;
 
@@ -161,7 +165,7 @@ impl MailHandler {
             Some(Process::Receiver) | None => return Ok(()),
         }
         .send(ProcessMessage {
-            message_id,
+            message_uuid,
             delegated,
         })
         .await

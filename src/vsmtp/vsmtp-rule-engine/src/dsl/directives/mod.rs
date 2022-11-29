@@ -151,7 +151,7 @@ impl Directive {
                             &format!(
                                 "sent; stage={stage}; directive=\"{name}\"; id=\"{}\"",
                                 vsl_guard_ok!(rule_state.context().read())
-                                    .message_id()
+                                    .message_uuid()
                                     .unwrap()
                             ),
                         );

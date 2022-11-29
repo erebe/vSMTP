@@ -176,7 +176,12 @@ macro_rules! run_test {
                 config.server.smtp.error.hard_count,
                 config.server.message_size_limit,
             );
-            let smtp_stream = smtp_receiver.into_stream(client_addr, server_addr);
+            let smtp_stream = smtp_receiver.into_stream(
+                client_addr,
+                server_addr,
+                time::OffsetDateTime::now_utc(),
+                uuid::Uuid::new_v4()
+            );
             tokio::pin!(smtp_stream);
 
             while let Some(Ok(())) = tokio_stream::StreamExt::next(&mut smtp_stream).await {}

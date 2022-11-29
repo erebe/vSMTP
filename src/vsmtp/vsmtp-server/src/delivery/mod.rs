@@ -93,8 +93,8 @@ fn add_trace_information(
     message.prepend_header(
         "X-VSMTP",
         &format!(
-            "id=\"{message_id}\"; version=\"{version}\"; status=\"{status}\"",
-            message_id = ctx.mail_from.message_id,
+            "id=\"{message_uuid}\"; version=\"{version}\"; status=\"{status}\"",
+            message_uuid = ctx.mail_from.message_uuid,
             version = env!("CARGO_PKG_VERSION"),
             status = status.as_ref()
         ),
@@ -103,10 +103,10 @@ fn add_trace_information(
     message.prepend_header(
         "Received",
         &format!(
-            "from {client_helo} by {server_domain} with SMTP id {message_id}; {date}",
+            "from {client_helo} by {server_domain} with SMTP id {message_uuid}; {date}",
             client_helo = ctx.helo.client_name,
             server_domain = ctx.connect.server_name,
-            message_id = ctx.mail_from.message_id,
+            message_uuid = ctx.mail_from.message_uuid,
             date = ctx
                 .mail_from
                 .mail_timestamp
@@ -127,12 +127,12 @@ mod test {
     use vsmtp_test::config::local_ctx;
 
     #[test]
-    #[function_name::named]
     fn test_add_trace_information() {
         let mut ctx = local_ctx();
 
         let mut message = MessageBody::default();
-        ctx.mail_from.message_id = function_name!().to_string();
+        let msg_uuid = uuid::Uuid::nil();
+        ctx.mail_from.message_uuid = msg_uuid;
         add_trace_information(&ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
@@ -142,13 +142,13 @@ mod test {
                     "Received: from client.testserver.com".to_string(),
                     " by testserver.com".to_string(),
                     " with SMTP".to_string(),
-                    " id test_add_trace_information; ".to_string(),
+                    " id 00000000-0000-0000-0000-000000000000; ".to_string(),
                     ctx.mail_from.mail_timestamp.format(&Rfc2822).unwrap(),
                     "\r\n".to_string()
                 ]
                 .concat(),
                 format!(
-                    "X-VSMTP: id=\"test_add_trace_information\"; version=\"{ver}\"; status=\"next\"\r\n",
+                    "X-VSMTP: id=\"00000000-0000-0000-0000-000000000000\"; version=\"{ver}\"; status=\"next\"\r\n",
                     ver = env!("CARGO_PKG_VERSION"),
                 ),
             ])

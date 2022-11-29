@@ -67,6 +67,8 @@ impl<M: OnMail + Send> Handler<M> {
                 args.client_addr,
                 args.server_addr,
                 self.config.server.name.clone(),
+                args.timestamp,
+                args.uuid,
             )
             .expect("bad state");
 

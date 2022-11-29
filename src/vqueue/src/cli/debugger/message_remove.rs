@@ -23,7 +23,7 @@ impl Commands {
         OUT: std::io::Write + Send + Sync,
         IN: tokio::io::AsyncRead + Send + Sync + core::marker::Unpin,
     >(
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
         confirmed: bool,
         queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         output: &mut OUT,
@@ -32,14 +32,14 @@ impl Commands {
         match (futures_util::future::join_all(
             <QueueID as strum::IntoEnumIterator>::iter()
                 .map(|q| (q, alloc::sync::Arc::clone(&queue_manager)))
-                .map(|(q, manager)| async move { (q.clone(), manager.get_ctx(&q, msg_id).await) }),
+                .map(|(q, manager)| async move { (q.clone(), manager.get_ctx(&q, msg_uuid).await) }),
         )
         .await
         .into_iter()
         .find_map(|(q, ctx)| match ctx {
             Ok(_) => Some(q),
             Err(_) => None,
-        }), queue_manager.get_msg(msg_id).await) {
+        }), queue_manager.get_msg(msg_uuid).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }
@@ -51,7 +51,7 @@ impl Commands {
             }
             (Some(queue), Ok(_)) => {
                 output.write_fmt(format_args!(
-                    "Removing message '{msg_id}' in queue: '{queue}'\n",
+                    "Removing message '{msg_uuid}' in queue: '{queue}'\n",
                 ))?;
 
                 if !confirmed {
@@ -67,7 +67,7 @@ impl Commands {
                     }
                 }
 
-                queue_manager.remove_both(&queue, msg_id).await?;
+                queue_manager.remove_both(&queue, msg_uuid).await?;
                 output.write_all(b"File removed\n")?;
                 Ok(())
             }
@@ -82,7 +82,6 @@ mod tests {
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test(flavor = "multi_thread")]
-    #[function_name::named]
     async fn confirmed() {
         let mut output = vec![];
         let input = std::io::Cursor::new(vec![]);
@@ -91,7 +90,8 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -99,7 +99,7 @@ mod tests {
             .unwrap();
 
         Commands::message_remove(
-            function_name!(),
+            &msg_uuid,
             true,
             alloc::sync::Arc::clone(&queue_manager),
             &mut output,
@@ -109,22 +109,21 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_both(&QueueID::Working, function_name!())
+            .get_both(&QueueID::Working, &msg_uuid)
             .await
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
             core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'confirmed' in queue: 'working'\n",
-                "File removed\n"
+                format!("Removing message '{msg_uuid}' in queue: 'working'\n"),
+                "File removed\n".to_owned()
             ]
             .concat()
         );
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[function_name::named]
     async fn not_confirmed() {
         let mut output = vec![];
         let input = std::io::Cursor::new(b"yes\n");
@@ -133,7 +132,8 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000001").unwrap();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -141,7 +141,7 @@ mod tests {
             .unwrap();
 
         Commands::message_remove(
-            function_name!(),
+            &msg_uuid,
             false,
             alloc::sync::Arc::clone(&queue_manager),
             &mut output,
@@ -151,14 +151,14 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_both(&QueueID::Working, function_name!())
+            .get_both(&QueueID::Working, &msg_uuid)
             .await
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
             core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'not_confirmed' in queue: 'working'\n",
+                "Removing message '00000000-0000-0000-0000-000000000001' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",
                 "File removed\n"
             ]
@@ -167,7 +167,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[function_name::named]
     async fn canceled() {
         let mut output = vec![];
         let input = std::io::Cursor::new(b"no\n");
@@ -176,7 +175,8 @@ mod tests {
         let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.mail_from.message_id = function_name!().to_owned();
+        let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000002").unwrap();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
@@ -184,7 +184,7 @@ mod tests {
             .unwrap();
 
         Commands::message_remove(
-            function_name!(),
+            &msg_uuid,
             false,
             alloc::sync::Arc::clone(&queue_manager),
             &mut output,
@@ -194,14 +194,14 @@ mod tests {
         .unwrap();
 
         queue_manager
-            .get_both(&QueueID::Working, function_name!())
+            .get_both(&QueueID::Working, &msg_uuid)
             .await
             .unwrap();
 
         pretty_assertions::assert_eq!(
             core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'canceled' in queue: 'working'\n",
+                "Removing message '00000000-0000-0000-0000-000000000002' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",
                 "Canceled\n"
             ]

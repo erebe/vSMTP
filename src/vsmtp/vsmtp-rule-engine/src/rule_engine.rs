@@ -323,19 +323,27 @@ impl RuleEngine {
                 };
                 let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
-                let (directive_name, message_id) = match (
+                let (directive_name, msg_uuid) = match (
                     header.args.get("stage"),
                     header.args.get("directive"),
                     header.args.get("id"),
                 ) {
-                    (Some(stage), Some(directive_name), Some(message_id)) => {
+                    (Some(stage), Some(directive_name), Some(msg_uuid)) => {
                         match stage.parse::<State>() {
                             Ok(stage) if stage == smtp_state => (),
                             _ => return Status::DelegationResult,
                         };
-                        (directive_name, message_id)
+                        (directive_name, uuid::Uuid::parse_str(msg_uuid))
                     }
                     _ => return Status::DelegationResult,
+                };
+
+                let msg_uuid = match msg_uuid {
+                    Ok(msg_uuid) => msg_uuid,
+                    Err(error) => {
+                        tracing::error!(%error, "Failed to parse delegation message id.");
+                        return Status::DelegationResult;
+                    }
                 };
 
                 let position = match directive_set
@@ -360,7 +368,7 @@ impl RuleEngine {
                 let mut ctx = rule_state
                     .server
                     .queue_manager
-                    .get_ctx(&QueueID::Delegated, message_id);
+                    .get_ctx(&QueueID::Delegated, &msg_uuid);
                 match block_on!(&mut ctx) {
                     Ok(mut context) => {
                         context.connect.skipped = None;
