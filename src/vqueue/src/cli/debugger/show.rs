@@ -15,24 +15,25 @@
  *
  */
 use crate::{api::DetailedMailContext, cli::args::Commands, GenericQueueManager, QueueID};
+use vsmtp_common::ClientName;
+extern crate alloc;
 
-type Domain = String;
-
+#[derive(Debug)]
 struct Content {
-    dirpath: std::path::PathBuf,
     queue_id: QueueID,
     now: std::time::SystemTime,
     inner: Vec<anyhow::Result<DetailedMailContext>>,
     error_count: usize,
-    result: std::collections::HashMap<Domain, MessageByLifetime>,
+    result: std::collections::HashMap<ClientName, MessageByLifetime>,
     empty_token: char,
+    exists: bool,
 }
 
 type MessageByLifetime = std::collections::HashMap<u64, Vec<DetailedMailContext>>;
 
 impl Content {
     fn lifetimes() -> Vec<u64> {
-        (0..9)
+        (0i32..9i32)
             .into_iter()
             .scan(5, |state, _| {
                 let out = *state;
@@ -42,16 +43,18 @@ impl Content {
             .collect()
     }
 
-    fn add_entry(&mut self, key: &str, mut values: Vec<DetailedMailContext>) {
+    fn add_entry(&mut self, key: ClientName, mut values: Vec<DetailedMailContext>) {
         let mut out = MessageByLifetime::new();
 
         for lifetime in Self::lifetimes() {
+            #[allow(clippy::expect_used)]
             let split_index = itertools::partition(&mut values, |i| {
                 self.now
                     .duration_since(i.modified_at)
                     .map(|d| d.as_secs())
                     .unwrap_or(0)
-                    / 60
+                    .checked_div(60)
+                    .expect("no division by 0")
                     < lifetime
             });
             let next_values = values.split_off(split_index);
@@ -65,13 +68,13 @@ impl Content {
         }
         out.insert(u64::MAX, values);
 
-        assert!(!self.result.contains_key(key));
-        self.result.insert(key.to_string(), out);
+        assert!(!self.result.contains_key(&key));
+        self.result.insert(key, out);
     }
 }
 
-impl std::fmt::Display for Content {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Content {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         macro_rules! token_if_empty {
             ($t:expr, $e:expr) => {
                 if $e != 0 {
@@ -85,14 +88,12 @@ impl std::fmt::Display for Content {
         let lifetimes = Self::lifetimes();
 
         f.write_fmt(format_args!(
-            "{:<10} is at '{}/{}' :",
-            format!("{}", self.queue_id).to_uppercase(),
-            self.dirpath.display(),
-            self.queue_id
+            "{:<10} has :",
+            self.queue_id.to_string().to_uppercase(),
         ))?;
 
         if self.inner.is_empty() {
-            f.write_str(if self.dirpath.join(self.queue_id.to_string()).exists() {
+            f.write_str(if self.exists {
                 "\t<EMPTY>"
             } else {
                 "\t<MISSING>"
@@ -126,7 +127,7 @@ impl std::fmt::Display for Content {
                 self.empty_token,
                 self.result.iter().fold(0, |sum, (_, values)| values
                     .iter()
-                    .fold(sum, |sum, (_, m)| { sum + m.len() }))
+                    .fold(sum, |s, (_, m)| { s + m.len() }))
             )
         ))?;
 
@@ -134,8 +135,8 @@ impl std::fmt::Display for Content {
             self.result.iter().fold(0, |sum, (_, values)| {
                 values
                     .iter()
-                    .filter(|(l, _)| **l == lifetime)
-                    .fold(sum, |sum, (_, m)| sum + m.len())
+                    .filter(|&(l, _)| *l == lifetime)
+                    .fold(sum, |s, (_, m)| s + m.len())
             })
         };
 
@@ -177,36 +178,36 @@ impl std::fmt::Display for Content {
     }
 }
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn show<OUT: std::io::Write + Send + Sync>(
         queues: Vec<QueueID>,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         empty_token: char,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
-        let dirpath = &queue_manager.get_config().await.server.queues.dirpath;
-
         for q in &queues {
             let mut content = Content {
-                dirpath: dirpath.clone(),
                 now: std::time::SystemTime::now(),
                 queue_id: q.clone(),
                 inner: vec![],
                 error_count: 0,
                 result: std::collections::HashMap::new(),
                 empty_token,
+                exists: true,
             };
 
-            let list = queue_manager.list(q);
-            match list {
+            match queue_manager.list(q).await {
                 Ok(list) if !list.is_empty() => {
-                    content.inner = list
-                        .into_iter()
-                        .map(|i| match i {
-                            Ok(msg_id) => queue_manager.get_detailed_ctx(q, &msg_id),
+                    for i in list {
+                        content.inner.push(match i {
+                            Ok(msg_uuid) => match uuid::Uuid::try_parse(&msg_uuid) {
+                                Ok(msg_uuid) => queue_manager.get_detailed_ctx(q, &msg_uuid).await,
+                                Err(e) => Err(anyhow::anyhow!("id is not a valid uuid: {e}")),
+                            },
                             Err(e) => Err(e),
-                        })
-                        .collect::<Vec<_>>();
+                        });
+                    }
 
                     let split_index = itertools::partition(&mut content.inner, Result::is_ok);
 
@@ -216,22 +217,25 @@ impl Commands {
                     let mut valid_entries = content
                         .inner
                         .iter()
-                        .map(|i| i.as_ref().unwrap())
+                        .filter_map(|i| i.as_ref().ok())
                         .cloned()
                         .collect::<Vec<_>>();
 
                     valid_entries
-                        .sort_by(|a, b| Ord::cmp(&a.ctx.envelop.helo, &b.ctx.envelop.helo));
+                        .sort_by(|a, b| Ord::cmp(&a.ctx.helo.client_name, &b.ctx.helo.client_name));
 
                     for (key, values) in
                         &itertools::Itertools::group_by(valid_entries.into_iter(), |i| {
-                            i.ctx.envelop.helo.clone()
+                            i.ctx.helo.client_name.clone()
                         })
                     {
-                        content.add_entry(&key, values.into_iter().collect::<Vec<_>>());
+                        content.add_entry(key, values.into_iter().collect::<Vec<_>>());
                     }
                 }
-                Ok(_) | Err(_) => {}
+                Ok(_) => {}
+                Err(_) => {
+                    content.exists = false;
+                }
             }
             output.write_fmt(format_args!("{content}"))?;
         }
@@ -245,16 +249,12 @@ mod tests {
     use super::*;
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn working_and_delivery_empty() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/empty_1".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         Commands::show(
             vec![QueueID::Working, QueueID::Deliver],
@@ -266,29 +266,21 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
-            [
-                "WORKING    is at './tmp/empty_1/working' :\t<EMPTY>\n",
-                "DELIVER    is at './tmp/empty_1/deliver' :\t<EMPTY>\n",
-            ]
-            .concat(),
+            core::str::from_utf8(&output).unwrap(),
+            ["WORKING    has :\t<EMPTY>\n", "DELIVER    has :\t<EMPTY>\n",].concat(),
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn all_empty() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/empty_2".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -298,70 +290,71 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/empty_2/working' :\t<EMPTY>\n",
-                "DELIVER    is at './tmp/empty_2/deliver' :\t<EMPTY>\n",
-                "DELEGATED  is at './tmp/empty_2/delegated' :\t<EMPTY>\n",
-                "DEFERRED   is at './tmp/empty_2/deferred' :\t<EMPTY>\n",
-                "DEAD       is at './tmp/empty_2/dead' :\t<EMPTY>\n"
+                "WORKING    has :\t<EMPTY>\n",
+                "DELIVER    has :\t<EMPTY>\n",
+                "DELEGATED  has :\t<EMPTY>\n",
+                "DEFERRED   has :\t<EMPTY>\n",
+                "DEAD       has :\t<EMPTY>\n"
             ]
             .concat(),
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn all_missing() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/missing".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config.clone()).unwrap();
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager =
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
 
         let queues = <QueueID as strum::IntoEnumIterator>::iter()
-            .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+            .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
             .collect::<Vec<_>>();
 
-        for i in &queues {
-            std::fs::remove_dir_all(config.server.queues.dirpath.join(i.to_string())).unwrap();
-        }
+        std::fs::remove_dir_all(queue_manager.tempdir.path()).unwrap();
 
         Commands::show(queues, queue_manager, '.', &mut output)
             .await
             .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/missing/working' :\t<MISSING>\n",
-                "DELIVER    is at './tmp/missing/deliver' :\t<MISSING>\n",
-                "DELEGATED  is at './tmp/missing/delegated' :\t<MISSING>\n",
-                "DEFERRED   is at './tmp/missing/deferred' :\t<MISSING>\n",
-                "DEAD       is at './tmp/missing/dead' :\t<MISSING>\n"
+                "WORKING    has :\t<MISSING>\n",
+                "DELIVER    has :\t<MISSING>\n",
+                "DELEGATED  has :\t<MISSING>\n",
+                "DEFERRED   has :\t<MISSING>\n",
+                "DEAD       has :\t<MISSING>\n"
             ]
             .concat(),
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn one_error() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/one_error".into();
-        let config = std::sync::Arc::new(config);
+        let config = alloc::sync::Arc::new(local_test());
 
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
+        let queue_manager =
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
 
-        std::fs::write("./tmp/one_error/working/00.json", "foobar").unwrap();
+        std::fs::write(
+            format!(
+                "{root}/{spool}/working/00.json",
+                root = queue_manager.tempdir.path().display(),
+                spool = config.server.queues.dirpath.display(),
+            ),
+            "foobar",
+        )
+        .unwrap();
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -371,32 +364,31 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/one_error/working' :\t<EMPTY>\twith 1 error\n",
-                "DELIVER    is at './tmp/one_error/deliver' :\t<EMPTY>\n",
-                "DELEGATED  is at './tmp/one_error/delegated' :\t<EMPTY>\n",
-                "DEFERRED   is at './tmp/one_error/deferred' :\t<EMPTY>\n",
-                "DEAD       is at './tmp/one_error/dead' :\t<EMPTY>\n"
+                "WORKING    has :\t<EMPTY>\twith 1 error\n",
+                "DELIVER    has :\t<EMPTY>\n",
+                "DELEGATED  has :\t<EMPTY>\n",
+                "DEFERRED   has :\t<EMPTY>\n",
+                "DEAD       has :\t<EMPTY>\n"
             ]
             .concat(),
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn dead_with_one() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/dead_with_one".into();
-        let config = std::sync::Arc::new(config);
+        let config = alloc::sync::Arc::new(local_test());
 
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let msg = local_msg();
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some("foobar".to_string());
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
+
         queue_manager
             .write_both(&QueueID::Dead, &ctx, &msg)
             .await
@@ -404,7 +396,7 @@ mod tests {
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
-                .filter(|i| !matches!(i, QueueID::Quarantine { .. }))
+                .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
                 .collect::<Vec<_>>(),
             queue_manager,
             '.',
@@ -414,13 +406,13 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/dead_with_one/working' :\t<EMPTY>\n",
-                "DELIVER    is at './tmp/dead_with_one/deliver' :\t<EMPTY>\n",
-                "DELEGATED  is at './tmp/dead_with_one/delegated' :\t<EMPTY>\n",
-                "DEFERRED   is at './tmp/dead_with_one/deferred' :\t<EMPTY>\n",
-                "DEAD       is at './tmp/dead_with_one/dead' :\n",
+                "WORKING    has :\t<EMPTY>\n",
+                "DELIVER    has :\t<EMPTY>\n",
+                "DELEGATED  has :\t<EMPTY>\n",
+                "DEFERRED   has :\t<EMPTY>\n",
+                "DEAD       has :\n",
                 "                        T    5   10   20   40   80  160  320  640 1280 1280+\n",
                 "               TOTAL    1    1    .    .    .    .    .    .    .    .    .\n",
                 "client.testserver.com    1    1    .    .    .    .    .    .    .    .    .\n",

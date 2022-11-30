@@ -7,7 +7,7 @@ fn white_space_and_comments() {
         .parse_sync(
             include_str!("../../mail/rfc5322/A.5.eml")
                 .lines()
-                .map(ToString::to_string)
+                .map(|l| l.as_bytes().to_vec())
                 .collect::<Vec<_>>(),
         )
         .unwrap()

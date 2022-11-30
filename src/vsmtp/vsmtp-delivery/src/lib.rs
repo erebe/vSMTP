@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-*/
+ */
 
 //! vSMTP delivery system
 
@@ -26,11 +26,48 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+#![warn(clippy::restriction)]
+// restriction we ignore
+#![allow(clippy::blanket_clippy_restriction_lints)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::pub_use)]
+#![allow(clippy::implicit_return)]
+#![allow(clippy::mod_module_files)]
+#![allow(clippy::shadow_reuse)]
+//
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
+
+mod send;
+mod sender;
+
+use anyhow::Context;
+pub use send::{split_and_sort_and_send, SenderOutcome};
+pub use sender::{Sender, SenderParameters};
+use vsmtp_common::{rcpt::Rcpt, Address};
+
+// at this point there should be no error
+fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::address::Envelope> {
+    lettre::address::Envelope::new(
+        Some(
+            from.full()
+                .parse()
+                .with_context(|| format!("failed to parse from address: {}", from.full()))?,
+        ),
+        rcpt.iter()
+            .map(|r| {
+                r.address
+                    .full()
+                    .parse()
+                    .with_context(|| format!("failed to parse from address: {}", from.full()))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?,
+    )
+    .with_context(|| "failed to construct `lettre` envelope")
+}
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
-    use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, Address};
+    use vsmtp_common::{rcpt::Rcpt, Address, ContextFinished};
     use vsmtp_config::Config;
 
     ///
@@ -40,7 +77,7 @@ pub mod transport {
         async fn deliver(
             self,
             config: &Config,
-            metadata: &MessageMetadata,
+            context: &ContextFinished,
             from: &Address,
             to: Vec<Rcpt>,
             content: &str,
@@ -56,120 +93,4 @@ pub mod transport {
     pub use forward::Forward;
     pub use maildir::Maildir;
     pub use mbox::MBox;
-
-    /// no transfer will be made if this resolver is selected.
-    pub struct NoTransfer;
-    use anyhow::Context;
-
-    #[async_trait::async_trait]
-    impl Transport for NoTransfer {
-        async fn deliver(
-            self,
-            _: &Config,
-            _: &MessageMetadata,
-            _: &Address,
-            to: Vec<Rcpt>,
-            _: &str,
-        ) -> Vec<Rcpt> {
-            to
-        }
-    }
-
-    /// build a transport using opportunistic tls and toml specified certificates.
-    /// TODO: resulting transport should be cached.
-    fn build_transport(
-        config: &Config,
-        // will be used for tlsa record resolving.
-        _: &TokioAsyncResolver,
-        from: &vsmtp_common::Address,
-        target: &str,
-        port: Option<u16>,
-    ) -> anyhow::Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>> {
-        let tls_builder =
-            lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
-
-        // from's domain could match the root domain of the server.
-        let tls_parameters =
-            if config.server.domain == from.domain() && config.server.tls.is_some() {
-                tls_builder.add_root_certificate(
-                    lettre::transport::smtp::client::Certificate::from_der(
-                        config
-                            .server
-                            .tls
-                            .as_ref()
-                            .unwrap()
-                            .certificate
-                            .inner
-                            .0
-                            .clone(),
-                    )
-                    .context("failed to parse certificate as der")?,
-                )
-            }
-            // or a domain from one of the virtual domains.
-            else if let Some(tls_config) = config
-                .server
-                .r#virtual
-                .get(from.domain())
-                .and_then(|domain| domain.tls.as_ref())
-            {
-                tls_builder.add_root_certificate(
-                    lettre::transport::smtp::client::Certificate::from_der(
-                        tls_config.certificate.inner.0.clone(),
-                    )
-                    .context("failed to parse certificate as der")?,
-                )
-            // if not, no certificate are used.
-            } else {
-                tls_builder
-            }
-            .build_rustls()
-            .context("failed to build tls parameters")?;
-
-        Ok(
-            lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(target)
-                .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
-                    from.domain().to_string(),
-                ))
-                .port(port.unwrap_or(lettre::transport::smtp::SMTP_PORT))
-                .tls(lettre::transport::smtp::client::Tls::Opportunistic(
-                    tls_parameters,
-                ))
-                .build(),
-        )
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use vsmtp_common::{
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
-        Envelop,
-    };
-
-    /// create an empty email context for testing purposes.
-    #[must_use]
-    pub fn get_default_context() -> MailContext {
-        MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-                server_addr: "127.0.0.1:25".parse().expect("valid"),
-                client_addr: "127.0.0.1:26".parse().expect("valid"),
-                error_count: 0,
-                authentication_attempt: 0,
-            },
-            envelop: Envelop::default(),
-            metadata: MessageMetadata {
-                timestamp: Some(std::time::SystemTime::now()),
-                message_id: None,
-                skipped: None,
-                spf: None,
-                dkim: None,
-            },
-        }
-    }
 }

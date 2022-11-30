@@ -18,44 +18,47 @@ use crate::{
     cli::args::{Commands, MessageShowFormat},
     GenericQueueManager, QueueID,
 };
+use anyhow::Context;
+extern crate alloc;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
-    pub(crate) fn message_show<OUT: std::io::Write + Send + Sync>(
-        msg_id: &str,
-        queue_manager: &std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+    pub(crate) async fn message_show<OUT: std::io::Write + Send + Sync>(
+        msg_uuid: &uuid::Uuid,
+        queue_manager: &alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         format: &MessageShowFormat,
         output: &mut OUT,
     ) -> anyhow::Result<()> {
-        let ctx = <QueueID as strum::IntoEnumIterator>::iter()
-            .find_map(|q| queue_manager.get_ctx(&q, msg_id).ok());
+        let ctx = futures_util::future::join_all(
+            <QueueID as strum::IntoEnumIterator>::iter()
+                .map(|q| async move { queue_manager.get_ctx(&q, msg_uuid).await }),
+        )
+        .await;
 
-        match (ctx, queue_manager.get_msg(msg_id)) {
-            (None, Ok(_)) => {
-                anyhow::bail!("Message is orphan: exists but no context in the queue!")
-            }
-            (None, Err(_)) => {
-                anyhow::bail!("Message does not exist in any queue!")
-            }
-            (Some(_), Err(_)) => {
-                anyhow::bail!("Message  is orphan: context in the queue but no message!")
-            }
-            (Some(ctx), Ok(msg)) => {
-                output.write_fmt(format_args!(
-                    "Message context:\n{}\n",
-                    serde_json::to_string_pretty(&ctx)?
-                ))?;
+        let ctx = ctx
+            .into_iter()
+            .find_map(Result::ok)
+            .context("Mail context not found")?;
 
-                output.write_all(b"Message body:\n")?;
+        let msg = queue_manager
+            .get_msg(msg_uuid)
+            .await
+            .context("Message not found")?;
 
-                output.write_all(
-                    match format {
-                        MessageShowFormat::Eml => msg.inner().to_string(),
-                        MessageShowFormat::Json => serde_json::to_string_pretty(&msg)?,
-                    }
-                    .as_bytes(),
-                )?;
+        output.write_fmt(format_args!(
+            "Message context:\n{}\n",
+            serde_json::to_string_pretty(&ctx)?
+        ))?;
+
+        output.write_all(b"Message body:\n")?;
+
+        output.write_all(
+            match *format {
+                MessageShowFormat::Eml => msg.inner().to_string(),
+                MessageShowFormat::Json => serde_json::to_string_pretty(&msg)?,
             }
-        }
+            .as_bytes(),
+        )?;
 
         Ok(())
     }
@@ -70,19 +73,12 @@ mod tests {
     async fn show1_json() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/show1_json".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "my_message";
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
-
-        let timestamp = ctx.connection.timestamp;
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
@@ -90,59 +86,73 @@ mod tests {
             .unwrap();
 
         Commands::message_show(
-            msg_id,
+            &msg_uuid,
             &queue_manager,
             &MessageShowFormat::Json,
             &mut output,
         )
+        .await
         .unwrap();
 
+        let connect_uuid = ctx.connect.connect_uuid;
+
+        let connect_timestamp = ctx.connect.connect_timestamp;
+        let connect_timestamp =
+            time::serde::iso8601::serialize(&connect_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
+
+        let mail_timestamp = ctx.mail_from.mail_timestamp;
+        let mail_timestamp =
+            time::serde::iso8601::serialize(&mail_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let mail_timestamp = mail_timestamp.replace("  ", "    ").replace('}', "  }");
+
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connection": {{
-    "timestamp": {},
-    "client_addr": "127.0.0.1:5977",
-    "credentials": null,
-    "server_name": "testserver.com",
-    "server_addr": "127.0.0.1:25",
-    "is_authenticated": false,
-    "is_secured": false,
-    "error_count": 0,
-    "authentication_attempt": 0
+  "connect_timestamp": "{connect_timestamp}",
+  "connect_uuid": "{connect_uuid}",
+  "client_addr": "127.0.0.1:25",
+  "server_addr": "127.0.0.1:5977",
+  "server_name": "testserver.com",
+  "skipped": null,
+  "tls": null,
+  "auth": null,
+  "client_name": "client.testserver.com",
+  "using_deprecated": false,
+  "reverse_path": "client@client.testserver.com",
+  "mail_timestamp": "{mail_timestamp}",
+  "message_uuid": "{msg_uuid}",
+  "outgoing": false,
+  "forward_paths": [],
+  "transaction_type": {{
+    "incoming": null
   }},
-  "envelop": {{
-    "helo": "client.testserver.com",
-    "mail_from": "client@client.testserver.com",
-    "rcpt": []
-  }},
-  "metadata": {{
-    "timestamp": null,
-    "message_id": "my_message",
-    "skipped": null,
-    "spf": null,
-    "dkim": null
-  }}
+  "dkim": null,
+  "spf": null
 }}
 Message body:
 {{
   "raw": {{
     "headers": [
-      "From: NoBody <nobody@domain.tld>",
-      "Reply-To: Yuin <yuin@domain.tld>",
-      "To: Hei <hei@domain.tld>",
-      "Subject: Happy new year"
+      "From: NoBody <nobody@domain.tld>\r\n",
+      "Reply-To: Yuin <yuin@domain.tld>\r\n",
+      "To: Hei <hei@domain.tld>\r\n",
+      "Subject: Happy new year\r\n"
     ],
     "body": "Be happy!\r\n"
   }},
   "parsed": null
 }}"#,
-                serde_json::to_string_pretty(&timestamp)
-                    .unwrap()
-                    .replace("  ", "      ")
-                    .replace('}', "    }")
             )
         );
     }
@@ -151,63 +161,75 @@ Message body:
     async fn show1_eml() {
         let mut output = vec![];
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/show1_eml".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "my_message";
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
-
-        let timestamp = ctx.connection.timestamp;
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
             .await
             .unwrap();
 
-        Commands::message_show(msg_id, &queue_manager, &MessageShowFormat::Eml, &mut output)
-            .unwrap();
+        Commands::message_show(
+            &msg_uuid,
+            &queue_manager,
+            &MessageShowFormat::Eml,
+            &mut output,
+        )
+        .await
+        .unwrap();
+
+        let connect_uuid = ctx.connect.connect_uuid;
+
+        let connect_timestamp = ctx.connect.connect_timestamp;
+        let connect_timestamp =
+            time::serde::iso8601::serialize(&connect_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let connect_timestamp = connect_timestamp.replace("  ", "    ").replace('}', "  }");
+
+        let mail_timestamp = ctx.mail_from.mail_timestamp;
+        let mail_timestamp =
+            time::serde::iso8601::serialize(&mail_timestamp, serde_json::value::Serializer)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned();
+        let mail_timestamp = mail_timestamp.replace("  ", "    ").replace('}', "  }");
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             format!(
                 r#"Message context:
 {{
-  "connection": {{
-    "timestamp": {},
-    "client_addr": "127.0.0.1:5977",
-    "credentials": null,
-    "server_name": "testserver.com",
-    "server_addr": "127.0.0.1:25",
-    "is_authenticated": false,
-    "is_secured": false,
-    "error_count": 0,
-    "authentication_attempt": 0
+  "connect_timestamp": "{connect_timestamp}",
+  "connect_uuid": "{connect_uuid}",
+  "client_addr": "127.0.0.1:25",
+  "server_addr": "127.0.0.1:5977",
+  "server_name": "testserver.com",
+  "skipped": null,
+  "tls": null,
+  "auth": null,
+  "client_name": "client.testserver.com",
+  "using_deprecated": false,
+  "reverse_path": "client@client.testserver.com",
+  "mail_timestamp": "{mail_timestamp}",
+  "message_uuid": "{msg_uuid}",
+  "outgoing": false,
+  "forward_paths": [],
+  "transaction_type": {{
+    "incoming": null
   }},
-  "envelop": {{
-    "helo": "client.testserver.com",
-    "mail_from": "client@client.testserver.com",
-    "rcpt": []
-  }},
-  "metadata": {{
-    "timestamp": null,
-    "message_id": "my_message",
-    "skipped": null,
-    "spf": null,
-    "dkim": null
-  }}
+  "dkim": null,
+  "spf": null
 }}
 Message body:
 {}"#,
-                serde_json::to_string_pretty(&timestamp)
-                    .unwrap()
-                    .replace("  ", "      ")
-                    .replace('}', "    }"),
                 [
                     "From: NoBody <nobody@domain.tld>\r\n",
                     "Reply-To: Yuin <yuin@domain.tld>\r\n",

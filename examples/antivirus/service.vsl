@@ -1,4 +1,4 @@
-service antivirus cmd = #{
+export const antivirus = cmd(#{
     timeout: "15s",
     command: "./examples/antivirus/clamscan.sh",
-};
+});

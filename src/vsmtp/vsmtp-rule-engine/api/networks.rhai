@@ -19,12 +19,8 @@
 //!
 //! Standard objects for networking.
 
-object net_192 rg4 = "192.168.0.0/16";
-object net_172 rg4 = "172.16.0.0/12";
-object net_10 rg4 = "10.0.0.0/8";
+export const net_192 = rg4("192.168.0.0/16");
+export const net_172 = rg4("172.16.0.0/12");
+export const net_10 = rg4("10.0.0.0/8");
 
-object non_routable_net group = [
-    net_192,
-    net_172,
-    net_10
-];
+export const non_routable_net = [ net_192, net_172, net_10 ];

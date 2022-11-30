@@ -12,7 +12,6 @@
     mail: [
         rule "admin" || {
             if is_authenticated() && mail_from() == "admin@company.com" {
-                print("here");
                 faccept("250 welcome aboard chief")
             }
         }

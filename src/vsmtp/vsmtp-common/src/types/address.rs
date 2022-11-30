@@ -15,10 +15,32 @@
  *
 */
 /// Address Email
-#[derive(Clone, Debug, serde_with::SerializeDisplay, Eq, serde_with::DeserializeFromStr)]
+#[derive(Clone, Debug, Eq, serde_with::SerializeDisplay, serde_with::DeserializeFromStr)]
 pub struct Address {
     at_sign: usize,
     full: String,
+}
+
+/// Creates an iterator over a domain that remove the prefix every call to `next`.
+pub struct Domain<'a>(&'a str);
+
+impl<'a> Domain<'a> {
+    /// Create an iterator over the given domain.
+    #[must_use]
+    pub const fn iter(domain: &'a str) -> Self {
+        Self(domain)
+    }
+}
+
+impl<'a> Iterator for Domain<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.split_once('.').map(|(_, rest)| {
+            self.0 = rest;
+            self.0
+        })
+    }
 }
 
 /// Syntax sugar Address object from dyn `ToString`
@@ -29,7 +51,7 @@ pub struct Address {
 #[macro_export]
 macro_rules! addr {
     ($e:expr) => {
-        <$crate::Address as std::str::FromStr>::from_str($e).unwrap()
+        <$crate::Address as core::str::FromStr>::from_str($e).unwrap()
     };
 }
 
@@ -133,5 +155,16 @@ mod tests {
             .unwrap(),
             r#""hello@domain.com""#
         );
+    }
+
+    #[test]
+    fn domain() {
+        let mut domain = Domain("www.john.doe.example.com");
+
+        assert_eq!(domain.next(), Some("john.doe.example.com"));
+        assert_eq!(domain.next(), Some("doe.example.com"));
+        assert_eq!(domain.next(), Some("example.com"));
+        assert_eq!(domain.next(), Some("com"));
+        assert_eq!(domain.next(), None);
     }
 }

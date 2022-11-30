@@ -108,12 +108,12 @@ and much more.
 // -- database.vsl
 // here we declare our services.
 // connect to a database with the csv format.
-service greylist db:csv = #{
+export const greylist = csv(#{
   connector: "/db/greylist.csv",
   access: "O_RDWR",
   refresh: "always",
   delimiter: ',',
-};
+});
 ```
 
 ```js
@@ -165,7 +165,12 @@ Check out the [benchmarks readme](./benchmarks/README.md#benchmarks) to get repr
 
 ## Documentation
 
+In this repository, the "develop" branch is the branch that we work on every day to provide new features.
+If you want to check examples for the latest vSMTP versions, switch to the "main" branch, where our latest releases
+are delivered.
+
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
+Documentation for the "develop" branch is also available in the vBook at https://vsmtp.rs/next
 
 To stay tuned, ask questions and get in-depth answers feel free to join our [Discord](https://discord.gg/N8JGBRBshf) server.
 You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).
@@ -174,7 +179,7 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 > vSMTP is currently under development and not yet ready for production use.
 
-The next releases "1.3.x" will focus on SQL databases support & DMARC. You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
+The next releases "1.3.x" focuses on SQL databases support & DMARC. You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
 
 Check out updates history in [Changelogs](https://github.com/viridIT/vSMTP/blob/develop/CHANGELOG.md).
 

@@ -1,0 +1,5 @@
+#{
+    mail: [
+        rule "accept with code" || accept(code(0, "sender outgoing mta.example.com")),
+    ],
+}

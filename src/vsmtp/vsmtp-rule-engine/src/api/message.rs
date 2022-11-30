@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 use crate::api::{
     EngineResult, {Message, SharedObject},
 };
@@ -27,52 +28,137 @@ pub use message_rhai::*;
 #[rhai::plugin::export_module]
 mod message_rhai {
 
-    /// check if a given header exists in the top level headers.
+    /// Return a boolean, `true` if a header named `header` exists in the message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: foo\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "check if header exists" || {
+    ///       if has_header("X-My-Header") && has_header(identifier("Subject")) {
+    ///         accept();
+    ///       } else {
+    ///         deny();
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// ```
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
-    pub fn has_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
+    pub fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
     }
 
-    /// check if a given header exists in the top level headers.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
     pub fn has_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(message.read())
-            .get_header(&header.to_string())
-            .is_some())
+        has_header(message, &header.to_string())
     }
 
     /// Count the number of headers with the given name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: foo\r\n",
+    /// "X-My-Header: bar\r\n",
+    /// "X-My-Header: baz\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "count_header" || {
+    ///       accept(`250 count is ${count_header("X-My-Header")} and ${count_header(identifier("Subject"))}`);
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "count is 3 and 1".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "count_header", return_raw, pure)]
-    pub fn count_header_str(message: &mut Message, header: &str) -> EngineResult<rhai::INT> {
-        super::count_header(message, header)
+    pub fn count_header(message: &mut Message, header: &str) -> EngineResult<rhai::INT> {
+        super::Impl::count_header(message, header)
     }
 
-    /// Count the number of headers with the given name.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "count_header", return_raw, pure)]
     pub fn count_header_obj(
         message: &mut Message,
         header: SharedObject,
     ) -> EngineResult<rhai::INT> {
-        super::count_header(message, &header.to_string())
+        super::Impl::count_header(message, &header.to_string())
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = r#"
+    /// X-My-Header: 250 foo
+    /// Subject: Unit test are cool
+    ///
+    /// Hello world!
+    /// # "#
+    /// ; // .eml ends here
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "get_header" || {
+    ///       if get_header("X-My-Header") != "250 foo"
+    ///         || get_header(identifier("Subject")) != "Unit test are cool" {
+    ///         deny();
+    ///       } else {
+    ///         accept(`${get_header("X-My-Header")} ${get_header(identifier("Subject"))}`);
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "foo Unit test are cool".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "get_header", return_raw, pure)]
-    pub fn get_header_str(message: &mut Message, header: &str) -> EngineResult<String> {
+    pub fn get_header(message: &mut Message, header: &str) -> EngineResult<String> {
         Ok(vsl_guard_ok!(message.read())
             .get_header(header)
             .unwrap_or_default())
     }
 
-    /// return the value of a header if it exists. Otherwise, returns an empty string.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "get_header", return_raw, pure)]
     pub fn get_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(message.read())
-            .get_header(&header.to_string())
-            .unwrap_or_default())
+        get_header(message, &header.to_string())
     }
 
     /// Return the complete list of headers.
@@ -89,30 +175,70 @@ mod message_rhai {
     /// Return a list of headers bearing the `name` given as argument.
     #[rhai_fn(global, name = "get_all_headers", return_raw, pure)]
     pub fn get_all_headers_str(message: &mut Message, name: &str) -> EngineResult<rhai::Array> {
-        super::get_all_headers(message, name)
+        super::Impl::get_all_headers(message, name)
     }
 
-    /// Return a list of headers bearing the `name` given as argument.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "get_all_headers", return_raw, pure)]
     pub fn get_all_headers_obj(
         message: &mut Message,
         name: SharedObject,
     ) -> EngineResult<rhai::Array> {
-        super::get_all_headers(message, &name.to_string())
+        super::Impl::get_all_headers(message, &name.to_string())
     }
 
-    /// add a header to the end of the raw or parsed email contained in ctx.
+    ///
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn get_header_untouched(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
+        let guard = vsl_guard_ok!(this.read());
+
+        Ok(guard
+            .inner()
+            .headers()
+            .iter()
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(key, value)| rhai::Dynamic::from(format!("{key}:{value}")))
+            .collect::<Vec<_>>())
+    }
+
+    /// Add a header **at the end** of the Header section of the message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: 250 foo\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "append_header" || {
+    ///       append_header("X-My-Header-2", "bar");
+    ///       append_header("X-My-Header-3", identifier("baz"));
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State};
+    /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
+    /// #   "X-My-Header: 250 foo\r\n".to_string(),
+    /// #   "Subject: Unit test are cool\r\n".to_string(),
+    /// #   "X-My-Header-2: bar\r\n".to_string(),
+    /// #   "X-My-Header-3: baz\r\n".to_string(),
+    /// # ]);
+    /// ```
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
-    pub fn append_header_str_str(
-        message: &mut Message,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
-        super::append_header(message, &header, &value)
+    pub fn append_header(message: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        super::Impl::append_header(message, &header, &value)
     }
 
-    /// add a header to the end of the raw or parsed email contained in ctx. (using an object)
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
     pub fn append_header_str_obj(
@@ -120,20 +246,46 @@ mod message_rhai {
         header: &str,
         value: SharedObject,
     ) -> EngineResult<()> {
-        super::append_header(message, &header, &value.to_string())
+        super::Impl::append_header(message, &header, &value.to_string())
     }
 
-    /// prepend a header to the raw or parsed email contained in ctx.
+    /// Add a header **at the beginning** of the Header section of the message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "X-My-Header: 250 foo\r\n",
+    /// "Subject: Unit test are cool\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "prepend_header" || {
+    ///       prepend_header("X-My-Header-2", "bar");
+    ///       prepend_header("X-My-Header-3", identifier("baz"));
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State};
+    /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
+    /// #   "X-My-Header-3: baz\r\n".to_string(),
+    /// #   "X-My-Header-2: bar\r\n".to_string(),
+    /// #   "X-My-Header: 250 foo\r\n".to_string(),
+    /// #   "Subject: Unit test are cool\r\n".to_string(),
+    /// # ]);
+    /// ```
     #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
-    pub fn prepend_header_str_str(
-        message: &mut Message,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
-        super::prepend_header(message, header, value)
+    pub fn prepend_header(message: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        super::Impl::prepend_header(message, header, value)
     }
 
-    /// prepend a header to the raw or parsed email contained in ctx. (using an object)
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
     pub fn prepend_header_str_obj(
@@ -141,20 +293,44 @@ mod message_rhai {
         header: &str,
         value: SharedObject,
     ) -> EngineResult<()> {
-        super::prepend_header(message, header, &value.to_string())
+        super::Impl::prepend_header(message, header, &value.to_string())
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    /// Set the **value** of a message header.
+    /// Do not confuse with [`rename_header()`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "Subject: The initial header value\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "set_header" || {
+    ///       set_header("Subject", "The header value has been updated");
+    ///       set_header("Subject", identifier("The header value has been updated again"));
+    ///       accept(`250 ${get_header("Subject")}`);
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "The header value has been updated again".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "set_header", return_raw, pure)]
-    pub fn set_header_str_str(
-        message: &mut Message,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
-        super::set_header(message, header, value)
+    pub fn set_header(message: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        super::Impl::set_header(message, header, value)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "set_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn set_header_str_obj(
@@ -162,16 +338,54 @@ mod message_rhai {
         header: &str,
         value: SharedObject,
     ) -> EngineResult<()> {
-        super::set_header(message, header, &value.to_string())
+        super::Impl::set_header(message, header, &value.to_string())
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    /// Change the **key** of a header for a new one.
+    /// Do not confuse with [`set_header()`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "Subject: The initial header value\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "rename_header" || {
+    ///       rename_header("Subject", "bob");
+    ///       if has_header("Subject") { return deny(); }
+    ///
+    ///       rename_header("bob", identifier("Subject"));
+    ///       if has_header("bob") { return deny(); }
+    ///
+    ///       rename_header(identifier("Subject"), "foo");
+    ///       if has_header("Subject") { return deny(); }
+    ///
+    ///       rename_header(identifier("foo"), identifier("Subject"));
+    ///       if has_header("foo") { return deny(); }
+    ///
+    ///       accept(`250 ${get_header("Subject")}`);
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "The initial header value".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
-    pub fn rename_header_str_str(message: &mut Message, old: &str, new: &str) -> EngineResult<()> {
-        super::rename_header(message, old, new)
+    pub fn rename_header(message: &mut Message, old: &str, new: &str) -> EngineResult<()> {
+        super::Impl::rename_header(message, old, new)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_str_obj(
@@ -179,10 +393,10 @@ mod message_rhai {
         old: &str,
         new: SharedObject,
     ) -> EngineResult<()> {
-        super::rename_header(message, old, &new.to_string())
+        super::Impl::rename_header(message, old, &new.to_string())
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_obj_str(
@@ -190,10 +404,10 @@ mod message_rhai {
         old: SharedObject,
         new: &str,
     ) -> EngineResult<()> {
-        super::rename_header(message, &old.to_string(), new)
+        super::Impl::rename_header(message, &old.to_string(), new)
     }
 
-    /// set a header to the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[rhai_fn(global, name = "rename_header", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rename_header_obj_obj(
@@ -201,7 +415,7 @@ mod message_rhai {
         old: SharedObject,
         new: SharedObject,
     ) -> EngineResult<()> {
-        super::rename_header(message, &old.to_string(), &new.to_string())
+        super::Impl::rename_header(message, &old.to_string(), &new.to_string())
     }
 
     /// Get the message body as a string
@@ -211,222 +425,120 @@ mod message_rhai {
     }
 
     /// Remove a header from the raw or parsed email contained in ctx.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let msg = vsmtp_mail_parser::MessageBody::try_from(concat!(
+    /// "Subject: The initial header value\r\n",
+    /// "\r\n",
+    /// "Hello world!\r\n",
+    /// # )).unwrap();
+    ///
+    /// # let states = vsmtp_test::vsl::run_with_msg(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #{
+    ///   preq: [
+    ///     rule "remove_header" || {
+    ///       remove_header("Subject");
+    ///       if has_header("Subject") { return deny(); }
+    ///
+    ///       prepend_header("Subject-2", "Rust is good");
+    ///       remove_header(identifier("Subject-2"));
+    ///
+    ///       prepend_header("Subject-3", "Rust is good !!!!!");
+    ///
+    ///       accept(`250 ${get_header("Subject-3")}`);
+    ///     }
+    ///   ]
+    /// }
+    /// # "#)?.build()), Some(msg));
+    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "Rust is good !!!!!".to_string(),
+    /// # ))));
+    /// ```
     #[rhai_fn(global, name = "remove_header", return_raw, pure)]
-    pub fn remove_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
-        super::remove_header(message, header)
+    pub fn remove_header(message: &mut Message, header: &str) -> EngineResult<bool> {
+        super::Impl::remove_header(message, header)
     }
 
-    /// Remove a header from the raw or parsed email contained in ctx.
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "remove_header", return_raw, pure)]
     pub fn remove_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
-        super::remove_header(message, &header.to_string())
+        super::Impl::remove_header(message, &header.to_string())
     }
+}
 
-    ///
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn get_header_untouched(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
+struct Impl;
+
+impl Impl {
+    /// Return a list of headers bearing the `name` given as argument.
+    /// The `count` parameter specify the number of headers with the same name
+    /// to return.
+    fn get_all_headers(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
         let guard = vsl_guard_ok!(this.read());
-        let name_lowercase = name.to_lowercase();
 
         Ok(guard
             .inner()
-            .headers(true)
-            .iter()
-            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
-            .map(|(key, value)| rhai::Dynamic::from(format!("{key}:{value}")))
-            .collect::<Vec<_>>())
-    }
-}
-
-/// Return a list of headers bearing the `name` given as argument.
-/// The `count` parameter specify the number of headers with the same name
-/// to return.
-fn get_all_headers(this: &mut Message, name: &str) -> EngineResult<rhai::Array> {
-    let guard = vsl_guard_ok!(this.read());
-    let name_lowercase = name.to_lowercase();
-
-    Ok(guard
-        .inner()
-        .headers(true)
-        .into_iter()
-        .filter(|(key, _)| key.to_lowercase() == name_lowercase)
-        .map(|(_, value)| rhai::Dynamic::from(value))
-        .collect())
-}
-
-/// internal generic function to count the occurrence of a header.
-fn count_header<T>(message: &mut Message, header: &T) -> EngineResult<rhai::INT>
-where
-    T: AsRef<str> + ?Sized,
-{
-    vsl_guard_ok!(message.read())
-        .count_header(header.as_ref())
-        .try_into()
-        .map_err::<Box<rhai::EvalAltResult>, _>(|_| "header count overflowed".into())
-}
-
-/// internal generic function to append a header to the message.
-fn append_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
-where
-    T: AsRef<str> + ?Sized,
-    U: AsRef<str> + ?Sized,
-{
-    vsl_guard_ok!(message.write()).append_header(header.as_ref(), value.as_ref());
-    Ok(())
-}
-
-/// internal generic function to prepend a header to the message.
-fn prepend_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
-where
-    T: AsRef<str> + ?Sized,
-    U: AsRef<str> + ?Sized,
-{
-    vsl_guard_ok!(message.write()).prepend_header(header.as_ref(), value.as_ref());
-    Ok(())
-}
-
-/// internal generic function to set the value of a header.
-fn set_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
-where
-    T: AsRef<str> + ?Sized,
-    U: AsRef<str> + ?Sized,
-{
-    vsl_guard_ok!(message.write()).set_header(header.as_ref(), value.as_ref());
-    Ok(())
-}
-
-/// internal generic function to rename a header.
-fn rename_header<T, U>(message: &mut Message, old: &T, new: &U) -> EngineResult<()>
-where
-    T: AsRef<str> + ?Sized,
-    U: AsRef<str> + ?Sized,
-{
-    vsl_guard_ok!(message.write()).rename_header(old.as_ref(), new.as_ref());
-    Ok(())
-}
-
-/// internal generic function to remove a header.
-fn remove_header<T>(message: &mut Message, header: &T) -> EngineResult<bool>
-where
-    T: AsRef<str> + ?Sized,
-{
-    Ok(vsl_guard_ok!(message.write()).remove_header(header.as_ref()))
-}
-
-#[cfg(test)]
-mod test {
-    use vsmtp_mail_parser::MessageBody;
-
-    use super::*;
-    use crate::dsl::object::Object;
-
-    #[test]
-    fn test_has_header_success() {
-        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
-
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
-        append_header_str_obj(
-            &mut message,
-            "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
-        )
-        .unwrap();
-
-        assert!(has_header_str(&mut message, "X-HEADER-1").unwrap());
-        assert!(has_header_str(&mut message, "X-HEADER-2").unwrap());
-        assert!(!has_header_str(&mut message, "X-HEADER-3").unwrap());
+            .headers()
+            .into_iter()
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| rhai::Dynamic::from(value))
+            .collect())
     }
 
-    #[test]
-    fn test_get_header_success() {
-        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
-
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
-        append_header_str_obj(
-            &mut message,
-            "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
-        )
-        .unwrap();
-
-        assert_eq!(
-            get_header_str(&mut message, "X-HEADER-1").unwrap(),
-            "VALUE-1"
-        );
-        assert_eq!(
-            get_header_str(&mut message, "X-HEADER-2").unwrap(),
-            "VALUE-2"
-        );
-        assert_eq!(get_header_str(&mut message, "X-HEADER-3").unwrap(), "");
+    fn count_header<T>(message: &mut Message, header: &T) -> EngineResult<rhai::INT>
+    where
+        T: AsRef<str> + ?Sized,
+    {
+        vsl_guard_ok!(message.read())
+            .count_header(header.as_ref())
+            .try_into()
+            .map_err::<Box<rhai::EvalAltResult>, _>(|_| "header count overflowed".into())
     }
 
-    #[test]
-    fn test_append_header_success() {
-        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
-
-        append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
-        append_header_str_obj(
-            &mut message,
-            "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
-        )
-        .unwrap();
-
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-1").unwrap(),
-            "VALUE-1"
-        );
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-2").unwrap(),
-            "VALUE-2"
-        );
+    fn append_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+    where
+        T: AsRef<str> + ?Sized,
+        U: AsRef<str> + ?Sized,
+    {
+        vsl_guard_ok!(message.write()).append_header(header.as_ref(), value.as_ref());
+        Ok(())
     }
 
-    #[test]
-    fn test_prepend_header_success() {
-        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
-
-        prepend_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
-        prepend_header_str_obj(
-            &mut message,
-            "X-HEADER-2",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
-        )
-        .unwrap();
-
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-1").unwrap(),
-            "VALUE-1"
-        );
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-2").unwrap(),
-            "VALUE-2"
-        );
+    fn prepend_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+    where
+        T: AsRef<str> + ?Sized,
+        U: AsRef<str> + ?Sized,
+    {
+        vsl_guard_ok!(message.write()).prepend_header(header.as_ref(), value.as_ref());
+        Ok(())
     }
 
-    #[test]
-    fn test_set_header_success() {
-        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+    fn set_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+    where
+        T: AsRef<str> + ?Sized,
+        U: AsRef<str> + ?Sized,
+    {
+        vsl_guard_ok!(message.write()).set_header(header.as_ref(), value.as_ref());
+        Ok(())
+    }
 
-        set_header_str_str(&mut message, "X-HEADER", "VALUE-1").unwrap();
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER").unwrap(),
-            "VALUE-1"
-        );
+    fn rename_header<T, U>(message: &mut Message, old: &T, new: &U) -> EngineResult<()>
+    where
+        T: AsRef<str> + ?Sized,
+        U: AsRef<str> + ?Sized,
+    {
+        vsl_guard_ok!(message.write()).rename_header(old.as_ref(), new.as_ref());
+        Ok(())
+    }
 
-        set_header_str_obj(
-            &mut message,
-            "X-HEADER",
-            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
-        )
-        .unwrap();
-
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER").unwrap(),
-            "VALUE-2"
-        );
-
-        assert_eq!(count_header(&mut message, "X-HEADER").unwrap(), 1);
+    fn remove_header<T>(message: &mut Message, header: &T) -> EngineResult<bool>
+    where
+        T: AsRef<str> + ?Sized,
+    {
+        Ok(vsl_guard_ok!(message.write()).remove_header(header.as_ref()))
     }
 }

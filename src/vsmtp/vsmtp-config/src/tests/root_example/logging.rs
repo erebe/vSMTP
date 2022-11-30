@@ -19,12 +19,16 @@ use vsmtp_common::{collection, CodeID, Reply, ReplyCode};
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../../../examples/config/logging.toml");
+    let path_to_config = std::path::PathBuf::from_iter([
+        env!("CARGO_MANIFEST_DIR"),
+        "../../../examples/config/logging.vsl",
+    ]);
     pretty_assertions::assert_eq!(
-        Config::from_toml(toml).unwrap(),
+        Config::from_vsl_file(&path_to_config).unwrap(),
         Config::builder()
-            .with_version_str(">=1.3.0-rc.0, <2.0.0")
-            .unwrap()
+        .with_version_str(&format!(">={}, <2.0.0", env!("CARGO_PKG_VERSION")))
+        .unwrap()
+            .with_path(path_to_config)
             .with_hostname()
             .with_default_system()
             .with_ipv4_localhost()
@@ -46,10 +50,7 @@ fn parse() {
                 CodeID::Help => Reply::new(ReplyCode::Code{ code: 214 },
                     "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
                         .to_string()),
-                CodeID::Greetings => Reply::parse_str("220 {domain} ESMTP Service ready").unwrap(),
-                CodeID::TlsRequired => Reply::new(
-                    ReplyCode::Enhanced{code: 451, enhanced: "5.7.3".to_string() }, "STARTTLS is required to send mail"
-                )
+                CodeID::Greetings => "220 {name} ESMTP Service ready".parse().unwrap(),
             })
             .without_auth()
             .with_default_app()

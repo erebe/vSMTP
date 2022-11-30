@@ -1,0 +1,30 @@
+fn on_config(config) {
+
+    config.server.interfaces = #{
+        addr: ["127.0.0.1:10025"],
+    };
+
+    config.server.client_count_max = -1;
+
+    config.server.system.thread_pool = #{
+        receiver: 1,
+        processing: 1,
+        delivery: 1,
+    };
+
+    config.server.logs = #{
+        filepath: "./log/server",
+        level: [ "warn" ]
+    };
+
+    config.app.logs = #{
+        filepath: "./log/app",
+    };
+
+    config.server.queues.dirpath = "./spool";
+    config.app.dirpath = "./spool/app";
+
+    config.app.vsl.dirpath = "./fuzz/server/domain-available";
+
+    config
+}

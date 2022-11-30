@@ -14,21 +14,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    delivery::{send_mail, SenderOutcome},
-    ProcessMessage,
-};
+use crate::ProcessMessage;
 use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
 
 // TODO: what should be the procedure on failure here ?
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
+    sender: std::sync::Arc<Sender>,
 ) {
-    let queued = match queue_manager.list(&QueueID::Deferred) {
+    let queued = match queue_manager.list(&QueueID::Deferred).await {
         Ok(queued) => queued,
         Err(error) => {
             tracing::error!(%error, "Listing deferred queue failure.");
@@ -37,8 +36,12 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     for i in queued {
-        let msg_id = match i {
-            Ok(msg_id) => msg_id,
+        let message_uuid = match i.map(|i| uuid::Uuid::parse_str(&i)) {
+            Ok(Ok(message_uuid)) => message_uuid,
+            Ok(Err(error)) => {
+                tracing::error!(%error, "Invalid message id in deferred queue.");
+                continue;
+            }
             Err(error) => {
                 tracing::error!(%error, "Deferred message id missing.");
                 continue;
@@ -50,9 +53,10 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
             resolvers.clone(),
             queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id,
+                message_uuid,
                 delegated: false,
             },
+            sender.clone(),
         )
         .await
         {
@@ -61,19 +65,23 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     }
 }
 
-#[tracing::instrument(name = "deferred", skip_all, fields(message_id = %process_message.message_id))]
+#[tracing::instrument(name = "deferred", skip_all, err, fields(uuid = %process_message.message_uuid))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
+    sender: std::sync::Arc<Sender>,
 ) -> anyhow::Result<()> {
     tracing::debug!("Processing email.");
 
-    let (mut mail_context, mail_message) =
-        queue_manager.get_both(&QueueID::Deferred, &process_message.message_id)?;
+    let (mut mail_context, mail_message) = queue_manager
+        .get_both(&QueueID::Deferred, &process_message.message_uuid)
+        .await?;
 
-    match send_mail(&config, &mut mail_context, &mail_message, resolvers).await {
+    match split_and_sort_and_send(&config, &mut mail_context, &mail_message, resolvers, sender)
+        .await
+    {
         SenderOutcome::MoveToDead => queue_manager
             .move_to(&QueueID::Deferred, &QueueID::Dead, &mail_context)
             .await
@@ -89,9 +97,8 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
             .await
             .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
         SenderOutcome::RemoveFromDisk => {
-            // TODO: remove both ?
             queue_manager
-                .remove_ctx(&QueueID::Deferred, &process_message.message_id)
+                .remove_both(&QueueID::Deferred, &process_message.message_uuid)
                 .await
         }
     }
@@ -105,20 +112,15 @@ mod tests {
 
     #[tokio::test]
     async fn move_to_deferred() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deferred1".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "move_to_deferred";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
-        ctx.envelop.rcpt.push(Rcpt::new(
+        let message_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = message_uuid;
+        ctx.rcpt_to.forward_paths.push(Rcpt::new(
             <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
         ));
 
@@ -128,73 +130,75 @@ mod tests {
             .unwrap();
 
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_deferred_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_uuid,
                 delegated: false,
             },
+            sender,
         )
         .await
         .unwrap();
 
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deliver, &message_uuid)
+            .await
+            .unwrap_err();
+        queue_manager
+            .get_ctx(&QueueID::Dead, &message_uuid)
+            .await
+            .unwrap_err();
+
+        queue_manager
+            .get_ctx(&QueueID::Deferred, &message_uuid)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn move_to_dead() {
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/spool_deferred2".into();
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-
-        let config = std::sync::Arc::new(config);
+        let config = std::sync::Arc::new(local_test());
         let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
                 .unwrap();
 
-        let msg_id = "move_to_dead";
-
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        let message_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = message_uuid;
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
             .await
             .unwrap();
         let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
+        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_deferred_queue(
             config.clone(),
             resolvers,
-            queue_manager,
+            queue_manager.clone(),
             ProcessMessage {
-                message_id: msg_id.to_string(),
+                message_uuid,
                 delegated: false,
             },
+            sender,
         )
         .await
         .unwrap();
 
-        assert!(!config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Deferred, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Deferred, &message_uuid)
+            .await
+            .unwrap_err();
 
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join(format!("{}/{}.json", QueueID::Dead, msg_id))
-            .exists());
+        queue_manager
+            .get_ctx(&QueueID::Dead, &message_uuid)
+            .await
+            .unwrap();
     }
 }

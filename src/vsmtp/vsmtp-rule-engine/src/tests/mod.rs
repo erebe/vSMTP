@@ -14,92 +14,33 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+mod errors;
 
-macro_rules! rules_path {
-    ( $( $x:expr ),* ) => [
-        std::path::PathBuf::from(file!())
-            .parent()
-            .unwrap()
-            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
-            .strip_prefix("src/vsmtp/vsmtp-rule-engine")
-            .unwrap()
-            .to_path_buf()
-    ];
-}
+use crate::RuleEngine;
+use vqueue::GenericQueueManager;
+use vsmtp_config::DnsResolvers;
+use vsmtp_test::config::local_test;
 
-mod actions;
-mod context;
-mod engine;
-mod message;
-mod rules;
-mod types;
+const TIME: &str = r#"
+print(time().to_string());
+print(time().to_debug());
+print(date().to_string());
+print(date().to_debug());
 
-pub mod helpers {
-    use vsmtp_config::{Config, DnsResolvers};
+#{}
+"#;
 
-    use crate::{rule_engine::RuleEngine, rule_state::RuleState};
+#[test]
+fn time_api() {
+    let config = std::sync::Arc::new(local_test());
+    let queue_manger = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
-    pub(super) fn get_default_config(dirpath: impl Into<std::path::PathBuf>) -> Config {
-        Config::builder()
-            .with_version_str("<1.0.0")
-            .unwrap()
-            .with_server_name_and_client_count("testserver.com", 32)
-            .with_user_group_and_default_system("root", "root")
-            .unwrap()
-            .with_ipv4_localhost()
-            .with_default_logs_settings()
-            .with_spool_dir_and_default_queues("./tmp/spool")
-            .without_tls_support()
-            .with_default_smtp_options()
-            .with_default_smtp_error_handler()
-            .with_default_smtp_codes()
-            .without_auth()
-            .with_app_at_location(dirpath)
-            .with_vsl("./src/tests/empty_main.vsl")
-            .with_default_app_logs()
-            .with_system_dns()
-            .without_virtual_entries()
-            .validate()
-            .unwrap()
-    }
-
-    /// create a rule engine state with it's associated configuration.
-    pub(super) fn get_default_state(
-        dirpath: impl Into<std::path::PathBuf>,
-    ) -> (RuleState, std::sync::Arc<Config>) {
-        let config = Config::builder()
-            .with_version_str("<1.0.0")
-            .unwrap()
-            .with_server_name_and_client_count("testserver.com", 32)
-            .with_user_group_and_default_system("root", "root")
-            .unwrap()
-            .with_ipv4_localhost()
-            .with_default_logs_settings()
-            .with_spool_dir_and_default_queues("./tmp/spool")
-            .without_tls_support()
-            .with_default_smtp_options()
-            .with_default_smtp_error_handler()
-            .with_default_smtp_codes()
-            .without_auth()
-            .with_app_at_location(dirpath)
-            .with_vsl("./src/tests/empty_main.vsl")
-            .with_default_app_logs()
-            .with_system_dns()
-            .without_virtual_entries()
-            .validate()
-            .unwrap();
-
-        let config = std::sync::Arc::new(config);
-        let re = RuleEngine::from_script(config.clone(), "#{}").unwrap();
-        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
-
-        let queue_manager =
-            <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                .unwrap();
-
-        (
-            RuleState::new(config.clone(), resolvers, queue_manager, &re),
-            config,
-        )
-    }
+    RuleEngine::with_hierarchy(
+        config,
+        |builder| Ok(builder.add_root_incoming_rules(TIME)?.build()),
+        dns_resolvers,
+        queue_manger,
+    )
+    .unwrap();
 }

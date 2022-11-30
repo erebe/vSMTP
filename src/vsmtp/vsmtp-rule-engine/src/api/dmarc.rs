@@ -57,30 +57,20 @@ mod dmarc_rhai {
         format!("{record:#?}")
     }
 
-    /// Get a valid DMARC record for the domain
-    #[rhai_fn(global, pure, return_raw)]
-    pub fn get_dmarc_record(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
-        let resolver = server.resolvers.get_resolver_root();
+    /// Get a valid DMARC record for the domain.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "get_dmarc_record", pure, return_raw)]
+    pub fn get_dmarc_record_obj(
+        server: &mut Server,
+        domain: SharedObject,
+    ) -> EngineResult<dmarc::Record> {
+        super::get_dmarc_record(server, &domain.to_string())
+    }
 
-        let txt_record = tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current()
-                .block_on(resolver.txt_lookup(format!("_dmarc.{domain}")))
-        })
-        .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        let records = txt_record
-            .into_iter()
-            .map(|i| <dmarc::Record as std::str::FromStr>::from_str(&i.to_string()));
-
-        let first = records
-            .into_iter()
-            .next()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!("no `_dmarc` record found for domain `{domain}`").into()
-            })?
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        Ok(first)
+    /// Get a valid DMARC record for the domain.
+    #[rhai_fn(global, name = "get_dmarc_record", pure, return_raw)]
+    pub fn get_dmarc_record_str(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
+        super::get_dmarc_record(server, domain)
     }
 
     ///
@@ -126,4 +116,27 @@ mod dmarc_rhai {
     pub fn receiver_policy(record: &mut dmarc::Record) -> String {
         record.get_policy()
     }
+}
+
+fn get_dmarc_record(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
+    let resolver = server.resolvers.get_resolver_root();
+
+    let txt_record = tokio::task::block_in_place(move || {
+        tokio::runtime::Handle::current().block_on(resolver.txt_lookup(format!("_dmarc.{domain}")))
+    })
+    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+    let records = txt_record
+        .into_iter()
+        .map(|i| <dmarc::Record as std::str::FromStr>::from_str(&i.to_string()));
+
+    let first = records
+        .into_iter()
+        .next()
+        .ok_or_else::<Box<EvalAltResult>, _>(|| {
+            format!("no `_dmarc` record found for domain `{domain}`").into()
+        })?
+        .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+    Ok(first)
 }

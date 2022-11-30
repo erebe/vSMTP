@@ -19,9 +19,9 @@ use super::Transport;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown,
-    mail_context::MessageMetadata,
     rcpt::Rcpt,
-    transfer::{EmailTransferStatus, TransferErrors},
+    transfer::{EmailTransferStatus, TransferErrorsVariant},
+    ContextFinished,
 };
 use vsmtp_config::Config;
 
@@ -33,21 +33,23 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
 /// application/mbox Media Type.
 /// (see [rfc4155](https://datatracker.ietf.org/doc/html/rfc4155#appendix-A))
 #[derive(Default)]
+#[non_exhaustive]
 pub struct MBox;
 
 // FIXME: use UsersCache.
 
 #[async_trait::async_trait]
 impl Transport for MBox {
+    #[inline]
     async fn deliver(
         self,
         config: &Config,
-        metadata: &MessageMetadata,
+        ctx: &ContextFinished,
         from: &vsmtp_common::Address,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let timestamp = get_mbox_timestamp_format(&metadata.timestamp.unwrap());
+        let timestamp = get_mbox_timestamp_format(&ctx.connect.connect_timestamp);
         let content = build_mbox_message(from, &timestamp, content);
 
         for rcpt in &mut to {
@@ -65,14 +67,15 @@ impl Transport for MBox {
                 Some(Ok(_)) => {
                     tracing::info!("Email delivered.");
 
-                    rcpt.email_status = EmailTransferStatus::Sent {
-                        timestamp: std::time::SystemTime::now(),
-                    }
+                    rcpt.email_status = EmailTransferStatus::sent();
                 }
                 Some(Err(error)) => {
                     tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.email_status.held_back(error);
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::LocalDeliveryError {
+                            error: error.to_string(),
+                        });
                 }
                 None => {
                     tracing::error!(
@@ -80,9 +83,10 @@ impl Transport for MBox {
                         "Email delivery failure."
                     );
 
-                    rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
-                        name: rcpt.address.local_part().to_string(),
-                    });
+                    rcpt.email_status
+                        .held_back(TransferErrorsVariant::NoSuchMailbox {
+                            name: rcpt.address.local_part().to_owned(),
+                        });
                 }
             }
         }
@@ -90,19 +94,14 @@ impl Transport for MBox {
     }
 }
 
-fn get_mbox_timestamp_format(timestamp: &std::time::SystemTime) -> String {
-    let odt: time::OffsetDateTime = (*timestamp).into();
-
-    odt.format(&CTIME_FORMAT)
+fn get_mbox_timestamp_format(timestamp: &time::OffsetDateTime) -> String {
+    timestamp
+        .format(&CTIME_FORMAT)
         .unwrap_or_else(|_| String::default())
 }
 
-fn build_mbox_message(
-    from: &vsmtp_common::Address,
-    timestamp: &str,
-    content: &str,
-) -> std::string::String {
-    format!("From {} {}\n{}\n", from, timestamp, content)
+fn build_mbox_message(from: &vsmtp_common::Address, timestamp: &str, content: &str) -> String {
+    format!("From {from} {timestamp}\n{content}\n")
 }
 
 fn write_content_to_mbox(
@@ -137,7 +136,7 @@ mod test {
     fn test_mbox_time_format() {
         // FIXME: I did not find a proper way to compare timestamps because the system time
         //        cannot be zero.
-        get_mbox_timestamp_format(&std::time::SystemTime::now());
+        get_mbox_timestamp_format(&time::OffsetDateTime::now_utc());
     }
 
     #[test]
@@ -149,7 +148,7 @@ subject: test email
 
 This is a raw email."#;
 
-        let timestamp = get_mbox_timestamp_format(&std::time::SystemTime::UNIX_EPOCH);
+        let timestamp = get_mbox_timestamp_format(&time::OffsetDateTime::UNIX_EPOCH);
 
         let message = build_mbox_message(&from, &timestamp, content);
 
@@ -168,13 +167,12 @@ This is a raw email.
     #[test]
     #[ignore]
     fn test_writing_to_mbox() {
-        let user = users::get_user_by_uid(users::get_current_uid())
-            .expect("current user has been deleted after running this test");
+        let user = users::get_user_by_uid(users::get_current_uid()).unwrap();
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
         let mbox =
             std::path::PathBuf::from_iter(["./tests/generated/", user.name().to_str().unwrap()]);
 
-        std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
+        std::fs::create_dir_all("./tests/generated/").unwrap();
         write_content_to_mbox(
             &Rcpt::new(addr!("john.doe@example.com")),
             &mbox,
@@ -182,12 +180,9 @@ This is a raw email.
             None,
             content,
         )
-        .expect("could not write to mbox");
+        .unwrap();
 
-        assert_eq!(
-            content.to_string(),
-            std::fs::read_to_string(&mbox).expect("could not read mbox")
-        );
+        assert_eq!(content.to_owned(), std::fs::read_to_string(&mbox).unwrap());
 
         std::fs::remove_file(mbox).unwrap();
     }

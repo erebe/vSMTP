@@ -2,7 +2,7 @@
 set -e
 
 CONF_DIR="/etc/vsmtp/"
-CONF_FILE=${CONF_DIR}"vsmtp.toml"
+CONF_FILE=${CONF_DIR}"vsmtp.vsl"
 
 case "$1" in
 purge)

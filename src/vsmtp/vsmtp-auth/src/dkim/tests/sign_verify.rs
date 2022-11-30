@@ -92,7 +92,7 @@ fn rsa_sha1() {
     let mut public_key = PublicKey::try_from(public_key).unwrap();
     public_key.record.acceptable_hash_algorithms = vec![HashAlgorithm::Sha1];
 
-    verify(&signature, message.inner(), &public_key).unwrap()
+    verify(&signature, message.inner(), &public_key).unwrap();
 }
 
 #[test]

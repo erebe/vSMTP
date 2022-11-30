@@ -1,4 +1,0 @@
-object allowed_hosts group = [
-    object my_server ip4 = "192.168.1.254",
-    object my_secondary_mta fqdn = "mta-internal.foobar.com",
-];

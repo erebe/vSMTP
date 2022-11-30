@@ -1,0 +1,27 @@
+// Here is a generic example of what is possible to do
+// with the `message` api of vsl.
+//
+// Those examples are not necessarily meant to be relevant.
+// They are just here to show you what functions you can use
+// to manipulate the message.
+
+import "objects/mail" as mail;
+
+#{
+    // the email has not been received yet, but you can already
+    // manipulate headers.
+    connect: [
+        action "add info header" || {
+            // `append_header` & `prepend_header` enables you to add new headers at the start or end
+            // of the header section of the email. Once the email is received, all of those added headers
+            // will be prepended to those received in the preq stage. If you absolutely want to append headers
+            // to those received, use `append_header` from the `preq` stage and onward.
+
+            // use string interpolation to insert variables into the header's value (or name!).
+            append_header("X-Connect", `from ${client_ip()}:${client_port()} at ${connection_timestamp()} by ${server_name()}`);
+            prepend_header(mail::info_header, "processing");
+        }
+    ],
+
+    rcpt: [ rule "reject relay" || deny(code554_7_1) ]
+}

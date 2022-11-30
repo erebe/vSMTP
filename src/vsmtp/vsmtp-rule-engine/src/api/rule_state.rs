@@ -14,13 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    api::{
-        transports::disable_delivery_all,
-        EngineResult, {Context, SharedObject},
-    },
-    dsl::object::Object,
-};
+
+use vsmtp_plugin_vsl::objects::Object;
+
+use crate::api::{EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
@@ -35,11 +32,11 @@ fn reply_or_code_id_from_object(code: &SharedObject) -> EngineResult<ReplyOrCode
 }
 
 fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
-    Ok(ReplyOrCodeID::Right(Reply::parse_str(code).map_err::<Box<
-        EvalAltResult,
-    >, _>(
-        |_| format!("parameter must be a code, not {:?}", code).into(),
-    )?))
+    Ok(ReplyOrCodeID::Right(
+        <Reply as std::str::FromStr>::from_str(code).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!("parameter must be a code, not {:?}", code).into()
+        })?,
+    ))
 }
 
 pub use rule_state::*;
@@ -157,11 +154,10 @@ mod rule_state {
     /// # Errors
     ///
     /// * a mutex is poisoned
-    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
-    pub fn quarantine_str(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
-        disable_delivery_all(ctx)?;
-
-        Ok(Status::Quarantine(queue.to_string()))
+    #[must_use]
+    #[rhai_fn(global, name = "quarantine")]
+    pub fn quarantine_str(queue: &str) -> Status {
+        Status::Quarantine(queue.to_string())
     }
 
     /// Return a [`Status::Quarantine`] with `queue`
@@ -170,10 +166,9 @@ mod rule_state {
     ///
     /// * a mutex is poisoned
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
-    pub fn quarantine_obj(ctx: &mut Context, queue: SharedObject) -> EngineResult<Status> {
-        disable_delivery_all(ctx)?;
-
-        Ok(Status::Quarantine(queue.to_string()))
+    #[must_use]
+    #[rhai_fn(global, name = "quarantine")]
+    pub fn quarantine_obj(queue: SharedObject) -> Status {
+        Status::Quarantine(queue.to_string())
     }
 }

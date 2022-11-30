@@ -1,0 +1,5 @@
+import "objects/family" as obj;
+
+fn bcc_jenny() {
+    if rcpt() == obj::jenny { bcc(obj::jane) }
+}

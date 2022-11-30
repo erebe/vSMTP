@@ -1,0 +1,8 @@
+// You could use a database instead of a group object.
+export const my_aliases =[
+    identifier("john"),
+    identifier("joe"),
+    identifier("jenny"),
+];
+
+export const my_main_address = address("john.doe@mydomain.com");

@@ -16,7 +16,7 @@
  */
 
 // A service to interface with a csv file.
-service my_database db:csv = #{
+export const my_database = csv(#{
     // The path to the csv database.
     connector: "../../../examples/services/path-to-my_db.csv",
     // The access mode of the database. Can be:
@@ -34,12 +34,12 @@ service my_database db:csv = #{
     refresh: "always",
     // The delimiter character used in the csv file. (Optional, ',' by default)
     delimiter: ',',
-};
+});
 
 // A service to interface with a greylist database.
-service greylist db:csv = #{
+export const greylist = csv(#{
     connector: "/tmp/greylist.csv",
-};
+});
 
 rule "greylisting" || {
     if greylist.get(mail_from()).is_empty() {

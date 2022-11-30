@@ -1,0 +1,15 @@
+//! This is the first file that vSMTP reads when it starts.
+//!
+//! This file is maintained by vSMTP package maintainers and it is recommended that administrators
+//! avoid editing this file unless they also follow changes made by upstream.
+//! It's advised to instead add customizations in the files underneath
+//! the $(conf.d/) directory.
+
+import "conf.d/config" as cfg;
+
+fn on_config(config) {
+    let config = cfg::on_config(config);
+
+    config.version_requirement = ">=1.4.0-rc.0";
+    config
+}

@@ -22,11 +22,11 @@ use crate::{
 /// representation of a recipient with it's delivery method.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
-    /// email address of the recipient.
+    /// Email address of the recipient.
     pub address: Address,
-    /// protocol used by vsmtp to deliver / transfer the email bound by this recipient.
+    /// Protocol used by vsmtp to deliver / transfer the email bound by this recipient.
     pub transfer_method: Transfer,
-    /// delivery status of the email bound to this recipient.
+    /// Delivery status of the email bound to this recipient.
     pub email_status: EmailTransferStatus,
 }
 
@@ -37,22 +37,8 @@ impl Rcpt {
     pub fn new(address: Address) -> Self {
         Self {
             address,
-            transfer_method: Transfer::Deliver,
-            email_status: EmailTransferStatus::Waiting {
-                timestamp: std::time::SystemTime::now(),
-            },
-        }
-    }
-
-    /// create a new recipient from it's address & transfer method.
-    #[must_use]
-    pub fn with_transfer_method(address: Address, method: Transfer) -> Self {
-        Self {
-            address,
-            transfer_method: method,
-            email_status: EmailTransferStatus::Waiting {
-                timestamp: std::time::SystemTime::now(),
-            },
+            transfer_method: Transfer::default(),
+            email_status: EmailTransferStatus::default(),
         }
     }
 }

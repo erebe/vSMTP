@@ -20,8 +20,8 @@ use crate::{
         FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking, FieldServer,
         FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls, ResolverOptsWrapper,
-        SyslogSocket, TlsSecurityLevel,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, ResolverOptsWrapper,
+        SyslogSocket,
     },
     Config,
 };
@@ -31,7 +31,7 @@ impl Default for Config {
     fn default() -> Self {
         let current_version =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("valid semver");
-        Self::ensure(Self {
+        Self {
             version_requirement: semver::VersionReq::from_iter([
                 semver::Comparator {
                     op: semver::Op::GreaterEq,
@@ -50,15 +50,15 @@ impl Default for Config {
             ]),
             server: FieldServer::default(),
             app: FieldApp::default(),
-        })
-        .unwrap()
+            path: None,
+        }
     }
 }
 
 impl Default for FieldServer {
     fn default() -> Self {
         Self {
-            domain: Self::hostname(),
+            name: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
             message_size_limit: Self::default_message_size_limit(),
             system: FieldServerSystem::default(),
@@ -273,9 +273,9 @@ impl FieldQueueDelivery {
     }
 }
 
-impl FieldServerVirtualTls {
-    pub(crate) const fn default_sender_security_level() -> TlsSecurityLevel {
-        TlsSecurityLevel::Encrypt
+impl FieldServerVirtual {
+    pub(crate) fn default_json() -> anyhow::Result<rhai::Map> {
+        Ok(rhai::Engine::new().parse_json(serde_json::to_string(&Self::default())?, true)?)
     }
 }
 
@@ -286,7 +286,6 @@ impl Default for FieldServerSMTPAuth {
             ),
             mechanisms: Self::default_mechanisms(),
             attempt_count_max: Self::default_attempt_count_max(),
-            must_be_authenticated: Self::default_must_be_authenticated(),
         }
     }
 }
@@ -304,10 +303,6 @@ impl FieldServerSMTPAuth {
 
     pub(crate) const fn default_attempt_count_max() -> i64 {
         -1
-    }
-
-    pub(crate) const fn default_must_be_authenticated() -> bool {
-        false
     }
 }
 
@@ -337,16 +332,16 @@ impl FieldServerSMTP {
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
         let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
             CodeID::Greetings => Reply::new(
-                ReplyCode::Code{ code: 220 }, "{domain} Service ready"
+                ReplyCode::Code{ code: 220 }, "{name} Service ready\r\n"
             ),
             CodeID::Help => Reply::new(
-                ReplyCode::Code{ code: 214 }, "joining us https://viridit.com/support"
+                ReplyCode::Code{ code: 214 }, "joining us https://viridit.com/support\r\n"
             ),
             CodeID::Closing => Reply::new(
-                ReplyCode::Code{ code: 221 }, "Service closing transmission channel"
+                ReplyCode::Code{ code: 221 }, "Service closing transmission channel\r\n"
             ),
             CodeID::Helo => Reply::new(
-                ReplyCode::Code{ code: 250 }, "Ok"
+                ReplyCode::Code{ code: 250 }, "Ok\r\n"
             ),
             // CodeID::EhloPain => Reply::new(
             //     ReplyCode::Code{ code: 200 }, ""
@@ -355,83 +350,77 @@ impl FieldServerSMTP {
             //     ReplyCode::Code{ code: 200 }, ""
             // ),
             CodeID::DataStart => Reply::new(
-                ReplyCode::Code{ code: 354 }, "Start mail input; end with <CRLF>.<CRLF>"
+                ReplyCode::Code{ code: 354 }, "Start mail input; end with <CRLF>.<CRLF>\r\n"
             ),
             CodeID::Ok => Reply::new(
-                ReplyCode::Code{ code: 250 }, "Ok"
+                ReplyCode::Code{ code: 250 }, "Ok\r\n"
             ),
             CodeID::Failure => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Requested action aborted: local error in processing"
+                ReplyCode::Code{ code: 451 }, "Requested action aborted: local error in processing\r\n"
             ),
             CodeID::Denied => Reply::new(
-                ReplyCode::Code{ code: 554 }, "permanent problems with the remote server"
+                ReplyCode::Code{ code: 554 }, "permanent problems with the remote server\r\n"
             ),
             CodeID::UnrecognizedCommand => Reply::new(
-                ReplyCode::Code{ code: 500 }, "Syntax error command unrecognized"
+                ReplyCode::Code{ code: 500 }, "Syntax error command unrecognized\r\n"
             ),
             CodeID::SyntaxErrorParams => Reply::new(
-                ReplyCode::Code{ code: 501 }, "Syntax error in parameters or arguments"
+                ReplyCode::Code{ code: 501 }, "Syntax error in parameters or arguments\r\n"
             ),
             CodeID::ParameterUnimplemented => Reply::new(
-                ReplyCode::Code{ code: 504 }, "Command parameter not implemented"
+                ReplyCode::Code{ code: 504 }, "Command parameter not implemented\r\n"
             ),
             CodeID::Unimplemented => Reply::new(
-                ReplyCode::Code{ code: 502 }, "Command not implemented"
+                ReplyCode::Code{ code: 502 }, "Command not implemented\r\n"
             ),
             CodeID::BadSequence => Reply::new(
-                ReplyCode::Code{ code: 503 }, "Bad sequence of commands"
+                ReplyCode::Code{ code: 503 }, "Bad sequence of commands\r\n"
             ),
             CodeID::MessageSizeExceeded => Reply::new(
-                ReplyCode::Enhanced { code: 552, enhanced: "4.3.1".to_string() }, "Message size exceeds fixed maximum message size"
+                ReplyCode::Enhanced { code: 552, enhanced: "4.3.1".to_string() }, "Message size exceeds fixed maximum message size\r\n"
             ),
             CodeID::TlsGoAhead => Reply::new(
-                ReplyCode::Code{ code: 220 }, "TLS go ahead"
+                ReplyCode::Code{ code: 220 }, "TLS go ahead\r\n"
             ),
             CodeID::TlsNotAvailable => Reply::new(
-                ReplyCode::Code{ code: 454 }, "TLS not available due to temporary reason"
+                ReplyCode::Code{ code: 454 }, "TLS not available due to temporary reason\r\n"
             ),
             CodeID::AlreadyUnderTLS => Reply::new(
-                ReplyCode::Enhanced{ code: 554, enhanced: "5.5.1".to_string() }, "Error: TLS already active"
-            ),
-            CodeID::TlsRequired => Reply::new(
-                ReplyCode::Code{ code: 530 }, "Must issue a STARTTLS command first"
+                ReplyCode::Enhanced{ code: 554, enhanced: "5.5.1".to_string() }, "Error: TLS already active\r\n"
             ),
             CodeID::AuthSucceeded => Reply::new(
-                ReplyCode::Enhanced{ code: 235, enhanced: "2.7.0".to_string() }, "Authentication succeeded"
+                ReplyCode::Enhanced{ code: 235, enhanced: "2.7.0".to_string() }, "Authentication succeeded\r\n"
             ),
             CodeID::AuthMechNotSupported => Reply::new(
-                ReplyCode::Enhanced{ code: 504, enhanced: "5.5.4".to_string() }, "Mechanism is not supported"
+                ReplyCode::Enhanced{ code: 504, enhanced: "5.5.4".to_string() }, "Mechanism is not supported\r\n"
             ),
             CodeID::AuthClientMustNotStart => Reply::new(
-                ReplyCode::Enhanced{ code: 501, enhanced: "5.7.0".to_string() }, "Client must not start with this mechanism"
+                ReplyCode::Enhanced{ code: 501, enhanced: "5.7.0".to_string() }, "Client must not start with this mechanism\r\n"
             ),
             CodeID::AuthMechanismMustBeEncrypted => Reply::new(
                 ReplyCode::Enhanced{ code: 538, enhanced: "5.7.11".to_string() },
-                    "Encryption required for requested authentication mechanism"
+                    "Encryption required for requested authentication mechanism\r\n"
             ),
             CodeID::AuthInvalidCredentials => Reply::new(
-                ReplyCode::Enhanced{ code: 535, enhanced: "5.7.8".to_string() }, "Authentication credentials invalid"
-            ),
-            CodeID::AuthRequired => Reply::new(
-                ReplyCode::Enhanced{ code: 530, enhanced: "5.7.0".to_string() }, "Authentication required"
+                ReplyCode::Enhanced{ code: 535, enhanced: "5.7.8".to_string() }, "Authentication credentials invalid\r\n"
             ),
             CodeID::AuthClientCanceled => Reply::new(
-                ReplyCode::Code{ code: 501 }, "Authentication canceled by client"
+                ReplyCode::Code{ code: 501 }, "Authentication canceled by client\r\n"
             ),
             CodeID::AuthErrorDecode64 => Reply::new(
-                ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64"
+                ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64\r\n"
             ),
             CodeID::ConnectionMaxReached => Reply::new(
-                ReplyCode::Code{ code: 554 }, "Cannot process connection, closing"
+                ReplyCode::Code{ code: 554 }, "Cannot process connection, closing\r\n"
             ),
             CodeID::TooManyError => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Too many errors from the client"
+                ReplyCode::Code{ code: 451 }, "Too many errors from the client\r\n"
             ),
             CodeID::Timeout => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Timeout - closing connection"
+                ReplyCode::Code{ code: 451 }, "Timeout - closing connection\r\n"
             ),
             CodeID::TooManyRecipients => Reply::new(
-                ReplyCode::Code{ code: 452 }, "Requested action not taken: too many recipients"
+                ReplyCode::Code{ code: 452 }, "Requested action not taken: too many recipients\r\n"
             ),
         };
 

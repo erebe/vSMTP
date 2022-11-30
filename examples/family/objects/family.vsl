@@ -1,0 +1,29 @@
+// IP addresses of the MTA and the internal IP range
+export const local_mta = ip4("192.168.1.254");
+export const internal_net = rg4("192.168.0.0/24");
+
+// Doe's family domain name
+export const family_domain = fqdn("doe-family.com");
+
+// The mailboxes
+export const john = address("john.doe@doe-family.com");
+export const jane = address("jane.doe@doe-family.com");
+export const jimmy = address("jimmy.doe@doe-family.com");
+export const jenny = address("jenny.doe@doe-family.com");
+export const fridge = address("IOT-fridge@doe-family.com");
+
+// A group to manipulate the mailboxes
+export const family_addr = [john, jane, jimmy, jenny];
+
+// A quarantine for unknown mailboxes
+export const unknown_quarantine = "doe/bad_user";
+export const virus_queue = "doe/virus";
+
+// NOTE: This is commented because I could not yet find a way to
+//       run automated test with file objects. Since the path must
+//       be absolute, it does not integrate well with unit tests.
+
+// A user blacklist file
+// export const blacklist file:fqdn = "../../../examples/family/conf.d/blacklist.txt";
+
+export const untrusted = regex("^[a-z0-9.]+@example.com$")

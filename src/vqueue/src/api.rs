@@ -14,12 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::ContextFinished;
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
+extern crate alloc;
 
 /// identifiers for all mail queues.
-#[derive(Debug, PartialEq, Eq, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
+#[allow(clippy::exhaustive_enums)]
+#[derive(Debug, PartialEq, Eq, Clone, strum::IntoStaticStr, strum::EnumString, strum::EnumIter)]
 #[strum(serialize_all = "lowercase")]
 pub enum QueueID {
     /// Postq.
@@ -40,119 +42,177 @@ pub enum QueueID {
     },
 }
 
-///
-#[derive(Debug, Clone)]
-pub struct DetailedMailContext {
-    pub(crate) ctx: MailContext,
-    pub(crate) modified_at: std::time::SystemTime,
+impl core::fmt::Display for QueueID {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            &QueueID::Quarantine { ref name } => write!(f, "quarantine/{name}"),
+            &QueueID::Working
+            | &QueueID::Deliver
+            | &QueueID::Delegated
+            | &QueueID::Deferred
+            | &QueueID::Dead => write!(f, "{}", Into::<&'static str>::into(self)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn queue_id_to_string() {
+        for (q, str) in [
+            QueueID::Working,
+            QueueID::Deliver,
+            QueueID::Delegated,
+            QueueID::Deferred,
+            QueueID::Dead,
+            QueueID::Quarantine {
+                name: "foobar".to_owned(),
+            },
+        ]
+        .into_iter()
+        .zip([
+            "working",
+            "deliver",
+            "delegated",
+            "deferred",
+            "dead",
+            "quarantine/foobar",
+        ]) {
+            assert_eq!(q.to_string(), str);
+        }
+    }
 }
 
 ///
+#[derive(Debug, Clone)]
+pub struct DetailedMailContext {
+    pub(crate) ctx: ContextFinished,
+    pub(crate) modified_at: std::time::SystemTime,
+}
+
+/// CRUD operation for mail in queues.
 #[async_trait::async_trait]
 pub trait GenericQueueManager
 where
-    Self: std::fmt::Debug + Sync + Send,
+    Self: core::fmt::Debug + Sync + Send,
 {
+    /// This method is called to initialize the queue manager.
     ///
-    fn init(config: std::sync::Arc<Config>) -> anyhow::Result<std::sync::Arc<Self>>
+    /// All the method of [`GenericQueueManager`] take `&self` meaning that you should
+    /// wrap the mutable inner state in a `Mutex` or `RwLock`.
+    ///
+    /// The configuration must be stored and accessible using [`GenericQueueManager::get_config()`].
+    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized;
 
     ///
-    async fn get_config(&self) -> &Config;
+    fn get_config(&self) -> &Config;
 
     ///
-    async fn write_ctx(&self, queue: &QueueID, ctx: &MailContext) -> anyhow::Result<()>;
+    async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()>;
 
     ///
-    fn write_msg(&self, message_id: &str, msg: &MessageBody) -> anyhow::Result<()>;
+    async fn write_msg(&self, msg_uuid: &uuid::Uuid, msg: &MessageBody) -> anyhow::Result<()>;
 
     ///
+    #[inline]
     async fn write_both(
         &self,
         queue: &QueueID,
-        ctx: &MailContext,
+        ctx: &ContextFinished,
         msg: &MessageBody,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
     {
-        let msg_id = ctx
-            .metadata
-            .message_id
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?;
-
         self.write_ctx(queue, ctx).await?;
-        self.write_msg(msg_id, msg)?;
+        self.write_msg(&ctx.mail_from.message_uuid, msg).await?;
         Ok(())
     }
 
     ///
-    async fn remove_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()>;
+    async fn remove_ctx(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>;
 
     ///
-    async fn remove_msg(&self, msg_id: &str) -> anyhow::Result<()>;
+    async fn remove_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>;
 
     ///
-    async fn remove_both(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<()>
+    #[inline]
+    async fn remove_both(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()>
     where
         Self: Sized,
     {
-        self.remove_ctx(queue, msg_id).await?;
-        self.remove_msg(msg_id).await?;
+        self.remove_ctx(queue, msg_uuid).await?;
+        self.remove_msg(msg_uuid).await?;
         Ok(())
     }
 
     /// Get the list of message IDs in the queue.
-    fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
+    async fn list(&self, queue: &QueueID) -> anyhow::Result<Vec<anyhow::Result<String>>>;
 
     ///
-    fn get_ctx(&self, queue: &QueueID, msg_id: &str) -> anyhow::Result<MailContext>;
-
-    ///
-    fn get_detailed_ctx(
+    async fn get_ctx(
         &self,
         queue: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
+    ) -> anyhow::Result<ContextFinished>;
+
+    ///
+    async fn get_detailed_ctx(
+        &self,
+        queue: &QueueID,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<DetailedMailContext>;
 
     ///
-    fn get_msg(&self, msg_id: &str) -> anyhow::Result<MessageBody>;
+    async fn get_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<MessageBody>;
 
     ///
-    fn get_both(
+    #[inline]
+    async fn get_both(
         &self,
         queue: &QueueID,
-        msg_id: &str,
-    ) -> anyhow::Result<(MailContext, MessageBody)> {
-        Ok((self.get_ctx(queue, msg_id)?, self.get_msg(msg_id)?))
+        msg_uuid: &uuid::Uuid,
+    ) -> anyhow::Result<(ContextFinished, MessageBody)>
+    where
+        Self: Sized,
+    {
+        Ok((
+            self.get_ctx(queue, msg_uuid).await?,
+            self.get_msg(msg_uuid).await?,
+        ))
     }
 
     ///
+    #[inline]
     async fn move_to_from_id(
         &self,
         before: &QueueID,
         after: &QueueID,
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
     {
         anyhow::ensure!(before != after, "Queues are the same: `{before}`");
 
-        let ctx = self.get_ctx(before, msg_id)?;
+        let ctx = self.get_ctx(before, msg_uuid).await?;
         self.move_to(before, after, &ctx).await?;
 
         Ok(())
     }
 
     ///
+    #[inline]
     async fn move_to(
         &self,
         before: &QueueID,
         after: &QueueID,
-        ctx: &MailContext,
+        ctx: &ContextFinished,
     ) -> anyhow::Result<()>
     where
         Self: Sized,
@@ -162,14 +222,7 @@ where
         tracing::debug!(from = %before, to = %after, "Moving email.");
 
         self.write_ctx(after, ctx).await?;
-        self.remove_ctx(
-            before,
-            ctx.metadata
-                .message_id
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("`message_id` is missing"))?,
-        )
-        .await?;
+        self.remove_ctx(before, &ctx.mail_from.message_uuid).await?;
 
         Ok(())
     }

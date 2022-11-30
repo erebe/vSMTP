@@ -14,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use super::Mechanism;
+
 /// The credentials send by the client, not necessarily the right one
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
 #[strum(serialize_all = "PascalCase")]
@@ -30,4 +32,51 @@ pub enum Credentials {
         /// [ email / 1*255TCHAR ]
         token: String,
     },
+}
+
+#[doc(hidden)]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("field is missing")]
+    MissingField,
+    #[error("cannot parse utf8")]
+    Utf8(std::str::Utf8Error),
+    #[error("mechanism not implemented")]
+    Unimplemented,
+}
+
+impl TryFrom<(&rsasl::callback::SessionData, &rsasl::callback::Context<'_>)> for Credentials {
+    type Error = Error;
+
+    fn try_from(
+        value: (&rsasl::callback::SessionData, &rsasl::callback::Context<'_>),
+    ) -> Result<Self, Self::Error> {
+        let (session_data, context) = value;
+
+        match session_data.mechanism().mechanism {
+            mech if mech == Mechanism::Plain.as_ref() || mech == Mechanism::Login.as_ref() => {
+                Ok(Self::Verify {
+                    authid: context
+                        .get_ref::<rsasl::property::AuthId>()
+                        .ok_or(Error::MissingField)?
+                        .to_string(),
+                    authpass: std::str::from_utf8(
+                        context
+                            .get_ref::<rsasl::property::Password>()
+                            .ok_or(Error::MissingField)?,
+                    )
+                    .map_err(Error::Utf8)?
+                    .to_string(),
+                })
+            }
+            mech if mech == Mechanism::Anonymous.as_ref() => Ok(Credentials::AnonymousToken {
+                token: context
+                    .get_ref::<rsasl::mechanisms::anonymous::AnonymousToken>()
+                    .ok_or(Error::MissingField)?
+                    .to_string(),
+            }),
+            // mech if mech == Mechanism::CramMd5.as_ref() => todo!(),
+            _ => Err(Error::Unimplemented),
+        }
+    }
 }

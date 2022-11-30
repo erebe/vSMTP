@@ -14,44 +14,36 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::test_receiver;
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_dnsbl_1() {
-    let toml = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
+use crate::run_test;
 
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        [
-            "EHLO [222.11.16.196]\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "554 permanent problems with the remote server\r\n",
-        ]
-        .concat()
-    }
-    .is_ok());
+const CONFIG: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../examples/dnsbl/vsmtp.vsl"
+);
+
+run_test! {
+    fn test_dnsbl_1,
+    input = [
+        "EHLO [222.11.16.196]\r\n",
+    ],
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "451 4.7.1 Sender is not authorized. Please try again.\r\n",
+    ],
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_dnsbl_2() {
-    let toml = include_str!("../../../../../../examples/dnsbl/vsmtp.toml");
-    let config = vsmtp_config::Config::from_toml(toml).unwrap();
-
-    assert!(test_receiver! {
-        with_config => arc!(config),
-        [
-            "HELO foo\r\n",
-            "QUIT\r\n",
-        ].concat(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
-        ]
-        .concat()
-    }
-    .is_ok());
+run_test! {
+    fn test_dnsbl_2,
+    input = [
+        "HELO foo\r\n",
+        "QUIT\r\n",
+    ],
+    expected = [
+        "220 testserver.com Service ready\r\n",
+        "250 Ok\r\n",
+        "221 Service closing transmission channel\r\n"
+    ],
+    config = vsmtp_config::Config::from_vsl_file(CONFIG).unwrap(),
 }

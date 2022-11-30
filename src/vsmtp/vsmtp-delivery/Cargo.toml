@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-delivery"
-version = "1.3.4"
+version = "1.4.0-rc.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -20,32 +20,35 @@ categories = ["network-programming"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"{{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"={{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.3.4" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.3.4" }
+vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.0" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "=1.4.0-rc.0" }
 
-async-trait = { version = "0.1.57", default-features = false }
-anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+async-trait = { version = "0.1.59", default-features = false }
+anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
-tracing = { version = "0.1.36", default-features = false, features = [
+tracing = { version = "0.1.37", default-features = false, features = [
   "std",
   "attributes",
+  "release_max_level_info",
 ] }
-log = { version = "0.4.17", default-features = false, features = ["std"] }
 
-time = { version = "0.3.14", default-features = false, features = [
+futures-util = { version = "0.3.24", default-features = false, features = [
+  "async-await",
+] }
+
+time = { version = "0.3.17", default-features = false, features = [
   "std",
   "formatting",
   "macros",
 ] }
-addr = { version = "0.15.6", default-features = false, features = [
-  "std",
-  # "serde", # TODO
-] }
+addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
 users = { version = "0.11.0", default-features = false }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
@@ -61,7 +64,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
   "pool",
 ] }
 
-tokio = { version = "1.21.2", default-features = false, features = [
+tokio = { version = "1.22.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -69,3 +72,23 @@ tokio = { version = "1.21.2", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
+
+uuid = { version = "1.2.2", default-features = false, features = [
+  "std",
+  "v4",
+  "fast-rng",
+] }
+
+[dev-dependencies]
+vsmtp-test = { path = "../vsmtp-test" }
+test-log = { version = "0.2.11", features = ["trace"] }
+
+rstest = "0.16.0"
+async-std = { version = "1.5", features = ["attributes"] }
+
+env_logger = "0.10.0"
+tracing-subscriber = { version = "0.3.16", default-features = false, features = [
+  "env-filter",
+  "fmt",
+] }
+# tracing-test = "0.2.3"

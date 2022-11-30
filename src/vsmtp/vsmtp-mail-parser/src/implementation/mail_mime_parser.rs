@@ -35,8 +35,11 @@ pub struct MailMimeParser {
 }
 
 impl MailParser for MailMimeParser {
-    fn parse_sync(&mut self, raw: Vec<String>) -> ParserResult<either::Either<RawBody, Mail>> {
-        let ref_raw = raw.iter().map(String::as_str).collect::<Vec<&str>>();
+    fn parse_sync(&mut self, raw: Vec<Vec<u8>>) -> ParserResult<either::Either<RawBody, Mail>> {
+        let ref_raw = raw
+            .iter()
+            .map(|l| std::str::from_utf8(l).unwrap())
+            .collect::<Vec<&str>>();
         self.parse_inner(&mut &ref_raw[..]).map(either::Right)
     }
 }
@@ -76,7 +79,6 @@ impl MailMimeParser {
 
                     check_mandatory_headers(&headers.0)?;
                     let has_mime_version = headers.0.iter().any(|(name, _)| name == "mime-version");
-
                     tracing::trace!("mime-version header found?: {has_mime_version}",);
 
                     return Ok(Mail {

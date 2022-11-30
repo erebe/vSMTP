@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 use crate::api::SharedObject;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -25,69 +26,23 @@ pub use logging_rhai::*;
 #[rhai::plugin::export_module]
 mod logging_rhai {
 
-    /// # Examples
-    ///
-    /// ```
-    /// vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/str)" || {
-    ///       object message string = "Hello world!";
-    ///
-    ///       log("error", message);
-    ///     },
-    ///   ],
-    /// }
-    /// "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_str_obj(level: &str, message: SharedObject) {
         log(level, &message.to_string());
     }
 
-    /// # Examples
-    ///
-    /// ```
-    /// vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/str)" || {
-    ///       object level string = "warn";
-    ///
-    ///       log(level, "I love vsl!");
-    ///     },
-    ///   ],
-    /// }
-    /// "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_obj_str(level: &mut SharedObject, message: &str) {
         log(&level.to_string(), message);
     }
 
-    /// # Examples
-    ///
-    /// ```
-    /// vsmtp_test::vsl::run(r#"
-    /// #{
-    ///   connect: [
-    ///     action "log on connection (obj/obj)" || {
-    ///       object level string = "trace";
-    ///       object message string = "connection established";
-    ///
-    ///       log(level, message);
-    ///     },
-    ///   ],
-    /// }
-    /// "#);
-    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
+    #[doc(hidden)]
     pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
         log(&level.to_string(), &message.to_string());
     }
@@ -95,38 +50,41 @@ mod logging_rhai {
     /// # Examples
     ///
     /// ```
-    /// vsmtp_test::vsl::run(r#"
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (str/str)" || {
-    ///       log("info", "ehlo world");
+    ///       log("info", `[${date()}/${time()}] client=${client_ip()}`);
+    ///     },
+    ///     action "log on connection (str/obj)" || {
+    ///       log("error", identifier("Ehllo world!"));
+    ///     },
+    ///     action "log on connection (obj/obj)" || {
+    ///       const level = "trace";
+    ///       const message = "connection established";
+    ///
+    ///       log(identifier(level), identifier(message));
+    ///     },
+    ///     action "log on connection (obj/str)" || {
+    ///       const level = "warn";
+    ///
+    ///       log(identifier(level), "I love vsl!");
     ///     },
     ///   ],
     /// }
-    /// "#);
+    /// # "#)?.build()));
     /// ```
     #[rhai_fn(global, name = "log")]
-    #[doc = "overloaded as `log(level, message)`"]
-    // TODO: inject rule name #[tracing::instrument(name = %rule_name, skip_all)]
     #[allow(clippy::cognitive_complexity)]
     pub fn log(level: &str, message: &str) {
         match <tracing::Level as std::str::FromStr>::from_str(level) {
             Ok(level) => match level {
-                tracing::Level::TRACE => {
-                    tracing::trace!(message);
-                }
-                tracing::Level::DEBUG => {
-                    tracing::debug!(message);
-                }
-                tracing::Level::INFO => {
-                    tracing::info!(message);
-                }
-                tracing::Level::WARN => {
-                    tracing::warn!(message);
-                }
-                tracing::Level::ERROR => {
-                    tracing::error!(message);
-                }
+                tracing::Level::TRACE => tracing::trace!(message),
+                tracing::Level::DEBUG => tracing::debug!(message),
+                tracing::Level::INFO => tracing::info!(message),
+                tracing::Level::WARN => tracing::warn!(message),
+                tracing::Level::ERROR => tracing::error!(message),
             },
             Err(e) => {
                 tracing::warn!(

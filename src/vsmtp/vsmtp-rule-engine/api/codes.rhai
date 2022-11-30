@@ -20,31 +20,34 @@
 //! This module contains predefined codes for SMTP responses.
 
 // Relay
-object code554_7_1 code = #{ code: 554, enhanced: "5.7.1", text: "Relay access denied" };
+export const code554_7_1 = code(554, "5.7.1", "Relay access denied");
 
 // Email authentication status codes
 //
 // See. RFC 7372 for updated codes RFC
 
 // DKIM Failure codes (RFC 6376)
-object code550_7_20 code = #{ code: 550, enhanced: "5.7.20", text: "No passing DKIM signature found" };
-object code550_7_21 code = #{ code: 550, enhanced: "5.7.21", text: "No acceptable DKIM signature found" };
-object code550_7_22 code = #{ code: 550, enhanced: "5.7.22", text: "No valid author-matched DKIM signature found" };
+export const code550_7_20 = code(550, "5.7.20", "No passing DKIM signature found");
+export const code550_7_21 = code(550, "5.7.21", "No acceptable DKIM signature found");
+export const code550_7_22 = code(550, "5.7.22", "No valid author-matched DKIM signature found");
 
 // SPF Failure codes (RFC 7208)
-object code550_7_23 code = #{ code: 550, enhanced: "5.7.23", text: "SPF validation failed" };
-object code451_7_24 code = #{ code: 451, enhanced: "5.7.24", text: "SPF validation error" };
-object code550_7_24 code = #{ code: 550, enhanced: "5.7.24", text: "SPF validation error" };
+export const code550_7_23 = code(550, "5.7.23", "SPF validation failed");
+export const code451_7_24 = code(451, "5.7.24", "SPF validation error");
+export const code550_7_24 = code(550, "5.7.24", "SPF validation error");
 
 // Reverse DNS Failure code
-object code550_7_25 code = #{ code: 550, enhanced: "5.7.25", text: "Reverse DNS validation failed" };
+export const code550_7_25 = code(550, "5.7.25", "Reverse DNS validation failed");
 
 // Multiple Authentication Failures code
-object code550_7_26 code = #{ code: 500, enhanced: "5.7.26", text: "Multiple authentication checks failed" };
+export const code550_7_26 = code(500, "5.7.26", "Multiple authentication checks failed");
 
 // Null MX codes (RFC 7505)
-object code550_7_27 code = #{ code: 550, enhanced: "5.7.27", text: "Sender address has null MX" };
-object code556_1_10 code = #{ code: 556, enhanced: "5.1.10", text: "Recipient address has null MX" };
+export const code550_7_27 = code(550, "5.7.27", "Sender address has null MX");
+export const code556_1_10 = code(556, "5.1.10", "Recipient address has null MX");
 
 // Greylisting code (https://www.rfc-editor.org/rfc/rfc6647.html#section-2.1)
-object code_greylist code = #{ code: 451, enhanced: "4.7.1", text: "Sender is not authorized. Please try again." };
+export const code_greylist = code(451, "4.7.1", "Sender is not authorized. Please try again.");
+
+export const code_multi_destination = code(451, "4.3.0", "Multiple destination domains per transaction is unsupported. Please try again.");
+export const code_unknown_account = code(550, "5.1.1", "The email account that you tried to reach does not exist. Please try again.");

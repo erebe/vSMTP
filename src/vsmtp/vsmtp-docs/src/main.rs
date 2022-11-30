@@ -173,7 +173,19 @@ fn generate_function_documentation_from_module(
 //         - wrap 'sys' api into rhai functions ?       => might be cumbersome.
 
 fn main() {
-    let mut engine = RuleEngine::new_compiler(std::sync::Arc::new(vsmtp_config::Config::default()));
+    let mut args = std::env::args();
+
+    args.next();
+
+    let mut path: std::path::PathBuf = args
+        .next()
+        .expect("The first argument must be the folder where the documentation will be dumped.")
+        .parse()
+        .expect("The documentation generation path is not valid");
+
+    path.push("any.md");
+
+    let mut engine = RuleEngine::new_rhai_engine();
     let vsl_native_module = StandardVSLPackage::new().as_shared_module();
 
     engine.register_static_module("sys", vsl_native_module);
@@ -196,18 +208,6 @@ fn main() {
     );
 
     let variables = generate_variable_documentation_from_module(&vsl_rhai_module);
-
-    let mut args = std::env::args();
-
-    args.next();
-
-    let mut path: std::path::PathBuf = args
-        .next()
-        .expect("The first argument must be the folder where the documentation will be dumped.")
-        .parse()
-        .expect("The documentation generation path is not valid");
-
-    path.push("any.md");
 
     for (module, description, functions) in functions {
         path.set_file_name(format!("{}.md", module));

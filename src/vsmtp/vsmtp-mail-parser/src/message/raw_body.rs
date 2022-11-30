@@ -55,7 +55,7 @@ impl RawBody {
     ///
     // TODO: make it lazy if possible
     #[must_use]
-    pub fn headers(&self, with_multiline: bool) -> Vec<(String, String)> {
+    pub fn headers(&self) -> Vec<(String, String)> {
         let mut out = vec![];
         for (idx, header) in self.headers.iter().enumerate() {
             if header.starts_with(' ') || header.starts_with('\t') {
@@ -69,9 +69,6 @@ impl RawBody {
                         .iter()
                         .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
                     {
-                        if with_multiline {
-                            s.push_str("\r\n");
-                        }
                         s.push_str(i);
                     }
                     out.push((key.to_string(), s));
@@ -90,22 +87,19 @@ impl RawBody {
 
     /// Search for a header (using lowercase) and return its value.
     #[must_use]
-    pub fn get_header(&self, name: &str, with_key: bool, with_multiline: bool) -> Option<String> {
+    pub fn get_header(&self, name: &str, with_key: bool) -> Option<String> {
         for (idx, header) in self.headers.iter().enumerate() {
             if header.starts_with(' ') || header.starts_with('\t') {
                 continue;
             }
             let mut split = header.splitn(2, ':');
             match (split.next(), split.next()) {
-                (Some(key), Some(value)) if key.to_lowercase() == name.to_lowercase() => {
+                (Some(key), Some(value)) if key.eq_ignore_ascii_case(name) => {
                     let mut value = value.to_string();
                     for i in self.headers[idx + 1..]
                         .iter()
                         .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
                     {
-                        if with_multiline {
-                            value.push_str("\r\n");
-                        }
                         value.push_str(i);
                     }
                     return Some(if with_key {
@@ -139,7 +133,7 @@ impl RawBody {
         for header in &mut self.headers {
             let mut split = header.splitn(2, ": ");
             match (split.next(), split.next()) {
-                (Some(key), Some(_)) if key.to_lowercase() == name.to_lowercase() => {
+                (Some(key), Some(_)) if key.eq_ignore_ascii_case(name) => {
                     // TODO: handle folding ?
                     *header = format!("{key}: {value}");
                     return;
@@ -155,7 +149,7 @@ impl RawBody {
         for header in &mut self.headers {
             let mut split = header.splitn(2, ": ");
             match (split.next(), split.next()) {
-                (Some(key), Some(value)) if key.to_lowercase() == old.to_lowercase() => {
+                (Some(key), Some(value)) if key.eq_ignore_ascii_case(old) => {
                     *header = format!("{new}: {value}");
                     return;
                 }
@@ -195,7 +189,6 @@ impl std::fmt::Display for RawBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in &self.headers {
             f.write_str(i)?;
-            f.write_str("\r\n")?;
         }
         f.write_str("\r\n")?;
         if let Some(body) = &self.body {

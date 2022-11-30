@@ -1,5 +1,0 @@
-object info_header string = "X-Info";
-object info_value string = "email processed by me.";
-
-object anonymous address = "anonymous@example.com";
-object green string = "green@example.com";

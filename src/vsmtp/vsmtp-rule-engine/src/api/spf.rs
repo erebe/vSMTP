@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 use crate::api::{
     EngineResult, {Context, Server},
 };
@@ -40,7 +41,10 @@ mod security {
     pub fn check_spf(ctx: &mut Context, srv: Server) -> EngineResult<rhai::Map> {
         {
             let guard = vsl_guard_ok!(ctx.read());
-            if let Some(previous_spf) = &guard.metadata.spf {
+            if let Some(previous_spf) = guard
+                .spf()
+                .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+            {
                 return Ok(result_to_map(previous_spf.clone()));
             }
         }
@@ -48,8 +52,10 @@ mod security {
         let (mail_from, ip) = {
             let ctx = vsl_guard_ok!(ctx.read());
             (
-                ctx.envelop.mail_from.clone(),
-                ctx.connection.client_addr.ip(),
+                ctx.reverse_path()
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
+                    .clone(),
+                ctx.client_addr().ip(),
             )
         };
 
@@ -63,8 +69,9 @@ mod security {
                         .block_on(vsmtp_auth::spf::evaluate(resolver, ip, &sender))
                 });
 
-                let mut guard = vsl_guard_ok!(ctx.write());
-                guard.metadata.spf = Some(spf_result.clone());
+                vsl_guard_ok!(ctx.write())
+                    .set_spf(spf_result.clone())
+                    .unwrap();
 
                 Ok(result_to_map(spf_result))
             }

@@ -148,3 +148,18 @@ jobs:
           asset_path: ${{ env.ASSET }}
           asset_name: ${{ env.ASSET }}
           asset_content_type: application/octet-stream
+  push-dockerhub:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build, tag, and push
+        uses: docker/build-push-action@v3.2.0
+        with:
+          push: true
+          tags: "viridIT/vSMTP:${{ needs.create-release.outputs.release_version }}"

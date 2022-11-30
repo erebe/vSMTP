@@ -9,7 +9,11 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.3.eml");
 #[test]
 fn group_addresses() {
     let parsed = MailMimeParser::default()
-        .parse_sync(MAIL.lines().map(ToString::to_string).collect::<Vec<_>>())
+        .parse_sync(
+            MAIL.lines()
+                .map(|l| l.as_bytes().to_vec())
+                .collect::<Vec<_>>(),
+        )
         .unwrap()
         .unwrap_right();
     pretty_assertions::assert_eq!(

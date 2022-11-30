@@ -18,8 +18,19 @@
 
 ///
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ParserError {
+    ///
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+    /// The buffer is longer than expected.
+    #[error("buffer is not supposed to be longer than {expected} bytes but got {got}")]
+    BufferTooLong {
+        /// Maximum size expected.
+        expected: usize,
+        /// Actual size.
+        got: usize,
+    },
     ///
     #[error("parsing email failed: {0}")]
     InvalidMail(String),

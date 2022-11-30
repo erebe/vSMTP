@@ -1,0 +1,31 @@
+fn on_config(config) {
+    config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+
+    config.server.name = "testserver.com";
+
+    config.server.interfaces = #{
+        addr: ["192.168.1.254:25", "192.168.1.254:10025"],
+        addr_submission: ["192.168.1.254:587"],
+        addr_submissions: ["192.168.1.254:465"],
+    };
+
+    // NOTE: `certificate`, `private_key` & `dirpath` keys use relative paths for
+    //        to automatically test our examples. Use absolute or relative paths
+    //        relative to your own system instead of those.
+    //
+    //        (for example: config.app.vsl.dirpath = "/etc/vsmtp/domain-available")
+
+    config.server.tls = #{
+        preempt_cipherlist: false,
+        handshake_timeout: "200ms",
+        protocol_version: ["TLSv1.2", "TLSv1.3"],
+        certificate: "../../../examples/config/tls/certificate.crt",
+        private_key: "../../../examples/config/tls/private_key.key",
+    };
+
+    config.server.queues.dirpath = "examples/message/spool";
+    config.app.dirpath = "examples/message/app";
+    config.app.vsl.dirpath = "../../../examples/message/domain-available";
+
+    config
+}

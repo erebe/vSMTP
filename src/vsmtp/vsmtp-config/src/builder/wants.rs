@@ -26,16 +26,23 @@ use vsmtp_common::{CodeID, Reply};
 pub struct WantsVersion(pub(crate) ());
 
 ///
-pub struct WantsServer {
+pub struct WantsPath {
     #[allow(dead_code)]
     pub(crate) parent: WantsVersion,
     pub(super) version_requirement: semver::VersionReq,
 }
 
 ///
+pub struct WantsServer {
+    #[allow(dead_code)]
+    pub(crate) parent: WantsPath,
+    pub(super) path: Option<std::path::PathBuf>,
+}
+
+///
 pub struct WantsServerSystem {
     pub(crate) parent: WantsServer,
-    pub(super) domain: String,
+    pub(super) name: String,
     pub(super) client_count_max: i64,
     pub(super) message_size_limit: usize,
 }
@@ -115,7 +122,7 @@ pub struct WantsAppVSL {
 ///
 pub struct WantsAppLogs {
     pub(crate) parent: WantsAppVSL,
-    pub(super) filepath: Option<std::path::PathBuf>,
+    pub(super) dirpath: Option<std::path::PathBuf>,
 }
 
 ///

@@ -15,22 +15,31 @@
  *
  */
 use crate::{cli::args::Commands, GenericQueueManager, QueueID};
+extern crate alloc;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Commands {
     pub(crate) async fn message_remove<
         OUT: std::io::Write + Send + Sync,
-        IN: tokio::io::AsyncRead + Send + Sync + std::marker::Unpin,
+        IN: tokio::io::AsyncRead + Send + Sync + core::marker::Unpin,
     >(
-        msg_id: &str,
+        msg_uuid: &uuid::Uuid,
         confirmed: bool,
-        queue_manager: std::sync::Arc<impl GenericQueueManager + Send + Sync>,
+        queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
         output: &mut OUT,
         mut input: IN,
     ) -> anyhow::Result<()> {
-        let queue = <QueueID as strum::IntoEnumIterator>::iter()
-            .find(|q| queue_manager.get_ctx(q, msg_id).is_ok());
-
-        match (queue, queue_manager.get_msg(msg_id)) {
+        match (futures_util::future::join_all(
+            <QueueID as strum::IntoEnumIterator>::iter()
+                .map(|q| (q, alloc::sync::Arc::clone(&queue_manager)))
+                .map(|(q, manager)| async move { (q.clone(), manager.get_ctx(&q, msg_uuid).await) }),
+        )
+        .await
+        .into_iter()
+        .find_map(|(q, ctx)| match ctx {
+            Ok(_) => Some(q),
+            Err(_) => None,
+        }), queue_manager.get_msg(msg_uuid).await) {
             (None, Ok(_)) => {
                 anyhow::bail!("Message is orphan: exists but no context in the queue!")
             }
@@ -42,7 +51,7 @@ impl Commands {
             }
             (Some(queue), Ok(_)) => {
                 output.write_fmt(format_args!(
-                    "Removing message '{msg_id}' in queue: '{queue}'\n",
+                    "Removing message '{msg_uuid}' in queue: '{queue}'\n",
                 ))?;
 
                 if !confirmed {
@@ -58,7 +67,7 @@ impl Commands {
                     }
                 }
 
-                queue_manager.remove_both(&queue, msg_id).await?;
+                queue_manager.remove_both(&queue, msg_uuid).await?;
                 output.write_all(b"File removed\n")?;
                 Ok(())
             }
@@ -72,80 +81,84 @@ mod tests {
     use super::*;
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn confirmed() {
         let mut output = vec![];
         let input = std::io::Cursor::new(vec![]);
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove1".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "titi";
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        let msg_uuid = uuid::Uuid::new_v4();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
             .unwrap();
 
-        Commands::message_remove(msg_id, true, queue_manager.clone(), &mut output, input)
-            .await
-            .unwrap();
+        Commands::message_remove(
+            &msg_uuid,
+            true,
+            alloc::sync::Arc::clone(&queue_manager),
+            &mut output,
+            input,
+        )
+        .await
+        .unwrap();
 
         queue_manager
-            .get_both(&QueueID::Working, msg_id)
+            .get_both(&QueueID::Working, &msg_uuid)
+            .await
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'titi' in queue: 'working'\n",
-                "File removed\n"
+                format!("Removing message '{msg_uuid}' in queue: 'working'\n"),
+                "File removed\n".to_owned()
             ]
             .concat()
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn not_confirmed() {
         let mut output = vec![];
-        let input = std::io::Cursor::new(b"yes\n" as &[u8]);
+        let input = std::io::Cursor::new(b"yes\n");
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove2".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "tata";
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000001").unwrap();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
             .unwrap();
 
-        Commands::message_remove(msg_id, false, queue_manager.clone(), &mut output, input)
-            .await
-            .unwrap();
+        Commands::message_remove(
+            &msg_uuid,
+            false,
+            alloc::sync::Arc::clone(&queue_manager),
+            &mut output,
+            input,
+        )
+        .await
+        .unwrap();
 
         queue_manager
-            .get_both(&QueueID::Working, msg_id)
+            .get_both(&QueueID::Working, &msg_uuid)
+            .await
             .unwrap_err();
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'tata' in queue: 'working'\n",
+                "Removing message '00000000-0000-0000-0000-000000000001' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",
                 "File removed\n"
             ]
@@ -153,38 +166,42 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn canceled() {
         let mut output = vec![];
-        let input = std::io::Cursor::new(b"no\n" as &[u8]);
+        let input = std::io::Cursor::new(b"no\n");
 
-        let mut config = local_test();
-        config.server.queues.dirpath = "./tmp/cmd_remove3".into();
-        let config = std::sync::Arc::new(config);
-
-        let _rm = std::fs::remove_dir_all(&config.server.queues.dirpath);
-        let queue_manager = crate::fs::QueueManager::init(config).unwrap();
-
-        let msg_id = "toto";
+        let config = alloc::sync::Arc::new(local_test());
+        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
 
         let mut ctx = local_ctx();
-        ctx.metadata.message_id = Some(msg_id.to_string());
+        let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000002").unwrap();
+        ctx.mail_from.message_uuid = msg_uuid;
 
         queue_manager
             .write_both(&QueueID::Working, &ctx, &local_msg())
             .await
             .unwrap();
 
-        Commands::message_remove(msg_id, false, queue_manager.clone(), &mut output, input)
+        Commands::message_remove(
+            &msg_uuid,
+            false,
+            alloc::sync::Arc::clone(&queue_manager),
+            &mut output,
+            input,
+        )
+        .await
+        .unwrap();
+
+        queue_manager
+            .get_both(&QueueID::Working, &msg_uuid)
             .await
             .unwrap();
 
-        queue_manager.get_both(&QueueID::Working, msg_id).unwrap();
-
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&output).unwrap(),
+            core::str::from_utf8(&output).unwrap(),
             [
-                "Removing message 'toto' in queue: 'working'\n",
+                "Removing message '00000000-0000-0000-0000-000000000002' in queue: 'working'\n",
                 "Confirm ? [y|yes] ",
                 "Canceled\n"
             ]

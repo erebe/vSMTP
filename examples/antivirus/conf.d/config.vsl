@@ -1,0 +1,6 @@
+fn on_config(config) {
+    config.server.dns.type = "system";
+    // config.app.vsl.dirpath = "../../../examples/antivirus/domain-available/";
+    
+    config
+}

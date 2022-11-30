@@ -1,0 +1,49 @@
+name: Staging
+
+on:
+  pull_request:
+    branches:
+      - "staging"
+
+jobs:
+  test-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PAT }}
+          repository: ${{ secrets.STAGING_REPO }}
+          event-type: test_staging
+  run-fuzz:
+    runs-on: ubuntu-latest # could be self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v3
+        with:
+          path: ./fuzz/corpus
+          key: "${{ runner.os }}-fuzz-corpus-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        id: check
+        with:
+          command: check
+          args: --manifest-path ./fuzz/Cargo.toml
+      - uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-fuzz
+      - run: |
+          cargo run --bin vsmtp -- -c ./fuzz/server/vsmtp.vsl --no-daemon --stdout & \
+          && cargo +nightly fuzz run client \
+          -- -dict="./fuzz/dict/command.dict" -max_total_time=1200 \
+          && pkill vsmtp
+      - uses: actions/upload-artifact@v1
+        if: failure() && steps.check.outcome == 'success'
+        with:
+          name: artifacts
+          path: ./fuzz/artifacts

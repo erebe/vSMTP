@@ -55,7 +55,7 @@ impl Config {
                 Reply::new(
                     ReplyCode::Code { code: 250 },
                     [
-                        &config.server.domain,
+                        &config.server.name,
                         "\r\n",
                         &auth_mechanism_list
                             .as_ref()
@@ -86,7 +86,7 @@ impl Config {
                 Reply::new(
                     ReplyCode::Code { code: 250 },
                     [
-                        &config.server.domain,
+                        &config.server.name,
                         "\r\n",
                         &auth_mechanism_list
                             .as_ref()
@@ -109,7 +109,7 @@ impl Config {
                 .or_insert_with_key(|key| default_values.get(key).expect("missing code").clone());
 
             reply_codes.entry(key).and_modify(|reply| {
-                reply.set(reply.text().replace("{domain}", &config.server.domain));
+                reply.set(reply.text().replace("{name}", &config.server.name));
             });
         }
 
