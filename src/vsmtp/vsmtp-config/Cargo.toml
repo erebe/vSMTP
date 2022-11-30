@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -20,13 +20,19 @@ categories = ["data-structures"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
 ]
 
+[dependencies.vsmtp-common]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-common"
+
+[dependencies.vsmtp-auth]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-auth"
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
-vsmtp-auth = { path = "../vsmtp-auth", version = "=1.4.0-rc.0" }
 
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = [
