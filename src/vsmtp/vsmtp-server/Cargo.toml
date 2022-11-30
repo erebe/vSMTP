@@ -20,24 +20,44 @@ categories = ["network-programming"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-delivery = \\{ path = \"../vsmtp-delivery\", version = .*", replace = "vsmtp-delivery = { path = \"../vsmtp-delivery\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-protocol = \\{ path = \"../vsmtp-protocol\", version = .*", replace = "vsmtp-protocol = { path = \"../vsmtp-protocol\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "rule-engine\\]\nversion = .*", replace = "rule-engine]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "mail-parser\\]\nversion = .*", replace = "mail-parser]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "delivery\\]\nversion = .*", replace = "delivery]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "protocol\\]\nversion = .*", replace = "protocol]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "vqueue\\]\nversion = .*", replace = "vqueue]\nversion = \"={{version}}\"" },
 ]
 
-[dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
-vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.0" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "=1.4.0-rc.0" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "=1.4.0-rc.0" }
-vsmtp-delivery = { path = "../vsmtp-delivery", version = "=1.4.0-rc.0" }
-vqueue = { path = "../../vqueue", version = "=1.4.0-rc.0" }
-vsmtp-protocol = { path = "../vsmtp-protocol", version = "=1.4.0-rc.0" }
+[dependencies.vsmtp-common]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-common"
 
+[dependencies.vsmtp-config]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-config"
+
+[dependencies.vsmtp-mail-parser]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-mail-parser"
+
+[dependencies.vqueue]
+version = "=1.4.0-rc.0"
+path = "../../vqueue"
+
+[dependencies.vsmtp-protocol]
+version = "=1.4.0-rc.0"
+path = "../vsmtp-protocol"
+
+[dependencies.vsmtp-delivery]
+version = "=1.4.0-rc.0"
+path = "../vsmtp-delivery"
+
+[dependencies.vsmtp-rule-engine]
+version = "=1.4.0-rc.0"
+path = "../vsmtp-rule-engine"
+
+[dependencies]
 tracing = { version = "0.1.37", default-features = false, features = [
   "std",
   "attributes",

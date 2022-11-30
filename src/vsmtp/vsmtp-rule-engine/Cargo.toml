@@ -25,19 +25,34 @@ categories = ["config"]
 
 [package.metadata.release]
 pre-release-replacements = [
-  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vsmtp-auth = \\{ path = \"../vsmtp-auth\", version = .*", replace = "vsmtp-auth = { path = \"../vsmtp-auth\", version = \"={{version}}\" }", prerelease = true },
-  { file = "Cargo.toml", search = "vqueue = \\{ path = \"../../vqueue\", version = .*", replace = "vqueue = { path = \"../../vqueue\", version = \"={{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "mail-parser\\]\nversion = .*", replace = "mail-parser]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "vqueue\\]\nversion = .*", replace = "vqueue]\nversion = \"={{version}}\"" },
 ]
 
+[dependencies.vsmtp-common]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-common"
+
+[dependencies.vsmtp-config]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-config"
+
+[dependencies.vsmtp-mail-parser]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-mail-parser"
+
+[dependencies.vsmtp-auth]
+version = "=1.4.0-rc.1"
+path = "../vsmtp-auth"
+
+[dependencies.vqueue]
+version = "=1.4.0-rc.0"
+path = "../../vqueue"
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "=1.4.0-rc.0" }
-vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.0" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "=1.4.0-rc.0" }
-vsmtp-auth = { path = "../vsmtp-auth", version = "=1.4.0-rc.0" }
-vqueue = { path = "../../vqueue", version = "=1.4.0-rc.0" }
 
 # Plugins
 vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.0" }

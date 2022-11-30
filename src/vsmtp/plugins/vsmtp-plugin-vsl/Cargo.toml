@@ -14,7 +14,7 @@ homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-rule-engine/"
 
-readme = "../../../README.md"
+readme = "../../../../README.md"
 keywords = ["vsmtp", "scripting-language", "scripting", "rhai"]
 categories = ["config"]
 
@@ -24,7 +24,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.0" }
+vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.1" }
 
 rhai = { version = "1.11.0", features = [
     "unchecked",
