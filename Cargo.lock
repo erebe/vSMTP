@@ -3299,7 +3299,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-auth"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3322,7 +3322,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3350,7 +3350,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -3415,7 +3415,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.1"
 dependencies = [
  "anyhow",
  "async-trait",
