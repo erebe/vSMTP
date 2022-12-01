@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57e6e951cfbb2db8de1828d49073a113a29fd7117b1596caa781a258c7e38d72"
+checksum = "bf6ccdb167abbf410dcb915cabd428929d7f6a04980b54a11f26a39f1c7f7107"
 dependencies = [
  "cfg-if",
  "const-random",
@@ -98,9 +98,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.58"
+version = "0.1.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e805d94e6b5001b651426cf4cd446b1ab5f319d27bab5c644f61de0a804360c"
+checksum = "31e6e93155431f3931513b243d371981bb2770112b370c82745a1d19d2f99364"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -194,9 +194,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.26"
+version = "4.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2148adefda54e14492fb9bddcc600b4344c5d1a3123bd666dcb939c6f0e0e57e"
+checksum = "4d63b9e9c07271b9957ad22c173bae2a4d9a81127680962039296abcd2f8251d"
 dependencies = [
  "bitflags",
  "clap_derive",
@@ -1294,8 +1294,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.10.1"
-source = "git+https://github.com/schungx/rhai#530109275ff9b544ff88934580e3c1cfa03e63b7"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f61559c2ea5fef5af856ae95443111dc14e7c9ce73d29c257a840249c0ed298"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1309,9 +1310,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhai-dylib"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20914ec40e9cc0b2e86b38353c29d4b880c9ea9702fbbe2bb3bb20c068c2731d"
+dependencies = [
+ "libloading",
+ "rhai",
+]
+
+[[package]]
 name = "rhai_codegen"
 version = "1.4.2"
-source = "git+https://github.com/schungx/rhai#530109275ff9b544ff88934580e3c1cfa03e63b7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36791b0b801159db25130fd46ac726d2751c070260bba3a4a0a3eeb6231bb82a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1372,8 +1384,9 @@ dependencies = [
 
 [[package]]
 name = "rsasl"
-version = "2.0.0-rc.3"
-source = "git+https://github.com/Mathieu-Lala/rsasl?branch=fix/callback-static#63963389d624c03e9cab101939c3a846f578d00a"
+version = "2.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffa4318e392905b8221cb5e4b33f67e8e658091858e18793460079b526e28e2b"
 dependencies = [
  "acid_io",
  "serde_json",
@@ -2015,6 +2028,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "uuid"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
+dependencies = [
+ "getrandom",
+ "rand",
+ "serde",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2041,7 +2065,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2053,6 +2077,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "uuid",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
@@ -2060,7 +2085,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-auth"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "addr",
  "anyhow",
@@ -2079,7 +2104,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "addr",
  "anyhow",
@@ -2097,13 +2122,14 @@ dependencies = [
  "tokio",
  "tracing",
  "trust-dns-resolver",
+ "uuid",
  "vsmtp-auth",
  "vsmtp-mail-parser",
 ]
 
 [[package]]
 name = "vsmtp-config"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "base64",
@@ -2131,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "addr",
  "anyhow",
@@ -2143,6 +2169,7 @@ dependencies = [
  "tracing",
  "trust-dns-resolver",
  "users",
+ "uuid",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
@@ -2166,7 +2193,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2181,32 +2208,22 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-vsl"
-version = "1.3.3"
+version = "1.4.0-rc.3"
 dependencies = [
  "addr",
+ "anyhow",
  "either",
  "ipnet",
  "iprange",
  "regex",
+ "rhai",
  "strum",
  "vsmtp-common",
- "vsmtp-plugins",
-]
-
-[[package]]
-name = "vsmtp-plugins"
-version = "1.3.4"
-dependencies = [
- "anyhow",
- "libloading",
- "rhai",
- "serde",
- "tracing",
 ]
 
 [[package]]
 name = "vsmtp-protocol"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "addr",
  "anyhow",
@@ -2224,19 +2241,22 @@ dependencies = [
  "tokio-rustls",
  "tokio-stream",
  "tracing",
+ "uuid",
  "vsmtp-auth",
  "vsmtp-common",
 ]
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "either",
  "hostname",
  "humantime-serde",
  "lettre",
+ "rhai",
+ "rhai-dylib",
  "serde",
  "serde_json",
  "strum",
@@ -2246,19 +2266,19 @@ dependencies = [
  "tracing",
  "trust-dns-resolver",
  "users",
+ "uuid",
  "vqueue",
  "vsmtp-auth",
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-mail-parser",
  "vsmtp-plugin-vsl",
- "vsmtp-plugins",
  "wait-timeout",
 ]
 
 [[package]]
 name = "vsmtp-server"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2279,6 +2299,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "trust-dns-resolver",
+ "uuid",
  "vqueue",
  "vsmtp-common",
  "vsmtp-config",
@@ -2290,7 +2311,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "1.3.4"
+version = "1.4.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2308,6 +2329,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trust-dns-resolver",
+ "uuid",
  "vqueue",
  "vsmtp-common",
  "vsmtp-config",
