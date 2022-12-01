@@ -12,7 +12,7 @@ homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp/"
 
-readme = "README.md"
+readme = "../../../README.md"
 keywords = ["vsmtp", "mta", "smtp", "server", "mail"]
 categories = ["email"]
 
@@ -33,19 +33,19 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.2"
+version = "=1.4.0-rc.3"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-server]
-version = "=1.4.0-rc.0"
+version = "=1.4.0-rc.3"
 path = "../vsmtp-server"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.2"
+version = "=1.4.0-rc.3"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-rule-engine]
-version = "=1.4.0-rc.2"
+version = "=1.4.0-rc.3"
 path = "../vsmtp-rule-engine"
 
 [dependencies]

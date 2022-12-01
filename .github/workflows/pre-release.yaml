@@ -49,7 +49,7 @@ jobs:
           - path: "src/vsmtp/vsmtp-protocol"
           - path: "src/vsmtp/vsmtp-server"
           - path: "src/vsmtp/vsmtp-core"
-          - path: "src/vsmtp/vsmtp-plugin-vsl"
+          - path: "src/vsmtp/plugins/vsmtp-plugin-vsl"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

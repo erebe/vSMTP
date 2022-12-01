@@ -1,5 +1,7 @@
 fn on_config(config) {
 
+    config.version_requirement = ">=1.4.0-rc.3";
+
     config.server.interfaces = #{
         addr: ["127.0.0.1:10025"],
     };
