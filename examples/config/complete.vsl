@@ -1,5 +1,5 @@
 fn on_config(config) {
-    config.version_requirement = ">=1.4.0-rc.1, <2.0.0";
+    config.version_requirement = ">=1.4.0-rc.2, <2.0.0";
 
     config.server.name = "domain.com";
     config.server.client_count_max = 16;
