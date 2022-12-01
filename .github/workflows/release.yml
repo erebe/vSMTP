@@ -35,7 +35,6 @@ jobs:
         with:
           fail-fast: true
           commit-filter: "(cargo-release)"
-      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -46,4 +45,4 @@ jobs:
       - run: |
           git config --global user.name 'CI [bot]'
           git config --global user.email 'l.tabis@viridit.com'
-      - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --execute --no-confirm
+      - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} -v --workspace --execute --no-confirm
