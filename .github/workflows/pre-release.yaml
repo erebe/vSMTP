@@ -46,6 +46,7 @@ jobs:
           - path: "src/vqueue"
           - path: "src/vsmtp/vsmtp-rule-engine"
           - path: "src/vsmtp/vsmtp-delivery"
+          - path: "src/vsmtp/vsmtp-protocol"
           - path: "src/vsmtp/vsmtp-server"
           - path: "src/vsmtp/vsmtp-core"
           - path: "src/vsmtp/vsmtp-plugin-vsl"
