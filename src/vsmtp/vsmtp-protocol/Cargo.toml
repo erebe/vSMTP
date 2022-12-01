@@ -18,8 +18,6 @@ readme = "../../../README.md"
 keywords = ["vsmtp"]
 categories = ["email", "smtp"]
 
-publish = false
-
 [package.metadata.release]
 pre-release-replacements = [
     { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
