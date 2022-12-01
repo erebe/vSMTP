@@ -38,7 +38,8 @@ jobs:
         with:
           crate: cargo-fuzz
       - run: |
-          cargo run --bin vsmtp -- -c ./fuzz/server/vsmtp.vsl --no-daemon --stdout &
+          cargo build
+          ./target/debug/vsmtp -- -c ./fuzz/server/vsmtp.vsl --no-daemon --stdout &
           cargo +nightly fuzz run client \
             -- -dict="./fuzz/dict/command.dict" -max_total_time=1200
           pkill vsmtp

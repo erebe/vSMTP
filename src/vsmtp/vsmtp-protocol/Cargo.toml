@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-protocol"
-version = "1.4.0-rc.1"
+version = "1.4.0-rc.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -27,11 +27,11 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.1"
+version = "=1.4.0-rc.2"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.1"
+version = "=1.4.0-rc.2"
 path = "../vsmtp-common"
 
 [dependencies]
