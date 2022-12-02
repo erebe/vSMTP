@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "1.4.0-rc.0"
+version = "1.4.0-rc.4"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -33,19 +33,19 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.3"
+version = "=1.4.0-rc.4"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-server]
-version = "=1.4.0-rc.3"
+version = "=1.4.0-rc.4"
 path = "../vsmtp-server"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.3"
+version = "=1.4.0-rc.4"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-rule-engine]
-version = "=1.4.0-rc.3"
+version = "=1.4.0-rc.4"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
