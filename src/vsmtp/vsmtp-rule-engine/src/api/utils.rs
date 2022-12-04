@@ -36,6 +36,7 @@ mod utils_rhai {
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
+    /*
     #[rhai_fn(return_raw)]
     pub fn send_mail(from: &str, to: rhai::Array, path: &str, relay: &str) -> EngineResult<()> {
         // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
@@ -73,6 +74,7 @@ mod utils_rhai {
             Err(err) => Err(format!("sys::send_mail failed to send: {err:?}").into()),
         }
     }
+    */
 
     /// Does the `name` correspond to an existing user in the system.
     ///
@@ -94,11 +96,11 @@ mod utils_rhai {
     ///   ]
     /// }
     /// # "#)?.build()));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::Connect].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "root exist ? yes".to_string(),
     /// # ))));
-    /// # assert_eq!(states[&State::MailFrom].2, Status::Accept(either::Right(Reply::new(
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "false".to_string(),
     /// # ))));
     /// ```
@@ -240,8 +242,8 @@ mod utils_rhai {
     ///   ],
     /// }
     /// # "#)?.build()));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::Connect].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "client ip: 127.0.0.1 -> [\"localhost.\"]".to_string(),
     /// # ))));
     /// ```

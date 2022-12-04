@@ -258,8 +258,9 @@ mod dkim_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # use vsmtp_rule_engine::ExecutionStage;
+    /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     ///
     /// Changing the header `Subject` will result in a dkim verification failure.
@@ -324,8 +325,9 @@ mod dkim_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # use vsmtp_rule_engine::ExecutionStage;
+    /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
@@ -399,8 +401,8 @@ mod dkim_rhai {
     /// }
     /// # "#)?.build()), Some(msg), config);
     ///
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PostQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PostQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     #[rhai_fn(global, pure, return_raw)]
     #[allow(clippy::needless_pass_by_value)]

@@ -15,6 +15,10 @@ impl MailParser for BasicParser {
             if line == b"\r\n" {
                 break;
             }
+            if !line.first().map_or(false, |c| [b' ', b'\t'].contains(c)) && !line.contains(&b':') {
+                body.push_str(std::str::from_utf8(line).unwrap());
+                break;
+            }
             headers.push(String::from_utf8(line.clone()).expect("todo: handle non utf8"));
         }
 

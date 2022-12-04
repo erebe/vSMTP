@@ -15,8 +15,8 @@
  *
  */
 
-use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
-use vsmtp_common::{state::State, status::Status};
+use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok, ExecutionStage};
+use vsmtp_common::status::Status;
 
 pub mod action;
 #[cfg(feature = "delegation")]
@@ -24,7 +24,7 @@ pub mod delegation;
 pub mod rule;
 
 /// a set of directives, filtered by smtp stage.
-pub type Directives = std::collections::BTreeMap<State, Vec<Directive>>;
+pub type Directives = std::collections::BTreeMap<ExecutionStage, Vec<Directive>>;
 
 /// a type of rule that can be executed from a function pointer.
 #[derive(strum::AsRefStr)]
@@ -104,7 +104,7 @@ impl Directive {
         &self,
         rule_state: &RuleState,
         ast: &rhai::AST,
-        stage: State,
+        stage: ExecutionStage,
     ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {

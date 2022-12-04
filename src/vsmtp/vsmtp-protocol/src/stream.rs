@@ -98,6 +98,7 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
 
             for await line in self.as_line_stream() {
                 let mut line = line?;
+                tracing::trace!("{:?}", std::str::from_utf8(&line));
 
                 if line == b".\r\n" {
                     return;

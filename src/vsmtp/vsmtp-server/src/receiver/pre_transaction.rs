@@ -16,12 +16,12 @@
 */
 
 use crate::{Handler, OnMail};
-use vsmtp_common::{auth::Credentials, state::State, status::Status, ClientName, CodeID, Reply};
+use vsmtp_common::{auth::Credentials, status::Status, ClientName, CodeID, Reply};
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, ConnectionKind, EhloArgs, HeloArgs,
     ReceiverContext,
 };
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine, RuleState};
 
 impl<M: OnMail + Send> Handler<M> {
     pub(super) fn generic_helo(
@@ -38,18 +38,19 @@ impl<M: OnMail + Send> Handler<M> {
             .to_helo(client_name, using_deprecated)
             .expect("bad state");
 
-        let e = match self
-            .rule_engine
-            .run_when(&self.state, &mut self.skipped, State::Helo)
-        {
-            Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(default),
-            Status::Deny(code) => {
-                ctx.deny();
-                code
-            }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
-        };
+        let e =
+            match self
+                .rule_engine
+                .run_when(&self.state, &mut self.skipped, ExecutionStage::Helo)
+            {
+                Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+                Status::Quarantine(_) | Status::Next => either::Left(default),
+                Status::Deny(code) => {
+                    ctx.deny();
+                    code
+                }
+                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            };
 
         self.reply_or_code_in_config(e)
     }
@@ -72,19 +73,20 @@ impl<M: OnMail + Send> Handler<M> {
             )
             .expect("bad state");
 
-        let e = match self
-            .rule_engine
-            .run_when(&self.state, &mut self.skipped, State::Connect)
-        {
-            // FIXME: do we really want to let the end-user override the EHLO/HELO reply?
-            Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(CodeID::Greetings),
-            Status::Deny(code) => {
-                ctx.deny();
-                return self.reply_or_code_in_config(code);
-            }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
-        };
+        let e =
+            match self
+                .rule_engine
+                .run_when(&self.state, &mut self.skipped, ExecutionStage::Connect)
+            {
+                // FIXME: do we really want to let the end-user override the EHLO/HELO reply?
+                Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+                Status::Quarantine(_) | Status::Next => either::Left(CodeID::Greetings),
+                Status::Deny(code) => {
+                    ctx.deny();
+                    return self.reply_or_code_in_config(code);
+                }
+                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            };
 
         // NOTE: in that case, the return value is ignored and
         // we have to manually trigger the TLS handshake,
@@ -261,7 +263,7 @@ impl rsasl::validate::Validation for ValidationVSL {
 pub enum ValidationError {
     #[error(
         "the rules at stage '{}' returned non '{}' status",
-        State::Authenticate,
+        ExecutionStage::Authenticate,
         Status::Accept(either::Left(CodeID::Ok)).as_ref()
     )]
     NonAcceptCode,
@@ -286,9 +288,9 @@ impl RsaslSessionCallback {
             .expect("bad state");
 
         let mut skipped = None;
-        let result = self
-            .rule_engine
-            .run_when(&self.state, &mut skipped, State::Authenticate);
+        let result =
+            self.rule_engine
+                .run_when(&self.state, &mut skipped, ExecutionStage::Authenticate);
 
         if !matches!(result, Status::Accept(..)) {
             return Err(ValidationError::NonAcceptCode);

@@ -34,7 +34,7 @@ use crate::{
     parser::{tls_certificate, tls_private_key},
 };
 use anyhow::Context;
-use vsmtp_common::{auth::Mechanism, state::State, CodeID, Reply};
+use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
 
 ///
 pub struct Builder<State> {
@@ -437,7 +437,7 @@ impl Builder<WantsServerSMTPConfig2> {
         soft_count: i64,
         hard_count: i64,
         delay: std::time::Duration,
-        timeout_client: &std::collections::BTreeMap<State, std::time::Duration>,
+        timeout_client: &std::collections::BTreeMap<Stage, std::time::Duration>,
     ) -> Builder<WantsServerSMTPConfig3> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
@@ -449,16 +449,16 @@ impl Builder<WantsServerSMTPConfig2> {
                 },
                 timeout_client: FieldServerSMTPTimeoutClient {
                     connect: *timeout_client
-                        .get(&State::Connect)
+                        .get(&Stage::Connect)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     helo: *timeout_client
-                        .get(&State::Helo)
+                        .get(&Stage::Helo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     mail_from: *timeout_client
-                        .get(&State::MailFrom)
+                        .get(&Stage::MailFrom)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     rcpt_to: *timeout_client
-                        .get(&State::RcptTo)
+                        .get(&Stage::RcptTo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     data: std::time::Duration::from_millis(1000),
                 },

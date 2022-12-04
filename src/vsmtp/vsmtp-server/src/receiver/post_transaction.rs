@@ -17,10 +17,10 @@
 
 use crate::{Handler, OnMail};
 use tokio_stream::StreamExt;
-use vsmtp_common::{state::State, status::Status, Reply};
+use vsmtp_common::{status::Status, Reply};
 use vsmtp_mail_parser::{BasicParser, Mail, MailParser, MessageBody, ParserError, RawBody};
 use vsmtp_protocol::{Error, ReceiverContext};
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine, RuleState};
 
 impl<M: OnMail + Send> Handler<M> {
     pub(super) fn handle_preq_header(
@@ -55,7 +55,7 @@ impl<M: OnMail + Send> Handler<M> {
             .to_finished()
             .expect("bad state");
 
-        let status = rule_engine.run_when(state, &mut skipped, State::PreQ);
+        let status = rule_engine.run_when(state, &mut skipped, ExecutionStage::PreQ);
 
         if let Some(skipped) = skipped {
             state
