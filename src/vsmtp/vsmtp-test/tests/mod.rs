@@ -17,9 +17,10 @@
 
 #![allow(clippy::too_many_arguments)]
 
-const DUMMY_DOMAIN: &str = "dummy.com";
+const DUMMY_DOMAIN: &str = "this-domain-has-no-mx-record-so-mail-will-go-in-deferred-queue.com";
 const DUMMY_CREDENTIALS: (&str, &str) = ("dummy", "dummy");
-const DUMMY_MAILBOX: &str = "dummy@dummy.com";
+const DUMMY_MAILBOX: &str =
+    "dummy@this-domain-has-no-mx-record-so-mail-will-go-in-deferred-queue.com";
 
 // NOTE: using option_env! to silent the linter in IDE
 lazy_static::lazy_static! {
