@@ -121,6 +121,7 @@ fn staging(
     #[values(DUMMY_MAILBOX, *STAGING_MAILBOX, reverse_path)] forward_path: &str,
 ) {
     // TLS tunnel is required on port 465
+    // we could uncomment the following line to test the TLS handshake timeout
     if (port == 465 && !matches!(tls, Tls::Wrapper(_)))
         || (matches!(tls, Tls::Wrapper(_)) && port != 465)
     {
@@ -165,9 +166,9 @@ fn staging(
         // case unencrypted auth
         Err(e) if mechanism.is_some() && matches!(tls, Tls::None) &&
             e.to_string() == "internal client error: No compatible authentication mechanism was found" => {}
-        // case no auth and unknown sender
-        Err(e) if reverse_path == DUMMY_MAILBOX &&
-            e.to_string() == "permanent error (554): permanent problems with the remote server" => {},
+        // case unauthenticated
+        Err(e) if mechanism.is_none() &&
+            e.to_string() == "permanent error (530): 5.7.0 Authentication required" => {}
         Err(e) => todo!("{e}"),
     }
 }
