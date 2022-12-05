@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vqueue"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -28,15 +28,15 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp/vsmtp-common"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp/vsmtp-config"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp/vsmtp-mail-parser"
 
 [dependencies]

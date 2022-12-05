@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -33,29 +33,29 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-auth"
 
 [dependencies.vqueue]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../../vqueue"
 
 [dependencies]
 
 # Plugins
-vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.4" }
+vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.5" }
 rhai-dylib = { version = "0.1.4", features = ["sync"] }
 rhai = { version = "1.11.0", features = [
   "unchecked",
