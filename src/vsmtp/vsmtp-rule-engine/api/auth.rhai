@@ -100,10 +100,6 @@ fn auth() { ctx().auth }
 fn auth_unix_users() {
     switch ctx().auth.type {
         "Verify" => {
-            if mail_from().local_part != ctx().auth.authid {
-                return deny();
-            }
-
             let authd = cmd(#{
                 timeout: "1s",
                 command: "testsaslauthd",
