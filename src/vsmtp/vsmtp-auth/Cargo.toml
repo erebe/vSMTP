@@ -28,7 +28,7 @@ version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-serde = { version = "1.0.147", default-features = false, features = [
+serde = { version = "1.0.149", default-features = false, features = [
     "std",
     "derive",
 ] }
