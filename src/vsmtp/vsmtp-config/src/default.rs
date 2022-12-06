@@ -310,7 +310,6 @@ impl Default for FieldServerSMTP {
     fn default() -> Self {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
-            disable_ehlo: Self::default_disable_ehlo(),
             error: FieldServerSMTPError::default(),
             timeout_client: FieldServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
@@ -322,10 +321,6 @@ impl Default for FieldServerSMTP {
 impl FieldServerSMTP {
     pub(crate) const fn default_rcpt_count_max() -> usize {
         1000
-    }
-
-    pub(crate) const fn default_disable_ehlo() -> bool {
-        false
     }
 
     // TODO: should be const and compile time checked

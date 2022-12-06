@@ -84,7 +84,6 @@ impl Builder<WantsValidate> {
                 tls: srv_tls.tls,
                 smtp: FieldServerSMTP {
                     rcpt_count_max: smtp_opt.rcpt_count_max,
-                    disable_ehlo: smtp_opt.disable_ehlo,
                     error: FieldServerSMTPError {
                         soft_count: smtp_error.error.soft_count,
                         hard_count: smtp_error.error.hard_count,

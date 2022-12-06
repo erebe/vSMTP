@@ -39,7 +39,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
         Ok(queued) => queued,
         Err(error) => {
             tracing::error!(%error, "Flushing failed");
-            todo!("what should we do on flushing error ? stop the server, simply log the error ?")
+            return;
         }
     };
 

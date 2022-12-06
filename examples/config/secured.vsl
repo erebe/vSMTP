@@ -59,7 +59,6 @@ fn on_config(config) {
 
     config.server.smtp = #{
         rcpt_count_max: 25,
-        disable_ehlo: false
     };
 
     config.server.smtp.error = #{

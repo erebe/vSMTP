@@ -410,7 +410,6 @@ impl Builder<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
                 rcpt_count_max,
-                disable_ehlo: FieldServerSMTP::default_disable_ehlo(),
             },
         }
     }

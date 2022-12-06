@@ -459,11 +459,6 @@ pub mod field {
         /// Maximum number of recipients received in the envelop, extra recipient will produce an [`CodeID::TooManyRecipients`].
         #[serde(default = "FieldServerSMTP::default_rcpt_count_max")]
         pub rcpt_count_max: usize,
-        /// Disable the `EHLO` keywords, and thus the SMTP extension.
-        ///
-        /// default: `false`
-        #[serde(default = "FieldServerSMTP::default_disable_ehlo")]
-        pub disable_ehlo: bool,
         /// SMTP's error policy.
         #[serde(default)]
         pub error: FieldServerSMTPError,

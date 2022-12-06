@@ -91,7 +91,6 @@ pub struct WantsServerSMTPConfig1 {
 pub struct WantsServerSMTPConfig2 {
     pub(crate) parent: WantsServerSMTPConfig1,
     pub(super) rcpt_count_max: usize,
-    pub(super) disable_ehlo: bool,
 }
 
 ///
