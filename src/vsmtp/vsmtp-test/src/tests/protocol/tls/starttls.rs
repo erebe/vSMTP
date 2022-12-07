@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::get_tls_config;
+use crate::config::with_tls;
 use crate::run_test;
 
 // TODO: add a test starttls + sni
@@ -49,7 +49,7 @@ run_test! {
         ".\r\n",
         "QUIT\r\n",
     ],
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
       Ok(builder.add_root_incoming_rules(r#"#{
         mail: [
@@ -90,7 +90,7 @@ run_test! {
         "STARTTLS\r\n",
         "QUIT\r\n"
     ],
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
         Ok(builder.add_root_incoming_rules(r#"#{
           mail: [
@@ -135,7 +135,7 @@ run_test! {
         "250 SMTPUTF8\r\n",
         "451 5.7.3 Must issue a STARTTLS command first\r\n",
     ],
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
         Ok(builder.add_root_incoming_rules(r#"#{
           mail: [
@@ -156,7 +156,7 @@ async fn config_ill_formed() {
         expected = [ "", ],
         starttls = "testserver.com" => [ "" ],
         config = {
-            let mut config = get_tls_config();
+            let mut config = with_tls();
             config.server.tls = None;
             config
         }

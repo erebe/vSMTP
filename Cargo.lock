@@ -3390,6 +3390,7 @@ dependencies = [
  "futures-util",
  "lettre",
  "rstest",
+ "rustls",
  "test-log",
  "time",
  "tokio",

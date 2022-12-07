@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::get_tls_config;
+use crate::config::with_tls;
 use crate::run_test;
 use vsmtp_config::field::{FieldServerVirtual, FieldServerVirtualTls};
 
@@ -40,7 +40,7 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
         Ok(builder.add_root_incoming_rules(r#"#{
           mail: [
@@ -67,7 +67,7 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
         Ok(builder.add_root_incoming_rules(r#"#{
           mail: [
@@ -92,7 +92,7 @@ run_test! {
     ],
     tunnel = "second.testserver.com",
     config = {
-        let mut config = get_tls_config();
+        let mut config = with_tls();
         config.app.vsl.dirpath = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
             "second.testserver.com".to_string(),
@@ -130,7 +130,7 @@ async fn config_ill_formed() {
         expected = [ "", ],
         tunnel = "testserver.com",
         config = {
-            let mut config = get_tls_config();
+            let mut config = with_tls();
             config.server.tls = None;
             config
         }

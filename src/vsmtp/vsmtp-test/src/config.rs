@@ -74,6 +74,37 @@ pub fn local_test() -> Config {
 
 ///
 #[must_use]
+pub fn with_tls() -> Config {
+    Config::builder()
+        .with_version_str("<1.0.0")
+        .expect("")
+        .without_path()
+        .with_server_name("testserver.com")
+        .with_user_group_and_default_system("root", "root")
+        .expect("")
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/spool")
+        .with_safe_and_content(
+            include_str!("template/certs/certificate.crt"),
+            include_str!("template/certs/private_key.rsa.key"),
+        )
+        .expect("")
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .without_auth()
+        .with_app_at_location("./tmp/app")
+        .with_vsl("./src/template/ignore_vsl")
+        .with_default_app_logs()
+        .with_system_dns()
+        .without_virtual_entries()
+        .validate()
+        .expect("")
+}
+
+///
+#[must_use]
 pub fn local_ctx() -> ContextFinished {
     ContextFinished {
         connect: ConnectProperties {

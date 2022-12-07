@@ -32,13 +32,8 @@ lettre = { version = "0.10.0-rc.7", default-features = false, features = [
     "tracing",
 ] }
 
-opentelemetry = { version = "0.17.0", optional = true, features = [
-    "rt-tokio",
-    "metrics",
-] }
-opentelemetry-jaeger = { version = "0.16.0", optional = true, features = [
-    "rt-tokio",
-] }
+opentelemetry = { version = "0.17.0", optional = true, features = ["rt-tokio", "metrics"] }
+opentelemetry-jaeger = { version = "0.16.0", optional = true, features = ["rt-tokio"] }
 
 [features]
 default = []

@@ -26,23 +26,10 @@ pre-release-replacements = [
 [dependencies]
 vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.5" }
 
-rhai = { version = "1.11.0", features = [
-    "unchecked",
-    "sync",
-    "internals",
-    "no_closure",
-    "metadata",
-] }
+rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
-strum = { version = "0.24.1", default-features = false, features = [
-    "std",
-    "derive",
-] }
-regex = { version = "1.7.0", default-features = false, features = [
-    "std",
-    "perf",
-    "unicode",
-] }
+strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
+regex = { version = "1.7.0", default-features = false, features = ["std", "perf", "unicode"] }
 iprange = { version = "0.6.7", default-features = false, features = [
     # "serde" # TODO
 ] }

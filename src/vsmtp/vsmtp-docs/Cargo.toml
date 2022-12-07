@@ -29,10 +29,4 @@ pre-release-replacements = [
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "=1.4.0-rc.5" }
 vsmtp-config = { path = "../vsmtp-config", version = "=1.4.0-rc.5" }
 
-rhai = { version = "1.11.0", features = [
-    "unchecked",
-    "sync",
-    "internals",
-    "no_closure",
-    "metadata",
-] }
+rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }

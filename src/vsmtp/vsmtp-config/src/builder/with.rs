@@ -353,7 +353,37 @@ impl Builder<WantsServerTLSConfig> {
     ///
     /// * `certificate` is not valid
     /// * `private_key` is not valid
-    pub fn with_safe_tls_config(
+    pub fn with_safe_and_path(
+        self,
+        certificate: &str,
+        private_key: &str,
+    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
+        Ok(Builder::<WantsServerSMTPConfig1> {
+            state: WantsServerSMTPConfig1 {
+                parent: self.state,
+                tls: Some(FieldServerTls {
+                    preempt_cipherlist: false,
+                    handshake_timeout: std::time::Duration::from_millis(200),
+                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+                    certificate: SecretFile::<rustls::Certificate> {
+                        inner: tls_certificate::from_path(certificate)?,
+                        path: certificate.into(),
+                    },
+                    private_key: SecretFile::<rustls::PrivateKey> {
+                        inner: tls_private_key::from_path(private_key)?,
+                        path: private_key.into(),
+                    },
+                    cipher_suite: FieldServerTls::default_cipher_suite(),
+                }),
+            },
+        })
+    }
+
+    /// # Errors
+    ///
+    /// * `certificate` is not valid
+    /// * `private_key` is not valid
+    pub fn with_safe_and_content(
         self,
         certificate: &str,
         private_key: &str,

@@ -41,21 +41,11 @@ path = "../vsmtp-mail-parser"
 async-trait = { version = "0.1.59", default-features = false }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
-tracing = { version = "0.1.37", default-features = false, features = [
-  "std",
-  "attributes",
-  "release_max_level_info",
-] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
-futures-util = { version = "0.3.24", default-features = false, features = [
-  "async-await",
-] }
+futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
-time = { version = "0.3.17", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-] }
+time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
 users = { version = "0.11.0", default-features = false }
@@ -71,6 +61,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
   "tracing",
   "pool",
 ] }
+rustls = { version = "0.20.7", default-features = false, features = ["tls12", "logging"] }
 
 tokio = { version = "1.23.0", default-features = false, features = [
   "macros",
@@ -81,11 +72,7 @@ tokio = { version = "1.23.0", default-features = false, features = [
   "rt-multi-thread",
 ] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-  "std",
-  "v4",
-  "fast-rng",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
 
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }
@@ -95,8 +82,5 @@ rstest = "0.16.0"
 async-std = { version = "1.5", features = ["attributes"] }
 
 env_logger = "0.10.0"
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-  "fmt",
-] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 # tracing-test = "0.2.3"

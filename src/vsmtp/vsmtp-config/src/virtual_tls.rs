@@ -27,7 +27,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<rustls::PrivateKey> {
     {
         let s = <String as serde::Deserialize>::deserialize(deserializer)?;
         Ok(Self {
-            inner: tls_private_key::from_string(&s).map_err(serde::de::Error::custom)?,
+            inner: tls_private_key::from_path(&s).map_err(serde::de::Error::custom)?,
             path: s.into(),
         })
     }
@@ -40,7 +40,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<rustls::Certificate> {
     {
         let s = <String as serde::Deserialize>::deserialize(deserializer)?;
         Ok(Self {
-            inner: tls_certificate::from_string(&s).map_err(serde::de::Error::custom)?,
+            inner: tls_certificate::from_path(&s).map_err(serde::de::Error::custom)?,
             path: s.into(),
         })
     }
@@ -117,11 +117,11 @@ impl FieldServerVirtualTls {
         Ok(Self {
             protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
             certificate: SecretFile::<rustls::Certificate> {
-                inner: tls_certificate::from_string(certificate)?,
+                inner: tls_certificate::from_path(certificate)?,
                 path: certificate.into(),
             },
             private_key: SecretFile::<rustls::PrivateKey> {
-                inner: tls_private_key::from_string(private_key)?,
+                inner: tls_private_key::from_path(private_key)?,
                 path: private_key.into(),
             },
         })

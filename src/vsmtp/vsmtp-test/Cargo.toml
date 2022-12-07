@@ -30,12 +30,7 @@ lettre = { version = "0.10.1", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.15", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-  "serde-well-known",
-] }
+time = { version = "0.3.15", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
@@ -72,23 +67,14 @@ tokio = { version = "1.23.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-tokio-stream = { version = "0.1.11", default-features = false, features = [
-  "time",
-] }
+tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 
 base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 
 tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-  "fmt",
-] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-  "std",
-  "v4",
-  "fast-rng",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
 
 
 [dev-dependencies]
