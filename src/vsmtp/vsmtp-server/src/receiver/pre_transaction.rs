@@ -219,6 +219,8 @@ impl<M: OnMail + Send> Handler<M> {
             }
             Err(AuthError::Base64 { .. }) => CodeID::AuthErrorDecode64,
             Err(AuthError::SessionError(e)) => todo!("{}", e),
+            Err(AuthError::IO(e)) => todo!("{}", e),
+            Err(AuthError::ConfigError(e)) => todo!("{}", e),
         };
         self.reply_in_config(code)
     }

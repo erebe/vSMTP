@@ -151,13 +151,13 @@ impl Server {
         client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         let session = Self::run_session(
-            AcceptArgs {
+            AcceptArgs::new(
                 client_addr,
-                server_addr: stream.local_addr().expect("retrieve local address"),
+                stream.local_addr().expect("retrieve local address"),
+                time::OffsetDateTime::now_utc(),
+                uuid::Uuid::new_v4(),
                 kind,
-                timestamp: time::OffsetDateTime::now_utc(),
-                uuid: uuid::Uuid::new_v4(),
-            },
+            ),
             stream,
             self.tls_config.clone(),
             self.config.clone(),

@@ -17,6 +17,7 @@
 
 /// Type of SMTP connection.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, strum::Display)]
+#[non_exhaustive]
 pub enum ConnectionKind {
     /// Connection coming for relay (MTA on port 25)
     /// see <https://datatracker.ietf.org/doc/html/rfc5321>

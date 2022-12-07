@@ -32,6 +32,7 @@ pub struct Stream<R: tokio::io::AsyncRead + Unpin + Send> {
 
 /// Error while processing the TCP/IP stream.
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::exhaustive_enums)]
 pub enum Error {
     /// The buffer is longer than expected.
     #[error("buffer is not supposed to be longer than {expected} bytes but got {got}")]

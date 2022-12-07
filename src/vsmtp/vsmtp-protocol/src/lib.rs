@@ -28,9 +28,23 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-//
+#![warn(clippy::restriction)]
+// restriction we ignore
+#![allow(
+    clippy::missing_docs_in_private_items,
+    clippy::blanket_clippy_restriction_lints,
+    clippy::pub_use,
+    clippy::shadow_reuse,
+    clippy::implicit_return,
+    clippy::arithmetic_side_effects,
+    clippy::integer_arithmetic,
+    clippy::shadow_same
+)]
+// FIXME:
 #![allow(clippy::use_self)]
-//
+#![allow(clippy::std_instead_of_core)] // issue with thiserror
+#![allow(clippy::indexing_slicing)] // issue with async_stream
+
 mod command;
 mod connection_kind;
 mod receiver;
