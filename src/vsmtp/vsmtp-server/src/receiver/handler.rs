@@ -17,13 +17,13 @@
 use crate::on_mail::OnMail;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{state::State, status::Status, CodeID, Reply, Stage, TransactionType};
+use vsmtp_common::{status::Status, CodeID, Reply, Stage, TransactionType};
 use vsmtp_config::Config;
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, EhloArgs, Error, HeloArgs, MailFromArgs,
     RcptToArgs, ReceiverContext,
 };
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine, RuleState};
 
 ///
 pub struct Handler<M: OnMail> {
@@ -145,10 +145,11 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             .to_mail_from(reverse_path, is_outgoing)
             .unwrap();
 
-        let e = match self
-            .rule_engine
-            .run_when(&self.state, &mut self.skipped, State::MailFrom)
-        {
+        let e = match self.rule_engine.run_when(
+            &self.state,
+            &mut self.skipped,
+            ExecutionStage::MailFrom,
+        ) {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
             Status::Deny(code) => {
@@ -275,7 +276,7 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
 
         let e = match self
             .rule_engine
-            .run_when(state, &mut self.skipped, State::RcptTo)
+            .run_when(state, &mut self.skipped, ExecutionStage::RcptTo)
         {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),

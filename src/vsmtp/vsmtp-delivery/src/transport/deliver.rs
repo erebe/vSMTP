@@ -15,7 +15,7 @@
  *
 */
 use super::Transport;
-use crate::{to_lettre_envelope, Sender, SenderParameters};
+use crate::{get_cert_for_server, to_lettre_envelope, Sender, SenderParameters};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     rcpt::Rcpt,
@@ -64,6 +64,7 @@ impl Deliver<'_> {
 
     async fn deliver_one_domain(
         &self,
+        config: &Config,
         ctx: &ContextFinished,
         message: &str,
         from: &Address,
@@ -71,7 +72,7 @@ impl Deliver<'_> {
         mut rcpt: Vec<Rcpt>,
     ) -> Vec<Rcpt> {
         match self
-            .deliver_one_domain_inner(ctx, message, from, &domain, &rcpt)
+            .deliver_one_domain_inner(config, ctx, message, from, &domain, &rcpt)
             .await
         {
             Ok(()) => {
@@ -104,6 +105,7 @@ impl Deliver<'_> {
 
     async fn deliver_one_domain_inner(
         &self,
+        config: &Config,
         ctx: &ContextFinished,
         message: &str,
         from: &Address,
@@ -141,6 +143,8 @@ impl Deliver<'_> {
                         pool_max_size: 3,
                         pool_min_idle: 1,
                         port: SMTP_PORT,
+                        certificate: get_cert_for_server(&ctx.connect.server_name, config)
+                            .map_or_else(Vec::new, |cert| vec![cert]),
                     },
                     &envelop,
                     message.as_bytes(),
@@ -183,6 +187,8 @@ impl Deliver<'_> {
                         pool_max_size: 3,
                         pool_min_idle: 1,
                         port: SMTP_PORT,
+                        certificate: get_cert_for_server(&ctx.connect.server_name, config)
+                            .map_or_else(Vec::new, |cert| vec![cert]),
                     },
                     &envelop,
                     message.as_bytes(),
@@ -210,7 +216,7 @@ impl Transport for Deliver<'_> {
     #[inline]
     async fn deliver(
         self,
-        _: &Config,
+        config: &Config,
         ctx: &ContextFinished,
         from: &vsmtp_common::Address,
         to: Vec<Rcpt>,
@@ -224,9 +230,9 @@ impl Transport for Deliver<'_> {
                 .or_insert_with(|| vec![rcpt.clone()]);
         }
 
-        let futures = rcpt_by_domain
-            .into_iter()
-            .map(|(domain, rcpt)| self.deliver_one_domain(ctx, message, from, domain, rcpt));
+        let futures = rcpt_by_domain.into_iter().map(|(domain, rcpt)| {
+            self.deliver_one_domain(config, ctx, message, from, domain, rcpt)
+        });
 
         futures_util::future::join_all(futures)
             .await

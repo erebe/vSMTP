@@ -97,13 +97,16 @@ fn auth() { ctx().auth }
 /// A native implementation will be provided in the future.
 ///
 /// ### Module:Auth
-fn authenticate() {
+fn auth_unix_users() {
     switch ctx().auth.type {
         "Verify" => {
             let authd = cmd(#{
                 timeout: "1s",
                 command: "testsaslauthd",
-                args: ["-u", ctx().auth.authid, "-p", ctx().auth.authpass]
+                args: [
+                    "-u", ctx().auth.authid,
+                    "-p", ctx().auth.authpass
+                ]
             });
 
             let result = authd.run();
@@ -117,7 +120,6 @@ fn authenticate() {
             } else {
                 deny()
             }
-
         }
     }
 }

@@ -17,14 +17,17 @@
 
 use vsmtp_plugin_vsl::objects::Object;
 
-use crate::api::{
-    EngineResult, {Context, Server, SharedObject},
+use crate::{
+    api::{
+        EngineResult, {Context, Server, SharedObject},
+    },
+    ExecutionStage,
 };
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{auth::Credentials, state::State, Address};
+use vsmtp_common::{auth::Credentials, Address};
 
 pub use mail_context_rhai::*;
 
@@ -102,11 +105,11 @@ mod mail_context_rhai {
             vsl_missing_ok!(
                 vsl_guard_ok!(context.read()).auth(),
                 "auth",
-                State::Authenticate
+                ExecutionStage::Authenticate
             )
             .credentials,
             "credentials",
-            State::Authenticate
+            ExecutionStage::Authenticate
         )
         .clone())
     }
@@ -158,7 +161,7 @@ mod mail_context_rhai {
         Ok(vsl_missing_ok!(
             ref vsl_guard_ok!(context.read()).client_name().ok(),
             "helo",
-            State::Helo
+            ExecutionStage::Helo
         )
         .to_string())
     }
@@ -170,7 +173,7 @@ mod mail_context_rhai {
         Ok(std::sync::Arc::new(Object::Address(vsl_missing_ok!(
             ref reverse_path.ok(),
             "mail_from",
-            State::MailFrom
+            ExecutionStage::MailFrom
         ))))
     }
 
@@ -180,7 +183,7 @@ mod mail_context_rhai {
         Ok(vsl_missing_ok!(
             vsl_guard_ok!(context.read()).forward_paths().ok(),
             "rcpt_list",
-            State::RcptTo
+            ExecutionStage::RcptTo
         )
         .iter()
         .map(|rcpt| rcpt.address.clone())
@@ -198,11 +201,11 @@ mod mail_context_rhai {
                 vsl_missing_ok!(
                     vsl_guard_ok!(context.read()).forward_paths().ok(),
                     "rcpt",
-                    State::RcptTo
+                    ExecutionStage::RcptTo
                 )
                 .last(),
                 "rcpt",
-                State::RcptTo
+                ExecutionStage::RcptTo
             )
             .address
             .clone(),
@@ -215,7 +218,7 @@ mod mail_context_rhai {
         Ok(**vsl_missing_ok!(
             vsl_guard_ok!(context.read()).mail_timestamp().ok(),
             "mail_timestamp",
-            State::MailFrom
+            ExecutionStage::MailFrom
         ))
     }
 
@@ -225,7 +228,7 @@ mod mail_context_rhai {
         Ok(vsl_missing_ok!(
             ref vsl_guard_ok!(context.read()).message_uuid().ok(),
             "message_id",
-            State::MailFrom
+            ExecutionStage::MailFrom
         )
         .to_string())
     }

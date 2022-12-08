@@ -16,7 +16,7 @@
 */
 
 use crate::run_test;
-use vsmtp_common::state::State;
+use vsmtp_rule_engine::ExecutionStage;
 use vsmtp_server::ProcessMessage;
 
 const QUARANTINE_RULE: &str = r#"
@@ -29,9 +29,8 @@ const QUARANTINE_RULE: &str = r#"
 }
 "#;
 
-async fn actual_test(stage: State) {
+async fn actual_test(stage: ExecutionStage) {
     let (delivery_sender, _d) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
-
     let (working_sender, _w) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
 
     let rules = QUARANTINE_RULE.replace("{stage}", &stage.to_string());
@@ -60,7 +59,6 @@ async fn actual_test(stage: State) {
         ],
         mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
         hierarchy_builder = move |builder| Ok(
-            // not ideal since some stages won't ever be run in main / fallback, but it works fine that way.
             builder
                 .add_root_incoming_rules(&rules.clone())?
                 .build()
@@ -85,15 +83,15 @@ async fn actual_test(stage: State) {
 async fn test_quarantine(
     #[values(
         // TODO
-        State::Connect,
-        State::Helo,
-        State::MailFrom,
-        State::RcptTo,
-        State::PreQ,
-        // State::PostQ,
-        // State::Delivery
+        ExecutionStage::Connect,
+        ExecutionStage::Helo,
+        ExecutionStage::MailFrom,
+        ExecutionStage::RcptTo,
+        ExecutionStage::PreQ,
+        // ExecutionStage::PostQ,
+        // ExecutionStage::Delivery
     )]
-    stage: State,
+    stage: ExecutionStage,
 ) {
     actual_test(stage).await;
 }

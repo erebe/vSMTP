@@ -85,53 +85,78 @@ pub trait ReceiverHandler {
     async fn on_rset(&mut self) -> Reply;
 
     /// Called after receiving a [`Verb::Data`] command.
+    #[inline]
     async fn on_data(&mut self) -> Reply {
+        #[allow(clippy::expect_used)]
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n"
             .parse()
-            .unwrap()
+            .expect("valid syntax")
     }
 
     /// Called after receiving a [`Verb::Quit`] command.
+    #[inline]
     async fn on_quit(&mut self) -> Reply {
-        "221 Service closing transmission channel".parse().unwrap()
+        #[allow(clippy::expect_used)]
+        "221 Service closing transmission channel"
+            .parse()
+            .expect("valid syntax")
     }
 
     /// Called after receiving a [`Verb::Noop`] command.
+    #[inline]
     async fn on_noop(&mut self) -> Reply {
-        "250 Ok\r\n".parse().unwrap()
+        #[allow(clippy::expect_used)]
+        "250 Ok\r\n".parse().expect("valid syntax")
     }
 
     /// Called after receiving a [`Verb::Help`] command.
+    #[inline]
     async fn on_help(&mut self, _: UnparsedArgs) -> Reply {
+        #[allow(clippy::expect_used)]
         "214 joining us https://viridit.com/support"
             .parse()
-            .unwrap()
+            .expect("valid syntax")
     }
 
     /// Called after receiving an unknown command (unrecognized or unimplemented).
+    #[inline]
     async fn on_unknown(&mut self, buffer: Vec<u8>) -> Reply {
-        let unimplemented_command = [b"VRFY" as &[u8], b"EXPN" as &[u8], b"TURN" as &[u8]];
+        let unimplemented_command = [b"VRFY".as_slice(), b"EXPN".as_slice(), b"TURN".as_slice()];
 
-        if unimplemented_command
-            .iter()
-            .any(|c| buffer.len() >= c.len() && buffer[..c.len()].eq_ignore_ascii_case(c))
-        {
-            "502 Command not implemented\r\n".parse().unwrap()
+        #[allow(clippy::expect_used)]
+        if unimplemented_command.iter().any(|c| {
+            buffer.len() >= c.len()
+                && buffer
+                    .get(..c.len())
+                    .expect("range checked before")
+                    .eq_ignore_ascii_case(c)
+        }) {
+            "502 Command not implemented\r\n"
+                .parse()
+                .expect("valid syntax")
         } else {
-            "500 Syntax error command unrecognized\r\n".parse().unwrap()
+            "500 Syntax error command unrecognized\r\n"
+                .parse()
+                .expect("valid syntax")
         }
     }
 
     /// Called when the stage of the transaction (obtained with [`get_stage`](Self::get_stage))
     /// and the command are not compatible.
+    #[inline]
     async fn on_bad_sequence(&mut self, _: (Verb, Stage)) -> Reply {
-        "503 Bad sequence of commands\r\n".parse().unwrap()
+        #[allow(clippy::expect_used)]
+        "503 Bad sequence of commands\r\n"
+            .parse()
+            .expect("valid syntax")
     }
 
     /// Called when an argument of a command is invalid.
+    #[inline]
     async fn on_args_error(&mut self, _: ParseArgsError) -> Reply {
+        #[allow(clippy::expect_used)]
         "501 Syntax error in parameters or arguments\r\n"
             .parse()
-            .unwrap()
+            .expect("valid syntax")
     }
 }

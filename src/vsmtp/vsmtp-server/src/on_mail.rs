@@ -19,12 +19,12 @@ use crate::{Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::ContextFinished;
 use vsmtp_common::{
-    state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
     CodeID,
 };
 use vsmtp_mail_parser::MessageBody;
+use vsmtp_rule_engine::ExecutionStage;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
@@ -131,15 +131,15 @@ impl MailHandler {
 
                 write_to_queue = Some(QueueID::Dead);
             }
+            None | Some(Status::Next) => {
+                write_to_queue = Some(QueueID::Working);
+                send_to_next_process = Some(Process::Processing);
+            }
             Some(reason) => {
-                tracing::warn!(stage = %State::PreQ, status = ?reason.as_ref(), "Rules skipped.");
+                tracing::warn!(stage = %ExecutionStage::PreQ, status = ?reason.as_ref(), "Rules skipped.");
 
                 write_to_queue = Some(QueueID::Deliver);
                 send_to_next_process = Some(Process::Delivery);
-            }
-            None => {
-                write_to_queue = Some(QueueID::Working);
-                send_to_next_process = Some(Process::Processing);
             }
         };
 

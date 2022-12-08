@@ -18,11 +18,10 @@ use crate::{delegate, ProcessMessage};
 use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
 };
-use vsmtp_rule_engine::RuleEngine;
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine};
 
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     rule_engine: std::sync::Arc<RuleEngine>,
@@ -66,7 +65,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     let mut skipped = ctx.connect.skipped.clone();
     let (ctx, mail_message, _) = rule_engine.just_run_when(
         &mut skipped,
-        State::PostQ,
+        ExecutionStage::PostQ,
         vsmtp_common::Context::Finished(ctx),
         mail_message,
     );
@@ -84,7 +83,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 .move_to(&queue, &QueueID::Quarantine { name: path.into() }, &ctx)
                 .await?;
 
-            tracing::warn!(stage = %State::PostQ, status = "quarantine", "Rules skipped.");
+            tracing::warn!(stage = %ExecutionStage::PostQ, status = "quarantine", "Rules skipped.");
         }
         Some(status @ Status::Delegated(delegator)) => {
             ctx.connect.skipped = Some(Status::DelegationResult);
@@ -107,7 +106,7 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             write_email = false;
             delegated = true;
 
-            tracing::warn!(stage = %State::PostQ, status = status.as_ref(), "Rules skipped.");
+            tracing::warn!(stage = %ExecutionStage::PostQ, status = status.as_ref(), "Rules skipped.");
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -122,13 +121,12 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
 
             move_to_queue = Some(QueueID::Dead);
         }
-        Some(reason) => {
-            tracing::warn!(status = ?reason, "Rules skipped.");
-
+        None | Some(Status::Next) => {
             move_to_queue = Some(QueueID::Deliver);
             send_to_delivery = true;
         }
-        None => {
+        Some(reason) => {
+            tracing::warn!(status = ?reason, "Rules skipped.");
             move_to_queue = Some(QueueID::Deliver);
             send_to_delivery = true;
         }
@@ -278,7 +276,7 @@ mod tests {
                         Ok(builder
                             .add_root_incoming_rules(&format!(
                                 r#"#{{ {}: [ rule "abc" || deny(), ] }}"#,
-                                State::PostQ
+                                ExecutionStage::PostQ
                             ))?
                             .build())
                     },
@@ -336,7 +334,7 @@ mod tests {
                         Ok(builder
                             .add_root_incoming_rules(&format!(
                                 "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
-                                State::PostQ
+                                ExecutionStage::PostQ
                             ))?
                             .build())
                     },

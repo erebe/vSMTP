@@ -34,7 +34,7 @@ use crate::{
     parser::{tls_certificate, tls_private_key},
 };
 use anyhow::Context;
-use vsmtp_common::{auth::Mechanism, state::State, CodeID, Reply};
+use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
 
 ///
 pub struct Builder<State> {
@@ -353,7 +353,37 @@ impl Builder<WantsServerTLSConfig> {
     ///
     /// * `certificate` is not valid
     /// * `private_key` is not valid
-    pub fn with_safe_tls_config(
+    pub fn with_safe_and_path(
+        self,
+        certificate: &str,
+        private_key: &str,
+    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
+        Ok(Builder::<WantsServerSMTPConfig1> {
+            state: WantsServerSMTPConfig1 {
+                parent: self.state,
+                tls: Some(FieldServerTls {
+                    preempt_cipherlist: false,
+                    handshake_timeout: std::time::Duration::from_millis(200),
+                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+                    certificate: SecretFile::<rustls::Certificate> {
+                        inner: tls_certificate::from_path(certificate)?,
+                        path: certificate.into(),
+                    },
+                    private_key: SecretFile::<rustls::PrivateKey> {
+                        inner: tls_private_key::from_path(private_key)?,
+                        path: private_key.into(),
+                    },
+                    cipher_suite: FieldServerTls::default_cipher_suite(),
+                }),
+            },
+        })
+    }
+
+    /// # Errors
+    ///
+    /// * `certificate` is not valid
+    /// * `private_key` is not valid
+    pub fn with_safe_and_content(
         self,
         certificate: &str,
         private_key: &str,
@@ -410,7 +440,6 @@ impl Builder<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
                 rcpt_count_max,
-                disable_ehlo: FieldServerSMTP::default_disable_ehlo(),
             },
         }
     }
@@ -437,7 +466,7 @@ impl Builder<WantsServerSMTPConfig2> {
         soft_count: i64,
         hard_count: i64,
         delay: std::time::Duration,
-        timeout_client: &std::collections::BTreeMap<State, std::time::Duration>,
+        timeout_client: &std::collections::BTreeMap<Stage, std::time::Duration>,
     ) -> Builder<WantsServerSMTPConfig3> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
@@ -449,16 +478,16 @@ impl Builder<WantsServerSMTPConfig2> {
                 },
                 timeout_client: FieldServerSMTPTimeoutClient {
                     connect: *timeout_client
-                        .get(&State::Connect)
+                        .get(&Stage::Connect)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     helo: *timeout_client
-                        .get(&State::Helo)
+                        .get(&Stage::Helo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     mail_from: *timeout_client
-                        .get(&State::MailFrom)
+                        .get(&Stage::MailFrom)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     rcpt_to: *timeout_client
-                        .get(&State::RcptTo)
+                        .get(&Stage::RcptTo)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
                     data: std::time::Duration::from_millis(1000),
                 },

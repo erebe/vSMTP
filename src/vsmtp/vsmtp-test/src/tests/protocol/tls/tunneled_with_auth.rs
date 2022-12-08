@@ -15,7 +15,6 @@
  *
 */
 
-use super::{TEST_SERVER_CERT, TEST_SERVER_KEY};
 use crate::run_test;
 use vsmtp_config::Config;
 
@@ -30,7 +29,10 @@ fn get_tls_auth_config() -> Config {
         .with_ipv4_localhost()
         .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/spool")
-        .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)
+        .with_safe_and_content(
+            include_str!("../../../template/certs/certificate.crt"),
+            include_str!("../../../template/certs/private_key.rsa.key"),
+        )
         .unwrap()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()

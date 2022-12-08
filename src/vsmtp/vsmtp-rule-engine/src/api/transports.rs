@@ -15,15 +15,15 @@
  *
 */
 
-use crate::api::{Context, EngineResult, SharedObject};
+use crate::{
+    api::{Context, EngineResult, SharedObject},
+    ExecutionStage,
+};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{
-    state::State,
-    transfer::{ForwardTarget, Transfer},
-};
+use vsmtp_common::transfer::{ForwardTarget, Transfer};
 
 pub use transports_rhai::*;
 
@@ -64,12 +64,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{ForwardTarget, Transfer, EmailTransferStatus},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, (addr, target)) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, (addr, target)) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     ("my.address@foo.com", "127.0.0.1"),
     /// #     ("my.address@bar.com", "127.0.0.2"),
     /// #     ("my.address@baz.com", "::1"),
@@ -156,12 +155,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{ForwardTarget, Transfer, EmailTransferStatus},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "my.address@foo.com",
     /// #     "my.address@bar.com",
     /// # ]) {
@@ -225,12 +223,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{ForwardTarget, Transfer, EmailTransferStatus},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "my.address@foo.com",
     /// #     "my.address@bar.com",
     /// #     "my.address@baz.com",
@@ -276,12 +273,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{ForwardTarget, Transfer, EmailTransferStatus},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "my.address@foo.com",
     /// #     "my.address@bar.com",
     /// # ]) {
@@ -321,12 +317,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{Transfer},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "doe@example.com",
     /// #     "a@example.com",
     /// # ]) {
@@ -371,12 +366,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{Transfer},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "doe@example.com",
     /// #     "a@example.com",
     /// # ]) {
@@ -416,12 +410,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{Transfer},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "doe@example.com",
     /// #     "a@example.com",
     /// # ]) {
@@ -466,12 +459,11 @@ mod transports_rhai {
     /// # "#)?.build()));
     ///
     /// # use vsmtp_common::{
-    /// #   state::State,
     /// #   transfer::{Transfer},
     /// #   rcpt::Rcpt,
     /// #   Address,
     /// # };
-    /// # for (rcpt, addr) in states[&State::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// # for (rcpt, addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
     /// #     "doe@example.com",
     /// #     "a@example.com",
     /// # ]) {
@@ -499,7 +491,7 @@ fn set_transport_for_one(
     vsl_missing_ok!(
         ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",
-        State::RcptTo
+        ExecutionStage::RcptTo
     )
     .iter_mut()
     .find(|rcpt| rcpt.address.full() == search)
@@ -511,7 +503,7 @@ fn set_transport_foreach(context: &mut Context, method: &Transfer) -> EngineResu
     vsl_missing_ok!(
         ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",
-        State::RcptTo
+        ExecutionStage::RcptTo
     )
     .iter_mut()
     .for_each(|rcpt| rcpt.transfer_method = method.clone());

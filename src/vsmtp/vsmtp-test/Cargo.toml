@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-test"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -30,12 +30,7 @@ lettre = { version = "0.10.1", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.15", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-  "serde-well-known",
-] }
+time = { version = "0.3.15", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
@@ -64,7 +59,7 @@ anyhow = "1.0.66"
 
 serde_json = "1.0.89"
 
-tokio = { version = "1.22.0", default-features = false, features = [
+tokio = { version = "1.23.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -72,23 +67,14 @@ tokio = { version = "1.22.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-tokio-stream = { version = "0.1.11", default-features = false, features = [
-  "time",
-] }
+tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 
 base64 = { version = "0.13.1", default-features = false, features = ["std"] }
 
 tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-  "fmt",
-] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-  "std",
-  "v4",
-  "fast-rng",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
 
 
 [dev-dependencies]

@@ -28,6 +28,7 @@ extern crate alloc;
 ///
 #[must_use]
 #[allow(clippy::exhaustive_enums)]
+#[derive(Debug)]
 pub enum SenderOutcome {
     ///
     MoveToDead,
@@ -107,18 +108,6 @@ pub async fn split_and_sort_and_send(
         .iter().map(ToString::to_string).collect::<Vec<_>>(), "Sending.");
     tracing::trace!(rcpt = ?message_ctx.rcpt_to.forward_paths);
 
-    // updating retry count, set status to Failed if threshold reached.
-    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
-        if matches!(&rcpt.email_status, &EmailTransferStatus::HeldBack{ ref errors }
-            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
-        {
-            rcpt.email_status =
-                EmailTransferStatus::failed(TransferErrorsVariant::MaxDeferredAttemptReached);
-
-            //config.server.queues.delivery.deferred_retry_max
-        }
-    }
-
     if message_ctx.rcpt_to.forward_paths.is_empty() {
         tracing::warn!("No recipients to send to, or all transfer method are set to none.");
         return SenderOutcome::MoveToDead;
@@ -151,15 +140,28 @@ pub async fn split_and_sort_and_send(
         }
     }
 
-    tracing::warn!("Some send operations failed, email deferred.");
+    let mut out = None;
+    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
+        if matches!(&rcpt.email_status, &EmailTransferStatus::HeldBack{ ref errors }
+            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
+        {
+            rcpt.email_status =
+                EmailTransferStatus::failed(TransferErrorsVariant::MaxDeferredAttemptReached);
+            tracing::warn!("Delivery error count maximum reached, moving to dead.");
+            out = Some(SenderOutcome::MoveToDead);
+        }
+    }
+
+    let out = out.unwrap_or(SenderOutcome::MoveToDeferred);
+    tracing::warn!("Some send operations failed, email {:?}.", out);
     tracing::debug!(failed = ?message_ctx
-            .rcpt_to
-            .forward_paths
-            .iter()
-            .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
-            .map(|r| (r.address.to_string(), r.email_status.clone()))
-            .collect::<Vec<_>>()
+        .rcpt_to
+        .forward_paths
+        .iter()
+        .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
+        .map(|r| (r.address.to_string(), r.email_status.clone()))
+        .collect::<Vec<_>>()
     );
 
-    SenderOutcome::MoveToDeferred
+    out
 }

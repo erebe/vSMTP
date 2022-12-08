@@ -107,8 +107,9 @@ pub struct TransferError {
     ///
     #[serde(flatten)]
     pub variant: TransferErrorsVariant,
+    ///
     #[serde(with = "time::serde::iso8601")]
-    timestamp: time::OffsetDateTime,
+    pub timestamp: time::OffsetDateTime,
 }
 
 // TODO: should be in #[cfg(test)] ?

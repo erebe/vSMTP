@@ -15,13 +15,17 @@
  *
 */
 
-pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
+pub fn from_path(input: &str) -> anyhow::Result<rustls::PrivateKey> {
     let path = std::path::Path::new(input);
     anyhow::ensure!(
         path.exists(),
         format!("private key path does not exists: '{}'", path.display())
     );
-    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    from_string(&std::fs::read_to_string(input)?)
+}
+
+pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
+    let mut reader = std::io::BufReader::new(input.as_bytes());
 
     let pem = rustls_pemfile::read_one(&mut reader)?
         .into_iter()
@@ -35,7 +39,7 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
 
     pem.first()
         .cloned()
-        .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty: '{}'", path.display()))
+        .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty"))
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@
  *
 */
 
-/// State of the pipeline SMTP
+/// State of vsl rules execution
 #[derive(
     Debug,
     Eq,
@@ -31,7 +31,7 @@
     strum::Display,
 )]
 #[strum(serialize_all = "lowercase")]
-pub enum State {
+pub enum ExecutionStage {
     /// After TCP/IP socket has been accepted
     Connect,
     /// After receiving HELO/EHLO command
@@ -52,7 +52,7 @@ pub enum State {
     Delivery,
 }
 
-impl State {
+impl ExecutionStage {
     /// As the email been received at the current stage ?
     #[must_use]
     pub const fn is_email_received(&self) -> bool {

@@ -1,6 +1,6 @@
 fn on_config(config) {
 
-    config.version_requirement = ">=1.4.0-rc.4, <2.0.0";
+    config.version_requirement = ">=1.4.0-rc.5, <2.0.0";
 
     config.server.client_count_max = 8;
 
@@ -59,7 +59,6 @@ fn on_config(config) {
 
     config.server.smtp = #{
         rcpt_count_max: 25,
-        disable_ehlo: false
     };
 
     config.server.smtp.error = #{

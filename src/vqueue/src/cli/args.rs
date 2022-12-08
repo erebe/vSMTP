@@ -121,6 +121,16 @@ mod tests {
     }
 
     #[test]
+    fn arg_show_help() {
+        assert_eq!(
+            <Args as clap::Parser>::try_parse_from(["", "--help"])
+                .unwrap_err()
+                .kind(),
+            clap::error::ErrorKind::DisplayHelp,
+        );
+    }
+
+    #[test]
     fn arg_show_queue() {
         assert_eq!(
             Args {

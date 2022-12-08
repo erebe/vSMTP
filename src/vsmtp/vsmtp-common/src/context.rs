@@ -36,7 +36,7 @@ pub enum TransactionType {
 }
 
 /// Stage of the step-by-step SMTP transaction
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     /// The client has just connected to the server
     Connect,

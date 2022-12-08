@@ -18,13 +18,12 @@ use crate::{delegate, delivery::add_trace_information, ProcessMessage};
 use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
-    state::State,
     status::Status,
     transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
 };
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
-use vsmtp_rule_engine::RuleEngine;
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine};
 
 pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
@@ -40,7 +39,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
         Ok(queued) => queued,
         Err(error) => {
             tracing::error!(%error, "Flushing failed");
-            todo!("what should we do on flushing error ? stop the server, simply log the error ?")
+            return;
         }
     };
 
@@ -108,7 +107,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
     let mut skipped = ctx.connect.skipped.clone();
     let (ctx, mut mail_message, result) = rule_engine.just_run_when(
         &mut skipped,
-        State::Delivery,
+        ExecutionStage::Delivery,
         vsmtp_common::Context::Finished(ctx),
         mail_message,
     );
@@ -294,7 +293,7 @@ mod tests {
                         Ok(builder
                             .add_root_incoming_rules(&format!(
                                 "#{{ {}: [ rule \"\" || sys::deny() ] }}",
-                                State::Delivery
+                                ExecutionStage::Delivery
                             ))?
                             .build())
                     },

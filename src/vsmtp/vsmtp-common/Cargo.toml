@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-common"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -25,11 +25,11 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
@@ -37,22 +37,10 @@ anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 fastrand = { version = "1.8.0", default-features = false }
 
-strum = { version = "0.24.1", default-features = false, features = [
-    "std",
-    "derive",
-] }
-time = { version = "0.3.17", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
-    "serde-well-known",
-] }
-libc = { version = "0.2.137", default-features = false, features = ["std"] }
-tracing = { version = "0.1.37", default-features = false, features = [
-    "std",
-    "attributes",
-    "release_max_level_info",
-] }
+strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
+time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
+libc = { version = "0.2.138", default-features = false, features = ["std"] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
 lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
@@ -62,26 +50,14 @@ lettre = { version = "0.10.0", default-features = false, features = [
     "pool",
     "serde",
 ] }
-tokio = { version = "1.22.0", default-features = false, features = [
-    "macros",
-    "sync",
-    "fs",
-    "libc",
-    "mio",
-] }
+tokio = { version = "1.23.0", default-features = false, features = ["macros", "sync", "fs", "libc", "mio"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
     "dns-over-rustls",
     "dnssec-ring",
     "tokio-runtime",
 ] }
-serde = { version = "1.0.147", default-features = false, features = [
-    "std",
-    "derive",
-] }
-serde_with = { version = "2.1.0", default-features = false, features = [
-    "std",
-    "macros",
-] }
+serde = { version = "1.0.149", default-features = false, features = ["std", "derive"] }
+serde_with = { version = "2.1.0", default-features = false, features = ["std", "macros"] }
 thiserror = { version = "1.0.37", default-features = false }
 
 either = { version = "1.8.0", default-features = false, features = ["serde"] }
@@ -99,16 +75,9 @@ rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
     "login",
 ] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-    "std",
-    "v4",
-    "fast-rng",
-    "serde",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng", "serde"] }
 
 [dev-dependencies]
-serde_json = { version = "1.0.89", default-features = false, features = [
-    "std",
-] }
+serde_json = { version = "1.0.89", default-features = false, features = ["std"] }
 users = { version = "0.11.0", features = [] }
 pretty_assertions = "1.3.0"

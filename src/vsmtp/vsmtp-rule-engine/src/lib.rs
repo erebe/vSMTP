@@ -35,10 +35,12 @@ mod dsl {
 
 #[macro_use]
 mod error;
+mod execution_state;
 mod rule_engine;
 mod rule_state;
 mod server_api;
 
+pub use execution_state::ExecutionStage;
 pub use rule_engine::RuleEngine;
 pub use rule_state::RuleState;
 

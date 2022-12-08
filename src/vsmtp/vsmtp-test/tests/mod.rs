@@ -17,9 +17,10 @@
 
 #![allow(clippy::too_many_arguments)]
 
-const DUMMY_DOMAIN: &str = "dummy.com";
+const DUMMY_DOMAIN: &str = "this-domain-has-no-mx-record-so-mail-will-go-in-deferred-queue.com";
 const DUMMY_CREDENTIALS: (&str, &str) = ("dummy", "dummy");
-const DUMMY_MAILBOX: &str = "dummy@dummy.com";
+const DUMMY_MAILBOX: &str =
+    "dummy@this-domain-has-no-mx-record-so-mail-will-go-in-deferred-queue.com";
 
 // NOTE: using option_env! to silent the linter in IDE
 lazy_static::lazy_static! {
@@ -40,6 +41,9 @@ lazy_static::lazy_static! {
 
     // a mailbox hosted on the staging server
     static ref STAGING_MAILBOX: &'static str = option_env!("STAGING_MAILBOX").unwrap();
+
+    // a mailbox hosted on the second staging server
+    static ref STAGING_2_MAILBOX: &'static str = option_env!("STAGING_2_MAILBOX").unwrap();
 }
 
 use lettre::{
@@ -118,9 +122,10 @@ fn staging(
     #[values(DUMMY_CREDENTIALS, *STAGING_CREDENTIALS)] credentials: (&str, &str),
     #[values(DUMMY_MAILBOX, *STAGING_MAILBOX)] reverse_path: &str,
     // TODO: test with multiple recipients
-    #[values(DUMMY_MAILBOX, *STAGING_MAILBOX, reverse_path)] forward_path: &str,
+    #[values(DUMMY_MAILBOX, *STAGING_MAILBOX, *STAGING_2_MAILBOX)] forward_path: &str,
 ) {
     // TLS tunnel is required on port 465
+    // we could uncomment the following line to test the TLS handshake timeout
     if (port == 465 && !matches!(tls, Tls::Wrapper(_)))
         || (matches!(tls, Tls::Wrapper(_)) && port != 465)
     {
@@ -160,14 +165,15 @@ fn staging(
             e.to_string() ==
             "network error: invalid peer certificate contents: invalid peer certificate: CertExpired" => {}
         // case auth bad credentials
-        Err(e) if credentials == crate::DUMMY_CREDENTIALS && e.to_string() ==
+        Err(e) if (reverse_path == crate::DUMMY_MAILBOX
+            || credentials == crate::DUMMY_CREDENTIALS) && e.to_string() ==
             "permanent error (535): 5.7.8 Authentication credentials invalid" => {}
         // case unencrypted auth
         Err(e) if mechanism.is_some() && matches!(tls, Tls::None) &&
             e.to_string() == "internal client error: No compatible authentication mechanism was found" => {}
-        // case no auth and unknown sender
-        Err(e) if reverse_path == DUMMY_MAILBOX &&
-            e.to_string() == "permanent error (554): permanent problems with the remote server" => {},
+        // case unauthenticated
+        Err(e) if mechanism.is_none() &&
+            e.to_string() == "permanent error (530): 5.7.0 Authentication required" => {}
         Err(e) => todo!("{e}"),
     }
 }

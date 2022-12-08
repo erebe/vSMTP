@@ -1,5 +1,5 @@
 fn on_config(config) {
-    config.version_requirement = ">=1.4.0-rc.4, <2.0.0";
+    config.version_requirement = ">=1.4.0-rc.5, <2.0.0";
 
     config.server.name = "domain.com";
     config.server.client_count_max = 16;
@@ -72,7 +72,6 @@ fn on_config(config) {
 
     config.server.smtp = #{
         rcpt_count_max: 1000,
-        disable_ehlo: false,
         required_extension: ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"],
     };
 

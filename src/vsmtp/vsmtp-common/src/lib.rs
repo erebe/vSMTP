@@ -72,9 +72,6 @@ pub use context::{
 /// abstraction of the libc
 pub mod libc_abstraction;
 
-/// state of a smtp transaction
-pub mod state;
-
 /// status of the mail context
 pub mod status;
 
