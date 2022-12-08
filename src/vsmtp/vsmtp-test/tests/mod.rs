@@ -41,6 +41,9 @@ lazy_static::lazy_static! {
 
     // a mailbox hosted on the staging server
     static ref STAGING_MAILBOX: &'static str = option_env!("STAGING_MAILBOX").unwrap();
+
+    // a mailbox hosted on the second staging server
+    static ref STAGING_2_MAILBOX: &'static str = option_env!("STAGING_2_MAILBOX").unwrap();
 }
 
 use lettre::{
@@ -119,7 +122,7 @@ fn staging(
     #[values(DUMMY_CREDENTIALS, *STAGING_CREDENTIALS)] credentials: (&str, &str),
     #[values(DUMMY_MAILBOX, *STAGING_MAILBOX)] reverse_path: &str,
     // TODO: test with multiple recipients
-    #[values(DUMMY_MAILBOX, *STAGING_MAILBOX, reverse_path)] forward_path: &str,
+    #[values(DUMMY_MAILBOX, *STAGING_MAILBOX, *STAGING_2_MAILBOX)] forward_path: &str,
 ) {
     // TLS tunnel is required on port 465
     // we could uncomment the following line to test the TLS handshake timeout
@@ -162,7 +165,8 @@ fn staging(
             e.to_string() ==
             "network error: invalid peer certificate contents: invalid peer certificate: CertExpired" => {}
         // case auth bad credentials
-        Err(e) if credentials == crate::DUMMY_CREDENTIALS && e.to_string() ==
+        Err(e) if (reverse_path == crate::DUMMY_MAILBOX
+            || credentials == crate::DUMMY_CREDENTIALS) && e.to_string() ==
             "permanent error (535): 5.7.8 Authentication credentials invalid" => {}
         // case unencrypted auth
         Err(e) if mechanism.is_some() && matches!(tls, Tls::None) &&
