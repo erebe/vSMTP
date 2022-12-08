@@ -439,7 +439,9 @@ dependencies = [
  "bitflags",
  "clap_derive",
  "clap_lex 0.3.0",
+ "is-terminal",
  "once_cell",
+ "termcolor",
 ]
 
 [[package]]
