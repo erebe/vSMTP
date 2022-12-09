@@ -51,7 +51,7 @@ run_test! {
     ],
     config = with_tls(),
     hierarchy_builder = |builder| {
-      Ok(builder.add_root_incoming_rules(r#"#{
+      Ok(builder.add_root_filter_rules(r#"#{
         mail: [
           rule "must be tls encrypted" || {
             if is_secured() {
@@ -92,7 +92,7 @@ run_test! {
     ],
     config = with_tls(),
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny() }
@@ -137,7 +137,7 @@ run_test! {
     ],
     config = with_tls(),
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n")) }

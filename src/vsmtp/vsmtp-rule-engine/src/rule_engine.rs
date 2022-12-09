@@ -31,7 +31,7 @@ use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scop
 use rhai_dylib::module_resolvers::libloading::DylibModuleResolver;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{status::Status, CodeID, Domain, ReplyOrCodeID, TransactionType};
-use vsmtp_config::{Config, DnsResolvers};
+use vsmtp_config::{field::FieldAppVSL, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
 macro_rules! block_on {
@@ -56,10 +56,8 @@ pub struct RuleEngine {
     pub(super) rules: SubDomainHierarchy,
 }
 
-type RuleEngineInput = either::Either<
-    Option<std::path::PathBuf>,
-    Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>,
->;
+type RuleEngineInput =
+    either::Either<FieldAppVSL, Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>>;
 
 impl RuleEngine {
     /// creates a new instance of the rule engine, reading all files in the
@@ -72,11 +70,15 @@ impl RuleEngine {
     /// * failed to compile or load any script located at `script_path`.
     pub fn new(
         config: std::sync::Arc<Config>,
-        input: Option<std::path::PathBuf>,
         resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
-        Self::new_inner(either::Left(input), config, resolvers, queue_manager)
+        Self::new_inner(
+            either::Left(config.app.vsl.clone()),
+            config,
+            resolvers,
+            queue_manager,
+        )
     }
 
     // NOTE: since a single engine instance is created for each postq emails
@@ -126,10 +128,13 @@ impl RuleEngine {
 
         engine.set_module_resolver(match &input {
             // TODO: handle canonicalization.
-            either::Either::Left(Some(path)) => {
+            either::Either::Left(FieldAppVSL {
+                domain_dir: Some(path),
+                ..
+            }) => {
                 let path = path.parent().ok_or_else(|| {
                     anyhow::anyhow!(
-                        "file '{}' does not have a valid parent directory for rules",
+                        "the domain directory '{}' should be placed in `/etc/vsmtp`",
                         path.display()
                     )
                 })?;
@@ -141,7 +146,10 @@ impl RuleEngine {
 
                 resolvers
             }
-            either::Either::Left(None) | either::Either::Right(_) => {
+            either::Either::Left(FieldAppVSL {
+                domain_dir: None, ..
+            })
+            | either::Either::Right(_) => {
                 let mut resolvers = ModuleResolversCollection::new();
 
                 resolvers.push(FileModuleResolver::new_with_extension("vsl"));
@@ -152,14 +160,20 @@ impl RuleEngine {
         });
 
         let rules = match input {
-            either::Either::Left(Some(path)) => {
-                tracing::info!("Analyzing vSL rules at {path:?}");
+            either::Either::Left(FieldAppVSL {
+                filter_path: Some(filter_path),
+                domain_dir,
+            }) => {
+                tracing::info!("Analyzing vSL rules at {filter_path:?}");
 
-                SubDomainHierarchy::new(&engine, &path)?
+                SubDomainHierarchy::new(&engine, &filter_path, domain_dir.as_deref())?
             }
-            either::Either::Left(None) => {
+
+            either::Either::Left(FieldAppVSL {
+                filter_path: None, ..
+            }) => {
                 tracing::warn!(
-                    "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default."
+                    "No 'filter.vsl' provided in the config, the server will deny any incoming transaction by default."
                 );
 
                 SubDomainHierarchy::new_empty(&engine)?
@@ -453,7 +467,7 @@ impl RuleEngine {
         match smtp_state {
             // running root script, the sender has not been received yet.
             ExecutionStage::Connect | ExecutionStage::Helo | ExecutionStage::Authenticate => {
-                Ok(&self.rules.root_incoming)
+                Ok(&self.rules.root_filter)
             }
 
             ExecutionStage::MailFrom => {
@@ -467,7 +481,7 @@ impl RuleEngine {
                     tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
                     Ok(&self.rules.fallback)
                 } else {
-                    Ok(&self.rules.root_incoming)
+                    Ok(&self.rules.root_filter)
                 }
             }
 
@@ -532,7 +546,7 @@ impl RuleEngine {
                 } else {
                     tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
 
-                    Ok(&self.rules.root_incoming)
+                    Ok(&self.rules.root_filter)
                 }
             }
 
@@ -579,7 +593,7 @@ impl RuleEngine {
                     TransactionType::Incoming(None) => {
                         tracing::info!("No recipient has a domain handled by your configuration, running root incoming script");
 
-                        Ok(&self.rules.root_incoming)
+                        Ok(&self.rules.root_filter)
                     }
                     TransactionType::Outgoing { .. } | TransactionType::Internal => {
                         tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
@@ -902,7 +916,7 @@ impl RuleEngine {
         }
 
         // Search for a matching delegation rule with the same socket from root incoming -> domains.
-        get_matching_delegation_inner(&self.rules.root_incoming.directives, socket).or_else(|| {
+        get_matching_delegation_inner(&self.rules.root_filter.directives, socket).or_else(|| {
             self.rules.domains.iter().find_map(|(_, directives)| {
                 get_matching_delegation_inner(&directives.incoming.directives, socket).or_else(
                     || {

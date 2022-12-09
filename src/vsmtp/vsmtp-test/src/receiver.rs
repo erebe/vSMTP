@@ -130,8 +130,7 @@ macro_rules! run_test {
 
             let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
                 let _f = || vsmtp_rule_engine::RuleEngine::new(
-                    config.clone(), config.app.vsl.dirpath.clone(),
-                    resolvers.clone(), queue_manager.clone()
+                    config.clone(), resolvers.clone(), queue_manager.clone()
                 ).unwrap();                                         $(
                 let _f = || vsmtp_rule_engine::RuleEngine::with_hierarchy(
                     config.clone(), $hierarchy_builder,

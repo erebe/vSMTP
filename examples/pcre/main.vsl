@@ -1,0 +1,17 @@
+import "pcre-database";
+
+#{
+    mail: [
+        rule "query pcre database" || {
+            const sender = mail_from();
+
+            for (regex, result) in pcre {
+                if sender in regex {
+                    return accept(code(250, "Welcome"));
+                }
+            }
+
+            deny(code(551, "Not one of ours"));
+        }
+    ]
+}

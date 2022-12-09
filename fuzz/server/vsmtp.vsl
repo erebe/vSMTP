@@ -26,7 +26,8 @@ fn on_config(config) {
     config.server.queues.dirpath = "./spool";
     config.app.dirpath = "./spool/app";
 
-    config.app.vsl.dirpath = "./fuzz/server/domain-available";
+    config.app.vsl.domain_dir = "./fuzz/server/domain-available";
+    config.app.vsl.filter_path = "./fuzz/server/filter.vsl";
 
     config
 }

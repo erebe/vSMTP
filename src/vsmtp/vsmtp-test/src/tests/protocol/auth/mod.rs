@@ -34,7 +34,7 @@ pub fn safe_auth_config() -> Config {
         .with_default_smtp_codes()
         .with_safe_auth(-1)
         .with_app_at_location("./tmp/app")
-        .with_vsl("./src/template/ignore_vsl")
+        .with_vsl("./src/template/ignore_vsl/domain-enabled")
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()
@@ -68,7 +68,7 @@ pub fn unsafe_auth_config() -> Config {
             -1,
         )
         .with_app_at_location("./tmp/app")
-        .with_vsl("./src/template/auth")
+        .with_vsl("./src/template/auth/domain-enabled")
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()

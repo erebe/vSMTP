@@ -544,11 +544,13 @@ pub mod field {
     }
 
     /// Configuration of the application run by `vSMTP`.
-    #[derive(Default, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldAppVSL {
-        /// Entry point of the vsl application.
-        pub dirpath: Option<std::path::PathBuf>,
+        /// Directory containing filtering rules per domain.
+        pub domain_dir: Option<std::path::PathBuf>,
+        /// Entry point for the rule engine.
+        pub filter_path: Option<std::path::PathBuf>,
     }
 
     /// Application's parameter of the logs, same properties than [`FieldServerLogs`].

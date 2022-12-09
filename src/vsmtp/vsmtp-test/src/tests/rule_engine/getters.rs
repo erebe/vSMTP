@@ -85,7 +85,7 @@ run_test! {
     hierarchy_builder = |builder| {
         Ok(
             builder
-                .add_root_incoming_rules(include_str!("getters.vsl"))?
+                .add_root_filter_rules(include_str!("getters.vsl"))?
                 .build()
         )
     },

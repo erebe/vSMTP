@@ -592,18 +592,26 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                dirpath: None,
+                domain_dir: None,
+                filter_path: None,
             },
         }
     }
 
     ///
     #[must_use]
-    pub fn with_vsl(self, entry_point: impl Into<std::path::PathBuf>) -> Builder<WantsAppLogs> {
+    pub fn with_vsl(self, domain_dir: impl Into<std::path::PathBuf>) -> Builder<WantsAppLogs> {
+        let domain_dir = domain_dir.into();
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                dirpath: Some(entry_point.into()),
+                domain_dir: Some(domain_dir.clone()),
+                filter_path: Some(
+                    domain_dir
+                        .parent()
+                        .expect("rule main script is fetched in the domain directory's parent")
+                        .join("filter.vsl"),
+                ),
             },
         }
     }

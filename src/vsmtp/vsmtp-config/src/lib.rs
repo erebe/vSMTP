@@ -229,10 +229,10 @@ impl Config {
 
     /// Get the configuration for a virtual domain.
     fn get_domain_config(&mut self, engine: &rhai::Engine) -> anyhow::Result<()> {
-        if let Some(domains_path) = &self.app.vsl.dirpath {
+        if let Some(domains_path) = &self.app.vsl.domain_dir {
             for entry in std::fs::read_dir(domains_path).with_context(|| {
                 format!(
-                    "Cannot read subdomain in the directory '{}'",
+                    "Cannot read domain directory in '{}'",
                     domains_path.display()
                 )
             })? {

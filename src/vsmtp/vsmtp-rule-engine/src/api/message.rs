@@ -41,7 +41,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "check if header exists" || {
@@ -84,7 +84,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "count_header" || {
@@ -128,7 +128,7 @@ mod message_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "get_header" || {
@@ -215,7 +215,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "append_header" || {
@@ -261,7 +261,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "prepend_header" || {
@@ -307,7 +307,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "set_header" || {
@@ -352,7 +352,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "rename_header" || {
@@ -434,7 +434,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "remove_header" || {

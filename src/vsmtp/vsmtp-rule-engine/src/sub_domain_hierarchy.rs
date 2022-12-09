@@ -19,7 +19,7 @@ use crate::{dsl::directives::Directives, RuleEngine};
 use anyhow::Context;
 
 /// Rules that automatically deny the transaction once run.
-const DEFAULT_ROOT_INCOMING_RULES: &str = include_str!("../api/default/root_incoming_rules.rhai");
+const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../api/default/root_filter_rules.rhai");
 const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default/fallback_rules.rhai");
 const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default/incoming_rules.rhai");
 const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default/outgoing_rules.rhai");
@@ -29,7 +29,7 @@ const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules
 #[derive(Debug)]
 pub struct SubDomainHierarchy {
     /// Generic rules called for pre-mail stages to every transactions.
-    pub root_incoming: Script,
+    pub root_filter: Script,
     /// Used if an error occurred in the hierarchy's logic.
     pub fallback: Script,
     /// Domain specific rules, executed following the transaction context.
@@ -62,76 +62,79 @@ impl SubDomainHierarchy {
     /// # Errors
     /// * Failed to compile scripts.
     #[tracing::instrument(skip(engine), err)]
-    pub fn new(engine: &rhai::Engine, path: &std::path::Path) -> anyhow::Result<Self> {
+    pub fn new(
+        engine: &rhai::Engine,
+        filter_path: &std::path::Path,
+        domain_dir: Option<&std::path::Path>,
+    ) -> anyhow::Result<Self> {
         let mut hierarchy = std::collections::BTreeMap::new();
 
         tracing::debug!(
-            "Expecting '{}/**/{{incoming,outgoing,internal}}.vsl'",
-            path.display()
+            "Expecting '{:?}/**/{{incoming,outgoing,internal}}.vsl'",
+            domain_dir
         );
 
-        // Searching for domain folders.
-        for entry in std::fs::read_dir(path).with_context(|| {
-            format!(
-                "Cannot read subdomain in the directory '{}'",
-                path.display()
-            )
-        })? {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                continue;
+        if let Some(domain_dir) = domain_dir {
+            // Searching for domain folders.
+            for entry in std::fs::read_dir(domain_dir).with_context(|| {
+                format!("Cannot read domain directory in '{}'", domain_dir.display())
+            })? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() {
+                    continue;
+                }
+
+                let domain_dir = entry.path();
+                let domain = domain_dir
+                    .file_name()
+                    .and_then(std::ffi::OsStr::to_str)
+                    .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
+
+                hierarchy.insert(
+                    domain.to_owned(),
+                    DomainDirectives {
+                        incoming: Self::rules_from_path_or_default(
+                            engine,
+                            &domain_dir.join("incoming.vsl"),
+                            DEFAULT_INCOMING_RULES,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "failed to compile the 'incoming.vsl' script for the '{domain}' domain"
+                            )
+                        })?,
+                        outgoing: Self::rules_from_path_or_default(
+                            engine,
+                            &domain_dir.join("outgoing.vsl"),
+                            DEFAULT_OUTGOING_RULES,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "failed to compile the 'outgoing.vsl' script for the '{domain}' domain"
+                            )
+                        })?,
+                        internal: Self::rules_from_path_or_default(
+                            engine,
+                            &domain_dir.join("internal.vsl"),
+                            DEFAULT_INTERNAL_RULES,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "failed to compile the 'internal.vsl' script for the '{domain}' domain"
+                            )
+                        })?,
+                    },
+                );
             }
-
-            let domain_dir = entry.path();
-            let domain = domain_dir
-                .file_name()
-                .and_then(std::ffi::OsStr::to_str)
-                .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
-
-            hierarchy.insert(
-                domain.to_owned(),
-                DomainDirectives {
-                    incoming: Self::rules_from_path_or_default(
-                        engine,
-                        &domain_dir.join("incoming.vsl"),
-                        DEFAULT_INCOMING_RULES,
-                    )
-                    .with_context(|| {
-                        format!(
-                            "failed to compile the 'incoming.vsl' script for the '{domain}' domain"
-                        )
-                    })?,
-                    outgoing: Self::rules_from_path_or_default(
-                        engine,
-                        &domain_dir.join("outgoing.vsl"),
-                        DEFAULT_OUTGOING_RULES,
-                    )
-                    .with_context(|| {
-                        format!(
-                            "failed to compile the 'outgoing.vsl' script for the '{domain}' domain"
-                        )
-                    })?,
-                    internal: Self::rules_from_path_or_default(
-                        engine,
-                        &domain_dir.join("internal.vsl"),
-                        DEFAULT_INTERNAL_RULES,
-                    )
-                    .with_context(|| {
-                        format!(
-                            "failed to compile the 'internal.vsl' script for the '{domain}' domain"
-                        )
-                    })?,
-                },
-            );
         }
 
         Ok(Self {
-            root_incoming: Self::rules_from_path_or_default(
+            root_filter: Self::rules_from_path_or_default(
                 engine,
-                &path.join("incoming.vsl"),
+                filter_path,
                 DEFAULT_INCOMING_RULES,
             )
-            .context("failed to load your root incoming file (incoming.vsl)")?,
+            .context("failed to load your root filtering script (filter.vsl)")?,
             fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)
                 .context("failed to load fallback rules: this is a bug, please report it.")?,
             domains: hierarchy,
@@ -144,7 +147,7 @@ impl SubDomainHierarchy {
     /// * Fail to compile default scripts.
     pub fn new_empty(engine: &rhai::Engine) -> anyhow::Result<Self> {
         Ok(Self {
-            root_incoming: Self::rules_from_script(engine, DEFAULT_ROOT_INCOMING_RULES)?,
+            root_filter: Self::rules_from_script(engine, DEFAULT_ROOT_FILTERING_RULES)?,
             fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)?,
             domains: std::collections::BTreeMap::new(),
         })
@@ -204,8 +207,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Errors
     /// * Failed to compile the script.
-    pub fn add_root_incoming_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.root_incoming = SubDomainHierarchy::rules_from_script(self.engine, script)?;
+    pub fn add_root_filter_rules(mut self, script: &str) -> anyhow::Result<Self> {
+        self.inner.root_filter = SubDomainHierarchy::rules_from_script(self.engine, script)?;
         Ok(self)
     }
 
