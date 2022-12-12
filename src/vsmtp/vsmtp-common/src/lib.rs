@@ -49,6 +49,8 @@ mod types {
     pub mod code_id;
     pub mod reply;
     pub mod reply_code;
+    pub mod tls_cipher_suite;
+    pub mod tls_protocol_version;
 }
 
 pub use types::{
@@ -57,6 +59,8 @@ pub use types::{
     code_id::CodeID,
     reply::Reply,
     reply_code::*,
+    tls_cipher_suite::CipherSuite,
+    tls_protocol_version::ProtocolVersion,
 };
 
 ///

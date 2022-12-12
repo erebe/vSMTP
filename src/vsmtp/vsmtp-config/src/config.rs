@@ -341,11 +341,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtualTls {
         /// TLS protocol supported
-        #[serde(
-            serialize_with = "crate::parser::tls_protocol_version::serialize",
-            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
-        )]
-        pub protocol_version: Vec<rustls::ProtocolVersion>,
+        pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
         pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
@@ -375,18 +371,10 @@ pub mod field {
         #[serde(default = "FieldServerTls::default_handshake_timeout")]
         pub handshake_timeout: std::time::Duration,
         /// TLS protocol supported
-        #[serde(
-            serialize_with = "crate::parser::tls_protocol_version::serialize",
-            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
-        )]
-        pub protocol_version: Vec<rustls::ProtocolVersion>,
-        #[serde(
-            serialize_with = "crate::parser::tls_cipher_suite::serialize",
-            deserialize_with = "crate::parser::tls_cipher_suite::deserialize",
-            default = "FieldServerTls::default_cipher_suite"
-        )]
+        pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// TLS cipher suite supported
-        pub cipher_suite: Vec<rustls::CipherSuite>,
+        #[serde(default = "FieldServerTls::default_cipher_suite")]
+        pub cipher_suite: Vec<vsmtp_common::CipherSuite>,
         /// Certificate chain to use for the TLS connection.
         pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.

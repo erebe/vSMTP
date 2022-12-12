@@ -198,8 +198,8 @@ impl Default for SyslogSocket {
 }
 
 impl FieldServerTls {
-    pub(crate) fn default_cipher_suite() -> Vec<rustls::CipherSuite> {
-        vec![
+    pub(crate) fn default_cipher_suite() -> Vec<vsmtp_common::CipherSuite> {
+        [
             // TLS1.3 suites
             rustls::CipherSuite::TLS13_AES_256_GCM_SHA384,
             rustls::CipherSuite::TLS13_AES_128_GCM_SHA256,
@@ -212,6 +212,9 @@ impl FieldServerTls {
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         ]
+        .into_iter()
+        .map(vsmtp_common::CipherSuite)
+        .collect::<Vec<_>>()
     }
 
     pub(crate) const fn default_handshake_timeout() -> std::time::Duration {

@@ -49,11 +49,11 @@ static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
     &[&rustls::version::TLS13, &rustls::version::TLS12];
 
 fn to_supported_cipher_suite(
-    cipher_suite: &[rustls::CipherSuite],
+    cipher_suite: &[vsmtp_common::CipherSuite],
 ) -> Vec<rustls::SupportedCipherSuite> {
     ALL_CIPHER_SUITES
         .iter()
-        .filter(|i| cipher_suite.iter().any(|x| *x == i.suite()))
+        .filter(|i| cipher_suite.iter().any(|x| x.0 == i.suite()))
         .copied()
         .collect::<Vec<_>>()
 }
@@ -67,11 +67,11 @@ pub fn get_rustls_config(
         config
             .protocol_version
             .iter()
-            .any(|i| *i == rustls::ProtocolVersion::TLSv1_2),
+            .any(|i| i.0 == rustls::ProtocolVersion::TLSv1_2),
         config
             .protocol_version
             .iter()
-            .any(|i| *i == rustls::ProtocolVersion::TLSv1_3),
+            .any(|i| i.0 == rustls::ProtocolVersion::TLSv1_3),
     ) {
         (true, true) => ALL_VERSIONS,
         (true, false) => JUST_TLS1_2,

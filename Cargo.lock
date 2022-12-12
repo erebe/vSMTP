@@ -3335,6 +3335,8 @@ dependencies = [
  "libc",
  "pretty_assertions",
  "rsasl",
+ "rustls",
+ "rustls-pemfile",
  "serde",
  "serde_json",
  "serde_with",

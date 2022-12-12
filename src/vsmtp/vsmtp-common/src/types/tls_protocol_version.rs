@@ -15,55 +15,36 @@
  *
 */
 
-const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
-    rustls::ProtocolVersion::TLSv1_2,
-    rustls::ProtocolVersion::TLSv1_3,
-];
+// const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
+//     rustls::ProtocolVersion::TLSv1_2,
+//     rustls::ProtocolVersion::TLSv1_3,
+// ];
 
-struct ProtocolVersion(rustls::ProtocolVersion);
+/// Wrapper around [`rustls::ProtocolVersion`] to implement [`serde::Deserialize`] and [`serde::Serialize`]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde_with::DeserializeFromStr, serde_with::SerializeDisplay,
+)]
+pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 
 impl std::str::FromStr for ProtocolVersion {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "TLSv1.2" | "0x0303" => Ok(Self(rustls::ProtocolVersion::TLSv1_2)),
-            "TLSv1.3" | "0x0304" => Ok(Self(rustls::ProtocolVersion::TLSv1_3)),
+            "TLSv1_2" | "TLSv1.2" | "0x0303" => Ok(Self(rustls::ProtocolVersion::TLSv1_2)),
+            "TLSv1_3" | "TLSv1.3" | "0x0304" => Ok(Self(rustls::ProtocolVersion::TLSv1_3)),
             _ => Err(anyhow::anyhow!("not a valid protocol version: '{}'", s)),
         }
     }
 }
 
-impl serde::Serialize for ProtocolVersion {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(match self.0 {
-            rustls::ProtocolVersion::TLSv1_2 => "TLSv1.2",
-            rustls::ProtocolVersion::TLSv1_3 => "TLSv1.3",
-            _ => {
-                return Err(serde::ser::Error::custom(format!(
-                    "cannot be serialized: '{:?}'",
-                    self.0
-                )))
-            }
-        })
+impl std::fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.as_str().expect("valid protocol version").fmt(f)
     }
 }
 
-impl<'de> serde::Deserialize<'de> for ProtocolVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        <Self as std::str::FromStr>::from_str(&<String as serde::Deserialize>::deserialize(
-            deserializer,
-        )?)
-        .map_err(serde::de::Error::custom)
-    }
-}
-
+/*
 fn custom_deserialize_vec<'de, D>(deserializer: D) -> Result<Vec<ProtocolVersion>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -148,17 +129,15 @@ where
     }
     serde::ser::SerializeSeq::end(seq)
 }
+*/
+/*
 
 #[cfg(test)]
 mod tests {
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct S {
-        #[serde(
-            serialize_with = "crate::parser::tls_protocol_version::serialize",
-            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
-        )]
-        v: Vec<rustls::ProtocolVersion>,
+        v: Vec<super::ProtocolVersion>,
     }
 
     #[test]
@@ -170,30 +149,31 @@ mod tests {
         assert!(serde_json::from_str::<S>(r#"{ "v": 100 }"#).is_err());
     }
 
-    #[test]
-    fn one_string() {
-        assert_eq!(
-            serde_json::from_str::<S>(r#"{ "v": "TLSv1.2" }"#)
-                .unwrap()
-                .v,
-            vec![rustls::ProtocolVersion::TLSv1_2]
-        );
-        assert_eq!(
-            serde_json::from_str::<S>(r#"{ "v": "0x0303" }"#).unwrap().v,
-            vec![rustls::ProtocolVersion::TLSv1_2]
-        );
+        #[test]
+        fn one_string() {
+            assert_eq!(
+                serde_json::from_str::<S>(r#"{ "v": "TLSv1.2" }"#)
+                    .unwrap()
+                    .v,
+                vec![rustls::ProtocolVersion::TLSv1_2]
+            );
+            assert_eq!(
+                serde_json::from_str::<S>(r#"{ "v": "0x0303" }"#).unwrap().v,
+                vec![rustls::ProtocolVersion::TLSv1_2]
+            );
 
-        assert_eq!(
-            serde_json::from_str::<S>(r#"{ "v": "TLSv1.3" }"#)
-                .unwrap()
-                .v,
-            vec![rustls::ProtocolVersion::TLSv1_3]
-        );
-        assert_eq!(
-            serde_json::from_str::<S>(r#"{ "v": "0x0304" }"#).unwrap().v,
-            vec![rustls::ProtocolVersion::TLSv1_3]
-        );
-    }
+            assert_eq!(
+                serde_json::from_str::<S>(r#"{ "v": "TLSv1.3" }"#)
+                    .unwrap()
+                    .v,
+                vec![rustls::ProtocolVersion::TLSv1_3]
+            );
+            assert_eq!(
+                serde_json::from_str::<S>(r#"{ "v": "0x0304" }"#).unwrap().v,
+                vec![rustls::ProtocolVersion::TLSv1_3]
+            );
+        }
+
 
     #[test]
     fn array() {
@@ -202,8 +182,8 @@ mod tests {
                 .unwrap()
                 .v,
             vec![
-                rustls::ProtocolVersion::TLSv1_2,
-                rustls::ProtocolVersion::TLSv1_3,
+                super::ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+                super::ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
             ]
         );
     }
@@ -250,3 +230,4 @@ mod tests {
         .is_err());
     }
 }
+*/

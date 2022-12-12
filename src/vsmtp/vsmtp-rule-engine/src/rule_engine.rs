@@ -15,7 +15,7 @@
  *
  */
 use crate::{
-    api::{rule_state::deny, EngineResult, Server, StandardVSLPackage},
+    api::{rule_state::deny, Server, StandardVSLPackage},
     dsl::{
         directives::{Directive, Directives},
         smtp::service,
@@ -187,7 +187,8 @@ impl RuleEngine {
         #[cfg(debug_assertions)]
         {
             // Checking if TypeIDs are the same as plugins.
-            dbg!(std::any::TypeId::of::<rhai::ImmutableString>());
+            let type_id = std::any::TypeId::of::<rhai::ImmutableString>();
+            tracing::debug!(?type_id);
         }
 
         Ok(Self {
@@ -397,7 +398,7 @@ impl RuleEngine {
             }
             Some(status) if status.is_finished() => {
                 tracing::debug!(?status, "The status has been skipped before.");
-                return (*status).clone();
+                return status.clone();
             }
             Some(_) | None => {
                 if let Some(directive) = script.directives.get(&smtp_state) {
@@ -409,31 +410,17 @@ impl RuleEngine {
             }
         };
 
-        match Self::execute_directives(rule_state, &script.ast, directive, smtp_state) {
-            Ok(status) => {
-                tracing::debug!(?status);
+        let status = Self::execute_directives(rule_state, &script.ast, directive, smtp_state);
 
-                if status.is_finished() {
-                    tracing::debug!(
-                        "The rule engine will skip all rules because of the previous result: {:?}",
-                        status
-                    );
-                    *skipped = Some(status.clone());
-                }
-
+        if status.is_finished() {
+            tracing::info!(
+                "The rule engine will skip all rules because of the result {:?}",
                 status
-            }
-            Err(error) => {
-                tracing::error!(%error, "Rule engine error.");
-
-                // TODO: keep the error for the `deferred` info.
-
-                // if an error occurs, the engine denies the connection by default.
-                *skipped = Some(deny());
-
-                deny()
-            }
+            );
+            *skipped = Some(status.clone());
         }
+
+        status
     }
 
     /// Instantiate a [`RuleState`] and run it for the only `state` provided
@@ -459,6 +446,7 @@ impl RuleEngine {
     /// The transaction context is whether the email is incoming, outgoing or internal.
     #[allow(clippy::cognitive_complexity)]
     #[allow(clippy::too_many_lines)]
+    #[tracing::instrument(skip_all, err)]
     fn get_directives_for_smtp_state<'a>(
         &'a self,
         context: &vsmtp_common::Context,
@@ -618,24 +606,29 @@ impl RuleEngine {
         Domain::iter(domain).find_map(|parent| self.rules.domains.get(parent))
     }
 
-    #[tracing::instrument(skip_all, ret, err)]
     fn execute_directives(
         rule_state: &RuleState,
         ast: &rhai::AST,
         directives: &[Directive],
         smtp_state: ExecutionStage,
-    ) -> EngineResult<Status> {
+    ) -> Status {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(rule_state, ast, smtp_state)?;
+            status = directive
+                .execute(rule_state, ast, smtp_state)
+                .unwrap_or_else(|e| {
+                    let error_status = deny();
+                    tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
+                    error_status
+                });
 
             if status != Status::Next {
                 break;
             }
         }
 
-        Ok(status)
+        status
     }
 
     /// create a rhai engine to compile all scripts with vsl's configuration.

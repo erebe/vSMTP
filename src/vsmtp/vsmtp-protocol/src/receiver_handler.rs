@@ -18,6 +18,7 @@ use crate::{
     receiver::ReceiverContext, smtp_sasl::CallbackWrap, stream::Error, AcceptArgs, AuthArgs,
     AuthError, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
 };
+use tokio_rustls::rustls;
 // TODO: should we move these type in this crate
 use vsmtp_common::{Reply, Stage};
 
@@ -41,8 +42,14 @@ pub trait ReceiverHandler {
     async fn on_starttls(&mut self, ctx: &mut ReceiverContext) -> Reply;
 
     /// Called after a successful TLS handshake.
-    // TODO: take the tls config as argument
-    async fn on_post_tls_handshake(&mut self, sni: Option<String>) -> Reply;
+    async fn on_post_tls_handshake(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Reply;
 
     /// Called after receiving a [`Verb::Auth`] command.
     async fn on_auth(&mut self, ctx: &mut ReceiverContext, args: AuthArgs) -> Option<Reply>;

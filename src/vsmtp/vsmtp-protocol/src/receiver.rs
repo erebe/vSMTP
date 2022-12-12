@@ -128,7 +128,17 @@ where
             let tls_config = tls_tcp_stream.get_ref().1.clone();
             let sni = tls_config.sni_hostname().map(str::to_string);
 
-            // see https://github.com/tokio-rs/tls/issues/40
+            let protocol_version = tls_config.protocol_version()
+                .expect("tls handshake completed").clone();
+            let negotiated_cipher_suite = tls_config.negotiated_cipher_suite()
+                .expect("tls handshake completed").clone();
+            let peer_certificates = tls_config. peer_certificates()
+                .map(<[rustls::Certificate]>::to_vec);
+            let alpn_protocol = tls_config.alpn_protocol()
+                .map(<[u8]>::to_vec)
+                .clone();
+
+            // FIXME: see https://github.com/tokio-rs/tls/issues/40
             let (read, write) = tokio::io::split(tls_tcp_stream);
 
             let (stream, sink) = (Stream::new(read), Sink::new(write));
@@ -142,7 +152,13 @@ where
                 kind: self.kind,
                 message_size_max: self.message_size_max,
                 v: self.v,
-            }.into_secured_stream(sni);
+            }.into_secured_stream(
+                sni,
+                protocol_version,
+                negotiated_cipher_suite,
+                peer_certificates,
+                alpn_protocol
+            );
 
             for await i in secured_receiver {
                 yield i?;
@@ -271,9 +287,19 @@ where
     fn into_secured_stream(
         mut self,
         sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        negotiated_cipher_suite: rustls::SupportedCipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
-            let reply_post_tls_handshake = self.handler.on_post_tls_handshake(sni).await;
+            let reply_post_tls_handshake = self.handler.on_post_tls_handshake(
+                sni,
+                protocol_version,
+                negotiated_cipher_suite.suite(),
+                peer_certificates,
+                alpn_protocol
+            ).await;
 
             if self.kind == ConnectionKind::Tunneled {
                 self.sink.send_reply(

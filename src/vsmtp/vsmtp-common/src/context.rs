@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{auth::Credentials, rcpt::Rcpt, status::Status, Address, ClientName};
+use crate::{
+    auth::Credentials, rcpt::Rcpt, status::Status, Address, CipherSuite, ClientName,
+    ProtocolVersion,
+};
 use vsmtp_auth::{dkim, spf};
 
 /// What rules should be executed regarding the domains of the sender and recipients.
@@ -50,7 +53,7 @@ pub enum Stage {
     Finished,
 }
 
-// FIXME: remove clone ?
+// FIXME: remove clone ? used to create a copy of the context for internal state
 // and serde::Serialize (= only used for vsl::dump function)
 // (and serde::Serialize for other sub-context)
 /// A step-by-step SMTP envelop produced by the transaction
@@ -366,12 +369,24 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::Connect`] or [`Stage::Helo`]
-    pub fn to_secured(&mut self, sni: Option<String>) -> Result<(), Error> {
+    pub fn to_secured(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Result<(), Error> {
         match self {
             Context::Empty => unreachable!(),
             Context::Connect(ContextConnect { connect })
             | Context::Helo(ContextHelo { connect, .. }) => {
-                connect.tls = Some(TlsProperties {});
+                connect.tls = Some(TlsProperties {
+                    protocol_version: ProtocolVersion(protocol_version),
+                    cipher_suite: CipherSuite(cipher_suite),
+                    peer_certificates,
+                    alpn_protocol,
+                });
                 if let Some(sni) = sni {
                     connect.server_name = sni;
                 }
@@ -777,9 +792,44 @@ impl Context {
 }
 
 /// Properties of the TLS connection
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TlsProperties {
-    // TODO: store protocol version / cipher suite / ...
+    ///
+    pub protocol_version: crate::ProtocolVersion,
+    ///
+    pub cipher_suite: crate::CipherSuite,
+    ///
+    #[serde(
+        serialize_with = "serde_with::As::<Option<Vec<serde_with::base64::Base64>>>::serialize",
+        deserialize_with = "de_peer_certificates"
+    )]
+    pub peer_certificates: Option<Vec<rustls::Certificate>>,
+    ///
+    pub alpn_protocol: Option<Vec<u8>>,
+}
+
+fn de_peer_certificates<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<rustls::Certificate>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    <Option<Vec<String>> as serde::Deserialize>::deserialize(deserializer)?
+        .map(|certs| {
+            match certs
+                .into_iter()
+                .map(|i| rustls_pemfile::certs(&mut i.as_bytes()))
+                .collect::<Result<Vec<Vec<Vec<u8>>>, _>>()
+            {
+                Ok(certs) => Ok(certs
+                    .into_iter()
+                    .flatten()
+                    .map(rustls::Certificate)
+                    .collect()),
+                Err(e) => Err(serde::de::Error::custom(e)),
+            }
+        })
+        .transpose()
 }
 
 /// Properties of the authentication SASL

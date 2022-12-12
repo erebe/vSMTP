@@ -101,8 +101,21 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
         self.on_accept_inner(ctx, &args)
     }
 
-    async fn on_post_tls_handshake(&mut self, sni: Option<String>) -> Reply {
-        self.on_post_tls_handshake_inner(sni)
+    async fn on_post_tls_handshake(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Reply {
+        self.on_post_tls_handshake_inner(
+            sni,
+            protocol_version,
+            cipher_suite,
+            peer_certificates,
+            alpn_protocol,
+        )
     }
 
     async fn on_starttls(&mut self, ctx: &mut ReceiverContext) -> Reply {

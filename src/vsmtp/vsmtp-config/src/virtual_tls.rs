@@ -115,7 +115,9 @@ impl FieldServerVirtualTls {
     /// * private key file not found.
     pub fn from_path(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+            protocol_version: vec![vsmtp_common::ProtocolVersion(
+                rustls::ProtocolVersion::TLSv1_3,
+            )],
             certificate: SecretFile::<rustls::Certificate> {
                 inner: tls_certificate::from_path(certificate)?,
                 path: certificate.into(),

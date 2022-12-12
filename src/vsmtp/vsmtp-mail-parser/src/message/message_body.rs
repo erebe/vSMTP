@@ -136,6 +136,7 @@ impl MessageBody {
     /// prepend a header to the header section.
     ///
     /// push front
+    // FIXME: fold this header.
     pub fn prepend_header(&mut self, name: &str, value: &str) {
         if let Some(parsed) = &mut self.parsed {
             parsed.prepend_headers([(name.to_string(), value.to_string())]);

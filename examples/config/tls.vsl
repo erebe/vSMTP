@@ -6,7 +6,7 @@ fn on_config(config) {
     config.server.tls = #{
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
-        protocol_version: "TLSv1.3",
+        protocol_version: ["TLSv1.3"],
         certificate: "../../../examples/config/tls/certificate.crt",
         private_key: "../../../examples/config/tls/private_key.key",
     };
@@ -17,7 +17,7 @@ fn on_config(config) {
 
     config.server.virtual["testserver3.com"] = #{
         tls: #{
-            protocol_version: "TLSv1.3",
+            protocol_version: ["TLSv1.3"],
             certificate: "../../../examples/config/tls/certificate.crt",
             private_key: "../../../examples/config/tls/private_key.key",
         }
@@ -26,7 +26,7 @@ fn on_config(config) {
     config.server.virtual["testserver4.com"] = #{
 
         tls: #{
-            protocol_version: "TLSv1.3",
+            protocol_version: ["TLSv1.3"],
             certificate: "../../../examples/config/tls/certificate.crt",
             private_key: "../../../examples/config/tls/private_key.key",
         },

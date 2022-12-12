@@ -85,11 +85,7 @@ impl MailHandler {
             mail_context.connect.skipped.clone(),
         );
 
-        let mut write_to_queue = Option::<QueueID>::None;
-        let mut send_to_next_process = Option::<Process>::None;
-        let mut delegated = false;
-
-        match &skipped {
+        let (write_to_queue, send_to_next_process, delegated) = match &skipped {
             Some(status @ Status::Quarantine(path)) => {
                 let quarantine = QueueID::Quarantine { name: path.into() };
                 queue_manager
@@ -98,6 +94,7 @@ impl MailHandler {
                     .map_err(|err| MailHandlerError::WriteToQueue(quarantine, err.to_string()))?;
 
                 tracing::warn!(status = status.as_ref(), "Rules skipped.");
+                (None, None, false)
             }
             Some(Status::Delegated(_)) => {
                 return Err(MailHandlerError::InvalidDelegation);
@@ -112,15 +109,11 @@ impl MailHandler {
                             .cloned()
                     })
                 {
-                    message_uuid =
-                        match <uuid::Uuid as std::str::FromStr>::from_str(&old_message_id) {
-                            Ok(id) => id,
-                            Err(_err) => return Err(MailHandlerError::InvalidDelegation),
-                        };
+                    message_uuid = <uuid::Uuid as std::str::FromStr>::from_str(&old_message_id)
+                        .map_err(|_| MailHandlerError::InvalidDelegation)?;
                 }
 
-                delegated = true;
-                send_to_next_process = Some(Process::Processing);
+                (None, Some(Process::Processing), true)
             }
             Some(Status::Deny(code)) => {
                 for rcpt in &mut mail_context.rcpt_to.forward_paths {
@@ -129,17 +122,12 @@ impl MailHandler {
                     );
                 }
 
-                write_to_queue = Some(QueueID::Dead);
+                (Some(QueueID::Dead), None, false)
             }
-            None | Some(Status::Next) => {
-                write_to_queue = Some(QueueID::Working);
-                send_to_next_process = Some(Process::Processing);
-            }
+            None | Some(Status::Next) => (Some(QueueID::Working), Some(Process::Processing), false),
             Some(reason) => {
                 tracing::warn!(stage = %ExecutionStage::PreQ, status = ?reason.as_ref(), "Rules skipped.");
-
-                write_to_queue = Some(QueueID::Deliver);
-                send_to_next_process = Some(Process::Delivery);
+                (Some(QueueID::Deliver), Some(Process::Delivery), false)
             }
         };
 

@@ -364,7 +364,9 @@ impl Builder<WantsServerTLSConfig> {
                 tls: Some(FieldServerTls {
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
-                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+                    protocol_version: vec![vsmtp_common::ProtocolVersion(
+                        rustls::ProtocolVersion::TLSv1_3,
+                    )],
                     certificate: SecretFile::<rustls::Certificate> {
                         inner: tls_certificate::from_path(certificate)?,
                         path: certificate.into(),
@@ -394,7 +396,9 @@ impl Builder<WantsServerTLSConfig> {
                 tls: Some(FieldServerTls {
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
-                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+                    protocol_version: vec![vsmtp_common::ProtocolVersion(
+                        rustls::ProtocolVersion::TLSv1_3,
+                    )],
                     certificate: SecretFile::<rustls::Certificate> {
                         inner: tls_certificate::from_string(certificate)?,
                         path: certificate.into(),

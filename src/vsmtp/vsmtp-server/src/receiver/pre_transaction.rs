@@ -16,6 +16,7 @@
 */
 
 use crate::{Handler, OnMail};
+use tokio_rustls::rustls;
 use vsmtp_common::{auth::Credentials, status::Status, ClientName, CodeID, Reply};
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, ConnectionKind, EhloArgs, HeloArgs,
@@ -115,12 +116,25 @@ impl<M: OnMail + Send> Handler<M> {
         }))
     }
 
-    pub(super) fn on_post_tls_handshake_inner(&mut self, sni: Option<String>) -> Reply {
+    pub(super) fn on_post_tls_handshake_inner(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Reply {
         self.state
             .context()
             .write()
             .expect("state poisoned")
-            .to_secured(sni)
+            .to_secured(
+                sni,
+                protocol_version,
+                cipher_suite,
+                peer_certificates,
+                alpn_protocol,
+            )
             .expect("bad state");
 
         self.reply_in_config(CodeID::Greetings)
