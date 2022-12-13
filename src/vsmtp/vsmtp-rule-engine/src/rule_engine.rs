@@ -606,6 +606,7 @@ impl RuleEngine {
         Domain::iter(domain).find_map(|parent| self.rules.domains.get(parent))
     }
 
+    #[tracing::instrument(skip_all, ret)]
     fn execute_directives(
         rule_state: &RuleState,
         ast: &rhai::AST,
