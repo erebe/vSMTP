@@ -33,7 +33,7 @@ regex = { version = "1.7.0", default-features = false, features = ["std", "perf"
 iprange = { version = "0.6.7", default-features = false, features = [
     # "serde" # TODO
 ] }
-ipnet = { version = "2.6.0", default-features = false, features = [
+ipnet = { version = "2.7.0", default-features = false, features = [
     # "serde", # TODO
 ] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
