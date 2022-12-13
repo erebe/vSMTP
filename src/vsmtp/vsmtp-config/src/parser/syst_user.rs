@@ -27,7 +27,7 @@ where
 {
     let user_name = &<String as serde::Deserialize>::deserialize(deserializer)?;
     users::get_user_by_name(user_name)
-        .ok_or_else(|| serde::de::Error::custom(format!("user not found: '{}'", user_name)))
+        .ok_or_else(|| serde::de::Error::custom(format!("user not found: '{user_name}'")))
 }
 
 #[cfg(test)]

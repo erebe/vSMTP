@@ -30,7 +30,7 @@ use rhai::module_resolvers::ModuleResolversCollection;
 use rhai::{module_resolvers::FileModuleResolver, packages::Package, Engine, Scope};
 use rhai_dylib::module_resolvers::libloading::DylibModuleResolver;
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::{status::Status, CodeID, Domain, ReplyOrCodeID, TransactionType};
+use vsmtp_common::{status::Status, CodeID, Domain, Reply, ReplyOrCodeID, TransactionType};
 use vsmtp_config::{field::FieldAppVSL, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
@@ -286,6 +286,99 @@ impl RuleEngine {
         })
     }
 
+    /// Get the subset of directive to continue the execution of rules after a delegation.
+    /// at this point, any ill formed input will produce an error.
+    #[allow(clippy::cognitive_complexity)]
+    fn get_delegation_directive_from_header(
+        rule_state: &RuleState,
+        skipped: &mut Option<Status>,
+        smtp_state: ExecutionStage,
+        script: &Script,
+    ) -> Result<usize, Reply> {
+        macro_rules! err {
+            ($err:expr) => {{
+                tracing::warn!($err);
+                $err.parse().expect("valid")
+            }};
+        }
+
+        let delegation_header = rule_state
+            .message()
+            .read()
+            .expect("Mutex poisoned")
+            .get_header("X-VSMTP-DELEGATION");
+
+        let header = delegation_header.ok_or_else(|| err!("500 Delegation header not found"))?;
+        let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
+
+        tracing::debug!(%header, "Got header for delegation");
+        let (directive_name, msg_uuid) = match (
+            header.args.get("stage"),
+            header.args.get("directive"),
+            header.args.get("id"),
+        ) {
+            (Some(stage), Some(directive_name), Some(msg_uuid)) => {
+                match stage.parse::<ExecutionStage>() {
+                    Ok(stage) if stage == smtp_state => (),
+                    _ => return Err(err!("500 Delegation stage not matching")),
+                };
+                (
+                    directive_name,
+                    uuid::Uuid::parse_str(msg_uuid).map_err(|_err| {
+                        err!("500 Delegation Failed to parse delegation message id")
+                    })?,
+                )
+            }
+            _ => {
+                return Err(err!(
+                    "500 Delegation header `X-VSMTP-DELEGATION` exists but ill-formed"
+                ))
+            }
+        };
+        tracing::debug!(%directive_name, %msg_uuid, "Got header for delegation with attributes");
+
+        let position = script
+            .directives
+            .get(&smtp_state)
+            .ok_or_else(|| err!("500 Delegation No rules at the stages"))?
+            .iter()
+            .position(|directive| directive.name() == directive_name)
+            .ok_or_else(|| err!("500 Delegation directive not found"))?;
+
+        // If delegation results are coming in and that this is the correct
+        // directive that has been delegated, we need to pull
+        // the old context because its state has been lost
+        // when the delegation happened.
+        //
+        // There is however no need to discard the old email because it
+        // will be overridden by the results once it's time to write
+        // in the 'mail' queue.
+
+        // FIXME: this is only useful for preq, the other processes
+        //        already fetch the old context.
+        let mut ctx = rule_state
+            .server
+            .queue_manager
+            .get_ctx(&QueueID::Delegated, &msg_uuid);
+        let mut ctx =
+            block_on!(&mut ctx).map_err(|_err| err!("500 Delegation Failed to get old context"))?;
+
+        tracing::debug!(
+            "delegation changing msg uuid from {} to {}",
+            ctx.mail_from.message_uuid,
+            msg_uuid
+        );
+
+        ctx.connect.skipped = None;
+        ctx.mail_from.message_uuid = msg_uuid;
+        *rule_state.context().write().unwrap() = vsmtp_common::Context::Finished(ctx);
+
+        tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
+
+        *skipped = None;
+        Ok(position)
+    }
+
     /// Runs all rules from a stage using the current transaction state.
     ///
     /// the `server_address` parameter is used to distinguish logs from each other,
@@ -300,7 +393,6 @@ impl RuleEngine {
         skipped: &mut Option<Status>,
         smtp_state: ExecutionStage,
     ) -> Status {
-        // Extract the correct set of rules, comparing the domains of the sender and recipients.
         let script = {
             let context = rule_state.context();
             let context = context.read().expect("Mutex poisoned");
@@ -311,97 +403,34 @@ impl RuleEngine {
             }
         };
 
-        // check if we need to skip directive execution or resume because of a delegation.
+        let directive = script.directives.get(&smtp_state);
+
         let directive = match &skipped {
             #[cfg(feature = "delegation")]
-            Some(Status::DelegationResult) if smtp_state.is_email_received() => {
-                let delegation_header = rule_state
-                    .message()
-                    .read()
-                    .expect("Mutex poisoned")
-                    .get_header("X-VSMTP-DELEGATION");
-
-                let header = match delegation_header {
-                    None => return Status::DelegationResult,
-                    Some(header) => header,
-                };
-                let header = vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
-
-                let (directive_name, msg_uuid) = match (
-                    header.args.get("stage"),
-                    header.args.get("directive"),
-                    header.args.get("id"),
-                ) {
-                    (Some(stage), Some(directive_name), Some(msg_uuid)) => {
-                        match stage.parse::<ExecutionStage>() {
-                            Ok(stage) if stage == smtp_state => (),
-                            _ => return Status::DelegationResult,
-                        };
-                        (directive_name, uuid::Uuid::parse_str(msg_uuid))
-                    }
-                    _ => return Status::DelegationResult,
-                };
-
-                let msg_uuid = match msg_uuid {
-                    Ok(msg_uuid) => msg_uuid,
-                    Err(error) => {
-                        tracing::error!(%error, "Failed to parse delegation message id.");
-                        return Status::DelegationResult;
-                    }
-                };
-
-                let directive = if let Some(directive) = script.directives.get(&smtp_state) {
-                    directive
-                } else {
-                    tracing::debug!("No rules for the current state, continuing.");
-                    return Status::DelegationResult;
-                };
-
-                let position = match directive
-                    .iter()
-                    .position(|directive| directive.name() == directive_name)
-                {
-                    Some(position) => position,
-                    None => return Status::DelegationResult,
-                };
-
-                // If delegation results are coming in and that this is the correct
-                // directive that has been delegated, we need to pull
-                // the old context because its state has been lost
-                // when the delegation happened.
-                //
-                // There is however no need to discard the old email because it
-                // will be overridden by the results once it's time to write
-                // in the 'mail' queue.
-
-                // FIXME: this is only useful for preq, the other processes
-                //        already fetch the old context.
-                let mut ctx = rule_state
-                    .server
-                    .queue_manager
-                    .get_ctx(&QueueID::Delegated, &msg_uuid);
-                match block_on!(&mut ctx) {
-                    Ok(mut context) => {
-                        context.connect.skipped = None;
-                        *rule_state.context().write().unwrap() =
-                            vsmtp_common::Context::Finished(context);
-                    }
-                    Err(error) => {
-                        tracing::error!(%error, "Failed to get old email context from working queue after a delegation");
-                    }
-                }
-
-                tracing::debug!("Resuming rule '{directive_name}' after delegation.",);
-
-                *skipped = None;
-                &directive[position..]
+            Some(Status::DelegationResult) if !smtp_state.is_email_received() => {
+                return Status::DelegationResult;
             }
+            #[cfg(feature = "delegation")]
+            Some(Status::DelegationResult) => match Self::get_delegation_directive_from_header(
+                rule_state, skipped, smtp_state, script,
+            ) {
+                Ok(position) => match directive {
+                    Some(directive) => &directive[position..],
+                    None => return deny(),
+                },
+                Err(e) => {
+                    #[cfg(not(debug_assertions))]
+                    return deny();
+                    #[cfg(debug_assertions)]
+                    return Status::Deny(either::Right(e));
+                }
+            },
             Some(status) if status.is_finished() => {
                 tracing::debug!(?status, "The status has been skipped before.");
                 return status.clone();
             }
             Some(_) | None => {
-                if let Some(directive) = script.directives.get(&smtp_state) {
+                if let Some(directive) = directive {
                     directive
                 } else {
                     tracing::debug!("No rules for the current state, continuing.");
@@ -893,37 +922,26 @@ impl RuleEngine {
     }
 
     /// Find the delegate directive that matches the given socket.
-    #[cfg(feature = "delegation")]
     #[must_use]
-    pub fn get_delegation_directive<'a>(
-        &'a self,
-        socket: &'a std::net::SocketAddr,
-    ) -> Option<&'a Directive> {
-        fn get_matching_delegation_inner<'a>(
-            directives: &'a Directives,
-            socket: &'a std::net::SocketAddr,
-        ) -> Option<&'a Directive> {
-            directives.iter().flat_map(|(_, d)| d).find(|d| match d {
-                Directive::Delegation { service, .. } => service.receiver == *socket,
-                _ => false,
+    #[cfg(feature = "delegation")]
+    pub fn get_delegation_directive_bound_to_address(
+        &self,
+        socket: std::net::SocketAddr,
+    ) -> Option<&Directive> {
+        let per_domain_scripts = self
+            .rules
+            .domains
+            .iter()
+            .flat_map(|(_, d)| [&d.incoming, &d.internal, &d.outgoing].into_iter());
+        std::iter::once(&self.rules.root_filter)
+            .chain(per_domain_scripts)
+            .filter_map(|script| {
+                script.directives.iter().flat_map(|(_, d)| d).find(|d| {
+                    matches!(d,
+                        Directive::Delegation { service, .. } if service.receiver == socket)
+                })
             })
-        }
-
-        // Search for a matching delegation rule with the same socket from root incoming -> domains.
-        get_matching_delegation_inner(&self.rules.root_filter.directives, socket).or_else(|| {
-            self.rules.domains.iter().find_map(|(_, directives)| {
-                get_matching_delegation_inner(&directives.incoming.directives, socket).or_else(
-                    || {
-                        get_matching_delegation_inner(&directives.outgoing.directives, socket)
-                            .or_else(|| {
-                                get_matching_delegation_inner(
-                                    &directives.internal.directives,
-                                    socket,
-                                )
-                            })
-                    },
-                )
-            })
-        })
+            .take(1)
+            .next()
     }
 }

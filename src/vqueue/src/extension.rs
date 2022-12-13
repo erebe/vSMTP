@@ -53,6 +53,7 @@ pub trait FilesystemQueueManagerExt {
     fn get_config(&self) -> &Config;
 }
 
+// #[allow(clippy::missing_trait_methods)] // rustc 1.66
 #[async_trait::async_trait]
 impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueueManager for T {
     #[inline]
@@ -109,17 +110,17 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
                 .create(true)
                 .write(true)
                 .truncate(true)
-                .open(&mails_eml)?;
+                .open(mails_eml)?;
 
             std::io::Write::write_all(&mut file, msg.inner().to_string().as_bytes())?;
         }
-        if let &Some(ref parsed) = msg.get_parsed() {
+        if let Some(parsed) = msg.get_parsed() {
             let mails_json = mails.join(format!("{msg_uuid}.json"));
             let mut file = std::fs::OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
-                .open(&mails_json)?;
+                .open(mails_json)?;
 
             std::io::Write::write_all(&mut file, serde_json::to_string(parsed)?.as_bytes())?;
         }

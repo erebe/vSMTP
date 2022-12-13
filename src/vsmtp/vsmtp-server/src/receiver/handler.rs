@@ -164,12 +164,14 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             ExecutionStage::MailFrom,
         ) {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
+            Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                either::Left(CodeID::Ok)
+            }
             Status::Deny(code) => {
                 ctx.deny();
                 code
             }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            Status::Delegated(_) => unreachable!(),
         };
 
         self.reply_or_code_in_config(e)
@@ -292,12 +294,14 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             .run_when(state, &mut self.skipped, ExecutionStage::RcptTo)
         {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
+            Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                either::Left(CodeID::Ok)
+            }
             Status::Deny(code) => {
                 ctx.deny();
                 code
             }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            Status::Delegated(_) => unreachable!(),
         };
 
         self.reply_or_code_in_config(e)

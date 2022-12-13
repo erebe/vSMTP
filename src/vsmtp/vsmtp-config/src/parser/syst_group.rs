@@ -27,7 +27,7 @@ where
 {
     let group_name = &<String as serde::Deserialize>::deserialize(deserializer)?;
     users::get_group_by_name(group_name)
-        .ok_or_else(|| serde::de::Error::custom(format!("group not found: '{}'", group_name)))
+        .ok_or_else(|| serde::de::Error::custom(format!("group not found: '{group_name}'")))
 }
 
 pub fn opt_serialize<S>(group: &Option<users::Group>, serializer: S) -> Result<S::Ok, S::Error>
@@ -48,7 +48,7 @@ where
     let group_name = &<Option<String> as serde::Deserialize>::deserialize(deserializer)?;
     if let Some(group_name) = group_name {
         Ok(Some(users::get_group_by_name(group_name).ok_or_else(
-            || serde::de::Error::custom(format!("group not found: '{}'", group_name)),
+            || serde::de::Error::custom(format!("group not found: '{group_name}'")),
         )?))
     } else {
         Ok(None)

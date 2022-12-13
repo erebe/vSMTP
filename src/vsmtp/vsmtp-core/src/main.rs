@@ -66,7 +66,7 @@ fn try_main() -> anyhow::Result<()> {
         match command {
             Commands::ConfigShow => {
                 let stringified = serde_json::to_string_pretty(&config)?;
-                println!("Loaded configuration: {}", stringified);
+                println!("Loaded configuration: {stringified}");
                 return Ok(());
             }
             Commands::ConfigDiff => {

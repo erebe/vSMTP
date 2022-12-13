@@ -205,7 +205,7 @@ mod test {
                     &format!("{}.eml", context.mail_from.message_uuid),
                 ]);
                 assert_eq!(
-                    std::fs::read_to_string(&filepath).unwrap(),
+                    std::fs::read_to_string(filepath).unwrap(),
                     format!("Delivered-To: {mailbox}@domain.com\nHello World!\r\n")
                 );
             }

@@ -112,7 +112,7 @@ impl<M: OnMail + Send> Handler<M> {
                     ctx.deny();
                     self.reply_or_code_in_config(code_or_reply)
                 }
-                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                Status::Delegated(_) => unreachable!(),
                 status => {
                     mail_ctx.connect.skipped = Some(status);
                     let code = self
@@ -167,7 +167,7 @@ impl<M: OnMail + Send> Handler<M> {
                         ctx.deny();
                         self.reply_or_code_in_config(code_or_reply)
                     }
-                    Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                    Status::Delegated(_) => unreachable!(),
                     status => {
                         mail_ctx.connect.skipped = Some(status);
                         let code = self

@@ -207,7 +207,7 @@ mod tests {
 
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().email_status {
-            &EmailTransferStatus::HeldBack { ref errors } => assert_eq!(
+            EmailTransferStatus::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
                 TransferErrorsVariant::Smtp {
                     error: "fail to send email".to_owned()

@@ -47,13 +47,13 @@ impl TryFrom<&Record> for InnerPublicKey {
                     &record.public_key,
                 )
                 .map_err(|e| ParseError::InvalidArgument {
-                    reason: format!("invalid RSA public key: {}", e),
+                    reason: format!("invalid RSA public key: {e}"),
                 })?,
             )),
             Type::Ed25519 => Ok(Self::Ed25519(
                 ring_compat::signature::ed25519::VerifyingKey::new(&record.public_key).map_err(
                     |e| ParseError::InvalidArgument {
-                        reason: format!("invalid Ed25519 public key: {}", e),
+                        reason: format!("invalid Ed25519 public key: {e}"),
                     },
                 )?,
             )),

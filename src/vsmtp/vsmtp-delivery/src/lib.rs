@@ -34,6 +34,7 @@
 #![allow(clippy::implicit_return)]
 #![allow(clippy::mod_module_files)]
 #![allow(clippy::shadow_reuse)]
+#![allow(clippy::pattern_type_mismatch)]
 //
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
 

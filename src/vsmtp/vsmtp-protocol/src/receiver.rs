@@ -263,7 +263,7 @@ where
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
-                        if let Some(HandshakeOutcome::Quit) = produced_context.outcome {
+                        if matches!(produced_context.outcome, Some(HandshakeOutcome::Quit)) {
                             return;
                         }
 
@@ -334,7 +334,7 @@ where
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
-                        if let Some(HandshakeOutcome::Quit) = produced_context.outcome {
+                        if matches!(produced_context.outcome, Some(HandshakeOutcome::Quit)) {
                             return;
                         }
 

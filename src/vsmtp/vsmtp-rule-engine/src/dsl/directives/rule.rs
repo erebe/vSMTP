@@ -40,7 +40,7 @@ pub fn create(
                 .filter(|f| f.is::<rhai::FnPtr>())
                 .is_none()
             {
-                return Err(format!("'evaluate' function is missing from '{}' rule", name).into());
+                return Err(format!("'evaluate' function is missing from '{name}' rule").into());
             }
 
             properties.into_iter()

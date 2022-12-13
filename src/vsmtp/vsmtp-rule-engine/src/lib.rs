@@ -40,6 +40,7 @@ mod rule_engine;
 mod rule_state;
 mod server_api;
 
+pub use dsl::directives::Directive;
 pub use execution_state::ExecutionStage;
 pub use rule_engine::RuleEngine;
 pub use rule_state::RuleState;

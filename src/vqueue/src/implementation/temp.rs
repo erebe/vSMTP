@@ -34,6 +34,7 @@ impl core::fmt::Debug for QueueManager {
     }
 }
 
+// #[allow(clippy::missing_trait_methods)] // rustc 1.66
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
     #[inline]

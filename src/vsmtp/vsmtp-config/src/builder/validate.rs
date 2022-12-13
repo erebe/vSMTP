@@ -142,6 +142,6 @@ mod tests {
             .with_system_dns()
             .without_virtual_entries()
             .validate();
-        assert!(config.is_ok(), "{:?}", config);
+        assert!(config.is_ok(), "{config:?}");
     }
 }

@@ -33,16 +33,18 @@ fn run_benchmark(body_size: u64, port: u16) {
 
                 let config = std::sync::Arc::new(config);
 
-
                 let resolvers = std::sync::Arc::new(DnsResolvers::from_system_conf().unwrap());
 
-                let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+                let queue_manager =
+                    <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+                        config.clone(),
+                    )
+                    .unwrap();
 
                 let rule_engine = std::sync::Arc::new(
-                    RuleEngine::new(config.clone(),
-                    resolvers.clone(),
-                    queue_manager.clone(),
-                ).unwrap());
+                    RuleEngine::new(config.clone(), resolvers.clone(), queue_manager.clone())
+                        .unwrap(),
+                );
 
                 Server::new(
                     config.clone(),
@@ -73,20 +75,19 @@ fn run_benchmark(body_size: u64, port: u16) {
                     .port(port)
                     .build();
 
-                lettre::AsyncTransport::send(&sender, get_mail(body_size))
-                    .await
+                lettre::AsyncTransport::send(&sender, get_mail(body_size)).await
             });
 
             tokio::select! {
                 biased;
                 server = server => {
                     let mut file = std::fs::File::create("./tmp/server.txt").unwrap();
-                    std::io::Write::write_all(&mut file, format!("{:?}", server).as_bytes()).unwrap();
+                    std::io::Write::write_all(&mut file, format!("{server:?}").as_bytes()).unwrap();
                     server.unwrap();
                 },
                 client = client => {
                     let mut file = std::fs::File::create("./tmp/client.txt").unwrap();
-                    std::io::Write::write_all(&mut file, format!("{:?}", client).as_bytes()).unwrap();
+                    std::io::Write::write_all(&mut file, format!("{client:?}").as_bytes()).unwrap();
                     client.unwrap().unwrap();
                 },
             }

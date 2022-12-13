@@ -25,20 +25,34 @@ pub mod rule;
 
 pub type Directives = std::collections::BTreeMap<ExecutionStage, Vec<Directive>>;
 
+///
 #[derive(strum::AsRefStr)]
 #[strum(serialize_all = "lowercase")]
 pub enum Directive {
     /// execute code that return a status.
-    Rule { name: String, pointer: rhai::FnPtr },
+    Rule {
+        ///
+        name: String,
+        ///
+        pointer: rhai::FnPtr,
+    },
     /// execute code that does not need a return value.
-    Action { name: String, pointer: rhai::FnPtr },
+    Action {
+        ///
+        name: String,
+        ///
+        pointer: rhai::FnPtr,
+    },
     /// delegate a message to a service, and execute the
     /// inner rhai function when the message is forwarded
     /// to the service receive endpoint.
     #[cfg(feature = "delegation")]
     Delegation {
+        ///
         name: String,
+        ///
         pointer: rhai::FnPtr,
+        ///
         service: std::sync::Arc<crate::dsl::smtp::service::Smtp>,
     },
 }
@@ -60,7 +74,7 @@ pub enum ExecutionError {
 }
 
 impl Directive {
-    pub fn parse_directive(
+    pub(crate) fn parse_directive(
         symbols: &[rhai::ImmutableString],
         look_ahead: &str,
         state: &mut rhai::Dynamic,
@@ -103,7 +117,7 @@ impl Directive {
         }
     }
 
-    pub fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             #[cfg(feature = "delegation")]
             Self::Delegation { name, .. } => name,

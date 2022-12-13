@@ -495,7 +495,7 @@ fn set_transport_for_one(
     )
     .iter_mut()
     .find(|rcpt| rcpt.address.full() == search)
-    .ok_or_else::<Box<EvalAltResult>, _>(|| format!("could not find rcpt '{}'", search).into())
+    .ok_or_else::<Box<EvalAltResult>, _>(|| format!("could not find rcpt '{search}'").into())
     .map(|rcpt| rcpt.transfer_method = method.clone())
 }
 

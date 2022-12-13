@@ -183,7 +183,7 @@ macro_rules! run_test {
             );
             tokio::pin!(smtp_stream);
 
-            while let Some(Ok(())) = tokio_stream::StreamExt::next(&mut smtp_stream).await {}
+            while matches!(tokio_stream::StreamExt::next(&mut smtp_stream).await, Some(Ok(()))) {}
         });
 
         let client = tokio::spawn(async move {

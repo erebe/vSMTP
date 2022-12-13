@@ -141,7 +141,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for MakeSyslogWriter {
         match result {
             Ok(logger) => logger,
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
                 tracing_subscriber::fmt::writer::OptionalWriter::none()
             }
         }

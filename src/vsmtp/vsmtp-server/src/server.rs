@@ -47,11 +47,11 @@ pub fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     addr: A,
 ) -> anyhow::Result<std::net::TcpListener> {
     let socket = std::net::TcpListener::bind(&addr)
-        .with_context(|| format!("Failed to bind socket on addr: '{:?}'", addr))?;
+        .with_context(|| format!("Failed to bind socket on addr: '{addr:?}'"))?;
 
     socket
         .set_nonblocking(true)
-        .with_context(|| format!("Failed to set non-blocking socket on addr: '{:?}'", addr))?;
+        .with_context(|| format!("Failed to set non-blocking socket on addr: '{addr:?}'"))?;
 
     Ok(socket)
 }
@@ -289,7 +289,7 @@ impl Server {
         );
         tokio::pin!(smtp_stream);
 
-        while let Some(Ok(())) = smtp_stream.next().await {}
+        while matches!(smtp_stream.next().await, Some(Ok(()))) {}
 
         log::info!("Connection closed cleanly.");
         Ok(())
