@@ -408,6 +408,9 @@ impl FieldServerSMTP {
             CodeID::AuthErrorDecode64 => Reply::new(
                 ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64\r\n"
             ),
+            CodeID::AuthTempError => Reply::new(
+                ReplyCode::Enhanced{ code: 454, enhanced: "4.7.0".to_string() }, "Temporary authentication failure\r\n"
+            ),
             CodeID::ConnectionMaxReached => Reply::new(
                 ReplyCode::Code{ code: 554 }, "Cannot process connection, closing\r\n"
             ),

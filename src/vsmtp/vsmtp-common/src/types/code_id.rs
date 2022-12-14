@@ -104,6 +104,11 @@ pub enum CodeID {
     AuthClientCanceled,
     ///
     AuthErrorDecode64,
+    /// This response to the AUTH command indicates that the authentication
+    /// failed due to a temporary server failure.  The client SHOULD NOT
+    /// prompt the user for another password in this case, and should instead
+    /// notify the user of server failure.
+    AuthTempError,
     //
     // Security mechanism
     //

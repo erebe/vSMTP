@@ -251,7 +251,11 @@ impl<M: OnMail + Send> Handler<M> {
                 CodeID::AuthClientCanceled
             }
             Err(AuthError::Base64 { .. }) => CodeID::AuthErrorDecode64,
-            Err(AuthError::SessionError(e)) => todo!("{}", e),
+            Err(AuthError::SessionError(e)) => {
+                tracing::warn!(%e, "auth error");
+                ctx.deny();
+                CodeID::AuthTempError
+            }
             Err(AuthError::IO(e)) => todo!("{}", e),
             Err(AuthError::ConfigError(e)) => todo!("{}", e),
         };
