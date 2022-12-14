@@ -132,7 +132,7 @@ impl SubDomainHierarchy {
             root_filter: Self::rules_from_path_or_default(
                 engine,
                 filter_path,
-                DEFAULT_INCOMING_RULES,
+                DEFAULT_ROOT_FILTERING_RULES,
             )
             .context("failed to load your root filtering script (filter.vsl)")?,
             fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)
