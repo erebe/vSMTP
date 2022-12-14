@@ -118,7 +118,7 @@ impl Forward<'_> {
                     pool_min_idle: 1,
                     port: port.unwrap_or(SMTP_PORT),
                     certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                        .map_or_else(Vec::new, |cert| vec![cert]),
+                        .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                 },
                 &envelop,
                 message.as_bytes(),

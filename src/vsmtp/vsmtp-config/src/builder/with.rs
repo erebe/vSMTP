@@ -367,7 +367,7 @@ impl Builder<WantsServerTLSConfig> {
                     protocol_version: vec![vsmtp_common::ProtocolVersion(
                         rustls::ProtocolVersion::TLSv1_3,
                     )],
-                    certificate: SecretFile::<rustls::Certificate> {
+                    certificate: SecretFile::<Vec<rustls::Certificate>> {
                         inner: tls_certificate::from_path(certificate)?,
                         path: certificate.into(),
                     },
@@ -399,7 +399,7 @@ impl Builder<WantsServerTLSConfig> {
                     protocol_version: vec![vsmtp_common::ProtocolVersion(
                         rustls::ProtocolVersion::TLSv1_3,
                     )],
-                    certificate: SecretFile::<rustls::Certificate> {
+                    certificate: SecretFile::<Vec<rustls::Certificate>> {
                         inner: tls_certificate::from_string(certificate)?,
                         path: certificate.into(),
                     },

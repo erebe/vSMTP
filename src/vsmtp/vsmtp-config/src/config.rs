@@ -343,7 +343,8 @@ pub mod field {
         /// TLS protocol supported
         pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: SecretFile<rustls::Certificate>,
+        /// (the first certificate should certify KEYFILE, the last should be a root CA)
+        pub certificate: SecretFile<Vec<rustls::Certificate>>,
         /// Private key to use for the TLS connection.
         pub private_key: SecretFile<rustls::PrivateKey>,
     }
@@ -376,7 +377,8 @@ pub mod field {
         #[serde(default = "FieldServerTls::default_cipher_suite")]
         pub cipher_suite: Vec<vsmtp_common::CipherSuite>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: SecretFile<rustls::Certificate>,
+        /// (the first certificate should certify KEYFILE, the last should be a root CA)
+        pub certificate: SecretFile<Vec<rustls::Certificate>>,
         /// Private key to use for the TLS connection.
         pub private_key: SecretFile<rustls::PrivateKey>,
     }

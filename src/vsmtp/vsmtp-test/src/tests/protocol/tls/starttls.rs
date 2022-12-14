@@ -16,6 +16,8 @@
 */
 use crate::config::with_tls;
 use crate::run_test;
+use vsmtp_config::field::FieldServerVirtual;
+use vsmtp_config::field::FieldServerVirtualTls;
 
 // TODO: add a test starttls + sni
 
@@ -49,7 +51,25 @@ run_test! {
         ".\r\n",
         "QUIT\r\n",
     ],
-    config = with_tls(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
       Ok(builder.add_root_filter_rules(r#"#{
         mail: [
@@ -90,7 +110,25 @@ run_test! {
         "STARTTLS\r\n",
         "QUIT\r\n"
     ],
-    config = with_tls(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [

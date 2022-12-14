@@ -67,7 +67,7 @@ fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::a
     .with_context(|| "failed to construct `lettre` envelope")
 }
 
-fn get_cert_for_server(server_name: &str, config: &Config) -> Option<rustls::Certificate> {
+fn get_cert_for_server(server_name: &str, config: &Config) -> Option<Vec<rustls::Certificate>> {
     config.server.r#virtual.get(server_name).map_or_else(
         || {
             config

@@ -3393,6 +3393,7 @@ dependencies = [
  "env_logger",
  "futures-util",
  "lettre",
+ "pem",
  "rstest",
  "rustls",
  "test-log",

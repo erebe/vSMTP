@@ -144,7 +144,7 @@ impl Deliver<'_> {
                         pool_min_idle: 1,
                         port: SMTP_PORT,
                         certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                            .map_or_else(Vec::new, |cert| vec![cert]),
+                            .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                     },
                     &envelop,
                     message.as_bytes(),
@@ -188,7 +188,7 @@ impl Deliver<'_> {
                         pool_min_idle: 1,
                         port: SMTP_PORT,
                         certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                            .map_or_else(Vec::new, |cert| vec![cert]),
+                            .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                     },
                     &envelop,
                     message.as_bytes(),

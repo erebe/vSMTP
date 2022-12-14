@@ -79,51 +79,38 @@ pub fn get_rustls_config(
         (false, false) => anyhow::bail!("requested version is not supported"),
     };
 
+    let mut cert_resolver = rustls::server::ResolvesServerCertUsingSni::new();
+    for (virtual_name, params) in virtual_entries {
+        // using root certificate and private key if tls parameters are not defined in
+        // the virtual domain.
+        let (certificate, private_key) = {
+            params.tls.as_ref().map_or_else(
+                || (&config.certificate.inner, &config.private_key.inner),
+                |tls| (&tls.certificate.inner, &tls.private_key.inner),
+            )
+        };
+
+        cert_resolver
+            .add(
+                virtual_name,
+                rustls::sign::CertifiedKey {
+                    cert: certificate.clone(),
+                    key: rustls::sign::any_supported_type(private_key)?,
+                    ocsp: None,
+                    sct_list: None,
+                },
+            )
+            .map_err(|e| anyhow::anyhow!("cannot add sni to resolver '{virtual_name}': {e}"))?;
+    }
+
     let mut out = rustls::ServerConfig::builder()
         .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
         .with_protocol_versions(protocol_version)
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
+        // TODO: allow configurable ClientAuth (DANE)
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
-        .with_cert_resolver(std::sync::Arc::new(CertResolver {
-            sni_resolver: virtual_entries.iter().fold(
-                anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
-                |sni_resolver, (domain, entry)| {
-                    let mut sni_resolver = sni_resolver?;
-
-                    // using root certificate and private key if tls parameters are not defined in
-                    // the virtual domain.
-                    let (certificate, private_key) = {
-                        entry.tls.as_ref().map_or_else(
-                            || (&config.certificate.inner, &config.private_key.inner),
-                            |tls| (&tls.certificate.inner, &tls.private_key.inner),
-                        )
-                    };
-
-                    sni_resolver
-                        .add(
-                            domain,
-                            rustls::sign::CertifiedKey {
-                                cert: vec![certificate.clone()],
-                                key: rustls::sign::any_supported_type(private_key)?,
-                                ocsp: None,
-                                sct_list: None,
-                            },
-                        )
-                        .map_err(|e| {
-                            anyhow::anyhow!("cannot add sni to resolver '{domain}': {e}")
-                        })?;
-
-                    Ok(sni_resolver)
-                },
-            )?,
-            cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
-                cert: vec![config.certificate.inner.clone()],
-                key: rustls::sign::any_supported_type(&config.private_key.inner)?,
-                ocsp: None,
-                sct_list: None,
-            })),
-        }));
+        .with_cert_resolver(std::sync::Arc::new(cert_resolver));
 
     out.ignore_client_order = config.preempt_cipherlist;
 

@@ -48,7 +48,9 @@ ring-compat = { version = "0.4.1", default-features = false, features = ["aead",
 rustls = { version = "0.20.7", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.1", default-features = false }
 
-pem = { version = "1.1.0", default-features = false }
+pem = { version = "1.1.0", default-features = false, features = [
+  # "serde" # TODO
+] }
 rsa = { version = "0.6.1", default-features = false, features = [
   "std",
   "pem",
