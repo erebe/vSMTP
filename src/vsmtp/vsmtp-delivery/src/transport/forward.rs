@@ -209,9 +209,7 @@ mod tests {
         match &updated_rcpt.first().unwrap().email_status {
             EmailTransferStatus::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
-                TransferErrorsVariant::Smtp {
-                    error: "fail to send email".to_owned()
-                }
+                TransferErrorsVariant::TlsNoCertificate {}
             ),
             _ => panic!(),
         }

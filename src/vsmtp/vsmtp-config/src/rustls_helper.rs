@@ -16,7 +16,7 @@
 */
 use rustls::ALL_CIPHER_SUITES;
 
-use crate::field::{FieldServerTls, FieldServerVirtual};
+use crate::field::{FieldServerTls, FieldServerVirtual, FieldServerVirtualTls};
 
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {
@@ -25,24 +25,7 @@ impl rustls::KeyLog for TlsLogger {
     }
 }
 
-struct CertResolver {
-    sni_resolver: rustls::server::ResolvesServerCertUsingSni,
-    cert: Option<std::sync::Arc<rustls::sign::CertifiedKey>>,
-}
-
-impl rustls::server::ResolvesServerCert for CertResolver {
-    fn resolve(
-        &self,
-        client_hello: rustls::server::ClientHello<'_>,
-    ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
-        self.sni_resolver
-            .resolve(client_hello)
-            .or_else(|| self.cert.clone())
-    }
-}
-
 static JUST_TLS1_2: &[&rustls::SupportedProtocolVersion] = &[&rustls::version::TLS12];
-
 static JUST_TLS1_3: &[&rustls::SupportedProtocolVersion] = &[&rustls::version::TLS13];
 
 static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
@@ -80,22 +63,25 @@ pub fn get_rustls_config(
     };
 
     let mut cert_resolver = rustls::server::ResolvesServerCertUsingSni::new();
-    for (virtual_name, params) in virtual_entries {
-        // using root certificate and private key if tls parameters are not defined in
-        // the virtual domain.
-        let (certificate, private_key) = {
-            params.tls.as_ref().map_or_else(
-                || (&config.certificate.inner, &config.private_key.inner),
-                |tls| (&tls.certificate.inner, &tls.private_key.inner),
-            )
-        };
-
+    let virtual_server_with_tls = virtual_entries
+        .iter()
+        .filter_map(|(virtual_name, params)| params.tls.as_ref().map(|tls| (virtual_name, tls)));
+    for (
+        virtual_name,
+        FieldServerVirtualTls {
+            certificate,
+            private_key,
+            ..
+        },
+    ) in virtual_server_with_tls
+    {
         cert_resolver
             .add(
                 virtual_name,
                 rustls::sign::CertifiedKey {
-                    cert: certificate.clone(),
-                    key: rustls::sign::any_supported_type(private_key)?,
+                    cert: certificate.inner.clone(),
+                    key: rustls::sign::any_supported_type(&private_key.inner)?,
+                    // TODO: support OCSP and SCT
                     ocsp: None,
                     sct_list: None,
                 },
@@ -103,7 +89,7 @@ pub fn get_rustls_config(
             .map_err(|e| anyhow::anyhow!("cannot add sni to resolver '{virtual_name}': {e}"))?;
     }
 
-    let mut out = rustls::ServerConfig::builder()
+    let mut tls_config = rustls::ServerConfig::builder()
         .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
         .with_protocol_versions(protocol_version)
@@ -112,9 +98,10 @@ pub fn get_rustls_config(
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
         .with_cert_resolver(std::sync::Arc::new(cert_resolver));
 
-    out.ignore_client_order = config.preempt_cipherlist;
+    tls_config.ignore_client_order = config.preempt_cipherlist;
+    tls_config.key_log = std::sync::Arc::new(TlsLogger {});
 
-    out.key_log = std::sync::Arc::new(TlsLogger {});
+    // TODO: override other `tls_config` params ?
 
-    Ok(out)
+    Ok(tls_config)
 }

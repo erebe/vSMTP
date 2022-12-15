@@ -23,15 +23,12 @@ use super::{
     },
     WantsPath,
 };
-use crate::{
-    field::{
-        FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
-        FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
-        FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
-        ResolverOptsWrapper, SecretFile,
-    },
-    parser::{tls_certificate, tls_private_key},
+use crate::field::{
+    FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
+    FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
+    FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
+    FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
+    ResolverOptsWrapper,
 };
 use anyhow::Context;
 use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
@@ -347,17 +344,11 @@ impl Builder<WantsServerQueues> {
 }
 
 impl Builder<WantsServerTLSConfig> {
-    // TODO: remove default values from this files
-    ///
     /// # Errors
     ///
     /// * `certificate` is not valid
     /// * `private_key` is not valid
-    pub fn with_safe_and_path(
-        self,
-        certificate: &str,
-        private_key: &str,
-    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
+    pub fn with_tls(self) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
         Ok(Builder::<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
@@ -367,46 +358,6 @@ impl Builder<WantsServerTLSConfig> {
                     protocol_version: vec![vsmtp_common::ProtocolVersion(
                         rustls::ProtocolVersion::TLSv1_3,
                     )],
-                    certificate: SecretFile::<Vec<rustls::Certificate>> {
-                        inner: tls_certificate::from_path(certificate)?,
-                        path: certificate.into(),
-                    },
-                    private_key: SecretFile::<rustls::PrivateKey> {
-                        inner: tls_private_key::from_path(private_key)?,
-                        path: private_key.into(),
-                    },
-                    cipher_suite: FieldServerTls::default_cipher_suite(),
-                }),
-            },
-        })
-    }
-
-    /// # Errors
-    ///
-    /// * `certificate` is not valid
-    /// * `private_key` is not valid
-    pub fn with_safe_and_content(
-        self,
-        certificate: &str,
-        private_key: &str,
-    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
-        Ok(Builder::<WantsServerSMTPConfig1> {
-            state: WantsServerSMTPConfig1 {
-                parent: self.state,
-                tls: Some(FieldServerTls {
-                    preempt_cipherlist: false,
-                    handshake_timeout: std::time::Duration::from_millis(200),
-                    protocol_version: vec![vsmtp_common::ProtocolVersion(
-                        rustls::ProtocolVersion::TLSv1_3,
-                    )],
-                    certificate: SecretFile::<Vec<rustls::Certificate>> {
-                        inner: tls_certificate::from_string(certificate)?,
-                        path: certificate.into(),
-                    },
-                    private_key: SecretFile::<rustls::PrivateKey> {
-                        inner: tls_private_key::from_string(private_key)?,
-                        path: private_key.into(),
-                    },
                     cipher_suite: FieldServerTls::default_cipher_suite(),
                 }),
             },

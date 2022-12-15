@@ -68,16 +68,11 @@ fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::a
 }
 
 fn get_cert_for_server(server_name: &str, config: &Config) -> Option<Vec<rustls::Certificate>> {
-    config.server.r#virtual.get(server_name).map_or_else(
-        || {
-            config
-                .server
-                .tls
-                .as_ref()
-                .map(|tls| tls.certificate.inner.clone())
-        },
-        |v| v.tls.as_ref().map(|tls| tls.certificate.inner.clone()),
-    )
+    config
+        .server
+        .r#virtual
+        .get(server_name)
+        .and_then(|v| v.tls.as_ref().map(|tls| tls.certificate.inner.clone()))
 }
 
 /// a few helpers to create systems that will deliver emails.

@@ -7,8 +7,6 @@ fn on_config(config) {
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
         protocol_version: ["TLSv1.3"],
-        certificate: "../../../examples/config/tls/certificate.crt",
-        private_key: "../../../examples/config/tls/private_key.key",
     };
 
     config.server.virtual["testserver1.com"] = #{};

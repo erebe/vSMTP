@@ -64,8 +64,6 @@ fn tls_disabled() -> Tls {
 fn tls_wrapper(#[default("")] domain: impl Into<String>) -> Tls {
     Tls::Wrapper(
         TlsParametersBuilder::new(domain.into())
-            // FIXME ?
-            .dangerous_accept_invalid_certs(true)
             .set_min_tls_version(TlsVersion::Tlsv12)
             .build()
             .unwrap(),
@@ -76,8 +74,6 @@ fn tls_wrapper(#[default("")] domain: impl Into<String>) -> Tls {
 fn tls_opportunistic(#[default("")] domain: impl Into<String>) -> Tls {
     Tls::Opportunistic(
         TlsParametersBuilder::new(domain.into())
-            // FIXME ?
-            .dangerous_accept_invalid_certs(true)
             .set_min_tls_version(TlsVersion::Tlsv12)
             .build()
             .unwrap(),
@@ -88,8 +84,6 @@ fn tls_opportunistic(#[default("")] domain: impl Into<String>) -> Tls {
 fn tls_required(#[default("")] domain: impl Into<String>) -> Tls {
     Tls::Required(
         TlsParametersBuilder::new(domain.into())
-            // FIXME ?
-            .dangerous_accept_invalid_certs(true)
             .set_min_tls_version(TlsVersion::Tlsv12)
             .build()
             .unwrap(),
@@ -157,13 +151,12 @@ fn staging(
 
     match sender.build().send(&email) {
         Ok(res) => assert_eq!(res, "250 Ok\r\n".parse().unwrap()),
+        // case not existing virtual server
+        Err(e) if tls_domain == crate::DUMMY_DOMAIN &&
+            e.to_string() == "network error: received fatal alert: AccessDenied" => {}
         // case unsecured TLS
         Err(e) if matches!(tls, Tls::None) &&
             e.to_string() == "transient error (451): 5.7.3 Must issue a STARTTLS command first" => {}
-        // case certificate name not matching
-        Err(e) if tls_domain == crate::DUMMY_DOMAIN &&
-            e.to_string() ==
-            "network error: invalid peer certificate contents: invalid peer certificate: CertExpired" => {}
         // case auth bad credentials
         Err(e) if (reverse_path == crate::DUMMY_MAILBOX
             || credentials == crate::DUMMY_CREDENTIALS) && e.to_string() ==

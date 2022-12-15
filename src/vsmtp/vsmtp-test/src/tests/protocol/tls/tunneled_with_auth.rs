@@ -31,10 +31,7 @@ fn get_tls_auth_config() -> Config {
         .with_ipv4_localhost()
         .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/spool")
-        .with_safe_and_content(
-            include_str!("../../../template/certs/certificate.crt"),
-            include_str!("../../../template/certs/private_key.rsa.key"),
-        )
+        .with_tls()
         .unwrap()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()

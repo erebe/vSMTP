@@ -38,10 +38,7 @@ fn parse() {
             .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_default_delivery()
-            .with_safe_and_path(
-                "../../../examples/config/tls/certificate.crt",
-                "../../../examples/config/tls/private_key.key"
-            )
+            .with_tls()
             .unwrap()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()

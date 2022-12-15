@@ -19,8 +19,6 @@ use crate::run_test;
 use vsmtp_config::field::FieldServerVirtual;
 use vsmtp_config::field::FieldServerVirtualTls;
 
-// TODO: add a test starttls + sni
-
 run_test! {
     fn simple,
     input = [

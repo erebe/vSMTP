@@ -69,7 +69,6 @@ impl Default for FieldServer {
             smtp: FieldServerSMTP::default(),
             dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
-            dkim: None,
         }
     }
 }

@@ -101,7 +101,6 @@ impl Builder<WantsValidate> {
                 },
                 dns: dns.config,
                 r#virtual: virtual_entries.r#virtual,
-                dkim: None,
             },
             app: FieldApp {
                 dirpath: app.dirpath,

@@ -89,9 +89,6 @@ pub mod field {
         /// see [`FieldServerDNS`]
         #[serde(default)]
         pub dns: FieldServerDNS,
-        /// see [`FieldDkim`]
-        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")]
-        pub dkim: Option<FieldDkim>,
         /// see [`FieldServerVirtual`]
         #[serde(default)]
         pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
@@ -333,6 +330,7 @@ pub mod field {
         /// see [`FieldServerDNS`]
         pub dns: Option<FieldServerDNS>,
         /// see [`FieldDkim`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")] ?
         pub dkim: Option<FieldDkim>,
     }
 
@@ -376,11 +374,6 @@ pub mod field {
         /// TLS cipher suite supported
         #[serde(default = "FieldServerTls::default_cipher_suite")]
         pub cipher_suite: Vec<vsmtp_common::CipherSuite>,
-        /// Certificate chain to use for the TLS connection.
-        /// (the first certificate should certify KEYFILE, the last should be a root CA)
-        pub certificate: SecretFile<Vec<rustls::Certificate>>,
-        /// Private key to use for the TLS connection.
-        pub private_key: SecretFile<rustls::PrivateKey>,
     }
 
     /// Configuration of the client's error handling.
