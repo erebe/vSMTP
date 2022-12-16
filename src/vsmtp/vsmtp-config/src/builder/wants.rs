@@ -34,7 +34,6 @@ pub struct WantsPath {
 
 ///
 pub struct WantsServer {
-    #[allow(dead_code)]
     pub(crate) parent: WantsPath,
     pub(super) path: Option<std::path::PathBuf>,
 }

@@ -53,6 +53,7 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::use_self)] // false positive
+#![allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/9271
 
 #[cfg(test)]
 mod tests;

@@ -64,7 +64,6 @@ impl Builder<WantsVersion> {
 
 impl Builder<WantsPath> {
     ///
-    #[allow(clippy::missing_const_for_fn)] // false positive.
     #[must_use]
     pub fn without_path(self) -> Builder<WantsServer> {
         Builder::<WantsServer> {
@@ -76,7 +75,6 @@ impl Builder<WantsPath> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)] // false positive.
     #[must_use]
     pub fn with_path(self, path: std::path::PathBuf) -> Builder<WantsServer> {
         Builder::<WantsServer> {
@@ -186,7 +184,6 @@ impl Builder<WantsServerSystem> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system(
         self,
@@ -365,7 +362,6 @@ impl Builder<WantsServerTLSConfig> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_tls_support(self) -> Builder<WantsServerSMTPConfig1> {
         Builder::<WantsServerSMTPConfig1> {
@@ -385,7 +381,6 @@ impl Builder<WantsServerSMTPConfig1> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_rcpt_count_and_default(
         self,
@@ -475,7 +470,6 @@ impl Builder<WantsServerSMTPConfig3> {
 
 impl Builder<WantsServerSMTPAuth> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_auth(self) -> Builder<WantsApp> {
         Builder::<WantsApp> {
@@ -542,7 +536,6 @@ impl Builder<WantsApp> {
 impl Builder<WantsAppVSL> {
     ///
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
@@ -623,7 +616,6 @@ impl Builder<WantsServerDNS> {
 
     /// dns resolutions will be made using the system configuration.
     /// (/etc/resolv.conf on unix systems & the registry on Windows).
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system_dns(self) -> Builder<WantsServerVirtual> {
         Builder::<WantsServerVirtual> {
@@ -635,7 +627,6 @@ impl Builder<WantsServerDNS> {
     }
 
     /// dns resolutions will be made using the following dns configuration.
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_dns(
         self,

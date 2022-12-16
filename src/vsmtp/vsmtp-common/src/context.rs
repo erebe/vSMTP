@@ -782,7 +782,6 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::Finished`]
-    #[allow(clippy::missing_const_for_fn)]
     pub fn unwrap_finished(self) -> Result<ContextFinished, Error> {
         match self {
             Context::Finished(finished) => Ok(finished),

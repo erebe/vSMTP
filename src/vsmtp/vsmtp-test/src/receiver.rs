@@ -91,7 +91,7 @@ macro_rules! run_test {
         $( let server_name: &str = $server_name_tunnel; )?
         $( let server_name: &str = $server_name_starttls; )?
 
-        let port = rand::random::<u32>().rem_euclid(1000) + 10000;
+        let port = rand::random::<u32>().rem_euclid(65535 - 1025) + 1025;
         let server_addr: std::net::SocketAddr = format!("0.0.0.0:{port}").parse().expect("valid address");
         let socket_server = tokio::net::TcpListener::bind(server_addr.clone())
             .await

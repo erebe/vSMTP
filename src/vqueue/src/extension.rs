@@ -53,7 +53,7 @@ pub trait FilesystemQueueManagerExt {
     fn get_config(&self) -> &Config;
 }
 
-// #[allow(clippy::missing_trait_methods)] // rustc 1.66
+#[allow(clippy::missing_trait_methods)]
 #[async_trait::async_trait]
 impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueueManager for T {
     #[inline]
