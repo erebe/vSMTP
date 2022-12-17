@@ -87,8 +87,8 @@ fn try_main() -> anyhow::Result<()> {
     vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
     tracing::info!(
-        server = ?config.server.logs.filepath,
-        app = ?config.app.logs.filepath,
+        server = ?config.server.logs.filename,
+        app = ?config.app.logs.filename,
         syslog = config
         .server
         .logs

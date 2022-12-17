@@ -279,7 +279,7 @@ impl Builder<WantsServerLogs> {
     #[must_use]
     pub fn with_default_logs_settings(self) -> Builder<WantsServerQueues> {
         self.with_logs_settings(
-            FieldServerLogs::default_filepath(),
+            FieldServerLogs::default_filename(),
             &FieldServerLogs::default_level(),
         )
     }
@@ -288,13 +288,13 @@ impl Builder<WantsServerLogs> {
     #[must_use]
     pub fn with_logs_settings(
         self,
-        filepath: impl Into<std::path::PathBuf>,
+        filename: impl Into<std::path::PathBuf>,
         level: &[tracing_subscriber::filter::Directive],
     ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
-                filepath: filepath.into(),
+                filename: filename.into(),
                 level: level.to_vec(),
             },
         }
@@ -569,19 +569,19 @@ impl Builder<WantsAppLogs> {
     ///
     #[must_use]
     pub fn with_default_app_logs(self) -> Builder<WantsServerDNS> {
-        self.with_app_logs_at(FieldAppLogs::default_filepath())
+        self.with_app_logs_at(FieldAppLogs::default_filename())
     }
 
     ///
     #[must_use]
     pub fn with_app_logs_at(
         self,
-        filepath: impl Into<std::path::PathBuf>,
+        filename: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsServerDNS> {
         Builder::<WantsServerDNS> {
             state: WantsServerDNS {
                 parent: self.state,
-                filepath: filepath.into(),
+                filename: filename.into(),
             },
         }
     }

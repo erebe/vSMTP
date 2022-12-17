@@ -188,11 +188,9 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerLogs {
-        /// Filepath of the server's log.
-        ///
-        /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
-        #[serde(default = "FieldServerLogs::default_filepath")]
-        pub filepath: std::path::PathBuf,
+        /// Path and name of the log of the server.
+        #[serde(default = "FieldServerLogs::default_filename")]
+        pub filename: std::path::PathBuf,
         /// Customize the log level of the different part of the program.
         ///
         /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
@@ -541,8 +539,8 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldAppLogs {
         ///
-        #[serde(default = "FieldAppLogs::default_filepath")]
-        pub filepath: std::path::PathBuf,
+        #[serde(default = "FieldAppLogs::default_filename")]
+        pub filename: std::path::PathBuf,
     }
 
     /// Configuration of the application run by `vSMTP`.

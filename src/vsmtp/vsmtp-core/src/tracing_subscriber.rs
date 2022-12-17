@@ -15,7 +15,6 @@
  *
  */
 use crate::Args;
-use anyhow::Context;
 use vsmtp_common::collection;
 use vsmtp_config::field::{FieldServerLogSystem, SyslogFormat, SyslogSocket};
 use vsmtp_config::Config;
@@ -182,18 +181,36 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         fmt::writer::MakeWriterExt, layer::SubscriberExt, util::SubscriberInitExt, Layer,
     };
 
-    std::fs::create_dir_all(config.server.logs.filepath.clone())
-        .context("Cannot create `server.logs` directory")?;
+    let server_logs = &config.server.logs.filename;
 
-    let writer_backend = tracing_appender::rolling::never(&config.server.logs.filepath, "vsmtp");
+    let writer_backend = if let (Some(directory), Some(file_name)) = (
+        server_logs.parent(),
+        server_logs.file_name().and_then(std::ffi::OsStr::to_str),
+    ) {
+        tracing_appender::rolling::never(directory, file_name)
+    } else {
+        anyhow::bail!(
+            "filepath for server logs at {server_logs:?} does not have a parent or is not valid"
+        )
+    };
+
     let writer_backend = writer_backend.with_filter(|metadata| {
         metadata.target() != "vsmtp_rule_engine::api::logging::logging_rhai"
     });
 
-    std::fs::create_dir_all(config.app.logs.filepath.clone())
-        .context("Cannot create `app.logs` directory")?;
+    let app_logs = &config.app.logs.filename;
 
-    let writer_app = tracing_appender::rolling::never(&config.app.logs.filepath, "app");
+    let writer_app = if let (Some(directory), Some(file_name)) = (
+        app_logs.parent(),
+        app_logs.file_name().and_then(std::ffi::OsStr::to_str),
+    ) {
+        tracing_appender::rolling::never(directory, file_name)
+    } else {
+        anyhow::bail!(
+            "filepath for application logs at {app_logs:?} does not have a parent or is not valid"
+        )
+    };
+
     let writer_app = writer_app.with_filter(|metadata| {
         metadata.target() == "vsmtp_rule_engine::api::logging::logging_rhai"
     });

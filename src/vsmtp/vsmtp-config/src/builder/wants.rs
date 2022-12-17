@@ -68,7 +68,7 @@ pub struct WantsServerLogs {
 ///
 pub struct WantsServerQueues {
     pub(crate) parent: WantsServerLogs,
-    pub(super) filepath: std::path::PathBuf,
+    pub(super) filename: std::path::PathBuf,
     pub(super) level: Vec<tracing_subscriber::filter::Directive>,
 }
 
@@ -127,7 +127,7 @@ pub struct WantsAppLogs {
 ///
 pub struct WantsServerDNS {
     pub(crate) parent: WantsAppLogs,
-    pub(super) filepath: std::path::PathBuf,
+    pub(super) filename: std::path::PathBuf,
 }
 
 ///

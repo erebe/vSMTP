@@ -72,7 +72,7 @@ impl Builder<WantsValidate> {
                     addr_submissions: srv_inet.addr_submissions,
                 },
                 logs: FieldServerLogs {
-                    filepath: srv_logs.filepath,
+                    filename: srv_logs.filename,
                     level: srv_logs.level,
                     system: None,
                 },
@@ -109,7 +109,7 @@ impl Builder<WantsValidate> {
                     filter_path: app_vsl.filter_path,
                 },
                 logs: FieldAppLogs {
-                    filepath: app_logs.filepath,
+                    filename: app_logs.filename,
                 },
             },
         })

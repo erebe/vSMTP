@@ -15,12 +15,12 @@ fn on_config(config) {
     };
 
     config.server.logs = #{
-        filepath: "./log/server",
+        filename: "./log/server",
         level: [ "warn" ]
     };
 
     config.app.logs = #{
-        filepath: "./log/app",
+        filename: "./log/app",
     };
 
     config.server.queues.dirpath = "./spool";

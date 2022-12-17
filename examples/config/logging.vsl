@@ -2,7 +2,7 @@ fn on_config(config) {
     config.version_requirement = ">=1.4.0-rc.5, <2.0.0";
 
     config.server.logs = #{
-        filepath: "/var/log/vsmtp/vsmtp.log",
+        filename: "/var/log/vsmtp/vsmtp.log",
         level: [
             "default=warn",
             "receiver=info",
@@ -19,7 +19,7 @@ fn on_config(config) {
         text: "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
     });
 
-    config.app.logs.filepath = "/var/log/vsmtp/app.log";
+    config.app.logs.filename = "/var/log/vsmtp/app.log";
 
     config
 }

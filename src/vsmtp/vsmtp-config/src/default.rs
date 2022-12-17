@@ -159,7 +159,7 @@ impl FieldServerInterfaces {
 impl Default for FieldServerLogs {
     fn default() -> Self {
         Self {
-            filepath: Self::default_filepath(),
+            filename: Self::default_filename(),
             level: Self::default_level(),
             system: None,
         }
@@ -167,7 +167,7 @@ impl Default for FieldServerLogs {
 }
 
 impl FieldServerLogs {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
+    pub(crate) fn default_filename() -> std::path::PathBuf {
         "/var/log/vsmtp/vsmtp.log".into()
     }
 
@@ -531,13 +531,13 @@ impl FieldApp {
 impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
-            filepath: Self::default_filepath(),
+            filename: Self::default_filename(),
         }
     }
 }
 
 impl FieldAppLogs {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
+    pub(crate) fn default_filename() -> std::path::PathBuf {
         "/var/log/vsmtp/app.log".into()
     }
 }
