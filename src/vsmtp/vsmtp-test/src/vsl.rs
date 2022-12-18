@@ -17,13 +17,13 @@
 
 use crate::config::{local_ctx, local_msg, local_test};
 use vqueue::GenericQueueManager;
-use vsmtp_common::state::State;
 use vsmtp_common::status::Status;
-use vsmtp_config::Config;
-use vsmtp_config::DnsResolvers;
+use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_rule_engine::sub_domain_hierarchy::{Builder, SubDomainHierarchy};
-use vsmtp_rule_engine::RuleEngine;
+use vsmtp_rule_engine::{
+    sub_domain_hierarchy::{Builder, SubDomainHierarchy},
+    ExecutionStage, RuleEngine,
+};
 
 #[doc(hidden)]
 #[must_use]
@@ -31,7 +31,7 @@ pub fn run_with_msg_and_config(
     callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
     msg: Option<MessageBody>,
     config: Config,
-) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
+) -> std::collections::HashMap<ExecutionStage, (vsmtp_common::Context, MessageBody, Status)> {
     let config = arc!(config);
     let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
@@ -43,16 +43,18 @@ pub fn run_with_msg_and_config(
 
     let msg = msg.unwrap_or_else(local_msg);
 
-    let mut out =
-        std::collections::HashMap::<State, (vsmtp_common::Context, MessageBody, Status)>::new();
+    let mut out = std::collections::HashMap::<
+        ExecutionStage,
+        (vsmtp_common::Context, MessageBody, Status),
+    >::new();
 
     for i in [
-        State::Connect,
-        State::Helo,
-        State::MailFrom,
-        State::RcptTo,
-        State::PreQ,
-        State::PostQ,
+        ExecutionStage::Connect,
+        ExecutionStage::Helo,
+        ExecutionStage::MailFrom,
+        ExecutionStage::RcptTo,
+        ExecutionStage::PreQ,
+        ExecutionStage::PostQ,
     ] {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -80,7 +82,7 @@ pub fn run_with_msg_and_config(
 pub fn run_with_msg(
     callback: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
     msg: Option<MessageBody>,
-) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
+) -> std::collections::HashMap<ExecutionStage, (vsmtp_common::Context, MessageBody, Status)> {
     run_with_msg_and_config(callback, msg, local_test())
 }
 
@@ -88,6 +90,6 @@ pub fn run_with_msg(
 #[must_use]
 pub fn run(
     sub_domain_hierarchy_builder: impl Fn(Builder) -> anyhow::Result<SubDomainHierarchy> + 'static,
-) -> std::collections::HashMap<State, (vsmtp_common::Context, MessageBody, Status)> {
+) -> std::collections::HashMap<ExecutionStage, (vsmtp_common::Context, MessageBody, Status)> {
     run_with_msg(sub_domain_hierarchy_builder, None)
 }

@@ -46,7 +46,7 @@ impl core::fmt::Display for QueueID {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            &QueueID::Quarantine { ref name } => write!(f, "quarantine/{name}"),
+            QueueID::Quarantine { name } => write!(f, "quarantine/{name}"),
             &QueueID::Working
             | &QueueID::Deliver
             | &QueueID::Delegated

@@ -68,7 +68,11 @@ fn test_parse_whole_folder() {
                 .map_err(|e| {
                     std::io::Write::write(
                         &mut output,
-                        format!("reading failed: '{:?}' error: '{}'\n", entry.path(), e).as_bytes(),
+                        format!(
+                            "reading failed: '{}' error: '{e}'\n",
+                            entry.path().display()
+                        )
+                        .as_bytes(),
                     )
                     .unwrap();
                     e
@@ -88,7 +92,7 @@ fn test_parse_whole_folder() {
                     )
                     .unwrap();
                 })
-                .map_err(|e| panic!("parsing failed: '{:?}' error: {}", entry.path(), e))
+                .map_err(|e| panic!("parsing failed: '{}' error: {e}", entry.path().display()))
         },
     )
     .expect("folder contain valid mail");

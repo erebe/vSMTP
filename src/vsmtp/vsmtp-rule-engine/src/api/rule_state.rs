@@ -34,7 +34,7 @@ fn reply_or_code_id_from_object(code: &SharedObject) -> EngineResult<ReplyOrCode
 fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
     Ok(ReplyOrCodeID::Right(
         <Reply as std::str::FromStr>::from_str(code).map_err::<Box<EvalAltResult>, _>(|_| {
-            format!("parameter must be a code, not {:?}", code).into()
+            format!("parameter must be a code, not {code:?}").into()
         })?,
     ))
 }

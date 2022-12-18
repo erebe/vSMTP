@@ -186,7 +186,9 @@
   "lldb.showDisassembly": "auto",
   "lldb.dereferencePointers": true,
   "lldb.consoleMode": "commands",
-  "cSpell.enableFiletypes": ["rhai"],
+  "cSpell.enableFiletypes": [
+    "rhai"
+  ],
   "rust-analyzer.server.extraEnv": {
     "RUSTUP_TOOLCHAIN": "stable"
   }

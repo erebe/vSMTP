@@ -41,7 +41,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "check if header exists" || {
@@ -54,8 +54,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
     pub fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
@@ -84,7 +84,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "count_header" || {
@@ -93,8 +93,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "count is 3 and 1".to_string(),
     /// # ))));
     /// ```
@@ -128,7 +128,7 @@ mod message_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "get_header" || {
@@ -142,8 +142,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "foo Unit test are cool".to_string(),
     /// # ))));
     /// ```
@@ -215,7 +215,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "append_header" || {
@@ -225,8 +225,7 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State};
-    /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
+    /// # assert_eq!(*states[&vsmtp_rule_engine::ExecutionStage::PreQ].1.inner().raw_headers(), vec![
     /// #   "X-My-Header: 250 foo\r\n".to_string(),
     /// #   "Subject: Unit test are cool\r\n".to_string(),
     /// #   "X-My-Header-2: bar\r\n".to_string(),
@@ -262,7 +261,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "prepend_header" || {
@@ -272,8 +271,7 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State};
-    /// # assert_eq!(*states[&State::PreQ].1.inner().raw_headers(), vec![
+    /// # assert_eq!(*states[&vsmtp_rule_engine::ExecutionStage::PreQ].1.inner().raw_headers(), vec![
     /// #   "X-My-Header-3: baz\r\n".to_string(),
     /// #   "X-My-Header-2: bar\r\n".to_string(),
     /// #   "X-My-Header: 250 foo\r\n".to_string(),
@@ -309,7 +307,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "set_header" || {
@@ -320,8 +318,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "The header value has been updated again".to_string(),
     /// # ))));
     /// ```
@@ -354,7 +352,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "rename_header" || {
@@ -375,8 +373,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "The initial header value".to_string(),
     /// # ))));
     /// ```
@@ -436,7 +434,7 @@ mod message_rhai {
     /// # )).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "remove_header" || {
@@ -453,8 +451,8 @@ mod message_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Right(Reply::new(
+    /// # use vsmtp_common::{ status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PreQ].2, Status::Accept(either::Right(Reply::new(
     /// #  Code { code: 250 }, "Rust is good !!!!!".to_string(),
     /// # ))));
     /// ```

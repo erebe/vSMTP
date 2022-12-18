@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-auth"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -24,37 +24,19 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-serde = { version = "1.0.147", default-features = false, features = [
-    "std",
-    "derive",
-] }
-tracing = { version = "0.1.37", default-features = false, features = [
-    "std",
-    "attributes",
-    "release_max_level_info",
-] }
+serde = { version = "1.0.150", default-features = false, features = ["std", "derive"] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 thiserror = { version = "1.0.37", default-features = false }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
-base64 = { version = "0.13.1", default-features = false, features = ["std"] }
-strum = { version = "0.24.1", default-features = false, features = [
-    "std",
-    "derive",
-] }
-viaspf = { version = "0.5.0", default-features = false, features = [
-    "tokio-timeout",
-    "trust-dns-resolver",
-] }
-ring-compat = { version = "0.4.1", default-features = false, features = [
-    "aead",
-    "alloc",
-    "digest",
-    "signature",
-] }
+base64 = { version = "0.20.0", default-features = false, features = ["std"] }
+strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
+viaspf = { version = "0.5.0", default-features = false, features = ["tokio-timeout", "trust-dns-resolver"] }
+ring-compat = { version = "0.4.1", default-features = false, features = ["aead", "alloc", "digest", "signature"] }
 rsa = { version = "0.6.1", default-features = false, features = [
     "std",
     "pem",
@@ -62,9 +44,7 @@ rsa = { version = "0.6.1", default-features = false, features = [
 ] }
 
 sha2 = { version = "0.10.6", default-features = false, features = ["std"] }
-sha1 = { version = "0.10.5", optional = true, default-features = false, features = [
-    "std",
-] }
+sha1 = { version = "0.10.5", optional = true, default-features = false, features = ["std"] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
     "system-config",

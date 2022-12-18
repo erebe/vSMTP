@@ -34,6 +34,7 @@
 #![allow(clippy::implicit_return)]
 #![allow(clippy::mod_module_files)]
 #![allow(clippy::shadow_reuse)]
+#![allow(clippy::pattern_type_mismatch)]
 //
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
 
@@ -44,6 +45,7 @@ use anyhow::Context;
 pub use send::{split_and_sort_and_send, SenderOutcome};
 pub use sender::{Sender, SenderParameters};
 use vsmtp_common::{rcpt::Rcpt, Address};
+use vsmtp_config::Config;
 
 // at this point there should be no error
 fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::address::Envelope> {
@@ -63,6 +65,14 @@ fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::a
             .collect::<anyhow::Result<Vec<_>>>()?,
     )
     .with_context(|| "failed to construct `lettre` envelope")
+}
+
+fn get_cert_for_server(server_name: &str, config: &Config) -> Option<Vec<rustls::Certificate>> {
+    config
+        .server
+        .r#virtual
+        .get(server_name)
+        .and_then(|v| v.tls.as_ref().map(|tls| tls.certificate.inner.clone()))
 }
 
 /// a few helpers to create systems that will deliver emails.

@@ -28,6 +28,7 @@ extern crate alloc;
 ///
 #[must_use]
 #[allow(clippy::exhaustive_enums)]
+#[derive(Debug)]
 pub enum SenderOutcome {
     ///
     MoveToDead,
@@ -70,17 +71,18 @@ pub async fn split_and_sort_and_send(
 
     let futures = acc.into_iter().map(|(key, to)| match key {
         Transfer::Forward(forward_target) => {
-            let resolver = match &forward_target {
-                &ForwardTarget::Domain(ref domain) => resolvers.get_resolver_or_root(domain),
-                &ForwardTarget::Ip(_) | &ForwardTarget::Socket(_) => resolvers.get_resolver_root(),
+            let resolver = match forward_target.clone() {
+                ForwardTarget::Domain(domain) => resolvers.get_resolver_or_root(&domain),
+                ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => resolvers.get_resolver_root(),
             };
 
-            Forward::new(
-                forward_target.clone(),
-                resolver,
-                alloc::sync::Arc::clone(&sender),
+            Forward::new(forward_target, resolver, alloc::sync::Arc::clone(&sender)).deliver(
+                config,
+                message_ctx,
+                from,
+                to,
+                &message_content,
             )
-            .deliver(config, message_ctx, from, to, &message_content)
         }
         Transfer::Deliver => Deliver::new(
             resolvers.get_resolver_or_root(
@@ -106,18 +108,6 @@ pub async fn split_and_sort_and_send(
     tracing::debug!(rcpt = ?message_ctx.rcpt_to.forward_paths
         .iter().map(ToString::to_string).collect::<Vec<_>>(), "Sending.");
     tracing::trace!(rcpt = ?message_ctx.rcpt_to.forward_paths);
-
-    // updating retry count, set status to Failed if threshold reached.
-    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
-        if matches!(&rcpt.email_status, &EmailTransferStatus::HeldBack{ ref errors }
-            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
-        {
-            rcpt.email_status =
-                EmailTransferStatus::failed(TransferErrorsVariant::MaxDeferredAttemptReached);
-
-            //config.server.queues.delivery.deferred_retry_max
-        }
-    }
 
     if message_ctx.rcpt_to.forward_paths.is_empty() {
         tracing::warn!("No recipients to send to, or all transfer method are set to none.");
@@ -151,15 +141,28 @@ pub async fn split_and_sort_and_send(
         }
     }
 
-    tracing::warn!("Some send operations failed, email deferred.");
+    let mut out = None;
+    for rcpt in &mut message_ctx.rcpt_to.forward_paths {
+        if matches!(&rcpt.email_status, EmailTransferStatus::HeldBack{ errors }
+            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
+        {
+            rcpt.email_status =
+                EmailTransferStatus::failed(TransferErrorsVariant::MaxDeferredAttemptReached);
+            tracing::warn!("Delivery error count maximum reached, moving to dead.");
+            out = Some(SenderOutcome::MoveToDead);
+        }
+    }
+
+    let out = out.unwrap_or(SenderOutcome::MoveToDeferred);
+    tracing::warn!("Some send operations failed, email {:?}.", out);
     tracing::debug!(failed = ?message_ctx
-            .rcpt_to
-            .forward_paths
-            .iter()
-            .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
-            .map(|r| (r.address.to_string(), r.email_status.clone()))
-            .collect::<Vec<_>>()
+        .rcpt_to
+        .forward_paths
+        .iter()
+        .filter(|r| !matches!(r.email_status, EmailTransferStatus::Sent { .. }))
+        .map(|r| (r.address.to_string(), r.email_status.clone()))
+        .collect::<Vec<_>>()
     );
 
-    SenderOutcome::MoveToDeferred
+    out
 }

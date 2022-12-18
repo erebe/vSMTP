@@ -72,6 +72,6 @@ mod types_rhai {
     /// Convert a `time::OffsetDateTime` to a `String`
     #[rhai_fn(global, name = "to_debug", return_raw, pure)]
     pub fn time_to_debug(this: &mut time::OffsetDateTime) -> EngineResult<String> {
-        Ok(format!("{:?}", this))
+        Ok(format!("{this:?}"))
     }
 }

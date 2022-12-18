@@ -14,10 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::get_tls_config;
+use crate::config::with_tls;
 use crate::run_test;
-
-// TODO: add a test starttls + sni
+use vsmtp_config::field::FieldServerVirtual;
+use vsmtp_config::field::FieldServerVirtualTls;
 
 run_test! {
     fn simple,
@@ -49,9 +49,27 @@ run_test! {
         ".\r\n",
         "QUIT\r\n",
     ],
-    config = get_tls_config(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
-      Ok(builder.add_root_incoming_rules(r#"#{
+      Ok(builder.add_root_filter_rules(r#"#{
         mail: [
           rule "must be tls encrypted" || {
             if is_secured() {
@@ -90,9 +108,27 @@ run_test! {
         "STARTTLS\r\n",
         "QUIT\r\n"
     ],
-    config = get_tls_config(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny() }
@@ -135,9 +171,9 @@ run_test! {
         "250 SMTPUTF8\r\n",
         "451 5.7.3 Must issue a STARTTLS command first\r\n",
     ],
-    config = get_tls_config(),
+    config = with_tls(),
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n")) }
@@ -156,7 +192,7 @@ async fn config_ill_formed() {
         expected = [ "", ],
         starttls = "testserver.com" => [ "" ],
         config = {
-            let mut config = get_tls_config();
+            let mut config = with_tls();
             config.server.tls = None;
             config
         }

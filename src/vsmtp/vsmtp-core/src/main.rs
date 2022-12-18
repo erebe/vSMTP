@@ -66,7 +66,7 @@ fn try_main() -> anyhow::Result<()> {
         match command {
             Commands::ConfigShow => {
                 let stringified = serde_json::to_string_pretty(&config)?;
-                println!("Loaded configuration: {}", stringified);
+                println!("Loaded configuration: {stringified}");
                 return Ok(());
             }
             Commands::ConfigDiff => {
@@ -87,8 +87,8 @@ fn try_main() -> anyhow::Result<()> {
     vsmtp::tracing_subscriber::initialize(&args, &config)?;
 
     tracing::info!(
-        server = ?config.server.logs.filepath,
-        app = ?config.app.logs.filepath,
+        server = ?config.server.logs.filename,
+        app = ?config.app.logs.filename,
         syslog = config
         .server
         .logs

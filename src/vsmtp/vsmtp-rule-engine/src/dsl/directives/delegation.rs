@@ -43,7 +43,7 @@ pub fn create(
                 .is_none()
             {
                 return Err(
-                    format!("'evaluate' function is missing from '{}' delegation", name).into(),
+                    format!("'evaluate' function is missing from '{name}' delegation").into(),
                 );
             }
 

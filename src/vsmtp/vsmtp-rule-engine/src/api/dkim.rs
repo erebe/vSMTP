@@ -118,18 +118,20 @@ mod dkim_rhai {
     /// Get the list of DKIM private keys associated with this sdid
     #[rhai_fn(global, pure)]
     pub fn get_private_keys(server: &mut Server, sdid: &str) -> rhai::Array {
-        let dkim = server
+        let r#virtual = server
             .config
             .server
             .r#virtual
             .get(sdid)
-            .map_or_else(|| &server.config.server.dkim, |r#virtual| &r#virtual.dkim);
-        dkim.as_ref().map_or_else(Vec::new, |dkim| {
-            dkim.private_key
-                .iter()
-                .map(|key| rhai::Dynamic::from(key.inner.clone()))
-                .collect()
-        })
+            .and_then(|r#virtual| r#virtual.dkim.as_ref())
+            .map(|dkim| {
+                dkim.private_key
+                    .iter()
+                    .map(|key| rhai::Dynamic::from(key.inner.clone()))
+                    .collect::<Vec<_>>()
+            });
+
+        r#virtual.unwrap_or_default()
     }
 
     /// return the `sdid` property of the [`Signature`]
@@ -236,7 +238,7 @@ mod dkim_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// #    |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// #    |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -258,8 +260,9 @@ mod dkim_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # use vsmtp_rule_engine::ExecutionStage;
+    /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     ///
     /// Changing the header `Subject` will result in a dkim verification failure.
@@ -311,7 +314,7 @@ mod dkim_rhai {
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   preq: [
     ///     rule "verify_dkim" || {
@@ -324,8 +327,9 @@ mod dkim_rhai {
     ///   ]
     /// }
     /// # "#)?.build()), Some(msg));
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # use vsmtp_rule_engine::ExecutionStage;
+    /// # assert_eq!(states[&ExecutionStage::PreQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
@@ -358,19 +362,26 @@ mod dkim_rhai {
     /// # let mut rng = <rand_chacha::ChaCha12Rng as rand::SeedableRng>::seed_from_u64(0xCAFECAFE);
     /// # let private_key = rsa::RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate a key");
     /// # let mut config = vsmtp_test::config::local_test();
-    /// # config.server.dkim = Some(vsmtp_config::field::FieldDkim{
-    /// #   private_key: vec![
-    /// #     vsmtp_config::field::SecretFile {
-    /// #       inner: std::sync::Arc::new(
-    /// #         vsmtp_auth::dkim::PrivateKey::Rsa(Box::new(private_key))
-    /// #       ),
-    /// #       path: "./dummy".into(),
-    /// #     }
-    /// #   ]
-    /// # });
+    /// # config.server.r#virtual.insert(
+    /// #   "testserver.com".to_string(),
+    /// #   vsmtp_config::field::FieldServerVirtual {
+    /// #     tls: None,
+    /// #     dns: None,
+    /// #     dkim: Some(vsmtp_config::field::FieldDkim{
+    /// #       private_key: vec![
+    /// #         vsmtp_config::field::SecretFile {
+    /// #           inner: std::sync::Arc::new(
+    /// #             vsmtp_auth::dkim::PrivateKey::Rsa(Box::new(private_key))
+    /// #           ),
+    /// #           path: "./dummy".into(),
+    /// #         }
+    /// #       ]
+    /// #     }),
+    /// #   },
+    /// # );
     ///
     /// # let states = vsmtp_test::vsl::run_with_msg_and_config(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   postq: [
     ///     action "add a DKIM signature" || {
@@ -399,8 +410,8 @@ mod dkim_rhai {
     /// }
     /// # "#)?.build()), Some(msg), config);
     ///
-    /// # use vsmtp_common::{state::State, status::Status, CodeID};
-    /// # assert_eq!(states[&State::PostQ].2, Status::Accept(either::Left(CodeID::Ok)));
+    /// # use vsmtp_common::{status::Status, CodeID};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::PostQ].2, Status::Accept(either::Left(CodeID::Ok)));
     /// ```
     #[rhai_fn(global, pure, return_raw)]
     #[allow(clippy::needless_pass_by_value)]

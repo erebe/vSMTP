@@ -35,8 +35,9 @@ pub struct SenderParameters {
     pub pool_min_idle: u32,
     ///
     pub port: u16,
+    ///
+    pub certificate: Vec<rustls::Certificate>,
     // use_dane: bool,
-    // certificate: ...
 }
 
 type SenderInner = alloc::sync::Arc<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>>;
@@ -73,7 +74,7 @@ impl Sender {
             {
                 tracing::trace!(?params, "Key no found for transport with parameters");
 
-                let new_sender = Self::build_sender(params);
+                let new_sender = Self::build_sender(params)?;
                 let mut writer = self
                     .senders
                     .write()
@@ -97,7 +98,7 @@ impl Sender {
             .context("fail to send email")
     }
 
-    fn build_sender(params: &SenderParameters) -> SenderInner {
+    fn build_sender(params: &SenderParameters) -> anyhow::Result<SenderInner> {
         tracing::trace!(?params, "Creating a transport");
 
         let builder = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
@@ -114,11 +115,30 @@ impl Sender {
                 .min_idle(params.pool_min_idle),
         );
 
-        // TODO:
-        // let builder = builder.tls(tls);
+        // NOTE: there is no way to build `lettre::transport::smtp::client::Certificate` from `Vec<rustls::Certificate>`.
+        // rustls::Certificate => PEM => lettre::transport::smtp::client::Certificate => rustls::Certificate
+        let certs = params
+            .certificate
+            .iter()
+            .map(|c| {
+                pem::encode(&pem::Pem {
+                    tag: "CERTIFICATE".to_owned(),
+                    contents: c.0.clone(),
+                })
+            })
+            .flat_map(|c| c.as_bytes().to_vec())
+            .collect::<Vec<_>>();
+
+        let builder = builder.tls(lettre::transport::smtp::client::Tls::Required(
+            lettre::transport::smtp::client::TlsParameters::builder(params.server.clone())
+                .add_root_certificate(lettre::transport::smtp::client::Certificate::from_pem(
+                    &certs,
+                )?)
+                .build()?,
+        ));
 
         // builder.timeout(timeout)
 
-        alloc::sync::Arc::new(builder.build())
+        Ok(alloc::sync::Arc::new(builder.build()))
     }
 }

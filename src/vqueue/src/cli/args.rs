@@ -17,7 +17,7 @@
 use crate::QueueID;
 
 ///
-#[allow(clippy::exhaustive_structs)]
+#[non_exhaustive]
 #[derive(clap::Parser)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[clap(about, author)]
@@ -36,7 +36,7 @@ pub struct Args {
 }
 
 ///
-#[allow(clippy::exhaustive_enums)]
+#[non_exhaustive]
 #[derive(clap::Subcommand)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum Commands {
@@ -66,7 +66,7 @@ fn parse_uuid(value: &str) -> Result<uuid::Uuid, clap::Error> {
 }
 
 ///
-#[allow(clippy::exhaustive_enums)]
+#[non_exhaustive]
 #[derive(Clone, clap::Subcommand)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageCommand {
@@ -93,7 +93,7 @@ pub enum MessageCommand {
 }
 
 ///
-#[allow(clippy::exhaustive_enums)]
+#[non_exhaustive]
 #[derive(Clone, clap::ValueEnum)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub enum MessageShowFormat {
@@ -117,6 +117,16 @@ mod tests {
                 command: None,
             },
             <Args as clap::Parser>::try_parse_from(["", "--version"]).unwrap()
+        );
+    }
+
+    #[test]
+    fn arg_show_help() {
+        assert_eq!(
+            <Args as clap::Parser>::try_parse_from(["", "--help"])
+                .unwrap_err()
+                .kind(),
+            clap::error::ErrorKind::DisplayHelp,
         );
     }
 

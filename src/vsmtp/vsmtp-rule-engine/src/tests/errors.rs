@@ -77,7 +77,7 @@ fn compile_errored(
 
     RuleEngine::with_hierarchy(
         config,
-        |builder| Ok(builder.add_root_incoming_rules(script)?.build()),
+        |builder| Ok(builder.add_root_filter_rules(script)?.build()),
         dns_resolvers,
         queue_manger,
     )

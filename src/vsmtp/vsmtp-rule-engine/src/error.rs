@@ -14,7 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::state::State;
+
+use crate::ExecutionStage;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -89,7 +90,10 @@ pub enum RuntimeError {
     #[error(
         "the field: `{field}` is not defined yet, it only is available from the `{stage}` stage"
     )]
-    MissingField { field: String, stage: State },
+    MissingField {
+        field: String,
+        stage: ExecutionStage,
+    },
     #[error("failed to parse the message body, `{source}`")]
     ParseMessageBody { source: anyhow::Error },
     #[error("invalid type conversion expected: `{r#type}`, but got: `{source}`")]
@@ -220,10 +224,10 @@ mod test {
     #[test]
     fn test_error_from_rhai_error() {
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Rule.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Action.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Stage.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
     }
 }

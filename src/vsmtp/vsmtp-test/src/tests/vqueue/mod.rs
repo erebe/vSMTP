@@ -9,7 +9,7 @@ async fn init_success() {
     let config = arc!(local_test());
     let queue_manager =
         <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
-    assert_eq!(format!("{:?}", queue_manager), "TempQueueManager { .. }");
+    assert_eq!(format!("{queue_manager:?}"), "TempQueueManager { .. }");
     pretty_assertions::assert_eq!(*queue_manager.get_config(), *config);
 }
 

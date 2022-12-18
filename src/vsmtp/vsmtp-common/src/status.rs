@@ -24,7 +24,7 @@ pub enum Status {
     /// informational data needs to be sent to the client.
     Info(ReplyOrCodeID),
 
-    /// accepts the current [`crate::state::State`] value, skips all rules in the stage.
+    /// accepts the current stage value, skips all rules in the stage.
     Accept(ReplyOrCodeID),
 
     /// continue to the next rule / stage.
@@ -42,11 +42,13 @@ pub enum Status {
     Quarantine(String),
 
     /// the email as been delegated to another service.
+    // #[cfg(feature = "delegation")]
     #[serde(skip)]
     Delegated(SmtpConnection),
 
     /// the rule engine must skip all rules until a given
     /// rule received in the email's header.
+    // #[cfg(feature = "delegation")]
     DelegationResult,
 }
 

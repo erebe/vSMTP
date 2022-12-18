@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -30,77 +30,54 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-mail-parser"
 
 [dependencies.vqueue]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../../vqueue"
 
 [dependencies.vsmtp-protocol]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-protocol"
 
 [dependencies.vsmtp-delivery]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-delivery"
 
 [dependencies.vsmtp-rule-engine]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
-tracing = { version = "0.1.37", default-features = false, features = [
-  "std",
-  "attributes",
-  "release_max_level_info",
-] }
-log = { version = "0.4.17", default-features = false, features = [
-  "std",
-  "release_max_level_info",
-] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
+log = { version = "0.4.17", default-features = false, features = ["std", "release_max_level_info"] }
 
 async-trait = { version = "0.1.59", default-features = false }
 fastrand = { version = "1.8.0", default-features = false }
 thiserror = { version = "1.0.37", default-features = false }
-strum = { version = "0.24.1", default-features = false, features = [
-  "std",
-  "derive",
-] }
+strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 
-either = { version = "1.8.0", default-features = false, features = [
-  "use_std",
-  "serde",
-] }
+either = { version = "1.8.0", default-features = false, features = ["use_std", "serde"] }
 
-tokio-stream = { version = "0.1.11", default-features = false, features = [
-  "time",
-] }
+tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 async-stream = { version = "0.3.3", default-features = false }
 
-futures-util = { version = "0.3.24", default-features = false, features = [
-  "async-await",
-] }
+futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
-signal-hook = { version = "0.3.14", default-features = false, features = [
-  "iterator",
-] }
+signal-hook = { version = "0.3.14", default-features = false, features = ["iterator"] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
-time = { version = "0.3.17", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-] }
+time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
 lettre = { version = "0.10.0", default-features = false, features = [
   "smtp-transport",
   "builder",
@@ -108,7 +85,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
   "tracing",
   "pool",
 ] }
-tokio = { version = "1.22.0", default-features = false, features = [
+tokio = { version = "1.23.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -117,11 +94,8 @@ tokio = { version = "1.22.0", default-features = false, features = [
   "rt-multi-thread",
 ] }
 
-tokio-rustls = { version = "0.23.4", default-features = false, features = [
-  "logging",
-  "tls12",
-] }
-base64 = { version = "0.13.1", default-features = false, features = ["std"] }
+tokio-rustls = { version = "0.23.4", default-features = false, features = ["logging", "tls12"] }
+base64 = { version = "0.20.0", default-features = false, features = ["std"] }
 rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
   "provider",
   "config_builder",
@@ -135,11 +109,7 @@ rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
   "login",
 ] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-  "std",
-  "v4",
-  "fast-rng",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
 
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }
@@ -161,10 +131,7 @@ rustls-pemfile = { version = "1.0.1", default-features = false }
 
 test-log = { version = "0.2.11", features = ["trace"] }
 env_logger = "0.10.0"
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-  "fmt",
-] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
 [[bench]]
 name = "receiver2"

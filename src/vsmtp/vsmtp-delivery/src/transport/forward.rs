@@ -15,7 +15,7 @@
  *
 */
 use super::Transport;
-use crate::{to_lettre_envelope, Sender, SenderParameters};
+use crate::{get_cert_for_server, to_lettre_envelope, Sender, SenderParameters};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     rcpt::Rcpt,
@@ -61,13 +61,11 @@ impl Forward<'_> {
             .into_iter()
             .next()
             .map(|s| s.to_string()))
-
-        //            .ok_or_else(|| anyhow::anyhow!("no domain found for {query}"))
-        //
     }
 
     async fn deliver_inner(
         &mut self,
+        config: &Config,
         ctx: &ContextFinished,
         from: &Address,
         to: &[Rcpt],
@@ -119,6 +117,8 @@ impl Forward<'_> {
                     pool_max_size: 3,
                     pool_min_idle: 1,
                     port: port.unwrap_or(SMTP_PORT),
+                    certificate: get_cert_for_server(&ctx.connect.server_name, config)
+                        .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                 },
                 &envelop,
                 message.as_bytes(),
@@ -135,13 +135,13 @@ impl Transport for Forward<'_> {
     #[tracing::instrument(name = "forward", skip_all)]
     async fn deliver(
         mut self,
-        _: &Config,
+        config: &Config,
         ctx: &ContextFinished,
         from: &Address,
         mut to: Vec<Rcpt>,
         message: &str,
     ) -> Vec<Rcpt> {
-        match self.deliver_inner(ctx, from, &to, message).await {
+        match self.deliver_inner(config, ctx, from, &to, message).await {
             Ok(code) => {
                 tracing::info!("Email delivered.");
                 tracing::debug!(?code);
@@ -177,11 +177,11 @@ mod tests {
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, ForwardTarget, Transfer, TransferErrorsVariant},
     };
-    use vsmtp_test::config::{local_ctx, local_msg, local_test};
+    use vsmtp_test::config::{local_ctx, local_msg, with_tls};
 
     #[test_log::test(tokio::test)]
     async fn forward() {
-        let config = local_test();
+        let config = with_tls();
         let ctx = local_ctx();
         let msg = local_msg();
 
@@ -207,11 +207,9 @@ mod tests {
 
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().email_status {
-            &EmailTransferStatus::HeldBack { ref errors } => assert_eq!(
+            EmailTransferStatus::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
-                TransferErrorsVariant::Smtp {
-                    error: "fail to send email".to_owned()
-                }
+                TransferErrorsVariant::TlsNoCertificate {}
             ),
             _ => panic!(),
         }

@@ -51,7 +51,7 @@ mod logging_rhai {
     ///
     /// ```
     /// # vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   connect: [
     ///     action "log on connection (str/str)" || {

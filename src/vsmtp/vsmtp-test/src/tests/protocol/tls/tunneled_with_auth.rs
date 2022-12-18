@@ -15,8 +15,9 @@
  *
 */
 
-use super::{TEST_SERVER_CERT, TEST_SERVER_KEY};
 use crate::run_test;
+use vsmtp_config::field::FieldServerVirtual;
+use vsmtp_config::field::FieldServerVirtualTls;
 use vsmtp_config::Config;
 
 fn get_tls_auth_config() -> Config {
@@ -30,14 +31,14 @@ fn get_tls_auth_config() -> Config {
         .with_ipv4_localhost()
         .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/spool")
-        .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)
+        .with_tls()
         .unwrap()
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
         .with_safe_auth(-1)
         .with_app_at_location("./tmp/app")
-        .with_vsl("./src/template/auth")
+        .with_vsl("./src/template/auth/domain-enabled")
         .with_default_app_logs()
         .with_system_dns()
         .without_virtual_entries()
@@ -72,5 +73,23 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = get_tls_auth_config(),
+    config = {
+        let mut config = get_tls_auth_config();
+        config.app.vsl.domain_dir = Some("./src/template/sni".into());
+        config.server.r#virtual.insert(
+            "testserver.com".to_string(),
+            FieldServerVirtual {
+                tls: Some(
+                    FieldServerVirtualTls::from_path(
+                        "src/template/certs/certificate.crt",
+                        "src/template/certs/private_key.rsa.key",
+                    )
+                    .unwrap(),
+                ),
+                dns: None,
+                dkim: None,
+            },
+        );
+        config
+    },
 }

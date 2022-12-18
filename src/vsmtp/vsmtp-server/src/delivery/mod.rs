@@ -77,6 +77,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                         resolvers.clone(),
                         queue_manager.clone(),
                         sender.clone(),
+                        time::OffsetDateTime::now_utc(),
                     )
                 );
             }

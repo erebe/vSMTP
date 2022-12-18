@@ -15,22 +15,28 @@
  *
 */
 
-pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
-    let path = std::path::Path::new(&input);
+pub fn from_path(path: &str) -> anyhow::Result<Vec<rustls::Certificate>> {
+    let path = std::path::Path::new(&path);
     anyhow::ensure!(
         path.exists(),
         format!("certificate path does not exists: '{}'", path.display())
     );
-    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    from_string(&std::fs::read_to_string(path)?)
+}
+
+pub fn from_string(input: &str) -> anyhow::Result<Vec<rustls::Certificate>> {
+    let mut reader = std::io::BufReader::new(input.as_bytes());
 
     let pem = rustls_pemfile::certs(&mut reader)?
         .into_iter()
         .map(rustls::Certificate)
         .collect::<Vec<_>>();
 
-    pem.first()
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("certificate path is valid but empty: '{}'", path.display()))
+    if pem.is_empty() {
+        anyhow::bail!("certificate path is valid but empty")
+    }
+
+    Ok(pem)
 }
 
 #[cfg(test)]
@@ -41,7 +47,7 @@ mod tests {
 
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
-        v: SecretFile<rustls::Certificate>,
+        v: SecretFile<Vec<rustls::Certificate>>,
     }
 
     #[test]

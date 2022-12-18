@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "1.4.0-rc.4"
+version = "1.4.0-rc.5"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -25,50 +25,32 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.4"
+version = "=1.4.0-rc.5"
 path = "../vsmtp-auth"
 
 [dependencies]
 
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-] }
-tracing = { version = "0.1.37", default-features = false, features = [
-  "std",
-  "attributes",
-  "release_max_level_info",
-] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter"] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
 users = { version = "0.11.0", default-features = false }
-base64 = { version = "0.13.1", default-features = false, features = ["std"] }
-serde = { version = "1.0.147", default-features = false, features = [
-  "std",
-  "derive",
-] }
+base64 = { version = "0.20.0", default-features = false, features = ["std"] }
+serde = { version = "1.0.150", default-features = false, features = ["std", "derive"] }
 humantime-serde = { version = "1.1.1", default-features = false }
-strum = { version = "0.24.1", default-features = false, features = [
-  "std",
-  "derive",
-] }
-ring-compat = { version = "0.4.1", default-features = false, features = [
-  "aead",
-  "alloc",
-  "digest",
-  "signature",
-] }
+strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
+ring-compat = { version = "0.4.1", default-features = false, features = ["aead", "alloc", "digest", "signature"] }
 
-rustls = { version = "0.20.7", default-features = false, features = [
-  "tls12",
-  "logging",
-] }
+rustls = { version = "0.20.7", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.1", default-features = false }
 
-pem = { version = "1.1.0", default-features = false }
+pem = { version = "1.1.0", default-features = false, features = [
+  # "serde" # TODO
+] }
 rsa = { version = "0.6.1", default-features = false, features = [
   "std",
   "pem",
@@ -82,14 +64,8 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "tokio-runtime",
 ] }
 
-semver = { version = "1.0.14", default-features = false, features = [
-  "std",
-  "serde",
-] }
-serde_with = { version = "2.1.0", default-features = false, features = [
-  "std",
-  "macros",
-] }
+semver = { version = "1.0.14", default-features = false, features = ["std", "serde"] }
+serde_with = { version = "2.1.0", default-features = false, features = ["std", "macros"] }
 serde_json = "1.0.89"
 serde_path_to_error = "0.1.8"
 

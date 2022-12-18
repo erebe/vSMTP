@@ -34,7 +34,6 @@ pub struct WantsPath {
 
 ///
 pub struct WantsServer {
-    #[allow(dead_code)]
     pub(crate) parent: WantsPath,
     pub(super) path: Option<std::path::PathBuf>,
 }
@@ -69,7 +68,7 @@ pub struct WantsServerLogs {
 ///
 pub struct WantsServerQueues {
     pub(crate) parent: WantsServerLogs,
-    pub(super) filepath: std::path::PathBuf,
+    pub(super) filename: std::path::PathBuf,
     pub(super) level: Vec<tracing_subscriber::filter::Directive>,
 }
 
@@ -91,7 +90,6 @@ pub struct WantsServerSMTPConfig1 {
 pub struct WantsServerSMTPConfig2 {
     pub(crate) parent: WantsServerSMTPConfig1,
     pub(super) rcpt_count_max: usize,
-    pub(super) disable_ehlo: bool,
 }
 
 ///
@@ -122,13 +120,14 @@ pub struct WantsAppVSL {
 ///
 pub struct WantsAppLogs {
     pub(crate) parent: WantsAppVSL,
-    pub(super) dirpath: Option<std::path::PathBuf>,
+    pub(super) domain_dir: Option<std::path::PathBuf>,
+    pub(super) filter_path: Option<std::path::PathBuf>,
 }
 
 ///
 pub struct WantsServerDNS {
     pub(crate) parent: WantsAppLogs,
-    pub(super) filepath: std::path::PathBuf,
+    pub(super) filename: std::path::PathBuf,
 }
 
 ///

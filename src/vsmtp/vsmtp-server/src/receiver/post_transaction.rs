@@ -17,10 +17,10 @@
 
 use crate::{Handler, OnMail};
 use tokio_stream::StreamExt;
-use vsmtp_common::{state::State, status::Status, Reply};
+use vsmtp_common::{status::Status, CodeID, Reply};
 use vsmtp_mail_parser::{BasicParser, Mail, MailParser, MessageBody, ParserError, RawBody};
 use vsmtp_protocol::{Error, ReceiverContext};
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine, RuleState};
 
 impl<M: OnMail + Send> Handler<M> {
     pub(super) fn handle_preq_header(
@@ -55,7 +55,7 @@ impl<M: OnMail + Send> Handler<M> {
             .to_finished()
             .expect("bad state");
 
-        let status = rule_engine.run_when(state, &mut skipped, State::PreQ);
+        let status = rule_engine.run_when(state, &mut skipped, ExecutionStage::PreQ);
 
         if let Some(skipped) = skipped {
             state
@@ -85,11 +85,9 @@ impl<M: OnMail + Send> Handler<M> {
         let mail = match BasicParser::default().parse(stream).await {
             Ok(mail) => mail,
             Err(ParserError::BufferTooLong { .. }) => {
-                return "552 4.3.1 Message size exceeds fixed maximum message size\r\n"
-                    .parse()
-                    .unwrap();
+                return self.reply_in_config(CodeID::MessageSizeExceeded);
             }
-            otherwise => todo!("handle error cleanly {:?}", otherwise),
+            Err(otherwise) => todo!("handle error cleanly {:?}", otherwise),
         };
         tracing::info!("Message body fully received, processing...");
 
@@ -114,7 +112,7 @@ impl<M: OnMail + Send> Handler<M> {
                     ctx.deny();
                     self.reply_or_code_in_config(code_or_reply)
                 }
-                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                Status::Delegated(_) => unreachable!(),
                 status => {
                     mail_ctx.connect.skipped = Some(status);
                     let code = self
@@ -169,7 +167,7 @@ impl<M: OnMail + Send> Handler<M> {
                         ctx.deny();
                         self.reply_or_code_in_config(code_or_reply)
                     }
-                    Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                    Status::Delegated(_) => unreachable!(),
                     status => {
                         mail_ctx.connect.skipped = Some(status);
                         let code = self

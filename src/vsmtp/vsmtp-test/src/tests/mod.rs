@@ -30,7 +30,12 @@ mod protocol {
 
     pub mod auth;
     mod helo;
-    mod tls;
+    mod tls {
+        //mod cipher_suite;
+        mod starttls;
+        mod tunneled;
+        mod tunneled_with_auth;
+    }
     mod utf8;
 }
 mod rule_engine {

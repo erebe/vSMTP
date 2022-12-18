@@ -67,6 +67,9 @@ pub enum TransferErrorsVariant {
     },
 
     ///
+    TlsNoCertificate {},
+
+    ///
     MaxDeferredAttemptReached,
 
     ///
@@ -95,7 +98,8 @@ impl TransferErrorsVariant {
             | TransferErrorsVariant::Smtp { .. }
             | TransferErrorsVariant::StillWaiting
             | TransferErrorsVariant::RuleEngine(..)
-            | TransferErrorsVariant::DeliveryError { .. } => false,
+            | TransferErrorsVariant::DeliveryError { .. }
+            | TransferErrorsVariant::TlsNoCertificate { .. } => false,
         }
     }
 }
@@ -107,8 +111,9 @@ pub struct TransferError {
     ///
     #[serde(flatten)]
     pub variant: TransferErrorsVariant,
+    ///
     #[serde(with = "time::serde::iso8601")]
-    timestamp: time::OffsetDateTime,
+    pub timestamp: time::OffsetDateTime,
 }
 
 // TODO: should be in #[cfg(test)] ?

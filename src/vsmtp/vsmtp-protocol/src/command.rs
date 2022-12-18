@@ -17,26 +17,52 @@
 
 use crate::ConnectionKind;
 use vsmtp_common::{auth::Mechanism, ClientName};
+extern crate alloc;
 
 /// Buffer received from the client.
+#[non_exhaustive]
 pub struct UnparsedArgs(pub Vec<u8>);
+
 pub type Command<Verb, Args> = (Verb, Args);
 
 /// Information received from the client at the connection TCP/IP.
+#[non_exhaustive]
 pub struct AcceptArgs {
     /// Address of the server which accepted the connection.
     pub client_addr: std::net::SocketAddr,
     /// Peer address of the connection.
     pub server_addr: std::net::SocketAddr,
-    ///
+    /// Instant when the connection was accepted.
     pub timestamp: time::OffsetDateTime,
-    ///
+    /// Universal unique identifier of the connection.
     pub uuid: uuid::Uuid,
     /// Kind of connection.
     pub kind: ConnectionKind,
 }
 
+impl AcceptArgs {
+    /// Create a new instance.
+    #[inline]
+    #[must_use]
+    pub const fn new(
+        client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
+        timestamp: time::OffsetDateTime,
+        uuid: uuid::Uuid,
+        kind: ConnectionKind,
+    ) -> Self {
+        Self {
+            client_addr,
+            server_addr,
+            timestamp,
+            uuid,
+            kind,
+        }
+    }
+}
+
 /// Information received from the client at the HELO command.
+#[non_exhaustive]
 pub struct HeloArgs {
     /// Name of the client.
     // TODO: wrap in a domain
@@ -44,6 +70,7 @@ pub struct HeloArgs {
 }
 
 /// Information received from the client at the EHLO command.
+#[non_exhaustive]
 pub struct EhloArgs {
     /// Name of the client.
     pub client_name: ClientName,
@@ -64,6 +91,7 @@ pub enum MimeBodyType {
 }
 
 /// Information received from the client at the MAIL FROM command.
+#[non_exhaustive]
 pub struct MailFromArgs {
     /// Sender address.
     // TODO: wrap in a type mailbox
@@ -77,6 +105,7 @@ pub struct MailFromArgs {
 }
 
 /// Information received from the client at the RCPT TO command.
+#[non_exhaustive]
 pub struct RcptToArgs {
     /// Recipient address.
     // TODO: wrap in a type mailbox
@@ -84,6 +113,7 @@ pub struct RcptToArgs {
 }
 
 /// Information received from the client at the AUTH command.
+#[non_exhaustive]
 pub struct AuthArgs {
     /// Authentication mechanism.
     pub mechanism: Mechanism,
@@ -93,9 +123,10 @@ pub struct AuthArgs {
 }
 
 /// Error while parsing the arguments of a command.
+#[non_exhaustive]
 pub enum ParseArgsError {
     /// Non-UTF8 buffer.
-    InvalidUtf8(std::string::FromUtf8Error),
+    InvalidUtf8(alloc::string::FromUtf8Error),
     /// Invalid IP address.
     BadTypeAddr(std::net::AddrParseError),
     /// The buffer is too big (between each "\r\n").
@@ -113,6 +144,7 @@ pub enum ParseArgsError {
 impl TryFrom<UnparsedArgs> for HeloArgs {
     type Error = ParseArgsError;
 
+    #[inline]
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
         let value = value
             .0
@@ -124,7 +156,7 @@ impl TryFrom<UnparsedArgs> for HeloArgs {
             client_name: addr::parse_domain_name(
                 &String::from_utf8(value).map_err(ParseArgsError::InvalidUtf8)?,
             )
-            .map_err(|_| ParseArgsError::InvalidArgs)?
+            .map_err(|_err| ParseArgsError::InvalidArgs)?
             .to_string(),
         })
     }
@@ -133,6 +165,7 @@ impl TryFrom<UnparsedArgs> for HeloArgs {
 impl TryFrom<UnparsedArgs> for EhloArgs {
     type Error = ParseArgsError;
 
+    #[inline]
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
         let value = String::from_utf8(
             value
@@ -145,20 +178,26 @@ impl TryFrom<UnparsedArgs> for EhloArgs {
 
         let client_name = match &value {
             ipv6 if ipv6.to_lowercase().starts_with("[ipv6:") && ipv6.ends_with(']') => {
-                ClientName::Ip6(
-                    ipv6["[IPv6:".len()..ipv6.len() - 1]
-                        .parse::<std::net::Ipv6Addr>()
-                        .map_err(ParseArgsError::BadTypeAddr)?,
-                )
+                match ipv6.get("[IPv6:".len()..ipv6.len() - 1) {
+                    Some(ipv6) => ClientName::Ip6(
+                        ipv6.parse::<std::net::Ipv6Addr>()
+                            .map_err(ParseArgsError::BadTypeAddr)?,
+                    ),
+                    None => return Err(ParseArgsError::InvalidArgs),
+                }
             }
-            ipv4 if ipv4.starts_with('[') && ipv4.ends_with(']') => ClientName::Ip4(
-                ipv4[1..ipv4.len() - 1]
-                    .parse::<std::net::Ipv4Addr>()
-                    .map_err(ParseArgsError::BadTypeAddr)?,
-            ),
+            ipv4 if ipv4.starts_with('[') && ipv4.ends_with(']') => {
+                match ipv4.get(1..ipv4.len() - 1) {
+                    Some(ipv4) => ClientName::Ip4(
+                        ipv4.parse::<std::net::Ipv4Addr>()
+                            .map_err(ParseArgsError::BadTypeAddr)?,
+                    ),
+                    None => return Err(ParseArgsError::InvalidArgs),
+                }
+            }
             domain => ClientName::Domain(
                 addr::parse_domain_name(domain)
-                    .map_err(|_| ParseArgsError::InvalidArgs)?
+                    .map_err(|_err| ParseArgsError::InvalidArgs)?
                     .to_string(),
             ),
         };
@@ -170,6 +209,7 @@ impl TryFrom<UnparsedArgs> for EhloArgs {
 impl TryFrom<UnparsedArgs> for AuthArgs {
     type Error = ParseArgsError;
 
+    #[inline]
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
         let value = value
             .0
@@ -180,10 +220,18 @@ impl TryFrom<UnparsedArgs> for AuthArgs {
             .iter()
             .copied()
             .enumerate()
-            .find(|(_, c)| c.is_ascii_whitespace())
+            .find(|&(_, c)| c.is_ascii_whitespace())
         {
             let (mechanism, initial_response) = value.split_at(idx);
-            (mechanism.to_vec(), Some(initial_response[1..].to_vec()))
+            (
+                mechanism.to_vec(),
+                Some(
+                    initial_response
+                        .get(1..)
+                        .ok_or(ParseArgsError::InvalidArgs)?
+                        .to_vec(),
+                ),
+            )
         } else {
             (value.to_vec(), None)
         };
@@ -191,7 +239,7 @@ impl TryFrom<UnparsedArgs> for AuthArgs {
         let mechanism = String::from_utf8(mechanism)
             .map_err(ParseArgsError::InvalidUtf8)?
             .parse()
-            .map_err(|_| ParseArgsError::InvalidArgs)?;
+            .map_err(|_err| ParseArgsError::InvalidArgs)?;
 
         Ok(Self {
             mechanism,
@@ -203,17 +251,18 @@ impl TryFrom<UnparsedArgs> for AuthArgs {
 impl TryFrom<UnparsedArgs> for MailFromArgs {
     type Error = ParseArgsError;
 
+    #[inline]
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
         let value = value
             .0
             .strip_suffix(b"\r\n")
             .ok_or(ParseArgsError::InvalidArgs)?;
 
-        let mut word = value
+        let mut words = value
             .split(u8::is_ascii_whitespace)
             .filter(|s| !s.is_empty());
 
-        let mailbox = if let Some(s) = word.next() {
+        let mailbox = if let Some(s) = words.next() {
             String::from_utf8(
                 s.strip_prefix(b"<")
                     .ok_or(ParseArgsError::InvalidArgs)?
@@ -231,14 +280,18 @@ impl TryFrom<UnparsedArgs> for MailFromArgs {
 
         let mut mime_body_type = None;
 
-        for i in word {
-            match i.strip_prefix(b"BODY=") {
-                Some(body) if mime_body_type.is_none() => {
+        #[allow(clippy::expect_used)]
+        for args in words {
+            match args.strip_prefix(b"BODY=") {
+                Some(args_mime_body_type) if mime_body_type.is_none() => {
                     mime_body_type = <MimeBodyType as strum::VariantNames>::VARIANTS
                         .iter()
                         .find(|i| {
-                            body.len() >= i.len()
-                                && body[..i.len()].eq_ignore_ascii_case(i.as_bytes())
+                            args_mime_body_type.len() >= i.len()
+                                && args_mime_body_type
+                                    .get(..i.len())
+                                    .expect("range checked above")
+                                    .eq_ignore_ascii_case(i.as_bytes())
                         })
                         .map(|body| body.parse().expect("body found above"));
                 }
@@ -256,6 +309,7 @@ impl TryFrom<UnparsedArgs> for MailFromArgs {
 impl TryFrom<UnparsedArgs> for RcptToArgs {
     type Error = ParseArgsError;
 
+    #[inline]
     fn try_from(value: UnparsedArgs) -> Result<Self, Self::Error> {
         let value = value
             .0
@@ -287,6 +341,7 @@ impl TryFrom<UnparsedArgs> for RcptToArgs {
 
 /// SMTP Command.
 #[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumVariantNames)]
+#[non_exhaustive]
 pub enum Verb {
     /// Used to identify the SMTP client to the SMTP server. (historical)
     #[strum(serialize = "HELO ")]

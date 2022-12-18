@@ -16,16 +16,18 @@
 */
 use crate::ProcessMessage;
 use anyhow::Context;
+use time::ext::NumericalDuration;
 use vqueue::{GenericQueueManager, QueueID};
+use vsmtp_common::transfer::EmailTransferStatus;
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
 
-// TODO: what should be the procedure on failure here ?
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     sender: std::sync::Arc<Sender>,
+    flushing_at: time::OffsetDateTime,
 ) {
     let queued = match queue_manager.list(&QueueID::Deferred).await {
         Ok(queued) => queued,
@@ -57,6 +59,7 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
                 delegated: false,
             },
             sender.clone(),
+            flushing_at,
         )
         .await
         {
@@ -72,18 +75,50 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
     sender: std::sync::Arc<Sender>,
+    flushing_at: time::OffsetDateTime,
 ) -> anyhow::Result<()> {
     tracing::debug!("Processing email.");
 
-    let (mut mail_context, mail_message) = queue_manager
-        .get_both(&QueueID::Deferred, &process_message.message_uuid)
+    let mut ctx = queue_manager
+        .get_ctx(&QueueID::Deferred, &process_message.message_uuid)
         .await?;
 
-    match split_and_sort_and_send(&config, &mut mail_context, &mail_message, resolvers, sender)
-        .await
-    {
+    let last_error = ctx
+        .rcpt_to
+        .forward_paths
+        .iter()
+        .filter_map(|i| match &i.email_status {
+            EmailTransferStatus::HeldBack { errors } => errors.last().map(|e| e.timestamp),
+            _ => None,
+        })
+        .min();
+
+    let held_back_count = ctx
+        .rcpt_to
+        .forward_paths
+        .iter()
+        .filter(|i| matches!(i.email_status, EmailTransferStatus::HeldBack { .. }))
+        .count() as i64;
+
+    match last_error {
+        Some(last_error)
+            // last error + (error_count * 5min)
+            if last_error
+                .checked_add(held_back_count.seconds() * 60 * 5)
+                .unwrap()
+                > flushing_at =>
+        {
+            tracing::debug!("Email is not ready to be flushed.");
+            return Ok(());
+        }
+        _ => {}
+    }
+
+    let msg = queue_manager.get_msg(&process_message.message_uuid).await?;
+
+    match split_and_sort_and_send(&config, &mut ctx, &msg, resolvers, sender).await {
         SenderOutcome::MoveToDead => queue_manager
-            .move_to(&QueueID::Deferred, &QueueID::Dead, &mail_context)
+            .move_to(&QueueID::Deferred, &QueueID::Dead, &ctx)
             .await
             .with_context(|| {
                 format!(
@@ -93,7 +128,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
                 )
             }),
         SenderOutcome::MoveToDeferred => queue_manager
-            .write_ctx(&QueueID::Deferred, &mail_context)
+            .write_ctx(&QueueID::Deferred, &ctx)
             .await
             .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
         SenderOutcome::RemoveFromDisk => {
@@ -141,6 +176,7 @@ mod tests {
                 delegated: false,
             },
             sender,
+            time::OffsetDateTime::UNIX_EPOCH,
         )
         .await
         .unwrap();
@@ -187,6 +223,7 @@ mod tests {
                 delegated: false,
             },
             sender,
+            time::OffsetDateTime::UNIX_EPOCH,
         )
         .await
         .unwrap();

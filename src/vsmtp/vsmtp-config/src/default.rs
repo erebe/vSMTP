@@ -69,7 +69,6 @@ impl Default for FieldServer {
             smtp: FieldServerSMTP::default(),
             dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
-            dkim: None,
         }
     }
 }
@@ -160,7 +159,7 @@ impl FieldServerInterfaces {
 impl Default for FieldServerLogs {
     fn default() -> Self {
         Self {
-            filepath: Self::default_filepath(),
+            filename: Self::default_filename(),
             level: Self::default_level(),
             system: None,
         }
@@ -168,7 +167,7 @@ impl Default for FieldServerLogs {
 }
 
 impl FieldServerLogs {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
+    pub(crate) fn default_filename() -> std::path::PathBuf {
         "/var/log/vsmtp/vsmtp.log".into()
     }
 
@@ -198,8 +197,8 @@ impl Default for SyslogSocket {
 }
 
 impl FieldServerTls {
-    pub(crate) fn default_cipher_suite() -> Vec<rustls::CipherSuite> {
-        vec![
+    pub(crate) fn default_cipher_suite() -> Vec<vsmtp_common::CipherSuite> {
+        [
             // TLS1.3 suites
             rustls::CipherSuite::TLS13_AES_256_GCM_SHA384,
             rustls::CipherSuite::TLS13_AES_128_GCM_SHA256,
@@ -212,6 +211,9 @@ impl FieldServerTls {
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         ]
+        .into_iter()
+        .map(vsmtp_common::CipherSuite)
+        .collect::<Vec<_>>()
     }
 
     pub(crate) const fn default_handshake_timeout() -> std::time::Duration {
@@ -310,7 +312,6 @@ impl Default for FieldServerSMTP {
     fn default() -> Self {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
-            disable_ehlo: Self::default_disable_ehlo(),
             error: FieldServerSMTPError::default(),
             timeout_client: FieldServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
@@ -322,10 +323,6 @@ impl Default for FieldServerSMTP {
 impl FieldServerSMTP {
     pub(crate) const fn default_rcpt_count_max() -> usize {
         1000
-    }
-
-    pub(crate) const fn default_disable_ehlo() -> bool {
-        false
     }
 
     // TODO: should be const and compile time checked
@@ -409,6 +406,9 @@ impl FieldServerSMTP {
             ),
             CodeID::AuthErrorDecode64 => Reply::new(
                 ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64\r\n"
+            ),
+            CodeID::AuthTempError => Reply::new(
+                ReplyCode::Enhanced{ code: 454, enhanced: "4.7.0".to_string() }, "Temporary authentication failure\r\n"
             ),
             CodeID::ConnectionMaxReached => Reply::new(
                 ReplyCode::Code{ code: 554 }, "Cannot process connection, closing\r\n"
@@ -531,13 +531,13 @@ impl FieldApp {
 impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
-            filepath: Self::default_filepath(),
+            filename: Self::default_filename(),
         }
     }
 }
 
 impl FieldAppLogs {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
+    pub(crate) fn default_filename() -> std::path::PathBuf {
         "/var/log/vsmtp/app.log".into()
     }
 }

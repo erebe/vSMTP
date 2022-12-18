@@ -80,7 +80,7 @@ fn generate_variable_documentation_from_module(module: &rhai::Module) -> String 
             if value.is::<SharedObject>() {
                 format!("{:?}", *value.clone_cast::<SharedObject>())
             } else {
-                format!("{:?}", value)
+                format!("{value:?}")
             }
         ));
     }
@@ -210,7 +210,7 @@ fn main() {
     let variables = generate_variable_documentation_from_module(&vsl_rhai_module);
 
     for (module, description, functions) in functions {
-        path.set_file_name(format!("{}.md", module));
+        path.set_file_name(format!("{module}.md"));
         let mut file = std::fs::OpenOptions::new()
             .truncate(true)
             .create(true)
@@ -218,7 +218,7 @@ fn main() {
             .open(&path)
             .unwrap();
 
-        file.write_all(format!("# {}\n{}\n", module, description).as_bytes())
+        file.write_all(format!("# {module}\n{description}\n").as_bytes())
             .expect("failed to write function docs");
         file.write_all(functions.as_bytes())
             .expect("failed to write function docs");

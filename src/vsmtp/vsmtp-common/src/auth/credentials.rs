@@ -17,8 +17,9 @@
 use super::Mechanism;
 
 /// The credentials send by the client, not necessarily the right one
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
+#[derive(Clone, PartialEq, Eq, strum::Display, serde::Deserialize)]
 #[strum(serialize_all = "PascalCase")]
+#[cfg_attr(debug_assertions, derive(Debug, serde::Serialize))]
 pub enum Credentials {
     /// the pair will be sent and verified by a third party
     Verify {
@@ -32,6 +33,48 @@ pub enum Credentials {
         /// [ email / 1*255TCHAR ]
         token: String,
     },
+}
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Credentials::Verify { authid, .. } => f
+                .debug_struct("Credentials::Verify")
+                .field("authid", authid)
+                .field("authpass", &"***")
+                .finish(),
+            Credentials::AnonymousToken { .. } => f
+                .debug_struct("Credentials::AnonymousToken")
+                .field("token", &"***")
+                .finish(),
+        }
+    }
+}
+
+#[cfg(not(debug_assertions))]
+impl serde::Serialize for Credentials {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStructVariant;
+
+        match self {
+            Credentials::Verify { .. } => {
+                let mut s = serializer.serialize_struct_variant("Credentials", 0, "Verify", 2)?;
+                s.serialize_field("authid", "***")?;
+                s.serialize_field("authpass", "***")?;
+                s.end()
+            }
+            Credentials::AnonymousToken { .. } => {
+                let mut s =
+                    serializer.serialize_struct_variant("Credentials", 1, "AnonymousToken", 1)?;
+                s.serialize_field("token", "***")?;
+                s.end()
+            }
+        }
+    }
 }
 
 #[doc(hidden)]

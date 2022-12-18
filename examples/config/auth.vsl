@@ -1,7 +1,7 @@
 // This example is out of date.
 
 fn on_config(config) {
-    config.version_requirement = ">=1.4.0-rc.4, <2.0.0";
+    config.version_requirement = ">=1.4.0-rc.5, <2.0.0";
 
     config.server.interfaces = #{
         addr: ["127.0.0.1:10025"],
@@ -9,7 +9,7 @@ fn on_config(config) {
         addr_submissions: ["127.0.0.1:10465"],
     };
 
-    config.server.logs.filepath = "./tmp/dev/vsmtp.log";
+    config.server.logs.filename = "./tmp/dev/vsmtp.log";
     config.server.logs.level.default = "trace";
 
     config.server.queues.dirpath = "./tmp/dev/spool2";
@@ -19,9 +19,10 @@ fn on_config(config) {
         enable_dangerous_mechanism_in_clair: true,
     };
 
-    config.app.vsl.dirpath = "./examples/auth/main.vsl";
+    config.app.vsl.domain_dir = "./examples/auth/";
+    config.app.vsl.filter_path = "./examples/auth/filter.vsl";
 
-    config.app.logs.filepath = "./tmp/dev/app.log";
+    config.app.logs.filename = "./tmp/dev/app.log";
 
     config.app.services.saslauthd = #{
         type: "shell"

@@ -181,24 +181,6 @@ run_test! {
     ]
 }
 
-/*
-// TODO: support 'deprecated' no ESMTP server mode
-run_test! {
-    fn test_receiver_12,
-    input = ["EHLO postmaster\r\n", "QUIT\r\n"],
-    expected = [
-        "220 testserver.com Service ready\r\n",
-        "502 Command not implemented\r\n",
-        "221 Service closing transmission channel\r\n"
-    ],
-    config = {
-        let mut config = config::local_test();
-        config.server.smtp.disable_ehlo = true;
-        config
-    }
-}
-*/
-
 run_test! {
     fn max_rcpt_reached,
     input = [

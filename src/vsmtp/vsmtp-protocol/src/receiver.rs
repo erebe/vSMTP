@@ -23,11 +23,12 @@ use crate::{
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
 use vsmtp_common::{auth::Mechanism, Stage};
+extern crate alloc;
 
 enum HandshakeOutcome {
     Message,
     UpgradeTLS {
-        config: std::sync::Arc<rustls::ServerConfig>,
+        config: alloc::sync::Arc<rustls::ServerConfig>,
         handshake_timeout: std::time::Duration,
     },
     Authenticate {
@@ -52,14 +53,16 @@ pub struct ReceiverContext {
 
 impl ReceiverContext {
     /// Make the [`Receiver`] quit the connection early, and close cleanly.
+    #[inline]
     pub fn deny(&mut self) {
         self.outcome = Some(HandshakeOutcome::Quit);
     }
 
     /// Make the [`Receiver`] initialize a TLS handshake.
+    #[inline]
     pub fn upgrade_tls(
         &mut self,
-        config: std::sync::Arc<rustls::ServerConfig>,
+        config: alloc::sync::Arc<rustls::ServerConfig>,
         handshake_timeout: std::time::Duration,
     ) {
         self.outcome = Some(HandshakeOutcome::UpgradeTLS {
@@ -69,6 +72,7 @@ impl ReceiverContext {
     }
 
     /// Make the [`Receiver`] initialize a SASL handshake.
+    #[inline]
     pub fn authenticate(&mut self, mechanism: Mechanism, initial_response: Option<Vec<u8>>) {
         self.outcome = Some(HandshakeOutcome::Authenticate {
             mechanism,
@@ -103,7 +107,7 @@ where
 {
     fn upgrade_tls(
         self,
-        config: std::sync::Arc<rustls::ServerConfig>,
+        config: alloc::sync::Arc<rustls::ServerConfig>,
         handshake_timeout: std::time::Duration,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
@@ -121,10 +125,20 @@ where
             )
             .await??;
 
-            let config = tls_tcp_stream.get_ref().1.clone();
-            let sni = config.sni_hostname().map(str::to_string);
+            let tls_config = tls_tcp_stream.get_ref().1.clone();
+            let sni = tls_config.sni_hostname().map(str::to_string);
 
-            // see https://github.com/tokio-rs/tls/issues/40
+            let protocol_version = tls_config.protocol_version()
+                .expect("tls handshake completed").clone();
+            let negotiated_cipher_suite = tls_config.negotiated_cipher_suite()
+                .expect("tls handshake completed").clone();
+            let peer_certificates = tls_config. peer_certificates()
+                .map(<[rustls::Certificate]>::to_vec);
+            let alpn_protocol = tls_config.alpn_protocol()
+                .map(<[u8]>::to_vec)
+                .clone();
+
+            // FIXME: see https://github.com/tokio-rs/tls/issues/40
             let (read, write) = tokio::io::split(tls_tcp_stream);
 
             let (stream, sink) = (Stream::new(read), Sink::new(write));
@@ -138,7 +152,13 @@ where
                 kind: self.kind,
                 message_size_max: self.message_size_max,
                 v: self.v,
-            }.into_secured_stream(sni);
+            }.into_secured_stream(
+                sni,
+                protocol_version,
+                negotiated_cipher_suite,
+                peer_certificates,
+                alpn_protocol
+            );
 
             for await i in secured_receiver {
                 yield i?;
@@ -147,6 +167,7 @@ where
     }
 
     /// Create a new [`Receiver`] from a TCP/IP stream.
+    #[inline]
     pub fn new(
         tcp_stream: tokio::net::TcpStream,
         kind: ConnectionKind,
@@ -175,6 +196,7 @@ where
 
     /// Handle the inner stream to produce a [`tokio_stream::Stream`], each item
     /// being a successful SMTP transaction.
+    #[inline]
     pub fn into_stream(
         mut self,
         client_addr: std::net::SocketAddr,
@@ -183,7 +205,7 @@ where
         uuid: uuid::Uuid,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
-            let reply = self.handler.on_accept(
+            let reply_accept = self.handler.on_accept(
                 &mut self.context,
                 AcceptArgs {
                     client_addr,
@@ -194,8 +216,8 @@ where
                 }
             ).await;
 
-            let produced_context = std::mem::take(&mut self.context);
-            if let Some(outcome) = produced_context.outcome {
+            let produced_context_accept = std::mem::take(&mut self.context);
+            if let Some(outcome) = produced_context_accept.outcome {
                 match outcome {
                     HandshakeOutcome::Message | HandshakeOutcome::Authenticate { .. } => todo!(),
                     HandshakeOutcome::UpgradeTLS { config, handshake_timeout } => {
@@ -209,7 +231,7 @@ where
             }
 
             self.sink
-                .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
+                .send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply_accept)
                 .await?;
 
             loop {
@@ -241,7 +263,7 @@ where
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
-                        if let Some(HandshakeOutcome::Quit) = produced_context.outcome {
+                        if matches!(produced_context.outcome, Some(HandshakeOutcome::Quit)) {
                             return;
                         }
 
@@ -265,13 +287,27 @@ where
     fn into_secured_stream(
         mut self,
         sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        negotiated_cipher_suite: rustls::SupportedCipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
-            let reply = self.handler.on_post_tls_handshake(sni).await;
+            let reply_post_tls_handshake = self.handler.on_post_tls_handshake(
+                sni,
+                protocol_version,
+                negotiated_cipher_suite.suite(),
+                peer_certificates,
+                alpn_protocol
+            ).await;
 
             if self.kind == ConnectionKind::Tunneled {
-                self.sink.send_reply(&mut self.context, &mut self.error_counter, &mut self.handler, reply)
-                    .await?;
+                self.sink.send_reply(
+                    &mut self.context,
+                    &mut self.error_counter,
+                    &mut self.handler,
+                    reply_post_tls_handshake
+                ).await?;
             }
 
             loop {
@@ -298,7 +334,7 @@ where
                             .await?;
 
                         let produced_context = std::mem::take(&mut self.context);
-                        if let Some(HandshakeOutcome::Quit) = produced_context.outcome {
+                        if matches!(produced_context.outcome, Some(HandshakeOutcome::Quit)) {
                             return;
                         }
 
@@ -343,12 +379,15 @@ where
                 Ok(None) => return Ok(HandshakeOutcome::Quit),
                 Err(e) => {
                     tracing::warn!("Closing after {} without receiving a command", e);
+                    #[allow(clippy::expect_used)]
                     self.sink
                         .send_reply(
                             &mut self.context,
                             &mut self.error_counter,
                             &mut self.handler,
-                            "451 Timeout - closing connection\r\n".parse().unwrap(),
+                            "451 Timeout - closing connection\r\n"
+                                .parse()
+                                .expect("valid syntax"),
                         )
                         .await?;
 

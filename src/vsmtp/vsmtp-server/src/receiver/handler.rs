@@ -17,13 +17,13 @@
 use crate::on_mail::OnMail;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{state::State, status::Status, CodeID, Reply, Stage, TransactionType};
+use vsmtp_common::{status::Status, CodeID, Reply, Stage, TransactionType};
 use vsmtp_config::Config;
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, EhloArgs, Error, HeloArgs, MailFromArgs,
     RcptToArgs, ReceiverContext,
 };
-use vsmtp_rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{ExecutionStage, RuleEngine, RuleState};
 
 ///
 pub struct Handler<M: OnMail> {
@@ -101,8 +101,21 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
         self.on_accept_inner(ctx, &args)
     }
 
-    async fn on_post_tls_handshake(&mut self, sni: Option<String>) -> Reply {
-        self.on_post_tls_handshake_inner(sni)
+    async fn on_post_tls_handshake(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Reply {
+        self.on_post_tls_handshake_inner(
+            sni,
+            protocol_version,
+            cipher_suite,
+            peer_certificates,
+            alpn_protocol,
+        )
     }
 
     async fn on_starttls(&mut self, ctx: &mut ReceiverContext) -> Reply {
@@ -145,17 +158,20 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             .to_mail_from(reverse_path, is_outgoing)
             .unwrap();
 
-        let e = match self
-            .rule_engine
-            .run_when(&self.state, &mut self.skipped, State::MailFrom)
-        {
+        let e = match self.rule_engine.run_when(
+            &self.state,
+            &mut self.skipped,
+            ExecutionStage::MailFrom,
+        ) {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
+            Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                either::Left(CodeID::Ok)
+            }
             Status::Deny(code) => {
                 ctx.deny();
                 code
             }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            Status::Delegated(_) => unreachable!(),
         };
 
         self.reply_or_code_in_config(e)
@@ -275,15 +291,17 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
 
         let e = match self
             .rule_engine
-            .run_when(state, &mut self.skipped, State::RcptTo)
+            .run_when(state, &mut self.skipped, ExecutionStage::RcptTo)
         {
             Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-            Status::Quarantine(_) | Status::Next => either::Left(CodeID::Ok),
+            Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                either::Left(CodeID::Ok)
+            }
             Status::Deny(code) => {
                 ctx.deny();
                 code
             }
-            Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+            Status::Delegated(_) => unreachable!(),
         };
 
         self.reply_or_code_in_config(e)

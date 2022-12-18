@@ -22,9 +22,12 @@ use vsmtp_common::auth::Mechanism;
 
 ///
 #[repr(transparent)]
+#[allow(clippy::exhaustive_structs)]
 pub struct CallbackWrap(pub Box<dyn rsasl::callback::SessionCallback + Send + Sync>);
 
+#[allow(clippy::missing_trait_methods)]
 impl rsasl::callback::SessionCallback for CallbackWrap {
+    #[inline]
     fn callback(
         &self,
         session_data: &rsasl::callback::SessionData,
@@ -34,6 +37,7 @@ impl rsasl::callback::SessionCallback for CallbackWrap {
         self.0.callback(session_data, context, request)
     }
 
+    #[inline]
     fn validate(
         &self,
         session_data: &rsasl::callback::SessionData,
@@ -46,6 +50,7 @@ impl rsasl::callback::SessionCallback for CallbackWrap {
 
 /// The possible outcomes of a SMTP-SASL handshake.
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::exhaustive_enums)]
 pub enum AuthError {
     /// [`Verb::Auth`](crate::Verb::Auth) contains an initial buffer where the mechanism is not supposed to.
     #[error("client must not start with this mechanism")]
@@ -60,12 +65,19 @@ pub enum AuthError {
     #[error("base64 decoding fail: {source}")]
     Base64 {
         /// Inner error.
+        #[from]
         #[source]
         source: base64::DecodeError,
     },
+    /// Error while reading/writing to the underlying stream.
+    #[error("io error: {0}")]
+    IO(#[from] std::io::Error),
     /// Other error produced by the SASL backend.
     #[error("error produced by the backend: {0}")]
     SessionError(rsasl::prelude::SessionError),
+    /// Error while initializing the SASL backend.
+    #[error("error while initializing the SASL backend: {0}")]
+    ConfigError(#[from] rsasl::prelude::SASLError),
 }
 
 impl<
@@ -91,9 +103,12 @@ where
             };
         }
 
-        struct AdapterSMTPandSASL<'a, W: tokio::io::AsyncWrite + Unpin + Send>(&'a mut W);
+        struct AdapterSMTPandSASL<'writer, W: tokio::io::AsyncWrite + Unpin + Send>(&'writer mut W);
 
-        impl<'a, W: tokio::io::AsyncWrite + Unpin + Send> std::io::Write for AdapterSMTPandSASL<'a, W> {
+        #[allow(clippy::missing_trait_methods)]
+        impl<'writer, W: tokio::io::AsyncWrite + Unpin + Send> std::io::Write
+            for AdapterSMTPandSASL<'writer, W>
+        {
             fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
                 block_on! { async move {
                     self.0.write_all(b"334 ").await?;
@@ -112,25 +127,28 @@ where
 
         let rsasl_config = rsasl::config::SASLConfig::builder()
             .with_default_mechanisms()
-            .with_callback(callback)
-            .unwrap();
+            .with_callback(callback)?;
 
         let sasl_server = rsasl::prelude::SASLServer::<V>::new(rsasl_config);
 
         let temp = mechanism.to_string();
-        let selected = rsasl::prelude::Mechname::parse(temp.as_bytes()).unwrap();
-        let mut session = sasl_server.start_suggested(selected).unwrap();
+        #[allow(clippy::expect_used)]
+        let selected =
+            rsasl::prelude::Mechname::parse(temp.as_bytes()).expect("mechanism is valid");
+        let mut session = sasl_server.start_suggested(selected)?;
 
         let mut adapter = AdapterSMTPandSASL(&mut self.sink.inner);
-        let challenge_stream = self.stream.as_line_stream().map(|l| {
-            let l = l.map(|l| {
-                #[allow(clippy::redundant_closure_for_method_calls)]
-                l.strip_suffix(b"\r\n").map(|l| l.to_vec()).ok_or_else(|| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Line does not end with \r\n",
-                    )
-                })
+        let challenge_stream = self.stream.as_line_stream().map(|line| {
+            let l = line.map(|buffer| {
+                buffer
+                    .strip_suffix(b"\r\n")
+                    .map(<[u8]>::to_vec)
+                    .ok_or_else(|| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Line does not end with \r\n",
+                        )
+                    })
             });
             match l {
                 Ok(Ok(l)) => Ok(l),
@@ -155,15 +173,14 @@ where
         let mut data = match (initial_response, session.are_we_first()) {
             (None, true) => None,
             (None, false) => {
-                std::io::Write::write(&mut adapter, &[]).unwrap();
+                std::io::Write::write(&mut adapter, &[])?;
                 next_challenge_line!(challenge_stream)
             }
             (Some(_), true) => return Err(AuthError::ClientMustNotStart),
-            (Some(data), false) => {
-                Some(base64::decode(data).map_err(|source| AuthError::Base64 { source })?)
-            }
+            (Some(data), false) => Some(base64::decode(data)?),
         };
 
+        #[allow(clippy::wildcard_enum_match_arm)]
         while session
             .step(data.as_deref(), &mut adapter)
             .map_err(|e| match e {
@@ -177,6 +194,7 @@ where
             data = next_challenge_line!(challenge_stream);
         }
 
+        #[allow(clippy::todo)]
         session.validation().map_or_else(
             || todo!("what happen when the validator return nothing ?"),
             |_v| Ok(()),

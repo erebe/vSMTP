@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::tests::tls::{get_tls_config, test_tls_tunneled};
+use crate::tests::tls::{test_tls_tunneled, with_tls};
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
 use vsmtp_config::get_rustls_config;
@@ -35,7 +35,7 @@ async fn test_all_cipher_suite() {
         .iter()
         .filter(|i| !ignored.contains(&i.suite()))
     {
-        let mut config = get_tls_config();
+        let mut config = with_tls();
 
         config.server.tls.as_mut().unwrap().protocol_version = vec![i.version().version];
         config.server.tls.as_mut().unwrap().cipher_suite = vec![i.suite()];
@@ -47,7 +47,7 @@ async fn test_all_cipher_suite() {
         let (client, server) = test_tls_tunneled(
             arc!(RuleEngine::new(
                 config.clone(),
-                config.app.vsl.dirpath.clone(),
+                config.app.vsl.domain_dir.clone(),
                 resolvers,
                 queue_manager,
             )

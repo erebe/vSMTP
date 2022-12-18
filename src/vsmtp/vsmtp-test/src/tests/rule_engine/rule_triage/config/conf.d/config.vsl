@@ -11,7 +11,8 @@ fn on_config(config) {
 
     config.server.queues.dirpath = "./spool";
     config.app.dirpath = "./app";
-    config.app.vsl.dirpath = "src/tests/rule_engine/rule_triage/config/domain-available";
+    config.app.vsl.domain_dir = "src/tests/rule_engine/rule_triage/config/domain-available";
+    config.app.vsl.filter_path = "src/tests/rule_engine/rule_triage/config/filter.vsl";
 
     config
 }

@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::get_tls_config;
+use crate::config::with_tls;
 use crate::run_test;
 use vsmtp_config::field::{FieldServerVirtual, FieldServerVirtualTls};
 
@@ -40,9 +40,27 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = get_tls_config(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny() }
@@ -67,9 +85,27 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     tunnel = "testserver.com",
-    config = get_tls_config(),
+    config = {
+      let mut config = with_tls();
+      config.app.vsl.domain_dir = Some("./src/template/sni".into());
+      config.server.r#virtual.insert(
+          "testserver.com".to_string(),
+          FieldServerVirtual {
+              tls: Some(
+                  FieldServerVirtualTls::from_path(
+                      "src/template/certs/certificate.crt",
+                      "src/template/certs/private_key.rsa.key",
+                  )
+                  .unwrap(),
+              ),
+              dns: None,
+              dkim: None,
+          },
+      );
+      config
+    },
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny() }
@@ -92,8 +128,8 @@ run_test! {
     ],
     tunnel = "second.testserver.com",
     config = {
-        let mut config = get_tls_config();
-        config.app.vsl.dirpath = Some("./src/template/sni".into());
+        let mut config = with_tls();
+        config.app.vsl.domain_dir = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
             "second.testserver.com".to_string(),
             FieldServerVirtual {
@@ -111,7 +147,7 @@ run_test! {
         config
     },
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
               if is_secured() { next() } else { deny() }
@@ -130,7 +166,7 @@ async fn config_ill_formed() {
         expected = [ "", ],
         tunnel = "testserver.com",
         config = {
-            let mut config = get_tls_config();
+            let mut config = with_tls();
             config.server.tls = None;
             config
         }
