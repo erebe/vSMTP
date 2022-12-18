@@ -29,6 +29,7 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
 //
 #![allow(clippy::use_self)] // false positive with enums
+#![allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/9271
 
 /// Default smtp port
 pub const SMTP_PORT: u16 = 25;
@@ -49,6 +50,8 @@ mod types {
     pub mod code_id;
     pub mod reply;
     pub mod reply_code;
+    pub mod tls_cipher_suite;
+    pub mod tls_protocol_version;
 }
 
 pub use types::{
@@ -57,6 +60,8 @@ pub use types::{
     code_id::CodeID,
     reply::Reply,
     reply_code::*,
+    tls_cipher_suite::CipherSuite,
+    tls_protocol_version::ProtocolVersion,
 };
 
 ///

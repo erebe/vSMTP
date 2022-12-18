@@ -33,6 +33,7 @@
 #![allow(clippy::integer_arithmetic, clippy::arithmetic_side_effects)] // issue with strum
 // restriction we ignore
 #![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::pattern_type_mismatch)]
 #![allow(clippy::blanket_clippy_restriction_lints)]
 #![allow(clippy::pub_use)]
 #![allow(clippy::implicit_return)]

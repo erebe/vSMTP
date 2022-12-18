@@ -30,7 +30,7 @@ run_test! {
         "221 Service closing transmission channel\r\n",
     ],
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
                     connect: [
                       rule "test_connect" || {
                         log("trace", `${client_ip()}`);
@@ -130,7 +130,7 @@ async fn context_write(
             "221 Service closing transmission channel\r\n",
         ],
         hierarchy_builder = |builder| {
-            Ok(builder.add_root_incoming_rules(&RULE.replace("{action}", action).replace("{stage}", stage))?.build())
+            Ok(builder.add_root_filter_rules(&RULE.replace("{action}", action).replace("{stage}", stage))?.build())
         },
     };
 

@@ -312,6 +312,6 @@ fn internal_string_is_object(this: &str, other: &Object) -> Result<bool, Box<rha
         Object::Ip4(ip4) => Ok(this == ip4.to_string()),
         Object::Ip6(ip6) => Ok(this == ip6.to_string()),
         Object::Identifier(s) => Ok(this == s.as_str()),
-        _ => Err(format!("a {} object cannot be compared to a string", other).into()),
+        _ => Err(format!("a {other} object cannot be compared to a string").into()),
     }
 }

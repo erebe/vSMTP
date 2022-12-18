@@ -144,7 +144,7 @@ impl Deliver<'_> {
                         pool_min_idle: 1,
                         port: SMTP_PORT,
                         certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                            .map_or_else(Vec::new, |cert| vec![cert]),
+                            .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                     },
                     &envelop,
                     message.as_bytes(),
@@ -188,7 +188,7 @@ impl Deliver<'_> {
                         pool_min_idle: 1,
                         port: SMTP_PORT,
                         certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                            .map_or_else(Vec::new, |cert| vec![cert]),
+                            .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                     },
                     &envelop,
                     message.as_bytes(),
@@ -284,7 +284,7 @@ mod test {
 
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().email_status {
-            &EmailTransferStatus::HeldBack { ref errors } => assert_eq!(
+            EmailTransferStatus::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
                 TransferErrorsVariant::DnsRecord {
                     error: "no record found for Query { name: Name(\"foo.bar.\"), query_type: MX, query_class: IN }".to_owned(),

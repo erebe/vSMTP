@@ -42,11 +42,13 @@ pub enum Status {
     Quarantine(String),
 
     /// the email as been delegated to another service.
+    // #[cfg(feature = "delegation")]
     #[serde(skip)]
     Delegated(SmtpConnection),
 
     /// the rule engine must skip all rules until a given
     /// rule received in the email's header.
+    // #[cfg(feature = "delegation")]
     DelegationResult,
 }
 

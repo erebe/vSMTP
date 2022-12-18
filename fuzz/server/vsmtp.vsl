@@ -15,18 +15,19 @@ fn on_config(config) {
     };
 
     config.server.logs = #{
-        filepath: "./log/server",
+        filename: "./log/server",
         level: [ "warn" ]
     };
 
     config.app.logs = #{
-        filepath: "./log/app",
+        filename: "./log/app",
     };
 
     config.server.queues.dirpath = "./spool";
     config.app.dirpath = "./spool/app";
 
-    config.app.vsl.dirpath = "./fuzz/server/domain-available";
+    config.app.vsl.domain_dir = "./fuzz/server/domain-available";
+    config.app.vsl.filter_path = "./fuzz/server/filter.vsl";
 
     config
 }

@@ -52,6 +52,13 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
+    struct Opt {
+        move_to_queue: Option<QueueID>,
+        send_to_delivery: bool,
+        write_email: bool,
+        delegated: bool,
+    }
+
     let queue = if process_message.delegated {
         QueueID::Delegated
     } else {
@@ -72,18 +79,24 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
 
     let mut ctx = ctx.unwrap_finished().context("context is not finished")?;
 
-    let mut move_to_queue = Option::<QueueID>::None;
-    let mut send_to_delivery = false;
-    let mut write_email = true;
-    let mut delegated = false;
-
-    match &skipped {
+    let Opt {
+        move_to_queue,
+        send_to_delivery,
+        write_email,
+        delegated,
+    } = match &skipped {
         Some(Status::Quarantine(path)) => {
             queue_manager
                 .move_to(&queue, &QueueID::Quarantine { name: path.into() }, &ctx)
                 .await?;
 
             tracing::warn!(stage = %ExecutionStage::PostQ, status = "quarantine", "Rules skipped.");
+            Opt {
+                move_to_queue: None,
+                send_to_delivery: false,
+                write_email: true,
+                delegated: false,
+            }
         }
         Some(status @ Status::Delegated(delegator)) => {
             ctx.connect.skipped = Some(Status::DelegationResult);
@@ -103,15 +116,21 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
             //       thread could pickup the email faster than this function.
             delegate(delegator, &ctx, &mail_message)?;
 
-            write_email = false;
-            delegated = true;
-
             tracing::warn!(stage = %ExecutionStage::PostQ, status = status.as_ref(), "Rules skipped.");
+
+            Opt {
+                move_to_queue: None,
+                send_to_delivery: false,
+                write_email: false,
+                delegated: true,
+            }
         }
-        Some(Status::DelegationResult) => {
-            send_to_delivery = true;
-            delegated = true;
-        }
+        Some(Status::DelegationResult) => Opt {
+            move_to_queue: None,
+            send_to_delivery: true,
+            write_email: true,
+            delegated: true,
+        },
         Some(Status::Deny(code)) => {
             for rcpt in &mut ctx.rcpt_to.forward_paths {
                 rcpt.email_status = EmailTransferStatus::failed(TransferErrorsVariant::RuleEngine(
@@ -119,16 +138,27 @@ async fn handle_one_in_working_queue<Q: GenericQueueManager + Sized + 'static>(
                 ));
             }
 
-            move_to_queue = Some(QueueID::Dead);
+            Opt {
+                move_to_queue: Some(QueueID::Dead),
+                send_to_delivery: false,
+                write_email: true,
+                delegated: false,
+            }
         }
-        None | Some(Status::Next) => {
-            move_to_queue = Some(QueueID::Deliver);
-            send_to_delivery = true;
-        }
+        None | Some(Status::Next) => Opt {
+            move_to_queue: Some(QueueID::Deliver),
+            send_to_delivery: true,
+            write_email: true,
+            delegated: false,
+        },
         Some(reason) => {
             tracing::warn!(status = ?reason, "Rules skipped.");
-            move_to_queue = Some(QueueID::Deliver);
-            send_to_delivery = true;
+            Opt {
+                move_to_queue: Some(QueueID::Deliver),
+                send_to_delivery: true,
+                write_email: true,
+                delegated: false,
+            }
         }
     };
 
@@ -178,7 +208,7 @@ mod tests {
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
                     config,
-                    |builder| Ok(builder.add_root_incoming_rules("#{}")?.build()),
+                    |builder| Ok(builder.add_root_filter_rules("#{}")?.build()),
                     resolvers.clone(),
                     queue_manager.clone()
                 )
@@ -218,7 +248,7 @@ mod tests {
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
                     config.clone(),
-                    |builder| Ok(builder.add_root_incoming_rules("#{}")?.build()),
+                    |builder| Ok(builder.add_root_filter_rules("#{}")?.build()),
                     resolvers.clone(),
                     queue_manager.clone(),
                 )
@@ -274,7 +304,7 @@ mod tests {
                     config.clone(),
                     |builder| {
                         Ok(builder
-                            .add_root_incoming_rules(&format!(
+                            .add_root_filter_rules(&format!(
                                 r#"#{{ {}: [ rule "abc" || deny(), ] }}"#,
                                 ExecutionStage::PostQ
                             ))?
@@ -332,7 +362,7 @@ mod tests {
                     config.clone(),
                     |builder| {
                         Ok(builder
-                            .add_root_incoming_rules(&format!(
+                            .add_root_filter_rules(&format!(
                                 "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
                                 ExecutionStage::PostQ
                             ))?

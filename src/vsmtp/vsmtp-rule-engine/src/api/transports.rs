@@ -37,7 +37,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "forward (str/str)" || {
@@ -137,7 +137,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "forward_all" || {
@@ -196,7 +196,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "deliver (str/str)" || {
@@ -260,7 +260,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "deliver_all" || {
@@ -302,7 +302,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup mbox" || {
@@ -352,7 +352,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup mbox" || {
@@ -395,7 +395,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup maildir" || {
@@ -445,7 +445,7 @@ mod transports_rhai {
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_incoming_rules(r#"
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///   rcpt: [
     ///     action "setup maildir" || {
@@ -495,7 +495,7 @@ fn set_transport_for_one(
     )
     .iter_mut()
     .find(|rcpt| rcpt.address.full() == search)
-    .ok_or_else::<Box<EvalAltResult>, _>(|| format!("could not find rcpt '{}'", search).into())
+    .ok_or_else::<Box<EvalAltResult>, _>(|| format!("could not find rcpt '{search}'").into())
     .map(|rcpt| rcpt.transfer_method = method.clone())
 }
 

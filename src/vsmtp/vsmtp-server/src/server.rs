@@ -47,11 +47,11 @@ pub fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     addr: A,
 ) -> anyhow::Result<std::net::TcpListener> {
     let socket = std::net::TcpListener::bind(&addr)
-        .with_context(|| format!("Failed to bind socket on addr: '{:?}'", addr))?;
+        .with_context(|| format!("Failed to bind socket on addr: '{addr:?}'"))?;
 
     socket
         .set_nonblocking(true)
-        .with_context(|| format!("Failed to set non-blocking socket on addr: '{:?}'", addr))?;
+        .with_context(|| format!("Failed to set non-blocking socket on addr: '{addr:?}'"))?;
 
     Ok(socket)
 }
@@ -289,7 +289,7 @@ impl Server {
         );
         tokio::pin!(smtp_stream);
 
-        while let Some(Ok(())) = smtp_stream.next().await {}
+        while matches!(smtp_stream.next().await, Some(Ok(()))) {}
 
         log::info!("Connection closed cleanly.");
         Ok(())
@@ -332,8 +332,7 @@ mod tests {
             let s = Server::new(
                 config.clone(),
                 std::sync::Arc::new(
-                    RuleEngine::new(config.clone(), None, resolvers, queue_manager.clone())
-                        .unwrap(),
+                    RuleEngine::new(config.clone(), resolvers, queue_manager.clone()).unwrap(),
                 ),
                 queue_manager,
                 working.0,
@@ -422,11 +421,16 @@ mod tests {
 
         let (client, server) = tokio::join!(client, server);
         server.unwrap();
-        // client transaction is ok, but has been denied (because there is no rules)
-        assert_eq!(
-            format!("{}", client.unwrap().unwrap_err()),
-            "response error: incomplete response"
-        );
+
+        dbg!(client
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .message()
+            .collect::<Vec<_>>());
+
+        assert_eq!(client.unwrap().unwrap().message().next().unwrap(), "Ok");
     }
 
     // FIXME: randomly fail the CI

@@ -53,6 +53,7 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::use_self)] // false positive
+#![allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/9271
 
 #[cfg(test)]
 mod tests;
@@ -62,9 +63,7 @@ mod parser {
     pub mod syst_group;
     pub mod syst_user;
     pub mod tls_certificate;
-    pub mod tls_cipher_suite;
     pub mod tls_private_key;
-    pub mod tls_protocol_version;
     pub mod tracing_directive;
 }
 
@@ -128,7 +127,7 @@ impl Config {
         let script =
             std::fs::read_to_string(path).context(format!("Cannot read file at {path:?}"))?;
 
-        let mut config = Self::from_vsl_script(&script, Some(&vsmtp_config_dir))?;
+        let mut config = Self::from_vsl_script(script, Some(&vsmtp_config_dir))?;
 
         config.path = Some(path.to_path_buf());
 
@@ -229,10 +228,10 @@ impl Config {
 
     /// Get the configuration for a virtual domain.
     fn get_domain_config(&mut self, engine: &rhai::Engine) -> anyhow::Result<()> {
-        if let Some(domains_path) = &self.app.vsl.dirpath {
+        if let Some(domains_path) = &self.app.vsl.domain_dir {
             for entry in std::fs::read_dir(domains_path).with_context(|| {
                 format!(
-                    "Cannot read subdomain in the directory '{}'",
+                    "Cannot read domain directory in '{}'",
                     domains_path.display()
                 )
             })? {

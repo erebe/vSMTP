@@ -31,9 +31,9 @@ impl Config {
     pub(crate) fn ensure(mut config: Self) -> anyhow::Result<Self> {
         /*
         anyhow::ensure!(
-            config.app.logs.filepath != config.server.logs.filepath,
+            config.app.logs.filename != config.server.logs.filename,
             "System and Application logs cannot both be written in '{}' !",
-            config.app.logs.filepath.display()
+            config.app.logs.filename.display()
         );
         */
 

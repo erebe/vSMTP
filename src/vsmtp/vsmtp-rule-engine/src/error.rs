@@ -224,10 +224,10 @@ mod test {
     #[test]
     fn test_error_from_rhai_error() {
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Rule.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Action.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
         let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Stage.into();
-        println!("{}", rhai_err);
+        println!("{rhai_err}");
     }
 }

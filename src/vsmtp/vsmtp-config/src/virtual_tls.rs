@@ -33,7 +33,7 @@ impl<'de> serde::Deserialize<'de> for SecretFile<rustls::PrivateKey> {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SecretFile<rustls::Certificate> {
+impl<'de> serde::Deserialize<'de> for SecretFile<Vec<rustls::Certificate>> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -115,8 +115,10 @@ impl FieldServerVirtualTls {
     /// * private key file not found.
     pub fn from_path(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-            certificate: SecretFile::<rustls::Certificate> {
+            protocol_version: vec![vsmtp_common::ProtocolVersion(
+                rustls::ProtocolVersion::TLSv1_3,
+            )],
+            certificate: SecretFile::<Vec<rustls::Certificate>> {
                 inner: tls_certificate::from_path(certificate)?,
                 path: certificate.into(),
             },

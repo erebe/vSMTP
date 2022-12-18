@@ -89,9 +89,6 @@ pub mod field {
         /// see [`FieldServerDNS`]
         #[serde(default)]
         pub dns: FieldServerDNS,
-        /// see [`FieldDkim`]
-        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")]
-        pub dkim: Option<FieldDkim>,
         /// see [`FieldServerVirtual`]
         #[serde(default)]
         pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
@@ -191,11 +188,9 @@ pub mod field {
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerLogs {
-        /// Filepath of the server's log.
-        ///
-        /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
-        #[serde(default = "FieldServerLogs::default_filepath")]
-        pub filepath: std::path::PathBuf,
+        /// Path and name of the log of the server.
+        #[serde(default = "FieldServerLogs::default_filename")]
+        pub filename: std::path::PathBuf,
         /// Customize the log level of the different part of the program.
         ///
         /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
@@ -333,6 +328,7 @@ pub mod field {
         /// see [`FieldServerDNS`]
         pub dns: Option<FieldServerDNS>,
         /// see [`FieldDkim`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")] ?
         pub dkim: Option<FieldDkim>,
     }
 
@@ -341,13 +337,10 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtualTls {
         /// TLS protocol supported
-        #[serde(
-            serialize_with = "crate::parser::tls_protocol_version::serialize",
-            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
-        )]
-        pub protocol_version: Vec<rustls::ProtocolVersion>,
+        pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: SecretFile<rustls::Certificate>,
+        /// (the first certificate should certify KEYFILE, the last should be a root CA)
+        pub certificate: SecretFile<Vec<rustls::Certificate>>,
         /// Private key to use for the TLS connection.
         pub private_key: SecretFile<rustls::PrivateKey>,
     }
@@ -375,22 +368,10 @@ pub mod field {
         #[serde(default = "FieldServerTls::default_handshake_timeout")]
         pub handshake_timeout: std::time::Duration,
         /// TLS protocol supported
-        #[serde(
-            serialize_with = "crate::parser::tls_protocol_version::serialize",
-            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
-        )]
-        pub protocol_version: Vec<rustls::ProtocolVersion>,
-        #[serde(
-            serialize_with = "crate::parser::tls_cipher_suite::serialize",
-            deserialize_with = "crate::parser::tls_cipher_suite::deserialize",
-            default = "FieldServerTls::default_cipher_suite"
-        )]
+        pub protocol_version: Vec<vsmtp_common::ProtocolVersion>,
         /// TLS cipher suite supported
-        pub cipher_suite: Vec<rustls::CipherSuite>,
-        /// Certificate chain to use for the TLS connection.
-        pub certificate: SecretFile<rustls::Certificate>,
-        /// Private key to use for the TLS connection.
-        pub private_key: SecretFile<rustls::PrivateKey>,
+        #[serde(default = "FieldServerTls::default_cipher_suite")]
+        pub cipher_suite: Vec<vsmtp_common::CipherSuite>,
     }
 
     /// Configuration of the client's error handling.
@@ -544,11 +525,13 @@ pub mod field {
     }
 
     /// Configuration of the application run by `vSMTP`.
-    #[derive(Default, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldAppVSL {
-        /// Entry point of the vsl application.
-        pub dirpath: Option<std::path::PathBuf>,
+        /// Directory containing filtering rules per domain.
+        pub domain_dir: Option<std::path::PathBuf>,
+        /// Entry point for the rule engine.
+        pub filter_path: Option<std::path::PathBuf>,
     }
 
     /// Application's parameter of the logs, same properties than [`FieldServerLogs`].
@@ -556,8 +539,8 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldAppLogs {
         ///
-        #[serde(default = "FieldAppLogs::default_filepath")]
-        pub filepath: std::path::PathBuf,
+        #[serde(default = "FieldAppLogs::default_filename")]
+        pub filename: std::path::PathBuf,
     }
 
     /// Configuration of the application run by `vSMTP`.

@@ -12,11 +12,11 @@ fn on_config(config) {
     // NOTE: `filepath` key use relative paths to automatically test our examples.
     //        Use absolute or relative paths relative to your own system instead of those.
     //
-    //        (for example: config.app.vsl.dirpath = "/etc/vsmtp/main.vsl")
+    //        (for example: config.app.vsl.domain_dir = "/etc/vsmtp/main.vsl")
 
     config.server.queues.dirpath = "examples/dnsbl/spool";
     config.app.dirpath = "examples/dnsbl/app";
-    config.app.vsl.dirpath = "../../../examples/dnsbl/domain-available";
+    config.app.vsl.filter_path = "../../../examples/dnsbl/filter.vsl";
 
     // NOTE: lookup results depends on the dns type that you use.
     config.server.dns.type = "cloudflare";

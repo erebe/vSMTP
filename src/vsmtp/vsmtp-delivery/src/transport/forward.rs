@@ -118,7 +118,7 @@ impl Forward<'_> {
                     pool_min_idle: 1,
                     port: port.unwrap_or(SMTP_PORT),
                     certificate: get_cert_for_server(&ctx.connect.server_name, config)
-                        .map_or_else(Vec::new, |cert| vec![cert]),
+                        .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
                 },
                 &envelop,
                 message.as_bytes(),
@@ -207,11 +207,9 @@ mod tests {
 
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().email_status {
-            &EmailTransferStatus::HeldBack { ref errors } => assert_eq!(
+            EmailTransferStatus::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
-                TransferErrorsVariant::Smtp {
-                    error: "fail to send email".to_owned()
-                }
+                TransferErrorsVariant::TlsNoCertificate {}
             ),
             _ => panic!(),
         }

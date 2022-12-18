@@ -60,7 +60,7 @@ async fn actual_test(stage: ExecutionStage) {
         mail_handler = vsmtp_server::MailHandler::new(working_sender, delivery_sender),
         hierarchy_builder = move |builder| Ok(
             builder
-                .add_root_incoming_rules(&rules.clone())?
+                .add_root_filter_rules(&rules.clone())?
                 .build()
             ),
     };

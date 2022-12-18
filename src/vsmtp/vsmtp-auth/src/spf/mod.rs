@@ -37,17 +37,15 @@ impl From<viaspf::QueryResult> for Result {
     fn from(other: viaspf::QueryResult) -> Self {
         Self {
             result: other.spf_result.to_string(),
-            details: other
-                .cause
-                .map_or(
-                    Details::Mechanism("default".to_string()),
-                    |cause| match cause {
-                        viaspf::SpfResultCause::Match(mechanism) => {
-                            Details::Mechanism(mechanism.to_string())
-                        }
-                        viaspf::SpfResultCause::Error(error) => Details::Problem(error.to_string()),
-                    },
-                ),
+            details: other.cause.map_or_else(
+                || Details::Mechanism("default".to_string()),
+                |cause| match cause {
+                    viaspf::SpfResultCause::Match(mechanism) => {
+                        Details::Mechanism(mechanism.to_string())
+                    }
+                    viaspf::SpfResultCause::Error(error) => Details::Problem(error.to_string()),
+                },
+            ),
         }
     }
 }

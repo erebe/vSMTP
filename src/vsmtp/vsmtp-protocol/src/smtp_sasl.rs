@@ -25,6 +25,7 @@ use vsmtp_common::auth::Mechanism;
 #[allow(clippy::exhaustive_structs)]
 pub struct CallbackWrap(pub Box<dyn rsasl::callback::SessionCallback + Send + Sync>);
 
+#[allow(clippy::missing_trait_methods)]
 impl rsasl::callback::SessionCallback for CallbackWrap {
     #[inline]
     fn callback(
@@ -104,6 +105,7 @@ where
 
         struct AdapterSMTPandSASL<'writer, W: tokio::io::AsyncWrite + Unpin + Send>(&'writer mut W);
 
+        #[allow(clippy::missing_trait_methods)]
         impl<'writer, W: tokio::io::AsyncWrite + Unpin + Send> std::io::Write
             for AdapterSMTPandSASL<'writer, W>
         {

@@ -385,7 +385,7 @@ run_test! {
     ],
     config = unsafe_auth_config(),
     hierarchy_builder = |builder| {
-        Ok(builder.add_root_incoming_rules(r#"#{
+        Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be authenticated" || {
               if is_authenticated() { next() } else { deny(code(530, "5.7.0", "Authentication required\r\n")) }

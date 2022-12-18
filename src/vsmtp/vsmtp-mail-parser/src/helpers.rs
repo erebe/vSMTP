@@ -124,7 +124,7 @@ pub fn read_header(content: &mut &[&str]) -> Option<(String, String)> {
                 if folded_header.is_empty() {
                     field.to_string()
                 } else {
-                    format!("{}\r\n{}", field, folded_header)
+                    format!("{field}\r\n{folded_header}")
                 },
             ))
         }

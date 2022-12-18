@@ -91,7 +91,7 @@ macro_rules! run_test {
         $( let server_name: &str = $server_name_tunnel; )?
         $( let server_name: &str = $server_name_starttls; )?
 
-        let port = rand::random::<u32>().rem_euclid(1000) + 10000;
+        let port = rand::random::<u32>().rem_euclid(65535 - 1025) + 1025;
         let server_addr: std::net::SocketAddr = format!("0.0.0.0:{port}").parse().expect("valid address");
         let socket_server = tokio::net::TcpListener::bind(server_addr.clone())
             .await
@@ -130,8 +130,7 @@ macro_rules! run_test {
 
             let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
                 let _f = || vsmtp_rule_engine::RuleEngine::new(
-                    config.clone(), config.app.vsl.dirpath.clone(),
-                    resolvers.clone(), queue_manager.clone()
+                    config.clone(), resolvers.clone(), queue_manager.clone()
                 ).unwrap();                                         $(
                 let _f = || vsmtp_rule_engine::RuleEngine::with_hierarchy(
                     config.clone(), $hierarchy_builder,
@@ -184,7 +183,7 @@ macro_rules! run_test {
             );
             tokio::pin!(smtp_stream);
 
-            while let Some(Ok(())) = tokio_stream::StreamExt::next(&mut smtp_stream).await {}
+            while matches!(tokio_stream::StreamExt::next(&mut smtp_stream).await, Some(Ok(()))) {}
         });
 
         let client = tokio::spawn(async move {

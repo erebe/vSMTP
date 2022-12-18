@@ -15,7 +15,7 @@
  *
  */
 
-use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok, ExecutionStage};
+use crate::{rule_state::RuleState, vsl_guard_ok, ExecutionStage};
 use vsmtp_common::status::Status;
 
 pub mod action;
@@ -23,24 +23,36 @@ pub mod action;
 pub mod delegation;
 pub mod rule;
 
-/// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<ExecutionStage, Vec<Directive>>;
 
-/// a type of rule that can be executed from a function pointer.
+///
 #[derive(strum::AsRefStr)]
 #[strum(serialize_all = "lowercase")]
 pub enum Directive {
     /// execute code that return a status.
-    Rule { name: String, pointer: rhai::FnPtr },
+    Rule {
+        ///
+        name: String,
+        ///
+        pointer: rhai::FnPtr,
+    },
     /// execute code that does not need a return value.
-    Action { name: String, pointer: rhai::FnPtr },
+    Action {
+        ///
+        name: String,
+        ///
+        pointer: rhai::FnPtr,
+    },
     /// delegate a message to a service, and execute the
     /// inner rhai function when the message is forwarded
     /// to the service receive endpoint.
     #[cfg(feature = "delegation")]
     Delegation {
+        ///
         name: String,
+        ///
         pointer: rhai::FnPtr,
+        ///
         service: std::sync::Arc<crate::dsl::smtp::service::Smtp>,
     },
 }
@@ -53,9 +65,16 @@ impl std::fmt::Debug for Directive {
     }
 }
 
+#[must_use]
+#[derive(Debug, thiserror::Error)]
+pub enum ExecutionError {
+    #[error("vsl execution produced an error: {0}")]
+    RuntimeError(#[from] Box<rhai::EvalAltResult>),
+    // NOTE: non exhaustive for delegation error ?
+}
+
 impl Directive {
-    /// Parse any type of directive.
-    pub fn parse_directive(
+    pub(crate) fn parse_directive(
         symbols: &[rhai::ImmutableString],
         look_ahead: &str,
         state: &mut rhai::Dynamic,
@@ -68,14 +87,23 @@ impl Directive {
 
         match symbols.len() {
             // In case of a delegation, we need to associate a smtp service.
-            1 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())), // 'delegate' -> service.
-            2 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$string$".into())), // service    -> directive name
-            3 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())), // dn         -> directive body
-            4 if cfg!(feature = "delegation") && directive_type.as_str() == "delegate" => Ok(None),
+            // 'delegate' -> service.
+            #[cfg(feature = "delegation")]
+            1 if directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())),
+            // service    -> directive name
+            #[cfg(feature = "delegation")]
+            2 if directive_type.as_str() == "delegate" => Ok(Some("$string$".into())),
+            // dn         -> directive body
+            #[cfg(feature = "delegation")]
+            3 if directive_type.as_str() == "delegate" => Ok(Some("$expr$".into())),
+            #[cfg(feature = "delegation")]
+            4 if directive_type.as_str() == "delegate" => Ok(None),
 
             // For any other directive ...
-            1 => Ok(Some("$string$".into())), // directive keyword -> directive name
-            2 => Ok(Some("$expr$".into())),   // directive name    -> directive body
+            // directive keyword -> directive name
+            1 => Ok(Some("$string$".into())),
+            // directive name    -> directive body
+            2 => Ok(Some("$expr$".into())),
             3 => Ok(None),
 
             _ => Err(rhai::ParseError(
@@ -89,8 +117,7 @@ impl Directive {
         }
     }
 
-    /// Get the name of the directive.
-    pub fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             #[cfg(feature = "delegation")]
             Self::Delegation { name, .. } => name,
@@ -98,20 +125,18 @@ impl Directive {
         }
     }
 
-    /// Execute the content of the directive.
-    #[tracing::instrument(skip_all, fields(stage), ret, err)]
-    pub fn execute(
+    #[tracing::instrument(skip(rule_state, ast, stage), ret, err)]
+    pub(crate) fn execute(
         &self,
         rule_state: &RuleState,
         ast: &rhai::AST,
         stage: ExecutionStage,
-    ) -> EngineResult<Status> {
+    ) -> Result<Status, ExecutionError> {
         match self {
-            Directive::Rule { pointer, .. } => {
-                rule_state
-                    .engine()
-                    .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())
-            }
+            Directive::Rule { pointer, .. } => rule_state
+                .engine()
+                .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())
+                .map_err(Into::into),
             Directive::Action { pointer, .. } => {
                 rule_state
                     .engine()
@@ -143,9 +168,9 @@ impl Directive {
                 match args {
                     Some(header_directive) if header_directive == *name => rule_state
                         .engine()
-                        .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
+                        .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())
+                        .map_err(Into::into),
                     _ => {
-                        // FIXME: fold this header.
                         vsl_guard_ok!(rule_state.message().write()).prepend_header(
                             "X-VSMTP-DELEGATION",
                             &format!(

@@ -67,6 +67,9 @@ pub enum TransferErrorsVariant {
     },
 
     ///
+    TlsNoCertificate {},
+
+    ///
     MaxDeferredAttemptReached,
 
     ///
@@ -95,7 +98,8 @@ impl TransferErrorsVariant {
             | TransferErrorsVariant::Smtp { .. }
             | TransferErrorsVariant::StillWaiting
             | TransferErrorsVariant::RuleEngine(..)
-            | TransferErrorsVariant::DeliveryError { .. } => false,
+            | TransferErrorsVariant::DeliveryError { .. }
+            | TransferErrorsVariant::TlsNoCertificate { .. } => false,
         }
     }
 }

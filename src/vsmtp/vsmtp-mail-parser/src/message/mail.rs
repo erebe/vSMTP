@@ -25,7 +25,7 @@ pub struct MailHeaders(pub Vec<(String, String)>);
 impl std::fmt::Display for MailHeaders {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in self.0.iter().map(|(k, v)| HeaderFoldable(k, v)) {
-            write!(f, "{}", i)?;
+            write!(f, "{i}")?;
         }
         Ok(())
     }

@@ -16,6 +16,7 @@
 */
 
 use crate::{Handler, OnMail};
+use tokio_rustls::rustls;
 use vsmtp_common::{auth::Credentials, status::Status, ClientName, CodeID, Reply};
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, ConnectionKind, EhloArgs, HeloArgs,
@@ -44,12 +45,15 @@ impl<M: OnMail + Send> Handler<M> {
                 .run_when(&self.state, &mut self.skipped, ExecutionStage::Helo)
             {
                 Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-                Status::Quarantine(_) | Status::Next => either::Left(default),
+                Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                    either::Left(default)
+                }
                 Status::Deny(code) => {
                     ctx.deny();
                     code
                 }
-                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                // FIXME: user ran a delegate method before postq/delivery
+                Status::Delegated(_) => unreachable!(),
             };
 
         self.reply_or_code_in_config(e)
@@ -73,6 +77,19 @@ impl<M: OnMail + Send> Handler<M> {
             )
             .expect("bad state");
 
+        if self
+            .rule_engine
+            .get_delegation_directive_bound_to_address(args.server_addr)
+            .is_some()
+        {
+            self.state
+                .context()
+                .write()
+                .expect("bad state")
+                .set_skipped(Status::DelegationResult);
+            self.skipped = Some(Status::DelegationResult);
+        }
+
         let e =
             match self
                 .rule_engine
@@ -80,12 +97,15 @@ impl<M: OnMail + Send> Handler<M> {
             {
                 // FIXME: do we really want to let the end-user override the EHLO/HELO reply?
                 Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
-                Status::Quarantine(_) | Status::Next => either::Left(CodeID::Greetings),
+                Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
+                    either::Left(CodeID::Greetings)
+                }
                 Status::Deny(code) => {
                     ctx.deny();
                     return self.reply_or_code_in_config(code);
                 }
-                Status::Delegated(_) | Status::DelegationResult => unreachable!(),
+                // FIXME: user ran a delegate method before postq/delivery
+                Status::Delegated(_) => unreachable!(),
             };
 
         // NOTE: in that case, the return value is ignored and
@@ -115,12 +135,25 @@ impl<M: OnMail + Send> Handler<M> {
         }))
     }
 
-    pub(super) fn on_post_tls_handshake_inner(&mut self, sni: Option<String>) -> Reply {
+    pub(super) fn on_post_tls_handshake_inner(
+        &mut self,
+        sni: Option<String>,
+        protocol_version: rustls::ProtocolVersion,
+        cipher_suite: rustls::CipherSuite,
+        peer_certificates: Option<Vec<rustls::Certificate>>,
+        alpn_protocol: Option<Vec<u8>>,
+    ) -> Reply {
         self.state
             .context()
             .write()
             .expect("state poisoned")
-            .to_secured(sni)
+            .to_secured(
+                sni,
+                protocol_version,
+                cipher_suite,
+                peer_certificates,
+                alpn_protocol,
+            )
             .expect("bad state");
 
         self.reply_in_config(CodeID::Greetings)
@@ -218,7 +251,11 @@ impl<M: OnMail + Send> Handler<M> {
                 CodeID::AuthClientCanceled
             }
             Err(AuthError::Base64 { .. }) => CodeID::AuthErrorDecode64,
-            Err(AuthError::SessionError(e)) => todo!("{}", e),
+            Err(AuthError::SessionError(e)) => {
+                tracing::warn!(%e, "auth error");
+                ctx.deny();
+                CodeID::AuthTempError
+            }
             Err(AuthError::IO(e)) => todo!("{}", e),
             Err(AuthError::ConfigError(e)) => todo!("{}", e),
         };

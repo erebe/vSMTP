@@ -23,7 +23,7 @@ fn on_config(config) {
     };
 
     config.server.logs = #{
-        filepath: "/var/log/vsmtp/vsmtp.log",
+        filename: "/var/log/vsmtp/vsmtp.log",
         format: "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}",
         size_limit: 10485760,
         archive_count: 10,
@@ -165,10 +165,10 @@ fn on_config(config) {
 
     config.app.dirpath = "/var/spool/vsmtp/app";
 
-    config.app.vsl.dirpath = "/etc/vsmtp/main.vsl";
+    config.app.vsl.domain_dir = "/etc/vsmtp/main.vsl";
 
     config.app.logs = #{
-        filepath: "/var/log/vsmtp/app.log",
+        filename: "/var/log/vsmtp/app.log",
         level: "WARN",
         format: "{d} - {m}{n}",
         size_limit: 10485760,

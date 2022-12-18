@@ -14,13 +14,12 @@ fn on_config(config) {
         preempt_cipherlist: false,
         handshake_timeout: "200ms",
         protocol_version: ["TLSv1.2", "TLSv1.3"],
-        certificate: "../../../examples/config/tls/certificate.crt",
-        private_key: "../../../examples/config/tls/private_key.key",
     };
 
     config.server.queues.dirpath = "examples/family/spool";
     config.app.dirpath = "examples/family/app";
-    config.app.vsl.dirpath = "../../../examples/family/domain-available";
+    config.app.vsl.domain_dir = "../../../examples/family/domain-available";
+    config.app.vsl.filter_path = "../../../examples/family/filter.vsl";
 
     config
 }

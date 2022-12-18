@@ -72,7 +72,7 @@ impl Builder<WantsValidate> {
                     addr_submissions: srv_inet.addr_submissions,
                 },
                 logs: FieldServerLogs {
-                    filepath: srv_logs.filepath,
+                    filename: srv_logs.filename,
                     level: srv_logs.level,
                     system: None,
                 },
@@ -101,15 +101,15 @@ impl Builder<WantsValidate> {
                 },
                 dns: dns.config,
                 r#virtual: virtual_entries.r#virtual,
-                dkim: None,
             },
             app: FieldApp {
                 dirpath: app.dirpath,
                 vsl: FieldAppVSL {
-                    dirpath: app_vsl.dirpath,
+                    domain_dir: app_vsl.domain_dir,
+                    filter_path: app_vsl.filter_path,
                 },
                 logs: FieldAppLogs {
-                    filepath: app_logs.filepath,
+                    filename: app_logs.filename,
                 },
             },
         })
@@ -141,6 +141,6 @@ mod tests {
             .with_system_dns()
             .without_virtual_entries()
             .validate();
-        assert!(config.is_ok(), "{:?}", config);
+        assert!(config.is_ok(), "{config:?}");
     }
 }

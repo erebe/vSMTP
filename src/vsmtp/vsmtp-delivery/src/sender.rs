@@ -115,15 +115,24 @@ impl Sender {
                 .min_idle(params.pool_min_idle),
         );
 
+        // NOTE: there is no way to build `lettre::transport::smtp::client::Certificate` from `Vec<rustls::Certificate>`.
+        // rustls::Certificate => PEM => lettre::transport::smtp::client::Certificate => rustls::Certificate
+        let certs = params
+            .certificate
+            .iter()
+            .map(|c| {
+                pem::encode(&pem::Pem {
+                    tag: "CERTIFICATE".to_owned(),
+                    contents: c.0.clone(),
+                })
+            })
+            .flat_map(|c| c.as_bytes().to_vec())
+            .collect::<Vec<_>>();
+
         let builder = builder.tls(lettre::transport::smtp::client::Tls::Required(
             lettre::transport::smtp::client::TlsParameters::builder(params.server.clone())
-                .add_root_certificate(lettre::transport::smtp::client::Certificate::from_der(
-                    params
-                        .certificate
-                        .iter()
-                        .cloned()
-                        .flat_map(|c| c.0)
-                        .collect::<Vec<_>>(),
+                .add_root_certificate(lettre::transport::smtp::client::Certificate::from_pem(
+                    &certs,
                 )?)
                 .build()?,
         ));

@@ -23,15 +23,12 @@ use super::{
     },
     WantsPath,
 };
-use crate::{
-    field::{
-        FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
-        FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
-        FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
-        ResolverOptsWrapper, SecretFile,
-    },
-    parser::{tls_certificate, tls_private_key},
+use crate::field::{
+    FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
+    FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
+    FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
+    FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
+    ResolverOptsWrapper,
 };
 use anyhow::Context;
 use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
@@ -67,7 +64,6 @@ impl Builder<WantsVersion> {
 
 impl Builder<WantsPath> {
     ///
-    #[allow(clippy::missing_const_for_fn)] // false positive.
     #[must_use]
     pub fn without_path(self) -> Builder<WantsServer> {
         Builder::<WantsServer> {
@@ -79,7 +75,6 @@ impl Builder<WantsPath> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)] // false positive.
     #[must_use]
     pub fn with_path(self, path: std::path::PathBuf) -> Builder<WantsServer> {
         Builder::<WantsServer> {
@@ -189,7 +184,6 @@ impl Builder<WantsServerSystem> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system(
         self,
@@ -285,7 +279,7 @@ impl Builder<WantsServerLogs> {
     #[must_use]
     pub fn with_default_logs_settings(self) -> Builder<WantsServerQueues> {
         self.with_logs_settings(
-            FieldServerLogs::default_filepath(),
+            FieldServerLogs::default_filename(),
             &FieldServerLogs::default_level(),
         )
     }
@@ -294,13 +288,13 @@ impl Builder<WantsServerLogs> {
     #[must_use]
     pub fn with_logs_settings(
         self,
-        filepath: impl Into<std::path::PathBuf>,
+        filename: impl Into<std::path::PathBuf>,
         level: &[tracing_subscriber::filter::Directive],
     ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
-                filepath: filepath.into(),
+                filename: filename.into(),
                 level: level.to_vec(),
             },
         }
@@ -347,62 +341,20 @@ impl Builder<WantsServerQueues> {
 }
 
 impl Builder<WantsServerTLSConfig> {
-    // TODO: remove default values from this files
-    ///
     /// # Errors
     ///
     /// * `certificate` is not valid
     /// * `private_key` is not valid
-    pub fn with_safe_and_path(
-        self,
-        certificate: &str,
-        private_key: &str,
-    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
+    pub fn with_tls(self) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
         Ok(Builder::<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
                 tls: Some(FieldServerTls {
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
-                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-                    certificate: SecretFile::<rustls::Certificate> {
-                        inner: tls_certificate::from_path(certificate)?,
-                        path: certificate.into(),
-                    },
-                    private_key: SecretFile::<rustls::PrivateKey> {
-                        inner: tls_private_key::from_path(private_key)?,
-                        path: private_key.into(),
-                    },
-                    cipher_suite: FieldServerTls::default_cipher_suite(),
-                }),
-            },
-        })
-    }
-
-    /// # Errors
-    ///
-    /// * `certificate` is not valid
-    /// * `private_key` is not valid
-    pub fn with_safe_and_content(
-        self,
-        certificate: &str,
-        private_key: &str,
-    ) -> anyhow::Result<Builder<WantsServerSMTPConfig1>> {
-        Ok(Builder::<WantsServerSMTPConfig1> {
-            state: WantsServerSMTPConfig1 {
-                parent: self.state,
-                tls: Some(FieldServerTls {
-                    preempt_cipherlist: false,
-                    handshake_timeout: std::time::Duration::from_millis(200),
-                    protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-                    certificate: SecretFile::<rustls::Certificate> {
-                        inner: tls_certificate::from_string(certificate)?,
-                        path: certificate.into(),
-                    },
-                    private_key: SecretFile::<rustls::PrivateKey> {
-                        inner: tls_private_key::from_string(private_key)?,
-                        path: private_key.into(),
-                    },
+                    protocol_version: vec![vsmtp_common::ProtocolVersion(
+                        rustls::ProtocolVersion::TLSv1_3,
+                    )],
                     cipher_suite: FieldServerTls::default_cipher_suite(),
                 }),
             },
@@ -410,7 +362,6 @@ impl Builder<WantsServerTLSConfig> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_tls_support(self) -> Builder<WantsServerSMTPConfig1> {
         Builder::<WantsServerSMTPConfig1> {
@@ -430,7 +381,6 @@ impl Builder<WantsServerSMTPConfig1> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_rcpt_count_and_default(
         self,
@@ -520,7 +470,6 @@ impl Builder<WantsServerSMTPConfig3> {
 
 impl Builder<WantsServerSMTPAuth> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_auth(self) -> Builder<WantsApp> {
         Builder::<WantsApp> {
@@ -587,23 +536,30 @@ impl Builder<WantsApp> {
 impl Builder<WantsAppVSL> {
     ///
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                dirpath: None,
+                domain_dir: None,
+                filter_path: None,
             },
         }
     }
 
     ///
     #[must_use]
-    pub fn with_vsl(self, entry_point: impl Into<std::path::PathBuf>) -> Builder<WantsAppLogs> {
+    pub fn with_vsl(self, domain_dir: impl Into<std::path::PathBuf>) -> Builder<WantsAppLogs> {
+        let domain_dir = domain_dir.into();
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                dirpath: Some(entry_point.into()),
+                domain_dir: Some(domain_dir.clone()),
+                filter_path: Some(
+                    domain_dir
+                        .parent()
+                        .expect("rule main script is fetched in the domain directory's parent")
+                        .join("filter.vsl"),
+                ),
             },
         }
     }
@@ -613,19 +569,19 @@ impl Builder<WantsAppLogs> {
     ///
     #[must_use]
     pub fn with_default_app_logs(self) -> Builder<WantsServerDNS> {
-        self.with_app_logs_at(FieldAppLogs::default_filepath())
+        self.with_app_logs_at(FieldAppLogs::default_filename())
     }
 
     ///
     #[must_use]
     pub fn with_app_logs_at(
         self,
-        filepath: impl Into<std::path::PathBuf>,
+        filename: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsServerDNS> {
         Builder::<WantsServerDNS> {
             state: WantsServerDNS {
                 parent: self.state,
-                filepath: filepath.into(),
+                filename: filename.into(),
             },
         }
     }
@@ -660,7 +616,6 @@ impl Builder<WantsServerDNS> {
 
     /// dns resolutions will be made using the system configuration.
     /// (/etc/resolv.conf on unix systems & the registry on Windows).
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system_dns(self) -> Builder<WantsServerVirtual> {
         Builder::<WantsServerVirtual> {
@@ -672,7 +627,6 @@ impl Builder<WantsServerDNS> {
     }
 
     /// dns resolutions will be made using the following dns configuration.
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_dns(
         self,

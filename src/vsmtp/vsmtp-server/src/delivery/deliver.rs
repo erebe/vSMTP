@@ -238,7 +238,7 @@ mod tests {
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
                     config.clone(),
-                    |builder| Ok(builder.add_root_incoming_rules("#{}")?.build()),
+                    |builder| Ok(builder.add_root_filter_rules("#{}")?.build()),
                     resolvers,
                     queue_manager.clone(),
                 )
@@ -291,7 +291,7 @@ mod tests {
                     config.clone(),
                     |builder| {
                         Ok(builder
-                            .add_root_incoming_rules(&format!(
+                            .add_root_filter_rules(&format!(
                                 "#{{ {}: [ rule \"\" || sys::deny() ] }}",
                                 ExecutionStage::Delivery
                             ))?
