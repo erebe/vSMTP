@@ -59,7 +59,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
     "dnssec-ring",
     "tokio-runtime",
 ] }
-serde = { version = "1.0.150", default-features = false, features = ["std", "derive"] }
+serde = { version = "1.0.151", default-features = false, features = ["std", "derive"] }
 serde_with = { version = "2.1.0", default-features = false, features = ["std", "macros", "base64"] }
 thiserror = { version = "1.0.37", default-features = false }
 
