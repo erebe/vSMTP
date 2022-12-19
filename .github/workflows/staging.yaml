@@ -5,6 +5,9 @@ on:
     branches:
       - "staging"
 
+permissions:
+  contents: read
+
 jobs:
   test-staging:
     runs-on: ubuntu-latest

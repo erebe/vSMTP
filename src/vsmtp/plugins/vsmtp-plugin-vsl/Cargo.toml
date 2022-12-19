@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-plugin-vsl"
-version = "1.4.0-rc.5"
+version = "1.4.0-rc.6"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -24,7 +24,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.5" }
+vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.6" }
 
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
