@@ -23,7 +23,7 @@ tracing = { version = "0.1.37", default-features = false, features = ["std", "at
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 async-trait = { version = "0.1.59", default-features = false }
 serde = { version = "1.0.151", default-features = false, features = ["std", "derive"] }
-thiserror = { version = "1.0.37", default-features = false }
+thiserror = { version = "1.0.38", default-features = false }
 
 tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
