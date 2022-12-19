@@ -43,7 +43,7 @@ version = "=1.4.0-rc.7"
 path = "../vsmtp-auth"
 
 [dependencies.vqueue]
-version = "=1.4.0-rc.6"
+version = "=1.4.0-rc.7"
 path = "../../vqueue"
 
 [dependencies]

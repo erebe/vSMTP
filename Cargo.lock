@@ -3261,7 +3261,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "1.4.0-rc.6"
+version = "1.4.0-rc.7"
 dependencies = [
  "anyhow",
  "async-trait",
