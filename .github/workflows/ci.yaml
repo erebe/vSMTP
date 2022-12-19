@@ -5,6 +5,9 @@ name: CI
       - "**"
       - "!doc/**"
 
+permissions:
+  contents: read
+
 env:
   RUST_MSRV: 1.63.0
   CARGO_TERM_COLOR: always
@@ -14,13 +17,13 @@ jobs:
     strategy:
       matrix:
         include:
-            # Workspace stable
+          # Workspace stable
           - toolchain: stable
             path: ./Cargo.toml
-            # Workspace MSRV
+          # Workspace MSRV
           - toolchain: 1.63.0
             path: ./Cargo.toml
-            # Fuzz crate
+          # Fuzz crate
           - toolchain: nightly
             path: ./fuzz/Cargo.toml
     runs-on: ubuntu-latest

@@ -5,6 +5,9 @@ on:
       - "main"
       - "staging"
 
+permissions:
+  contents: read
+
 jobs:
   check-bump:
     runs-on: ubuntu-latest

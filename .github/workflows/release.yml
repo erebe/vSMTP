@@ -5,6 +5,9 @@ on:
       - "main"
     types: [closed]
 
+permissions:
+  contents: write
+
 jobs:
   release-crates-io:
     if: github.event.pull_request.merged == true
