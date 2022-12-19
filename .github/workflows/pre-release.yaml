@@ -30,6 +30,8 @@ jobs:
         id: get-bump-method
       - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
