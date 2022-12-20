@@ -51,7 +51,7 @@ path = "../vsmtp-rule-engine"
 [dependencies]
 clap = { version = "4.0.29", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
 diff = { version = "0.1.13", default-features = false }
-serde_json = { version = "1.0.89", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 
 anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
