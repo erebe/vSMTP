@@ -38,8 +38,8 @@ version = "=1.4.0-rc.7"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-async-trait = { version = "0.1.59", default-features = false }
-anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+async-trait = { version = "0.1.60", default-features = false }
+anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 

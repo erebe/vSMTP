@@ -21,12 +21,12 @@ categories = ["email", "parsing"]
 [dependencies]
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
-async-trait = { version = "0.1.59", default-features = false }
-serde = { version = "1.0.150", default-features = false, features = ["std", "derive"] }
-thiserror = { version = "1.0.37", default-features = false }
+async-trait = { version = "0.1.60", default-features = false }
+serde = { version = "1.0.151", default-features = false, features = ["std", "derive"] }
+thiserror = { version = "1.0.38", default-features = false }
 
 tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
-anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
 # TODO : remove me
 convert_case = "0.6.0"

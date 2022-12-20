@@ -37,5 +37,5 @@ ipnet = { version = "2.7.0", default-features = false, features = [
     # "serde", # TODO
 ] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
-anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
