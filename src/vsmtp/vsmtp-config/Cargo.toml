@@ -43,7 +43,7 @@ base64 = { version = "0.20.0", default-features = false, features = ["std"] }
 serde = { version = "1.0.151", default-features = false, features = ["std", "derive"] }
 humantime-serde = { version = "1.1.1", default-features = false }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
-ring-compat = { version = "0.4.1", default-features = false, features = ["aead", "alloc", "digest", "signature"] }
+ring-compat = { version = "0.5.1", default-features = false, features = ["std", "alloc", "digest", "signature"] }
 
 rustls = { version = "0.20.7", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.1", default-features = false }

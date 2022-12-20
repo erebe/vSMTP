@@ -15,14 +15,14 @@
  *
 */
 
-use vsmtp_plugin_vsl::objects::Object;
-
 use crate::api::{EngineResult, SharedObject};
+#[allow(unused_imports)]
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
 use vsmtp_common::{status::Status, CodeID, Reply, ReplyOrCodeID};
+use vsmtp_plugin_vsl::objects::Object;
 
 fn reply_or_code_id_from_object(code: &SharedObject) -> EngineResult<ReplyOrCodeID> {
     match &**code {

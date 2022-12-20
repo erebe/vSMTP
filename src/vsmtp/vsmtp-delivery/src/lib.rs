@@ -36,7 +36,10 @@
 #![allow(clippy::shadow_reuse)]
 #![allow(clippy::pattern_type_mismatch)]
 //
-#![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
+#![cfg_attr(
+    test,
+    allow(clippy::unwrap_used, clippy::panic, clippy::std_instead_of_core)
+)]
 
 mod send;
 mod sender;

@@ -36,7 +36,7 @@ anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 base64 = { version = "0.20.0", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 viaspf = { version = "0.5.0", default-features = false, features = ["tokio-timeout", "trust-dns-resolver"] }
-ring-compat = { version = "0.4.1", default-features = false, features = ["aead", "alloc", "digest", "signature"] }
+ring-compat = { version = "0.5.1", default-features = false, features = ["std", "alloc", "digest", "signature"] }
 rsa = { version = "0.6.1", default-features = false, features = [
     "std",
     "pem",

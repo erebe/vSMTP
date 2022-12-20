@@ -41,7 +41,7 @@
 #![allow(clippy::shadow_reuse)]
 #![allow(clippy::mod_module_files)]
 //
-#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::std_instead_of_core))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Module containing the Command Line Interpreter

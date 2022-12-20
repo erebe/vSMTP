@@ -16,6 +16,7 @@
 */
 
 use crate::api::SharedObject;
+#[allow(unused_imports)]
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
