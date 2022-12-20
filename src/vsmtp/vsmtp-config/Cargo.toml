@@ -34,7 +34,7 @@ path = "../vsmtp-auth"
 
 [dependencies]
 
-anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
