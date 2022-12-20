@@ -24,6 +24,7 @@ pre-release-replacements = [
   { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "mail-parser\\]\nversion = .*", replace = "mail-parser]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "vqueue\\]\nversion = .*", replace = "vqueue]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "plugin-vsl\\]\nversion = .*", replace = "plugin-vsl]\nversion = \"={{version}}\"" },
 ]
 
 [dependencies.vsmtp-common]
@@ -46,10 +47,11 @@ path = "../vsmtp-auth"
 version = "=1.4.0-rc.7"
 path = "../../vqueue"
 
-[dependencies]
+[dependencies.vsmtp-plugin-vsl]
+version = "=1.4.0-rc.7"
+path = "../plugins/vsmtp-plugin-vsl"
 
-# Plugins
-vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.6" }
+[dependencies]
 rhai-dylib = { version = "0.1.4", features = ["sync"] }
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
