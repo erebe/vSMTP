@@ -29,9 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.toolchain }}-${{ matrix.path }}
@@ -49,9 +46,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: baptiste0928/cargo-install@v1
         with:
@@ -69,9 +63,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: baptiste0928/cargo-install@v1
         with:
@@ -96,9 +87,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: baptiste0928/cargo-install@v1
         with:
@@ -117,9 +105,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -140,9 +125,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -163,9 +145,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
