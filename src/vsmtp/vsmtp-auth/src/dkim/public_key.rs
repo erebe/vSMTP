@@ -72,18 +72,14 @@ impl InnerPublicKey {
             #[cfg(feature = "historic")]
             (InnerPublicKey::Rsa(rsa), SigningAlgorithm::RsaSha1) => rsa::PublicKey::verify(
                 rsa,
-                rsa::PaddingScheme::PKCS1v15Sign {
-                    hash: Some(rsa::hash::Hash::SHA1),
-                },
+                rsa::PaddingScheme::new_pkcs1v15_sign::<sha1::Sha1>(),
                 hashed,
                 signature,
             )
             .map_err(BackendError::Rsa),
             (InnerPublicKey::Rsa(rsa), SigningAlgorithm::RsaSha256) => rsa::PublicKey::verify(
                 rsa,
-                rsa::PaddingScheme::PKCS1v15Sign {
-                    hash: Some(rsa::hash::Hash::SHA2_256),
-                },
+                rsa::PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>(),
                 hashed,
                 signature,
             )
