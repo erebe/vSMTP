@@ -57,7 +57,7 @@ pub struct RuleEngine {
 }
 
 type RuleEngineInput =
-    either::Either<FieldAppVSL, Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>>;
+    either::Either<(), Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>>;
 
 impl RuleEngine {
     /// creates a new instance of the rule engine, reading all files in the
@@ -73,12 +73,7 @@ impl RuleEngine {
         resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
-        Self::new_inner(
-            either::Left(config.app.vsl.clone()),
-            config,
-            resolvers,
-            queue_manager,
-        )
+        Self::new_inner(either::Left(()), config, resolvers, queue_manager)
     }
 
     // NOTE: since a single engine instance is created for each postq emails
@@ -126,58 +121,45 @@ impl RuleEngine {
 
         let global_modules = Self::build_global_modules(&mut engine)?;
 
-        engine.set_module_resolver(match &input {
-            // TODO: handle canonicalization.
-            either::Either::Left(FieldAppVSL {
-                domain_dir: Some(path),
-                ..
-            }) => {
-                let path = path.parent().ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "the domain directory '{}' should be placed in `/etc/vsmtp`",
-                        path.display()
-                    )
-                })?;
-
-                let mut resolvers = ModuleResolversCollection::new();
-
-                resolvers.push(FileModuleResolver::new_with_path_and_extension(path, "vsl"));
-                resolvers.push(DylibModuleResolver::with_path(path));
-
-                resolvers
-            }
-            either::Either::Left(FieldAppVSL {
-                domain_dir: None, ..
-            })
-            | either::Either::Right(_) => {
+        engine.set_module_resolver(config.path.as_ref().and_then(|path| path.parent()).map_or_else(|| {
+                // TODO: replace this code by metaprogramming to simplify things.
+                tracing::warn!("No configuration path found, if you receive this message in production please open an issue.");
                 let mut resolvers = ModuleResolversCollection::new();
 
                 resolvers.push(FileModuleResolver::new_with_extension("vsl"));
                 resolvers.push(DylibModuleResolver::new());
 
                 resolvers
-            }
-        });
+            }, |path| {
+                let mut resolvers = ModuleResolversCollection::new();
+
+                resolvers.push(FileModuleResolver::new_with_path_and_extension(path, "vsl"));
+                resolvers.push(DylibModuleResolver::with_path(path));
+
+                resolvers
+            }));
 
         let rules = match input {
-            either::Either::Left(FieldAppVSL {
-                filter_path: Some(filter_path),
-                domain_dir,
-            }) => {
-                tracing::info!("Analyzing vSL rules at {filter_path:?}");
+            either::Either::Left(()) => match &config.app.vsl {
+                FieldAppVSL {
+                    filter_path: Some(filter_path),
+                    domain_dir,
+                } => {
+                    tracing::info!("Analyzing vSL rules at {filter_path:?}");
 
-                SubDomainHierarchy::new(&engine, &filter_path, domain_dir.as_deref())?
-            }
+                    SubDomainHierarchy::new(&engine, filter_path, domain_dir.as_deref())?
+                }
+                FieldAppVSL {
+                    filter_path: None, ..
+                } => {
+                    tracing::warn!(
+                            "No 'filter.vsl' provided in the config, the server will deny any incoming transaction by default."
+                        );
 
-            either::Either::Left(FieldAppVSL {
-                filter_path: None, ..
-            }) => {
-                tracing::warn!(
-                    "No 'filter.vsl' provided in the config, the server will deny any incoming transaction by default."
-                );
+                    SubDomainHierarchy::new_empty(&engine)?
+                }
+            },
 
-                SubDomainHierarchy::new_empty(&engine)?
-            }
             // NOTE: could be marked as debug.
             either::Either::Right(builder) => builder(Builder::new(&engine)?)?,
         };
