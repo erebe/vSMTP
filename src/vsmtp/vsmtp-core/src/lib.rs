@@ -1,5 +1,3 @@
-//! vSMTP executable
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -17,6 +15,8 @@
  *
  */
 
+//! vSMTP executable
+
 #![doc(html_no_source)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
@@ -28,6 +28,11 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::multiple_crate_versions)]
+//
+#![cfg_attr(
+    feature = "document-features",
+    doc = ::document_features::document_features!()
+)]
 
 mod args;
 
