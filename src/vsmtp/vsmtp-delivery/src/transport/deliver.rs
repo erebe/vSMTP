@@ -157,18 +157,18 @@ impl Deliver<'_> {
             return Ok(());
         }
 
-        let hosts = records
+        let mxs = records
             .into_iter()
             .map(|r| r.exchange().to_string())
             .collect::<Vec<_>>();
 
-        for host in &hosts {
+        for mx in &mxs {
             tracing::debug!("Trying to send an email.");
-            tracing::trace!(%host);
+            tracing::trace!(%mx);
 
             // checking for a null mx record.
             // see https://datatracker.ietf.org/doc/html/rfc7505
-            if host == "." {
+            if mx == "." {
                 tracing::error!(
                     "Trying to deliver to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
@@ -182,8 +182,8 @@ impl Deliver<'_> {
                 .senders
                 .send(
                     &SenderParameters {
-                        relay_target: domain.to_owned(),
-                        server_name: host.clone(),
+                        relay_target: mx.clone(),
+                        server_name: domain.to_owned(),
                         hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
@@ -199,17 +199,17 @@ impl Deliver<'_> {
             {
                 Ok(response) => {
                     tracing::info!("Email sent successfully");
-                    tracing::trace!(%host, sender = %from, ?envelop, ?response);
+                    tracing::trace!(%mx, sender = %from, ?envelop, ?response);
 
                     return Ok(());
                 }
                 Err(err) => {
-                    tracing::error!("failed to send message from '{from}' to '{host}': {err}");
+                    tracing::error!("failed to send message from '{from}' to '{mx}': {err}");
                 }
             }
         }
 
-        Err(TransferErrorsVariant::DeliveryError { targets: hosts })
+        Err(TransferErrorsVariant::DeliveryError { targets: mxs })
     }
 }
 
