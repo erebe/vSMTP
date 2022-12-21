@@ -137,7 +137,8 @@ impl Deliver<'_> {
             self.senders
                 .send(
                     &SenderParameters {
-                        server: domain.to_owned(),
+                        relay_target: domain.to_owned(),
+                        server_name: domain.to_owned(),
                         hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
@@ -181,7 +182,8 @@ impl Deliver<'_> {
                 .senders
                 .send(
                     &SenderParameters {
-                        server: host.to_string(),
+                        relay_target: domain.to_owned(),
+                        server_name: host.clone(),
                         hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,

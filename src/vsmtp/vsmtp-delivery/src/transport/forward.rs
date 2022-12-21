@@ -111,7 +111,8 @@ impl Forward<'_> {
         self.senders
             .send(
                 &SenderParameters {
-                    server,
+                    relay_target: server.clone(),
+                    server_name: server,
                     hello_name: ctx.connect.server_name.clone(),
                     pool_idle_timeout: core::time::Duration::from_secs(60),
                     pool_max_size: 3,
