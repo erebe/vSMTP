@@ -21,7 +21,7 @@ use vsmtp_common::{
     libc_abstraction::chown,
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, TransferErrorsVariant},
-    ContextFinished,
+    Address, ContextFinished,
 };
 use vsmtp_config::Config;
 
@@ -45,7 +45,7 @@ impl Transport for MBox {
         self,
         config: &Config,
         ctx: &ContextFinished,
-        from: &vsmtp_common::Address,
+        from: &Option<Address>,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
@@ -100,8 +100,12 @@ fn get_mbox_timestamp_format(timestamp: &time::OffsetDateTime) -> String {
         .unwrap_or_else(|_| String::default())
 }
 
-fn build_mbox_message(from: &vsmtp_common::Address, timestamp: &str, content: &str) -> String {
-    format!("From {from} {timestamp}\n{content}\n")
+fn build_mbox_message(from: &Option<Address>, timestamp: &str, content: &str) -> String {
+    format!(
+        "From {} {timestamp}\n{content}\n",
+        from.as_ref()
+            .map_or_else(|| "null".to_owned(), ToString::to_string)
+    )
 }
 
 fn write_content_to_mbox(
@@ -150,7 +154,7 @@ This is a raw email."#;
 
         let timestamp = get_mbox_timestamp_format(&time::OffsetDateTime::UNIX_EPOCH);
 
-        let message = build_mbox_message(&from, &timestamp, content);
+        let message = build_mbox_message(&Some(from), &timestamp, content);
 
         assert_eq!(
             r#"From john@doe.com Thu Jan  1 00:00:00 1970

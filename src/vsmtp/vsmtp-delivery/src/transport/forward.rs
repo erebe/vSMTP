@@ -67,17 +67,11 @@ impl Forward<'_> {
         &mut self,
         config: &Config,
         ctx: &ContextFinished,
-        from: &Address,
+        from: &Option<Address>,
         to: &[Rcpt],
         message: &str,
     ) -> Result<lettre::transport::smtp::response::Response, TransferErrorsVariant> {
-        let envelop = to_lettre_envelope(from, to).map_err(|e| {
-            tracing::error!("{}", e.to_string());
-            TransferErrorsVariant::EnvelopIllFormed {
-                reverse_path: from.clone(),
-                forward_paths: to.to_vec(),
-            }
-        })?;
+        let envelop = to_lettre_envelope(from, to);
 
         tracing::debug!(?self.to, "Forwarding email.");
 
@@ -138,7 +132,7 @@ impl Transport for Forward<'_> {
         mut self,
         config: &Config,
         ctx: &ContextFinished,
-        from: &Address,
+        from: &Option<Address>,
         mut to: Vec<Rcpt>,
         message: &str,
     ) -> Vec<Rcpt> {
@@ -196,7 +190,7 @@ mod tests {
         .deliver(
             &config,
             &ctx,
-            &"root@localhost".parse().unwrap(),
+            &Some("root@localhost".parse().unwrap()),
             vec![Rcpt {
                 address: "root@localhost".parse().unwrap(),
                 transfer_method: Transfer::Forward(target),

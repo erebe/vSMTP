@@ -22,7 +22,8 @@ use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
     TypeId,
 };
-use vsmtp_auth::spf;
+use vsmtp_auth::{spf, viaspf};
+use vsmtp_common::ClientName;
 
 pub use security::*;
 
@@ -49,33 +50,43 @@ mod security {
             }
         }
 
-        let (mail_from, ip) = {
+        let (spf_sender, ip) = {
             let ctx = vsl_guard_ok!(ctx.read());
+            let mail_from = ctx
+                .reverse_path()
+                .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
+
+            let spf_sender = match mail_from {
+                Some(mail_from) => viaspf::Sender::from_address(mail_from.full()),
+                None => {
+                    let client_name = ctx
+                        .client_name()
+                        .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
+                    match client_name {
+                        ClientName::Domain(domain) => viaspf::Sender::from_domain(domain),
+                        ClientName::Ip4(_) | ClientName::Ip6(_) => todo!("handle scenario where client_name is an IP address and reverse_path is null"),
+                    }
+                }
+            };
+
             (
-                ctx.reverse_path()
-                    .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?
-                    .clone(),
+                match spf_sender {
+                    Ok(spf_sender) => spf_sender,
+                    Err(_) => return Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
+                },
                 ctx.client_addr().ip(),
             )
         };
 
         let resolver = srv.resolvers.get_resolver_root();
 
-        match mail_from.full().parse() {
-            Err(..) => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
-            Ok(sender) => {
-                let spf_result = tokio::task::block_in_place(move || {
-                    tokio::runtime::Handle::current()
-                        .block_on(vsmtp_auth::spf::evaluate(resolver, ip, &sender))
-                });
+        let spf_result = block_on!(vsmtp_auth::spf::evaluate(resolver, ip, &spf_sender,));
 
-                vsl_guard_ok!(ctx.write())
-                    .set_spf(spf_result.clone())
-                    .unwrap();
+        vsl_guard_ok!(ctx.write())
+            .set_spf(spf_result.clone())
+            .unwrap();
 
-                Ok(result_to_map(spf_result))
-            }
-        }
+        Ok(result_to_map(spf_result))
     }
 }
 

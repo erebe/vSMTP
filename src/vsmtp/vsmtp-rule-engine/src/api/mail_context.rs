@@ -170,11 +170,15 @@ mod mail_context_rhai {
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
     pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
         let reverse_path = vsl_guard_ok!(context.read()).reverse_path().cloned();
-        Ok(std::sync::Arc::new(Object::Address(vsl_missing_ok!(
+        let reverse_path = vsl_missing_ok!(
             ref reverse_path.ok(),
             "mail_from",
             ExecutionStage::MailFrom
-        ))))
+        );
+        Ok(std::sync::Arc::new(reverse_path.map_or_else(
+            || Object::Identifier("null".to_string()),
+            Object::Address,
+        )))
     }
 
     /// Get the `RcptTo` envelope.
@@ -350,10 +354,10 @@ mod mail_context_rhai {
 
 fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
     vsl_guard_ok!(context.write())
-        .set_reverse_path(vsl_conversion_ok!(
+        .set_reverse_path(Some(vsl_conversion_ok!(
             "address",
             <Address as std::str::FromStr>::from_str(new_addr)
-        ))
+        )))
         .map_err(|e| e.to_string().into())
 }
 

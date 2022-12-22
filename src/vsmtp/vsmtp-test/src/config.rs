@@ -121,8 +121,7 @@ pub fn local_ctx() -> ContextFinished {
         mail_from: MailFromProperties {
             mail_timestamp: time::OffsetDateTime::now_utc(),
             message_uuid: uuid::Uuid::new_v4(),
-            outgoing: false,
-            reverse_path: "client@client.testserver.com".parse().expect(""),
+            reverse_path: Some("client@client.testserver.com".parse().expect("")),
         },
         rcpt_to: RcptToProperties {
             forward_paths: vec![],

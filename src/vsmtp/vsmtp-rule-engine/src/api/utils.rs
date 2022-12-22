@@ -230,13 +230,11 @@ impl Impl {
     fn lookup(server: &mut Server, host: &str) -> EngineResult<rhai::Array> {
         let resolver = server.resolvers.get_resolver_root();
 
-        Ok(tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(resolver.lookup_ip(host))
-        })
-        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
-        .into_iter()
-        .map(|record| rhai::Dynamic::from(record.to_string()))
-        .collect::<rhai::Array>())
+        Ok(block_on!(resolver.lookup_ip(host))
+            .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
+            .into_iter()
+            .map(|record| rhai::Dynamic::from(record.to_string()))
+            .collect::<rhai::Array>())
     }
 
     fn rlookup(server: &mut Server, ip: &str) -> EngineResult<rhai::Array> {
@@ -247,12 +245,10 @@ impl Impl {
         );
         let resolver = server.resolvers.get_resolver_root();
 
-        Ok(tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(resolver.reverse_lookup(ip))
-        })
-        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
-        .into_iter()
-        .map(|record| rhai::Dynamic::from(record.to_string()))
-        .collect::<rhai::Array>())
+        Ok(block_on!(resolver.reverse_lookup(ip))
+            .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
+            .into_iter()
+            .map(|record| rhai::Dynamic::from(record.to_string()))
+            .collect::<rhai::Array>())
     }
 }

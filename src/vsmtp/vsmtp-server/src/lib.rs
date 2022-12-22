@@ -74,7 +74,15 @@ pub(crate) fn delegate(
     use lettre::Transport;
 
     let envelope = lettre::address::Envelope::new(
-        Some(context.mail_from.reverse_path.full().parse()?),
+        match context.mail_from.reverse_path {
+            Some(ref reverse_path) => Some(
+                reverse_path
+                    .full()
+                    .parse::<lettre::Address>()
+                    .context("cannot parse address")?,
+            ),
+            None => None,
+        },
         context
             .rcpt_to
             .forward_paths

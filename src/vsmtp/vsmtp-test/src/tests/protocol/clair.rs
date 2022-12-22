@@ -60,7 +60,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foobar");
-                assert_eq!(mail.mail_from.reverse_path.full(), "john@doe");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("john@doe")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("aa@bb").into()]);
                 CodeID::Ok
             }
@@ -269,8 +269,8 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foobar");
                 assert_eq!(
-                    mail.mail_from.reverse_path.full(),
-                    format!("john{}@doe", self.count)
+                    mail.mail_from.reverse_path,
+                    Some(addr!(&format!("john{}@doe", self.count)))
                 );
                 assert_eq!(
                     *mail.rcpt_to.forward_paths,
@@ -355,8 +355,8 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), format!("foobar{}", self.count));
                 assert_eq!(
-                    mail.mail_from.reverse_path.full(),
-                    format!("john{}@doe", self.count)
+                    mail.mail_from.reverse_path,
+                    Some(addr!(&format!("john{}@doe", self.count)))
                 );
                 assert_eq!(
                     *mail.rcpt_to.forward_paths,

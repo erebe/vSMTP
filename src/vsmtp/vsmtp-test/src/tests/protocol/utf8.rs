@@ -38,7 +38,7 @@ macro_rules! test_lang {
             ) -> CodeID {
 
                 assert_eq!(mail.helo.client_name.to_string(), "foobar");
-                assert_eq!(mail.mail_from.reverse_path.full(), "john@doe");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("john@doe")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("aa@bb").into()]);
 
                 pretty_assertions::assert_eq!(

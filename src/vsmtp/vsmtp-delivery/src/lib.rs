@@ -44,30 +44,27 @@
 mod send;
 mod sender;
 
-use anyhow::Context;
 pub use send::{split_and_sort_and_send, SenderOutcome};
 pub use sender::{Sender, SenderParameters};
 use vsmtp_common::{rcpt::Rcpt, Address};
 use vsmtp_config::Config;
 
 // at this point there should be no error
-fn to_lettre_envelope(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::address::Envelope> {
+#[allow(clippy::expect_used)]
+fn to_lettre_envelope(from: &Option<Address>, rcpt: &[Rcpt]) -> lettre::address::Envelope {
     lettre::address::Envelope::new(
-        Some(
-            from.full()
-                .parse()
-                .with_context(|| format!("failed to parse from address: {}", from.full()))?,
-        ),
+        from.as_ref()
+            .map(|f| f.full().parse().expect("failed to parse from address")),
         rcpt.iter()
             .map(|r| {
                 r.address
                     .full()
                     .parse()
-                    .with_context(|| format!("failed to parse from address: {}", from.full()))
+                    .expect("failed to parse rcpt address")
             })
-            .collect::<anyhow::Result<Vec<_>>>()?,
+            .collect::<Vec<_>>(),
     )
-    .with_context(|| "failed to construct `lettre` envelope")
+    .expect("at least one rcpt")
 }
 
 fn get_cert_for_server(server_name: &str, config: &Config) -> Option<Vec<rustls::Certificate>> {
@@ -91,7 +88,7 @@ pub mod transport {
             self,
             config: &Config,
             context: &ContextFinished,
-            from: &Address,
+            from: &Option<Address>,
             to: Vec<Rcpt>,
             content: &str,
         ) -> Vec<Rcpt>;

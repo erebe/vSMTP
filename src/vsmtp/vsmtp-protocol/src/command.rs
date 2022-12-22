@@ -263,19 +263,18 @@ impl TryFrom<UnparsedArgs> for MailFromArgs {
             .filter(|s| !s.is_empty());
 
         let mailbox = if let Some(s) = words.next() {
-            String::from_utf8(
-                s.strip_prefix(b"<")
-                    .ok_or(ParseArgsError::InvalidArgs)?
-                    .strip_suffix(b">")
-                    .ok_or(ParseArgsError::InvalidArgs)?
-                    .to_vec(),
-            )
-            .map_err(ParseArgsError::InvalidUtf8)?
+            let mailbox = s
+                .strip_prefix(b"<")
+                .ok_or(ParseArgsError::InvalidArgs)?
+                .strip_suffix(b">")
+                .ok_or(ParseArgsError::InvalidArgs)?;
+            if mailbox.is_empty() {
+                None
+            } else {
+                Some(String::from_utf8(mailbox.to_vec()).map_err(ParseArgsError::InvalidUtf8)?)
+            }
         } else {
-            return Ok(Self {
-                reverse_path: None,
-                mime_body_type: None,
-            });
+            return Err(ParseArgsError::InvalidArgs);
         };
 
         let mut mime_body_type = None;
@@ -300,7 +299,7 @@ impl TryFrom<UnparsedArgs> for MailFromArgs {
         }
 
         Ok(Self {
-            reverse_path: Some(mailbox),
+            reverse_path: mailbox,
             mime_body_type,
         })
     }

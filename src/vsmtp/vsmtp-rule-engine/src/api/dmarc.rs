@@ -121,10 +121,9 @@ mod dmarc_rhai {
 fn get_dmarc_record(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
     let resolver = server.resolvers.get_resolver_root();
 
-    let txt_record = tokio::task::block_in_place(move || {
-        tokio::runtime::Handle::current().block_on(resolver.txt_lookup(format!("_dmarc.{domain}")))
-    })
-    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+    let txt_record =
+        block_on!(resolver.txt_lookup(format!("_dmarc.{domain}")))
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
     let records = txt_record
         .into_iter()

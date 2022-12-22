@@ -538,24 +538,21 @@ impl Impl {
 
         let resolver = server.resolvers.get_resolver_root();
 
-        let txt_record = tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current()
-                .block_on(resolver.txt_lookup(signature.get_dns_query()))
-        })
-        .map_err(|e| {
-            use trust_dns_resolver::error::ResolveErrorKind;
-            if matches!(
-                e.kind(),
-                ResolveErrorKind::Message(_)
-                    | ResolveErrorKind::Msg(_)
-                    | ResolveErrorKind::NoConnections
-                    | ResolveErrorKind::NoRecordsFound { .. }
-            ) {
-                DkimErrors::PermDnsError { inner: DnsError(e) }
-            } else {
-                DkimErrors::TempDnsError { inner: DnsError(e) }
-            }
-        })?;
+        let txt_record =
+            block_on!(resolver.txt_lookup(signature.get_dns_query())).map_err(|e| {
+                use trust_dns_resolver::error::ResolveErrorKind;
+                if matches!(
+                    e.kind(),
+                    ResolveErrorKind::Message(_)
+                        | ResolveErrorKind::Msg(_)
+                        | ResolveErrorKind::NoConnections
+                        | ResolveErrorKind::NoRecordsFound { .. }
+                ) {
+                    DkimErrors::PermDnsError { inner: DnsError(e) }
+                } else {
+                    DkimErrors::TempDnsError { inner: DnsError(e) }
+                }
+            })?;
 
         let keys = txt_record
             .into_iter()

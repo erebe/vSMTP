@@ -34,12 +34,6 @@ use vsmtp_common::{status::Status, CodeID, Domain, Reply, ReplyOrCodeID, Transac
 use vsmtp_config::{field::FieldAppVSL, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
-macro_rules! block_on {
-    ($future:expr) => {
-        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
-    };
-}
-
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
@@ -51,7 +45,6 @@ pub struct RuleEngine {
     pub(super) static_modules: Vec<(String, rhai::Shared<rhai::Module>)>,
     /// Readonly server API to inject into the context of Rhai.
     pub(super) server: Server,
-
     /// rules split by domain and transaction types.
     pub(super) rules: SubDomainHierarchy,
 }
@@ -122,7 +115,7 @@ impl RuleEngine {
         let global_modules = Self::build_global_modules(&mut engine)?;
 
         engine.set_module_resolver(config.path.as_ref().and_then(|path| path.parent()).map_or_else(|| {
-                // TODO: replace this code by metaprogramming to simplify things.
+                // TODO: replace this code by meta programming to simplify things.
                 tracing::warn!("No configuration path found, if you receive this message in production please open an issue.");
                 let mut resolvers = ModuleResolversCollection::new();
 
@@ -455,8 +448,6 @@ impl RuleEngine {
 
     /// Get the desired batch of directives for the current smtp state and transaction context.
     /// The transaction context is whether the email is incoming, outgoing or internal.
-    #[allow(clippy::cognitive_complexity)]
-    #[allow(clippy::too_many_lines)]
     #[tracing::instrument(skip_all, err)]
     fn get_directives_for_smtp_state<'a>(
         &'a self,
@@ -464,67 +455,23 @@ impl RuleEngine {
         smtp_state: ExecutionStage,
     ) -> anyhow::Result<&'a Script> {
         match smtp_state {
-            // running root script, the sender has not been received yet.
             ExecutionStage::Connect | ExecutionStage::Helo | ExecutionStage::Authenticate => {
                 Ok(&self.rules.root_filter)
             }
 
             ExecutionStage::MailFrom => {
-                let sender = context.reverse_path().context("bad state")?;
-
-                // Outgoing email, we execute the outgoing script from the sender's domain.
-                if context.is_outgoing().context("bad state")? {
-                    if let Some(domain_directives) = self.get_domain_directives(sender.domain()) {
-                        return Ok(&domain_directives.outgoing);
+                match context.reverse_path().context("bad state")? {
+                    // Outgoing email, we execute the outgoing script from the sender's domain.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        self.get_domain_directives(reverse_path.domain()).map_or_else(|| {
+                            tracing::error!(%reverse_path, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                            Ok(&self.rules.fallback)
+                        }, |domain_directives| Ok(&domain_directives.outgoing))
                     }
-                    tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
-                    Ok(&self.rules.fallback)
-                } else {
-                    Ok(&self.rules.root_filter)
+                    Some(_) | None => Ok(&self.rules.root_filter),
                 }
             }
 
-            // Sender domain handled, running outgoing / internal rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
-            ExecutionStage::RcptTo if context.is_outgoing().context("bad state")? => {
-                let sender = context
-                    .reverse_path()
-                    .context("sender not found in rcpt stage")?;
-                let rcpt = context
-                    .forward_paths()
-                    .context("rcpt not found in rcpt stage")?
-                    .last()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
-                let transaction_type = context
-                    .transaction_type()
-                    .context("could not get the transaction type")?;
-
-                match (
-                    self.get_domain_directives(sender.domain()),
-                    transaction_type,
-                ) {
-                    (Some(rules), TransactionType::Internal) => {
-                        tracing::debug!(%rcpt, %sender, "Internal email for current recipient.");
-
-                        Ok(&rules.internal)
-                    }
-                    (Some(rules), TransactionType::Outgoing { .. }) => {
-                        tracing::debug!(%rcpt, %sender, "Outgoing email for current recipient.");
-
-                        Ok(&rules.outgoing)
-                    }
-
-                    // Edge case that should never happen because incoming is never paired with is_outgoing = true.
-                    _ => {
-                        tracing::error!(%rcpt, %sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
-
-                        Ok(&self.rules.fallback)
-                    }
-                }
-            }
-
-            // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
             ExecutionStage::RcptTo => {
                 let rcpt = context
                     .forward_paths()
@@ -534,70 +481,103 @@ impl RuleEngine {
                 let transaction_type = context
                     .transaction_type()
                     .context("could not get the transaction type")?;
-
-                if let (Some(rules), TransactionType::Incoming(Some(_))) = (
-                    self.get_domain_directives(rcpt.address.domain()),
-                    transaction_type,
-                ) {
-                    tracing::debug!(%rcpt, "Incoming recipient.");
-
-                    Ok(&rules.incoming)
-                } else {
-                    tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
-
-                    Ok(&self.rules.root_filter)
-                }
-            }
-
-            // Sender domain known. Run the outgoing / internal preq rules.
-            ExecutionStage::PreQ | ExecutionStage::PostQ | ExecutionStage::Delivery
-                if context.is_outgoing().context("bad state")? =>
-            {
-                let sender = context
+                let reverse_path = context
                     .reverse_path()
-                    .context("sender not found in rcpt stage")?;
-                let transaction_type = context
-                    .transaction_type()
-                    .context("could not get the transaction type")?;
+                    .context("reverse_path not found in rcpt stage")?;
 
-                match (
-                    self.get_domain_directives(sender.domain()),
-                    transaction_type,
-                ) {
-                    // Current batch of recipients is marked as internal, we execute the internal rules.
-                    (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
-                    // Otherwise, we call the outgoing rules.
-                    (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
-                    // Should never happen.
-                    _ => {
-                        // Should never happen.
-                        tracing::error!(%sender, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
-
-                        Ok(&self.rules.fallback)
+                match reverse_path {
+                    // Sender domain handled, running outgoing / internal rules for each recipient which the domain is handled by the configuration,
+                    // otherwise run the fallback script.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        match (
+                            self.get_domain_directives(reverse_path.domain()),
+                            transaction_type,
+                        ) {
+                            (Some(rules), TransactionType::Internal) => {
+                                tracing::debug!(%rcpt, %reverse_path, "Internal email for current recipient.");
+                                Ok(&rules.internal)
+                            }
+                            (Some(rules), TransactionType::Outgoing { .. }) => {
+                                tracing::debug!(%rcpt, %reverse_path, "Outgoing email for current recipient.");
+                                Ok(&rules.outgoing)
+                            }
+                            // Edge case that should never happen because incoming is never paired with is_outgoing = true.
+                            _ => {
+                                tracing::error!(%rcpt, %reverse_path, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
+                    }
+                    None => {
+                        tracing::error!(%rcpt, "null reverse path");
+                        Ok(&self.rules.root_filter)
+                    }
+                    Some(_) => {
+                        // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
+                        // otherwise run the fallback script.
+                        if let (Some(rules), TransactionType::Incoming(Some(_))) = (
+                            self.get_domain_directives(rcpt.address.domain()),
+                            transaction_type,
+                        ) {
+                            tracing::debug!(%rcpt, "Incoming recipient.");
+                            Ok(&rules.incoming)
+                        } else {
+                            tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
+                            Ok(&self.rules.root_filter)
+                        }
                     }
                 }
             }
 
-            // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
             ExecutionStage::PreQ | ExecutionStage::PostQ | ExecutionStage::Delivery => {
                 let transaction_type = context
                     .transaction_type()
                     .context("could not get the transaction type")?;
+                let reverse_path = context
+                    .reverse_path()
+                    .context("sender not found in rcpt stage")?;
 
-                match transaction_type {
-                    TransactionType::Incoming(Some(domain)) => self
-                        .get_domain_directives(domain)
-                        .map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming)),
-                    TransactionType::Incoming(None) => {
-                        tracing::info!("No recipient has a domain handled by your configuration, running root incoming script");
-
+                match reverse_path {
+                    // Sender domain known. Run the outgoing / internal preq rules.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        match (
+                            self.get_domain_directives(reverse_path.domain()),
+                            transaction_type,
+                        ) {
+                            // Current batch of recipients is marked as internal, we execute the internal rules.
+                            (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
+                            // Otherwise, we call the outgoing rules.
+                            (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
+                            // Should never happen.
+                            _ => {
+                                tracing::error!(%reverse_path, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
+                    }
+                    None => {
+                        tracing::error!("null reverse path");
                         Ok(&self.rules.root_filter)
                     }
-                    TransactionType::Outgoing { .. } | TransactionType::Internal => {
-                        tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
-
-                        Ok(&self.rules.fallback)
+                    Some(_) => {
+                        // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
+                        // otherwise run the fallback script.
+                        match transaction_type {
+                            TransactionType::Incoming(Some(domain)) => {
+                                self.get_domain_directives(domain).map_or_else(
+                                    || Ok(&self.rules.fallback),
+                                    |rules| Ok(&rules.incoming),
+                                )
+                            }
+                            TransactionType::Incoming(None) => {
+                                tracing::info!("No recipient has a domain handled by your configuration, running root incoming script");
+                                Ok(&self.rules.root_filter)
+                            }
+                            TransactionType::Outgoing { .. } | TransactionType::Internal => {
+                                tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
                     }
                 }
             }
@@ -617,7 +597,6 @@ impl RuleEngine {
         Domain::iter(domain).find_map(|parent| self.rules.domains.get(parent))
     }
 
-    #[tracing::instrument(skip_all, ret)]
     fn execute_directives(
         rule_state: &RuleState,
         ast: &rhai::AST,

@@ -27,6 +27,12 @@
 //
 #![allow(clippy::use_self)]
 
+macro_rules! block_on {
+    ($future:expr) => {
+        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
+    };
+}
+
 mod dsl {
     pub mod cmd;
     pub mod directives;

@@ -20,7 +20,7 @@ use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
     rcpt::Rcpt,
     transfer::{EmailTransferStatus, TransferErrorsVariant},
-    ContextFinished,
+    Address, ContextFinished,
 };
 use vsmtp_config::Config;
 
@@ -38,7 +38,7 @@ impl Transport for Maildir {
         self,
         config: &Config,
         ctx: &ContextFinished,
-        _: &vsmtp_common::Address,
+        _: &Option<Address>,
         mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
@@ -172,7 +172,7 @@ mod test {
             .deliver(
                 &config,
                 &context,
-                &addr!("foo@domain.com"),
+                &Some(addr!("foo@domain.com")),
                 vec![Rcpt {
                     address: addr!(&format!("{mailbox}@domain.com")),
                     transfer_method: Transfer::Maildir,

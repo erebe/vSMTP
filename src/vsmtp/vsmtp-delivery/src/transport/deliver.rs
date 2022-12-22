@@ -67,7 +67,7 @@ impl Deliver<'_> {
         config: &Config,
         ctx: &ContextFinished,
         message: &str,
-        from: &Address,
+        from: &Option<Address>,
         domain: String,
         mut rcpt: Vec<Rcpt>,
     ) -> Vec<Rcpt> {
@@ -84,9 +84,13 @@ impl Deliver<'_> {
             Err(error) => {
                 tracing::warn!(?error);
 
-                tracing::trace!(rcpt = ?rcpt.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>(), sender = %from.full(), %domain);
+                tracing::trace!(
+                    rcpt = ?rcpt.iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                    sender = ?from,
+                    %domain
+                );
 
                 let is_permanent = error.is_permanent();
 
@@ -108,17 +112,11 @@ impl Deliver<'_> {
         config: &Config,
         ctx: &ContextFinished,
         message: &str,
-        from: &Address,
+        from: &Option<Address>,
         domain: &str,
         rcpt: &[Rcpt],
     ) -> Result<(), TransferErrorsVariant> {
-        let envelop = to_lettre_envelope(from, rcpt).map_err(|e| {
-            tracing::error!("{}", e.to_string());
-            TransferErrorsVariant::EnvelopIllFormed {
-                reverse_path: from.clone(),
-                forward_paths: rcpt.to_vec(),
-            }
-        })?;
+        let envelop = to_lettre_envelope(from, rcpt);
         tracing::trace!(?envelop);
 
         let records =
@@ -199,12 +197,17 @@ impl Deliver<'_> {
             {
                 Ok(response) => {
                     tracing::info!("Email sent successfully");
-                    tracing::trace!(%mx, sender = %from, ?envelop, ?response);
+                    tracing::trace!(%mx, sender = ?from, ?envelop, ?response);
 
                     return Ok(());
                 }
                 Err(err) => {
-                    tracing::error!("failed to send message from '{from}' to '{mx}': {err}");
+                    tracing::error!(
+                        ?from,
+                        ?mx,
+                        %err,
+                        "failed to send message"
+                    );
                 }
             }
         }
@@ -220,7 +223,7 @@ impl Transport for Deliver<'_> {
         self,
         config: &Config,
         ctx: &ContextFinished,
-        from: &vsmtp_common::Address,
+        from: &Option<Address>,
         to: Vec<Rcpt>,
         message: &str,
     ) -> Vec<Rcpt> {
@@ -274,7 +277,7 @@ mod test {
         .deliver(
             &config,
             &ctx,
-            &"root@foo.bar".parse().unwrap(),
+            &Some("root@foo.bar".parse().unwrap()),
             vec![Rcpt {
                 address: "root@foo.bar".parse().unwrap(),
                 transfer_method: Transfer::Deliver,
