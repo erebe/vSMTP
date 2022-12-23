@@ -508,10 +508,7 @@ impl RuleEngine {
                             }
                         }
                     }
-                    None => {
-                        tracing::error!(%rcpt, "null reverse path");
-                        Ok(&self.rules.root_filter)
-                    }
+                    None => Ok(&self.rules.root_filter),
                     Some(_) => {
                         // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
                         // otherwise run the fallback script.
@@ -555,10 +552,7 @@ impl RuleEngine {
                             }
                         }
                     }
-                    None => {
-                        tracing::error!("null reverse path");
-                        Ok(&self.rules.root_filter)
-                    }
+                    None => Ok(&self.rules.root_filter),
                     Some(_) => {
                         // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
                         // otherwise run the fallback script.

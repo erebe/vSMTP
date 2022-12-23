@@ -34,6 +34,14 @@ pub use mail_context_rhai::*;
 #[rhai::plugin::export_module]
 mod mail_context_rhai {
 
+    /// Produce a serialized JSON representation of the mail context.
+    #[rhai_fn(global, pure, return_raw)]
+    pub fn to_string(context: &mut Context) -> EngineResult<String> {
+        let guard = vsl_guard_ok!(context.read());
+        serde_json::to_string_pretty(&*guard)
+            .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
+    }
+
     /// Get the peer address of the client.
     #[rhai_fn(global, get = "client_address", return_raw, pure)]
     pub fn client_address(context: &mut Context) -> EngineResult<String> {
@@ -235,19 +243,6 @@ mod mail_context_rhai {
             ExecutionStage::MailFrom
         )
         .to_string())
-    }
-
-    /// Convert a `Context` to a `String`.
-    #[must_use]
-    #[rhai_fn(global, name = "to_string", pure)]
-    pub fn ctx_to_string(_: &mut Context) -> String {
-        "MailContext".to_string()
-    }
-
-    /// Convert a `Context` to a debug string.
-    #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn ctx_to_debug(context: &mut Context) -> String {
-        ctx_to_string(context)
     }
 
     /// Convert a `Server` to a `String`.

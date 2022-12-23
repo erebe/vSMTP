@@ -28,6 +28,16 @@ pub use message_rhai::*;
 #[rhai::plugin::export_module]
 mod message_rhai {
 
+    /// Generate the `.eml` representation of the message.
+    #[rhai_fn(global, pure)]
+    pub fn to_string(message: &mut Message) -> String {
+        message
+            .read()
+            .expect("msg not poisoned")
+            .inner()
+            .to_string()
+    }
+
     /// Return a boolean, `true` if a header named `header` exists in the message.
     ///
     /// # Examples
