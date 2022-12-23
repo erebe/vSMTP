@@ -105,36 +105,42 @@ You can:
 and much more.
 
 ```js
-// -- database.vsl
-// here we declare our services.
-// connect to a database with the csv format.
-export const greylist = csv(#{
-  connector: "/db/greylist.csv",
-  access: "O_RDWR",
-  refresh: "always",
-  delimiter: ',',
+// -- /etc/vsmtp/service/database.vsl
+
+// vSMTP can be extended with plugins.
+import "plugins/vsmtp_plugin_mysql" as mysql;
+
+// Here we declare a service.
+// Let's connect to a mysql database.
+export const database = mysql::connect(#{
+    // the url to connect to the database.
+    url: "mysql://localhost/?user=greylist-manager&password=my-password"",
+    timeout: "30s",
+    connections: 4,
 });
 ```
 
 ```js
-// -- main.vsl
-// here we declare our rules for filtering.
+// -- /etc/vsmtp/filter.vsl
+// Here we declare our rules for filtering.
 
-import "database" as db;
+import "service/database" as db;
 
 #{
   // hook on the 'mail from' stage. (when the server receives the `MAIL FROM:` command)
   mail: [
     rule "greylist" || {
-
       let sender = ctx::mail_from();
 
       // is the user in our greylist ?
-      if db::greylist.get(sender) == [] {
+      if db::greylist.query(`SELECT * FROM greylist.sender WHERE address = '${sender}';`).is_empty() {
         // it does not, we add the address to the database, then deny the email.
-        db::greylist.set([ sender ]);
+        db::greylist.query(`
+            INSERT INTO greylist.sender (user, domain, address)
+            values ("${sender.local_part}", "${sender.domain}", "${sender}");
+        `);
         // close the connection with a built in "451 - 4.7.1" error code.
-        state::deny(code_greylist)
+        state::deny(code::c451_7_1())
       } else {
         // it is, we accept the email.
         state::accept()
@@ -177,9 +183,7 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 ## Roadmap
 
-> vSMTP is currently under development and not yet ready for production use.
-
-The next releases "1.3.x" focuses on SQL databases support & DMARC. You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
+The next releases "1.4.x" focuses on plugin development for vSMTP. You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
 
 Check out updates history in [Changelogs](https://github.com/viridIT/vSMTP/blob/develop/CHANGELOG.md).
 
@@ -187,7 +191,9 @@ A guideline about contributing to vSMTP can be found in the [contributing](CONTR
 
 ## Commercial
 
-For any question related to commercial, licensing, etc. you can [contact us] on our website.
+We can offer a wide range of services, from design to physical implementation, provide maintenance and develop specific features and dedicated APIs to meet your business needs.
+
+For any question related to commercial, licensing, etc. you can [contact us] on our website or send a message to `contact@viridit.com`.
 
 [contact us]: https://www.viridit.com/contact
 
