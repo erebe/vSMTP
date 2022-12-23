@@ -12,7 +12,7 @@ export const mysql_greylist = mysql(#{
 
 // A function that reproduce a greylist behavior using mysql.
 fn greylist(greylist) {
-    let sender = mail_from();
+    let sender = ctx::mail_from();
 
     // if the sender is not recognized in our database,
     // we deny the transaction and write the sender into
@@ -25,10 +25,10 @@ fn greylist(greylist) {
             values ("${sender.local_part}", "${sender.domain}", "${sender}");
         `);
 
-        deny(code_greylist)
+        state::deny(code_greylist)
     } else {
         // the user is known by the server, the transaction
         // can proceed.
-        accept()
+        state::accept()
     }
 }

@@ -15,7 +15,7 @@
  *
  */
 use crate::{
-    api::{rule_state::deny, Server, StandardVSLPackage},
+    api::{state::deny, Server},
     dsl::{
         directives::{Directive, Directives},
         smtp::service,
@@ -395,7 +395,7 @@ impl RuleEngine {
                 },
                 Err(e) => {
                     #[cfg(not(debug_assertions))]
-                    return deny();
+                    return state::deny();
                     #[cfg(debug_assertions)]
                     return Status::Deny(either::Right(e));
                 }
@@ -669,39 +669,32 @@ impl RuleEngine {
         engine
     }
 
+    /// Build vsl global modules.
     ///
-    fn build_global_modules(
+    /// # Errors
+    /// * Failed to build modules.
+    pub fn build_global_modules(
         engine: &mut rhai::Engine,
     ) -> anyhow::Result<Vec<rhai::Shared<rhai::Module>>> {
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
 
         engine.register_global_module(std_module.clone());
 
-        let vsl_objects_module = vsmtp_plugin_vsl::new_module();
-        let cmd_module = crate::dsl::cmd::new_module();
-        let smtp_module = crate::dsl::smtp::new_module();
-
-        engine
-            .register_global_module(vsl_objects_module.clone())
-            .register_global_module(cmd_module.clone())
-            .register_global_module(smtp_module.clone());
-
-        let vsl_rhai_module =
-            rhai::Shared::new(Self::compile_api(engine).context("failed to compile vsl's api")?);
+        // TODO: fully replace the rhai API by a native Rust API.
+        let vsl_rhai_module: rhai::Shared<_> = Self::compile_api(engine)
+            .context("failed to compile vsl's api")?
+            .into();
 
         engine.register_global_module(vsl_rhai_module.clone());
 
-        Ok(vec![
-            std_module,
-            vsl_objects_module,
-            vsl_rhai_module,
-            cmd_module,
-            smtp_module,
-        ])
+        Ok(vec![std_module, vsl_rhai_module])
     }
 
+    /// Build vsl static modules.
     ///
-    fn build_static_modules(
+    /// # Errors
+    /// * Failed to build modules.
+    pub fn build_static_modules(
         engine: &mut rhai::Engine,
         config: &Config,
     ) -> anyhow::Result<Vec<(String, rhai::Shared<rhai::Module>)>> {
@@ -712,23 +705,24 @@ impl RuleEngine {
                 .context("failed to convert the app configuration to json")?,
         );
 
-        let vsl_sys_module = StandardVSLPackage::new().as_shared_module();
-        let config_module = {
+        let mut vsl_modules = crate::api::vsmtp_static_modules()
+            .into_iter()
+            .map(|(name, module)| (name.to_owned(), rhai::Shared::new(module)))
+            .collect::<Vec<_>>();
+
+        vsl_modules.push(("cfg".to_owned(), {
             let mut config_module = rhai::Module::new();
             config_module
                 .set_var("server", engine.parse_json(server_config, true)?)
                 .set_var("app", engine.parse_json(app_config, true)?);
             rhai::Shared::new(config_module)
-        };
+        }));
 
-        engine
-            .register_static_module("sys", vsl_sys_module.clone())
-            .register_static_module("cfg", config_module.clone());
+        for (name, module) in &vsl_modules {
+            engine.register_static_module(name, module.clone());
+        }
 
-        Ok(vec![
-            ("sys".to_owned(), vsl_sys_module),
-            ("cfg".to_owned(), config_module),
-        ])
+        Ok(vsl_modules)
     }
 
     /// compile vsl's api into a module.
@@ -739,23 +733,7 @@ impl RuleEngine {
     pub fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
         let ast = engine.compile_scripts_with_scope(
             &rhai::Scope::new(),
-            [
-                // objects.
-                include_str!("../api/codes.rhai"),
-                include_str!("../api/networks.rhai"),
-                // functions.
-                include_str!("../api/auth.rhai"),
-                include_str!("../api/connection.rhai"),
-                include_str!("../api/delivery.rhai"),
-                include_str!("../api/envelop.rhai"),
-                include_str!("../api/getters.rhai"),
-                include_str!("../api/internal.rhai"),
-                include_str!("../api/message.rhai"),
-                include_str!("../api/security.rhai"),
-                include_str!("../api/status.rhai"),
-                include_str!("../api/transaction.rhai"),
-                include_str!("../api/utils.rhai"),
-            ],
+            [include_str!("../api/internal.rhai")],
         )?;
 
         rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, engine)

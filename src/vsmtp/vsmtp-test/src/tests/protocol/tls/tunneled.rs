@@ -63,7 +63,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
-              if is_secured() { next() } else { deny() }
+              if ctx::is_secured() { state::next() } else { state::deny() }
             }
           ],
         }
@@ -108,7 +108,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
-              if is_secured() { next() } else { deny() }
+              if ctx::is_secured() { state::next() } else { state::deny() }
             }
           ],
         }
@@ -150,7 +150,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
-              if is_secured() { next() } else { deny() }
+              if ctx::is_secured() { state::next() } else { state::deny() }
             }
           ],
         }

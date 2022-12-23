@@ -72,10 +72,10 @@ run_test! {
       Ok(builder.add_root_filter_rules(r#"#{
         mail: [
           rule "must be tls encrypted" || {
-            if is_secured() {
-              next()
+            if ctx::is_secured() {
+              state::next()
             } else {
-              deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n"))
+              state::deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n"))
             }
           }
         ],
@@ -131,7 +131,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
-              if is_secured() { next() } else { deny() }
+              if ctx::is_secured() { state::next() } else { state::deny() }
             }
           ],
         }
@@ -176,7 +176,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be tls encrypted" || {
-              if is_secured() { next() } else { deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n")) }
+              if ctx::is_secured() { state::next() } else { state::deny(code(451, "5.7.3", "Must issue a STARTTLS command first\r\n")) }
             }
           ],
         }

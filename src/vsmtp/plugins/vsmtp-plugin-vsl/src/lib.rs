@@ -27,13 +27,14 @@ pub mod api;
 pub mod objects;
 
 /// Build a module that can be registered by a Rhai engine.
-pub fn new_module() -> rhai::Shared<rhai::Module> {
+pub fn new_module() -> rhai::Module {
     let mut module = rhai::Module::new();
 
     module
         .combine(rhai::exported_module!(api::objects))
         .combine(rhai::exported_module!(api::utils))
-        .combine(rhai::exported_module!(api::comparisons));
+        .combine(rhai::exported_module!(api::comparisons))
+        .set_id("vsl-objects");
 
-    module.into()
+    module
 }

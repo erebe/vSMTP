@@ -20,5 +20,5 @@
 //! Rules loaded by default if no configuration as been found for a domain's incoming script.
 
 #{
-    rcpt: [ rule "incoming deny by default" || deny() ]
+    rcpt: [ rule "incoming deny by default" || state::deny() ]
 }

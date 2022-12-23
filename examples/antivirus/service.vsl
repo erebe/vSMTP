@@ -1,4 +1,4 @@
-export const antivirus = cmd(#{
+export const antivirus = cmd::build(#{
     timeout: "15s",
     command: "./examples/antivirus/clamscan.sh",
 });

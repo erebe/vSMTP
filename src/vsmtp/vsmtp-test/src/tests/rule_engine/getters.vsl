@@ -17,82 +17,84 @@
 #{
     authenticate: [
         action "auth getters" || {
-            print(`auth type => ${auth().type}`);
-            print(`auth token => ${auth().anonymous_token}`);
+            const credentials = auth::credentials();
+
+            print(`auth type => ${credentials.type}`);
+            print(`auth token => ${credentials.anonymous_token}`);
         },
 
-        rule "trailing authenticate" || accept(),
+        rule "trailing authenticate" || state::accept(),
     ],
 
     rcpt: [
         action "rcpt getter" || {
-            print(`rcpt => ${rcpt()}`);
+            print(`rcpt => ${ctx::rcpt()}`);
         },
 
-        rule "trailing rcpt" || accept(),
+        rule "trailing rcpt" || state::accept(),
     ],
 
     preq: [
         action "getters" || {
-            print(`client: ${client_ip()}:${client_port()} => ${client_address()}`);
+            print(`client: ${ctx::client_ip()}:${ctx::client_port()} => ${ctx::client_address()}`);
 
-            if `${client_ip()}:${client_port()}` != client_address() {
-                return deny();
+            if `${ctx::client_ip()}:${ctx::client_port()}` != ctx::client_address() {
+                return state::deny();
             }
 
-            print(`server: ${server_ip()}:${server_port()} => ${server_address()}`);
+            print(`server: ${ctx::server_ip()}:${ctx::server_port()} => ${ctx::server_address()}`);
 
-            if `${server_ip()}:${server_port()}` != server_address() {
-                return deny();
+            if `${ctx::server_ip()}:${ctx::server_port()}` != ctx::server_address() {
+                return state::deny();
             }
 
-            print(`connection timestamp => ${connection_timestamp()}`);
-            print(`server name => ${server_name()}`);
-            print(`is secured => ${is_secured()}`);
-            print(`is authenticated => ${is_authenticated()}`);
+            print(`connection timestamp => ${ctx::connection_timestamp()}`);
+            print(`server name => ${ctx::server_name()}`);
+            print(`is secured => ${ctx::is_secured()}`);
+            print(`is authenticated => ${auth::is_authenticated()}`);
 
-            print(`helo => ${helo()}`);
-            print(`mail_from => ${mail_from()}`);
-            print(`rcpt list => ${rcpt_list()}`);
-            print(`mail timestamp => ${mail_timestamp()}`);
-            print(`message id => ${message_id()}`);
+            print(`helo => ${ctx::helo()}`);
+            print(`mail_from => ${ctx::mail_from()}`);
+            print(`rcpt list => ${ctx::rcpt_list()}`);
+            print(`mail timestamp => ${ctx::mail_timestamp()}`);
+            print(`message id => ${ctx::message_id()}`);
         },
 
         action "rewrite envelop" || {
             const john = address("john.doe@example.com");
-            rewrite_mail_from_envelop("john.doe@example.com");
-            rewrite_mail_from_envelop(john);
+            envelop::rw_mail_from("john.doe@example.com");
+            envelop::rw_mail_from(john);
 
             const fail = ip4("127.0.0.1");
-            try { rewrite_mail_from_envelop(fail); return deny(); } catch (e) { print(e) }
+            try { envelop::rw_mail_from(fail); return state::deny(); } catch (e) { print(e) }
 
             const add1 = address("add1@example.com");
             const add2 = "add2@example.com";
             const add3 = identifier("add3@example.com");
-            add_rcpt_envelop(add1);
-            add_rcpt_envelop(add2);
-            add_rcpt_envelop(add3);
-            add_rcpt_envelop("add4@example.com");
+            envelop::add_rcpt(add1);
+            envelop::add_rcpt(add2);
+            envelop::add_rcpt(add3);
+            envelop::add_rcpt("add4@example.com");
 
             const fail = ip4("127.0.0.1");
-            try { add_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+            try { envelop::add_rcpt(fail); return state::deny(); } catch (e) { print(e) }
 
             const replace1 = address("replace1@example.com");
             const replace4 = address("replace4@example.com");
-            rewrite_rcpt_envelop(add1, replace1);
-            rewrite_rcpt_envelop(replace1, "replace2@example.com");
-            rewrite_rcpt_envelop("replace2@example.com", "replace3@example.com");
-            rewrite_rcpt_envelop("replace3@example.com", replace4);
+            envelop::rw_rcpt(add1, replace1);
+            envelop::rw_rcpt(replace1, "replace2@example.com");
+            envelop::rw_rcpt("replace2@example.com", "replace3@example.com");
+            envelop::rw_rcpt("replace3@example.com", replace4);
 
             const fail = fqdn("example.com");
-            try { rewrite_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+            try { envelop::rw_rcpt(fail); return state::deny(); } catch (e) { print(e) }
 
-            remove_rcpt_envelop("add2@example.com");
-            remove_rcpt_envelop(add3);
+            envelop::rm_rcpt("add2@example.com");
+            envelop::rm_rcpt(add3);
 
-            try { remove_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+            try { envelop::rm_rcpt(fail); return state::deny(); } catch (e) { print(e) }
         },
 
-        rule "trailing preq" || accept(),
+        rule "trailing preq" || state::accept(),
     ]
 }

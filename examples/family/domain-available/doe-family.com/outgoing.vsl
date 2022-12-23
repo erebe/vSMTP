@@ -2,10 +2,10 @@
     rcpt: [
         // Prevent delivery to untrusted domains using a regex.
         rule "do not deliver untrusted domains" || {
-            if rcpt() == obj::untrusted {
-                quarantine("untrusted")
+            if ctx::rcpt() == obj::untrusted {
+                state::quarantine("untrusted")
             } else {
-                next()
+                state::next()
             }
         },
     ],

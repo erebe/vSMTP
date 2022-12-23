@@ -388,7 +388,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be authenticated" || {
-              if is_authenticated() { next() } else { deny(code(530, "5.7.0", "Authentication required\r\n")) }
+              if auth::is_authenticated() { state::next() } else { state::deny(code(530, "5.7.0", "Authentication required\r\n")) }
             }
           ],
         }

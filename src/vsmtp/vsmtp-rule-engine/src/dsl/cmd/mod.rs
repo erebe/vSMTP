@@ -19,8 +19,13 @@ pub mod api;
 pub mod service;
 
 /// Create a new command module.
-pub fn new_module() -> rhai::Shared<rhai::Module> {
-    rhai::exported_module!(api::cmd).into()
+#[must_use]
+pub fn new_module() -> rhai::Module {
+    let mut module = rhai::exported_module!(api::cmd);
+
+    module.set_id("cmd");
+
+    module
 }
 
 #[cfg(test)]
@@ -31,7 +36,7 @@ mod tests {
     use crate::RuleEngine;
 
     const VSL: &str = r#"
-const my_command = cmd(#{
+const my_command = cmd::build(#{
     command: "echo",
     args: [ "-n", "executing a command from vSMTP!" ],
     timeout: "15s",

@@ -42,7 +42,7 @@ export const greylist = csv(#{
 });
 
 rule "greylisting" || {
-    if greylist.get(mail_from()).is_empty() {
+    if greylist.get(ctx::mail_from()).is_empty() {
         // update the greylist ...
         // Checkout out the example at https://github.com/viridIT/vSMTP/blob/develop/examples/greylist/main.vsl
         // to setup a greylist using a csv or mysql database.

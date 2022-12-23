@@ -16,7 +16,7 @@
  */
 
 // All parameters available for the `cmd` service.
-export const my_command = cmd(#{
+export const my_command = cmd::build(#{
     // The command to execute.
     command: "echo",
     // Arguments to pass to the command. (Optional)
@@ -30,7 +30,7 @@ export const my_command = cmd(#{
 });
 
 // A simple command that executes `echo` with the given arguments.
-export const echo = cmd(#{
+export const echo = cmd::build(#{
     // The command to execute.
     command: "echo",
     // Arguments to pass to the command. (Optional)
@@ -42,7 +42,7 @@ action "run echo command" || echo.run();
 
 // Executing the clamscan antivirus on the mail queue.
 // See https://linux.die.net/man/1/clamscan
-export const execute_clamscan = cmd(#{
+export const execute_clamscan = cmd::build(#{
     command: "clamscan",
     timeout: "1m",
 
@@ -58,7 +58,7 @@ action "scan email" || {
         "--database",
         "/tmp/newclamdb",
         "-r",
-        `/var/spool/vsmtp/mails/${message_id()}.eml`
+        `/var/spool/vsmtp/mails/${ctx::message_id()}.eml`
     ]);
 
     // use result.has_code and result.code to check for the return code of clamscan ...

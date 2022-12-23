@@ -127,17 +127,17 @@ import "database" as db;
   mail: [
     rule "greylist" || {
 
-      let sender = mail_from();
+      let sender = ctx::mail_from();
 
       // is the user in our greylist ?
       if db::greylist.get(sender) == [] {
         // it does not, we add the address to the database, then deny the email.
         db::greylist.set([ sender ]);
         // close the connection with a built in "451 - 4.7.1" error code.
-        deny(code_greylist)
+        state::deny(code_greylist)
       } else {
         // it is, we accept the email.
-        accept()
+        state::accept()
       }
     }
   ],

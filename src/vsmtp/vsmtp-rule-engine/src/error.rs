@@ -141,7 +141,7 @@ macro_rules! vsl_ok {
 /// Transforms a generic error into the rhai boxed eval alt result.
 macro_rules! vsl_generic_ok {
     ($result:expr) => {
-        $result.map_err::<Box<vsmtp_plugins::rhai::EvalAltResult>, _>(|e| e.to_string().into())?
+        $result.map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?
     };
 }
 

@@ -93,7 +93,7 @@ filepath = "/etc/vsmtp/rules/main.vsl"
 ```rust
 // copy-paste this to `/etc/vsmtp/rules/main.vsl`
 #{
-    preq: [ rule "hold emails" || quarantine("bench") ]
+    preq: [ rule "hold emails" || state::quarantine("bench") ]
 }
 ```
 

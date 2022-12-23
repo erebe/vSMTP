@@ -19,20 +19,19 @@ use vsmtp_plugin_vsl::objects::Object;
 
 use crate::{
     api::{
-        EngineResult, {Context, Server, SharedObject},
+        EngineResult, {Context, SharedObject},
     },
-    ExecutionStage,
+    get_global, ExecutionStage,
 };
 use rhai::plugin::{
-    mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, RhaiResult, TypeId,
+    Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{auth::Credentials, Address};
 
-pub use mail_context_rhai::*;
+pub use mail_context::*;
 
+/// Inspect the transaction context.
 #[rhai::plugin::export_module]
-mod mail_context_rhai {
+mod mail_context {
 
     /// Produce a serialized JSON representation of the mail context.
     #[rhai_fn(global, pure, return_raw)]
@@ -42,142 +41,355 @@ mod mail_context_rhai {
             .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
     }
 
-    /// Get the peer address of the client.
-    #[rhai_fn(global, get = "client_address", return_raw, pure)]
-    pub fn client_address(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).client_addr().to_string())
+    /// Get the address of the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the client's address with the `ip:port` format.
+    ///
+    /// # Examples
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log client address" || {
+    ///       log("info", `new client: ${ctx::client_address()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "client_address", return_raw)]
+    pub fn client_address(ncc: NativeCallContext) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .client_addr()
+            .to_string())
     }
 
-    /// Get the peer ip address of the client.
-    #[rhai_fn(global, get = "client_ip", return_raw, pure)]
-    pub fn client_ip(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).client_addr().ip().to_string())
+    /// Get the ip address of the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the client's ip address.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log client ip" || {
+    ///       log("info", `new client: ${ctx::client_ip()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "client_ip", return_raw)]
+    pub fn client_ip(ncc: NativeCallContext) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .client_addr()
+            .ip()
+            .to_string())
     }
 
-    /// Get the peer port of the client.
-    #[rhai_fn(global, get = "client_port", return_raw, pure)]
-    pub fn client_port(context: &mut Context) -> EngineResult<rhai::INT> {
+    /// Get the ip port of the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `int` - the client's port.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log client address" || {
+    ///       log("info", `new client: ${ctx::client_ip()}:${ctx::client_port()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "client_port", return_raw)]
+    pub fn client_port(ncc: NativeCallContext) -> EngineResult<rhai::INT> {
         Ok(rhai::INT::from(
-            vsl_guard_ok!(context.read()).client_addr().port(),
+            vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+                .client_addr()
+                .port(),
         ))
     }
 
-    /// Get the server address which served this connection.
-    #[rhai_fn(global, get = "server_address", return_raw, pure)]
-    pub fn server_address(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).server_addr().to_string())
+    /// Get the full server address.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the server's address with the `ip:port` format.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log server address" || {
+    ///       log("info", `server: ${ctx::server_address()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "server_address", return_raw)]
+    pub fn server_address(ncc: NativeCallContext) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .server_addr()
+            .to_string())
     }
 
-    /// Get the server ip address which served this connection.
-    #[rhai_fn(global, get = "server_ip", return_raw, pure)]
-    pub fn server_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(vsl_guard_ok!(context.read()).server_addr().ip())
+    /// Get the server's ip.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the server's ip.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log server ip" || {
+    ///       log("info", `server: ${ctx::server_ip()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "server_ip", return_raw)]
+    pub fn server_ip(ncc: NativeCallContext) -> EngineResult<std::net::IpAddr> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .server_addr()
+            .ip())
     }
 
-    /// Get the server port which served this connection.
-    #[rhai_fn(global, get = "server_port", return_raw, pure)]
-    pub fn server_port(context: &mut Context) -> EngineResult<rhai::INT> {
+    /// Get the server's port.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the server's port.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log server address" || {
+    ///       log("info", `server: ${ctx::server_ip()}:${ctx::server_port()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "server_port", return_raw)]
+    pub fn server_port(ncc: NativeCallContext) -> EngineResult<rhai::INT> {
         Ok(rhai::INT::from(
-            vsl_guard_ok!(context.read()).server_addr().port(),
+            vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+                .server_addr()
+                .port(),
         ))
     }
 
-    /// Get the timestamp when the client connected to the server.
-    #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
-    pub fn connection_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
-        Ok(*vsl_guard_ok!(context.read()).connection_timestamp())
+    /// Get a the timestamp of the client's connection time.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `timestamp` - the connexion timestamp of the client.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log client" || {
+    ///       log("info", `new client connected at ${ctx::connection_timestamp()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "connection_timestamp", return_raw)]
+    pub fn connection_timestamp(ncc: NativeCallContext) -> EngineResult<time::OffsetDateTime> {
+        Ok(*vsl_guard_ok!(get_global!(ncc, ctx)?.read()).connection_timestamp())
     }
 
-    /// Get server name under which the client has been served.
-    #[rhai_fn(global, get = "server_name", return_raw, pure)]
-    pub fn server_name(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(context.read()).server_name().clone())
+    /// Get the name of the server.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the name of the server.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log server" || {
+    ///       log("info", `server name: ${ctx::server_name()}`);
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "server_name", return_raw)]
+    pub fn server_name(ncc: NativeCallContext) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .server_name()
+            .clone())
     }
 
-    /// Is the connection under TLS?
-    #[rhai_fn(global, get = "is_secured", return_raw, pure)]
-    pub fn is_secured(context: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(context.read()).tls().is_some())
+    /// Has the connection been secured under the encryption protocol SSL/TLS.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// all of them.
+    ///
+    /// # Return
+    ///
+    /// * bool - `true` if the connection is secured, `false` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log ssl/tls" || {
+    ///       log("info", `The client is ${if ctx::is_secured() { "secured" } else { "unsecured!!!" }}`)
+    ///     }
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "is_secured", return_raw)]
+    pub fn is_secured(ncc: NativeCallContext) -> EngineResult<bool> {
+        Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read()).tls().is_some())
     }
 
-    /// Has the connection validated the client credentials?
-    #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
-    pub fn is_authenticated(context: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(context.read()).auth().is_some())
-    }
-
-    /// Get the `auth` property of the connection.
-    #[rhai_fn(global, get = "auth", return_raw, pure)]
-    pub fn auth(context: &mut Context) -> EngineResult<Credentials> {
+    /// Get the value of the `HELO/EHLO` command sent by the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `helo` and onwards.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the value of the `HELO/EHLO` command.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     helo: [
+    ///        action "log info" || log("info", `helo/ehlo value: ${ctx::helo()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "helo", return_raw)]
+    pub fn helo(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            vsl_missing_ok!(
-                vsl_guard_ok!(context.read()).auth(),
-                "auth",
-                ExecutionStage::Authenticate
-            )
-            .credentials,
-            "credentials",
-            ExecutionStage::Authenticate
-        )
-        .clone())
-    }
-
-    /// Get the type of the `auth` property of the connection.
-    #[rhai_fn(global, get = "type", pure)]
-    pub fn get_type(credentials: &mut Credentials) -> String {
-        credentials.to_string()
-    }
-
-    /// Get the `authid` property of the connection.
-    #[rhai_fn(global, get = "authid", return_raw, pure)]
-    pub fn get_authid(credentials: &mut Credentials) -> EngineResult<String> {
-        match credentials {
-            Credentials::Verify { authid, .. } => Ok(authid.clone()),
-            Credentials::AnonymousToken { .. } => {
-                Err(format!("no `authid` available in credentials of type `{credentials}`").into())
-            }
-        }
-    }
-
-    /// Get the `authpass` property of the connection.
-    #[rhai_fn(global, get = "authpass", return_raw, pure)]
-    pub fn get_authpass(credentials: &mut Credentials) -> EngineResult<String> {
-        match credentials {
-            Credentials::Verify { authpass, .. } => Ok(authpass.clone()),
-            Credentials::AnonymousToken { .. } => Err(format!(
-                "no `authpass` available in credentials of type `{credentials}`"
-            )
-            .into()),
-        }
-    }
-
-    /// Get the `anonymous_token` property of the connection.
-    #[rhai_fn(global, get = "anonymous_token", return_raw, pure)]
-    pub fn get_anonymous_token(credentials: &mut Credentials) -> EngineResult<String> {
-        match credentials {
-            Credentials::AnonymousToken { token } => Ok(token.clone()),
-            Credentials::Verify { .. } => Err(format!(
-                "no `anonymous_token` available in credentials of type `{credentials}`"
-            )
-            .into()),
-        }
-    }
-
-    /// Get the domain named introduced by the client.
-    #[rhai_fn(global, get = "helo", return_raw, pure)]
-    pub fn helo(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(
-            ref vsl_guard_ok!(context.read()).client_name().ok(),
+            ref vsl_guard_ok!(get_global!(ncc, ctx)?.read()).client_name().ok(),
             "helo",
             ExecutionStage::Helo
         )
         .to_string())
     }
 
-    /// Get the `MailFrom` envelope.
-    #[rhai_fn(global, get = "mail_from", return_raw, pure)]
-    pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
-        let reverse_path = vsl_guard_ok!(context.read()).reverse_path().cloned();
+    /// Get the value of the `MAIL FROM` command sent by the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `mail` and onwards.
+    /// # Return
+    ///
+    /// * `address` - the sender address.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     helo: [
+    ///        action "log info" || log("info", `received sender: ${ctx::mail_from()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(return_raw)]
+    pub fn mail_from(ncc: NativeCallContext) -> EngineResult<SharedObject> {
+        let reverse_path = vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+            .reverse_path()
+            .cloned();
         let reverse_path = vsl_missing_ok!(
             ref reverse_path.ok(),
             "mail_from",
@@ -189,11 +401,37 @@ mod mail_context_rhai {
         )))
     }
 
-    /// Get the `RcptTo` envelope.
-    #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
-    pub fn rcpt_list(context: &mut Context) -> EngineResult<rhai::Array> {
+    /// Get the list of recipients received by the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `rcpt` and onwards. Note that you will not have all recipients received
+    /// all at once in the `rcpt` stage. It is better to use this function
+    /// in the later stages.
+    ///
+    /// # Return
+    ///
+    /// * `Array of addresses` - the list containing all recipients.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     preq: [
+    ///        action "log recipients" || log("info", `recipients: ${ctx::rcpt_list()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "rcpt_list", return_raw)]
+    pub fn rcpt_list(ncc: NativeCallContext) -> EngineResult<rhai::Array> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).forward_paths().ok(),
+            vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+                .forward_paths()
+                .ok(),
             "rcpt_list",
             ExecutionStage::RcptTo
         )
@@ -205,13 +443,39 @@ mod mail_context_rhai {
         .collect())
     }
 
-    /// Get the lase element in the `RcptTo` envelope.
-    #[rhai_fn(global, get = "rcpt", return_raw, pure)]
-    pub fn rcpt(context: &mut Context) -> EngineResult<SharedObject> {
+    /// Get the value of the current `RCPT TO` command sent by the client.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `rcpt` and onwards. Please note that `ctx::rcpt()` will always return
+    /// the last recipient received in stages after the `rcpt` stage. Therefore,
+    /// this functions is best used in the `rcpt` stage.
+    ///
+    /// # Return
+    ///
+    /// * `address` - the address of the received recipient.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     rcpt: [
+    ///        action "log recipients" || log("info", `new recipient: ${ctx::rcpt()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "rcpt", return_raw)]
+    pub fn rcpt(ncc: NativeCallContext) -> EngineResult<SharedObject> {
         Ok(std::sync::Arc::new(Object::Address(
             vsl_missing_ok!(
                 vsl_missing_ok!(
-                    vsl_guard_ok!(context.read()).forward_paths().ok(),
+                    vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+                        .forward_paths()
+                        .ok(),
                     "rcpt",
                     ExecutionStage::RcptTo
                 )
@@ -224,174 +488,79 @@ mod mail_context_rhai {
         )))
     }
 
-    /// Get the timestamp when the client started to send the message.
-    #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
-    pub fn mail_timestamp(context: &mut Context) -> EngineResult<time::OffsetDateTime> {
+    /// Get the time of reception of the email.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `preq` and onwards.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the timestamp.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     preq: [
+    ///        action "receiving the email" || log("info", `time of reception: ${ctx::mail_timestamp()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "mail_timestamp", return_raw)]
+    pub fn mail_timestamp(ncc: NativeCallContext) -> EngineResult<time::OffsetDateTime> {
         Ok(**vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).mail_timestamp().ok(),
+            vsl_guard_ok!(get_global!(ncc, ctx)?.read())
+                .mail_timestamp()
+                .ok(),
             "mail_timestamp",
             ExecutionStage::MailFrom
         ))
     }
 
-    /// Get the `message_id`
-    #[rhai_fn(global, get = "message_id", return_raw, pure)]
-    pub fn message_id(context: &mut Context) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(
-            ref vsl_guard_ok!(context.read()).message_uuid().ok(),
-            "message_id",
-            ExecutionStage::MailFrom
-        )
-        .to_string())
-    }
-
-    /// Convert a `Server` to a `String`.
-    #[must_use]
-    #[rhai_fn(global, name = "to_string", pure)]
-    pub fn srv_to_string(_: &mut Server) -> String {
-        "Server".to_string()
-    }
-
-    /// Convert a `Server` to a debug string.
-    #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn srv_to_debug(context: &mut Server) -> String {
-        srv_to_string(context)
-    }
-
-    /// Change the sender of the envelop.
-    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
-    pub fn rewrite_mail_from_envelop_str(
-        context: &mut Context,
-        new_addr: &str,
-    ) -> EngineResult<()> {
-        super::rewrite_mail_from_envelop(context, new_addr)
-    }
-
-    /// Change the sender of the envelop using an object.
-    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
+    /// Get the unique id of the received message.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `preq` and onwards.
+    ///
+    /// # Return
+    ///
+    /// * `string` - the message id.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     preq: [
+    ///        action "message received" || log("info", `message id: ${ctx::message_id()}`),
+    ///     ]
+    /// }
+    /// # "#)?.build()));
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
-    pub fn rewrite_mail_from_envelop_obj(
-        context: &mut Context,
-        new_addr: SharedObject,
-    ) -> EngineResult<()> {
-        super::rewrite_mail_from_envelop(context, &new_addr.to_string())
-    }
-
-    /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
-    pub fn rewrite_rcpt_str_str(
-        context: &mut Context,
-        old_addr: &str,
-        new_addr: &str,
-    ) -> EngineResult<()> {
-        super::rewrite_rcpt(context, old_addr, new_addr)
-    }
-
-    /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn rewrite_rcpt_obj_str(
-        context: &mut Context,
-        old_addr: SharedObject,
-        new_addr: &str,
-    ) -> EngineResult<()> {
-        super::rewrite_rcpt(context, &old_addr.to_string(), new_addr)
-    }
-
-    /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn rewrite_rcpt_str_obj(
-        context: &mut Context,
-        old_addr: &str,
-        new_addr: SharedObject,
-    ) -> EngineResult<()> {
-        super::rewrite_rcpt(context, old_addr, &new_addr.to_string())
-    }
-
-    /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn rewrite_rcpt_obj_obj(
-        context: &mut Context,
-        old_addr: SharedObject,
-        new_addr: SharedObject,
-    ) -> EngineResult<()> {
-        super::rewrite_rcpt(context, &old_addr.to_string(), &new_addr.to_string())
-    }
-
-    /// add a recipient to the envelop.
-    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
-    pub fn add_rcpt_envelop_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-        super::add_rcpt_envelop(context, new_addr)
-    }
-
-    /// add a recipient to the envelop.
-    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn add_rcpt_envelop_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
-        super::add_rcpt_envelop(context, &new_addr.to_string())
-    }
-
-    /// remove a recipient from the envelop.
-    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
-    pub fn remove_rcpt_envelop_str(context: &mut Context, addr: &str) -> EngineResult<()> {
-        super::remove_rcpt_envelop(context, addr)
-    }
-
-    /// remove a recipient from the envelop.
-    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn remove_rcpt_envelop_obj(context: &mut Context, addr: SharedObject) -> EngineResult<()> {
-        super::remove_rcpt_envelop(context, &addr.to_string())
+    #[rhai_fn(name = "message_id", return_raw)]
+    pub fn message_id(ncc: NativeCallContext) -> EngineResult<String> {
+        super::message_id(&get_global!(ncc, ctx)?)
     }
 }
 
-fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-    vsl_guard_ok!(context.write())
-        .set_reverse_path(Some(vsl_conversion_ok!(
-            "address",
-            <Address as std::str::FromStr>::from_str(new_addr)
-        )))
-        .map_err(|e| e.to_string().into())
-}
-
-fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
-    let old_addr = vsl_conversion_ok!(
-        "address",
-        <Address as std::str::FromStr>::from_str(old_addr)
-    );
-    let new_addr = vsl_conversion_ok!(
-        "address",
-        <Address as std::str::FromStr>::from_str(new_addr)
-    );
-
-    let mut context = vsl_guard_ok!(context.write());
-    context
-        .remove_forward_path(&old_addr)
-        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
-    context
-        .add_forward_path(new_addr)
-        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
-
-    Ok(())
-}
-
-fn add_rcpt_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-    vsl_guard_ok!(context.write())
-        .add_forward_path(vsl_conversion_ok!(
-            "address",
-            <Address as std::str::FromStr>::from_str(new_addr)
-        ))
-        .map_err(|err| format!("failed to run `add_rcpt_envelop`: {err}").into())
-}
-
-fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {
-    let addr = vsl_conversion_ok!("address", <Address as std::str::FromStr>::from_str(addr));
-
-    let mut context = vsl_guard_ok!(context.write());
-    context
-        .remove_forward_path(&addr)
-        .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
-    Ok(())
+/// Get the unique id of the received message.
+///
+/// # Errors
+/// * Could not read the context.
+/// * The function is called pre-mail stage.
+pub fn message_id(context: &Context) -> EngineResult<String> {
+    Ok(vsl_missing_ok!(
+        ref vsl_guard_ok!(context.read()).message_uuid().ok(),
+        "message_id",
+        ExecutionStage::MailFrom
+    )
+    .to_string())
 }

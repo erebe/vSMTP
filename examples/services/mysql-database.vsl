@@ -32,7 +32,7 @@ export const spam_database = mysql(#{
 });
 
 rule "check for spam" || {
-    let records = spam_database.query(`SELECT * FROM spam.ips where ip = ${client_ip()};`);
+    let records = spam_database.query(`SELECT * FROM spam.ips where ip = ${ctx::client_ip()};`);
 
     if records.is_empty() == false {
         // Possible spam detected ...

@@ -1,13 +1,13 @@
-import "objects/net" as net;
+import "objects/net" as network;
 
 #{
     rcpt: [
         // We can decide to trust specific servers on incoming emails.
         rule "check incoming allowed host" || {
-            if client_ip() == net::allowed_host {
-                next()
+            if ctx::client_ip() == network::allowed_host {
+                state::next()
             } else {
-                deny(code_greylist)
+                state::deny(code::c451_7_1())
             }
         }
     ]

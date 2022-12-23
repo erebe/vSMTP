@@ -16,7 +16,7 @@
 */
 
 fn generic_error() {
-    print(mail_timestamp());
+    print(ctx::mail_timestamp());
 }
 
 fn throw_error() {

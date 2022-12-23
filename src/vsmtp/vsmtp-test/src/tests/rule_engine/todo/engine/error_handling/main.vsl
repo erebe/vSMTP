@@ -22,18 +22,18 @@ import "errors" as err;
         rule "error parsing" || err::generic_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing connect" || next(),
+        rule "trailing connect" || state::next(),
     ],
 
     helo: [
         rule "user defined throw" || err::throw_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing helo" || next(),
+        rule "trailing helo" || state::next(),
     ],
 
     mail: [
-        rule "deny and skip" || deny(),
-        rule "skipped" || accept(),
+        rule "deny and skip" || state::deny(),
+        rule "skipped" || state::accept(),
     ]
 }

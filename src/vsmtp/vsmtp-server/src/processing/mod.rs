@@ -305,7 +305,7 @@ mod tests {
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules(&format!(
-                                r#"#{{ {}: [ rule "abc" || deny(), ] }}"#,
+                                r#"#{{ {}: [ rule "abc" || state::deny(), ] }}"#,
                                 ExecutionStage::PostQ
                             ))?
                             .build())
@@ -363,7 +363,7 @@ mod tests {
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules(&format!(
-                                "#{{ {}: [ rule \"quarantine\" || quarantine(\"unit-test\") ] }}",
+                                "#{{ {}: [ rule \"quarantine\" || state::quarantine(\"unit-test\") ] }}",
                                 ExecutionStage::PostQ
                             ))?
                             .build())

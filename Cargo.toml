@@ -8,7 +8,6 @@ members = [
   "src/vsmtp/vsmtp-config",
   "src/vsmtp/vsmtp-core",
   "src/vsmtp/vsmtp-delivery",
-  "src/vsmtp/vsmtp-docs",
   "src/vsmtp/vsmtp-mail-parser",
   "src/vsmtp/vsmtp-protocol",
   "src/vsmtp/vsmtp-rule-engine",

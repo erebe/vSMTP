@@ -23,7 +23,7 @@ const QUARANTINE_RULE: &str = r#"
 #{
     {stage}: [
         rule "quarantine john" || {
-            quarantine("john/{stage}")
+            state::quarantine("john/{stage}")
         }
     ]
 }
