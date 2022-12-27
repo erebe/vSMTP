@@ -22,7 +22,7 @@ categories = ["email", "parsing"]
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 async-trait = { version = "0.1.60", default-features = false }
-serde = { version = "1.0.151", default-features = false, features = ["std", "derive"] }
+serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "1.0.38", default-features = false }
 
 tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
