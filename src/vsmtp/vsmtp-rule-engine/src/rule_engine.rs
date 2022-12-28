@@ -604,7 +604,8 @@ impl RuleEngine {
                 .execute(rule_state, ast, smtp_state)
                 .unwrap_or_else(|e| {
                     let error_status = deny();
-                    tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
+                    println!("error: {e:?}");
+                    // tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
                     error_status
                 });
 
@@ -748,11 +749,7 @@ impl RuleEngine {
         ast: &rhai::AST,
     ) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
-        scope
-            .push("date", ())
-            .push("time", ())
-            .push_constant("CTX", ())
-            .push_constant("SRV", ());
+        scope.push_constant("CTX", ()).push_constant("SRV", ());
 
         let raw_directives = engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, ast)

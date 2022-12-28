@@ -98,7 +98,7 @@ mod dkim {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// // The message received.
     /// let msg = r#"
     /// Received: from github.com (hubbernetes-node-54a15d2.ash1-iad.github.net [10.56.202.84])
@@ -147,23 +147,26 @@ mod dkim {
     /// # let states = vsmtp_test::vsl::run_with_msg(
     /// #    |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
-    ///   preq: [
-    ///     rule "verify dkim" || {
-    ///       dkim::verify();
-    ///       if !msg::get_header("Authentication-Results").contains("dkim=pass") {
-    ///         return state::deny();
-    ///       }
-    ///       // the result of dkim verification is cached, so this call will
-    ///       // not recompute the signature and recreate a header
-    ///       dkim::verify();
+    ///     preq: [
+    ///         rule "verify dkim" || {
+    ///             dkim::verify();
     ///
-    ///        // FIXME: should be one
-    ///        if msg::count_header("Authentication-Results") != 2 {
-    ///          return state::deny();
-    ///        }
+    ///             // The dkim header should indicate a pass.
+    ///             if !msg::get_header("Authentication-Results").contains("dkim=pass") {
+    ///               return state::deny();
+    ///             }
     ///
-    ///        state::accept();
-    ///      }
+    ///             // the result of dkim verification is cached, so this call will
+    ///             // not recompute the signature and recreate a header.
+    ///             dkim::verify();
+    ///
+    ///             // FIXME: should be one.
+    ///             if msg::count_header("Authentication-Results") != 2 {
+    ///               return state::deny();
+    ///             }
+    ///
+    ///             state::accept()
+    ///         }
     ///    ]
     ///  }
     /// # "#)?.build()), Some(msg));
@@ -174,7 +177,7 @@ mod dkim {
     ///
     /// Changing the header `Subject` will result in a dkim verification failure.
     ///
-    /// ```ignore
+    /// ```
     /// // The message received.
     /// let msg = r#"
     /// Received: from github.com (hubbernetes-node-54a15d2.ash1-iad.github.net [10.56.202.84])
@@ -215,18 +218,22 @@ mod dkim {
     ///   Log Message:
     ///   -----------
     ///   test: add test on message
+    ///
+    ///
     /// "#;
     /// # let msg = vsmtp_mail_parser::MessageBody::try_from(msg[1..].replace("\n", "\r\n").as_str()).unwrap();
     ///
     /// let rules = r#"#{
     ///     preq: [
-    ///       rule "verify dkim" || {
-    ///         dkim::verify();
-    ///         if !msg::get_header("Authentication-Results").contains("dkim=fail") {
-    ///           return state::deny();
+    ///         rule "verify dkim" || {
+    ///             dkim::verify();
+    ///
+    ///             if !msg::get_header("Authentication-Results").contains("dkim=fail") {
+    ///               return state::deny();
+    ///             }
+    ///
+    ///             state::accept();
     ///         }
-    ///         state::accept();
-    ///       }
     ///     ]
     /// }"#;
     ///
@@ -256,7 +263,7 @@ mod dkim {
 
         let header_value = format!(
             r#"{};
- dkim=${}`"#,
+ dkim={}`"#,
             crate::api::utils::get_root_domain(vsl_guard_ok!(ctx.read()).server_name()),
             result
                 .get("status")
@@ -285,7 +292,7 @@ mod dkim {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```text
     /// #{
     ///   preq: [
     ///     action "sign dkim" || {
@@ -330,7 +337,7 @@ mod dkim {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```text
     /// #{
     ///   preq: [
     ///     action "sign dkim" || {
@@ -613,6 +620,19 @@ impl Impl {
         }
     }
 
+    /// Verify and return the first valid signature.
+    ///
+    /// If no valid signature is found, then the function does NOT
+    /// return an error, but a rhai map with an error status.
+    ///
+    /// # Return
+    ///
+    /// A rhai map with a status property, sdid & auid in case the verification
+    /// was successful.
+    ///
+    /// # Errors
+    ///
+    /// * `get_header_untouched` failed.
     #[allow(clippy::cognitive_complexity)]
     fn verify_first_signature_or_error(
         msg: &Message,
@@ -623,7 +643,7 @@ impl Impl {
     ) -> EngineResult<rhai::Map> {
         tracing::debug!(%nbr_headers, %on_multiple_key_records, %expiration_epsilon, "Verifying DKIM signature.");
 
-        let mut last_error: Option<Box<rhai::EvalAltResult>> = None;
+        let mut last_error: Option<String> = None;
 
         let mut header = crate::api::message::Impl::get_header_untouched(msg, "DKIM-Signature")?;
         header.truncate(nbr_headers);
@@ -633,7 +653,7 @@ impl Impl {
                 Ok(signature) => signature,
                 Err(error) => {
                     tracing::warn!(%error, "Failed to parse DKIM signature, continuing ...");
-                    last_error = Some(error.to_string().into());
+                    last_error = Some(Self::get_dkim_error_status(&error));
                     continue;
                 }
             };
@@ -651,7 +671,7 @@ impl Impl {
             for key in &Self::get_public_key(srv, &signature, on_multiple_key_records)? {
                 if let Err(error) = Self::verify(&*vsl_guard_ok!(msg.read()), &signature, key) {
                     tracing::warn!(%error, "DKIM signature verification failed");
-                    last_error = Some(error.to_string().into());
+                    last_error = Some(Self::get_dkim_error_status(&error));
                     continue;
                 }
 
@@ -672,6 +692,17 @@ impl Impl {
         }
 
         tracing::warn!("no valid DKIM signature");
-        Err(last_error.unwrap())
+
+        Ok(rhai::Map::from_iter([(
+            "status".into(),
+            last_error.unwrap_or_else(|| "none".to_string()).into(),
+        )]))
+    }
+
+    /// Get the dkim status from an error produced by this module.
+    fn get_dkim_error_status(error: &DkimErrors) -> String {
+        strum::EnumMessage::get_message(error)
+            .expect("`DkimErrors` must have a `message` for each variant")
+            .to_string()
     }
 }
