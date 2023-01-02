@@ -3465,7 +3465,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-protocol"
-version = "1.4.0-rc.7"
+version = "1.4.0-rc.8"
 dependencies = [
  "addr",
  "anyhow",
