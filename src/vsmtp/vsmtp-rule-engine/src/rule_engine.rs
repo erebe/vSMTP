@@ -395,7 +395,11 @@ impl RuleEngine {
                 },
                 Err(e) => {
                     #[cfg(not(debug_assertions))]
-                    return state::deny();
+                    {
+                        // TODO: print a better error message.
+                        tracing::warn!(error = ?e, "Failed to get delegation directive from the delegation header. Stopping processing.");
+                        return deny();
+                    }
                     #[cfg(debug_assertions)]
                     return Status::Deny(either::Right(e));
                 }
