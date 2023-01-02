@@ -91,11 +91,15 @@ macro_rules! run_test {
         $( let server_name: &str = $server_name_tunnel; )?
         $( let server_name: &str = $server_name_starttls; )?
 
-        let port = rand::random::<u32>().rem_euclid(65535 - 1025) + 1025;
-        let server_addr: std::net::SocketAddr = format!("0.0.0.0:{port}").parse().expect("valid address");
-        let socket_server = tokio::net::TcpListener::bind(server_addr.clone())
-            .await
-            .unwrap();
+        let (socket_server, server_addr) = loop {
+            let port = rand::random::<u32>().rem_euclid(65535 - 1025) + 1025;
+            let server_addr: std::net::SocketAddr = format!("0.0.0.0:{port}").parse().expect("valid address");
+            match tokio::net::TcpListener::bind(server_addr.clone()).await {
+                Ok(socket_server) => break (socket_server, server_addr),
+                Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => (),
+                Err(e) => panic!("{}", e),
+            };
+        };
 
         let config: std::sync::Arc<vsmtp_config::Config> =  {
             let _f = || std::sync::Arc::new($crate::config::local_test());      $(

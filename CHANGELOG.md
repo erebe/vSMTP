@@ -110,6 +110,8 @@ for addr in whitelist {
 }
 ```
 
+* Add the support of null reverse path
+
 ## [1.3.4] - 2022-10-20
 
 ### Fixed

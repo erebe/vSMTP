@@ -1,5 +1,5 @@
 fn on_config(config) {
-    config.version_requirement = ">=1.4.0, <2.0.0";
+    config.version_requirement = ">=1.4.0-rc.7, <2.0.0";
 
     config.server.name = "doe-family.com";
 
