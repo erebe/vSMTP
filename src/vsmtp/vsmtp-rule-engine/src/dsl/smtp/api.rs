@@ -51,7 +51,7 @@ pub mod smtp {
     type Smtp = rhai::Shared<crate::dsl::smtp::service::Smtp>;
 
     /// Build a new SMTP service.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(return_raw)]
     pub fn connect(parameters: rhai::Map) -> EngineResult<Smtp> {
         let parameters = rhai::serde::from_dynamic::<SmtpParameters>(&parameters.into())?;
 

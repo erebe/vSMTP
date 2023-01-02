@@ -1,5 +1,5 @@
 fn on_config(config) {
-    config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+    config.version_requirement = ">=1.4.0, <2.0.0";
 
     // Global configuration
     config.server.name = "mydomain.com";
