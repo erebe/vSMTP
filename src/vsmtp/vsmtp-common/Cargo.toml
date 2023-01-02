@@ -29,7 +29,7 @@ version = "=1.4.0-rc.8"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.8"
+version = "=1.4.0-rc.9"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
