@@ -25,7 +25,7 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.8"
+version = "=1.4.0-rc.9"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-mail-parser]
