@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.4.0-rc.9] - 2023-01-02
+
 ### Added
 
 * The `rhai-dylib` crate to handle Rust dynamic libraries with a Rhai API. (#753)
