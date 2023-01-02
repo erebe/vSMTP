@@ -46,12 +46,13 @@ const fn default_timeout() -> std::time::Duration {
 
 #[rhai::plugin::export_module]
 pub mod smtp {
+    use crate::api::EngineResult;
 
     type Smtp = rhai::Shared<crate::dsl::smtp::service::Smtp>;
 
     /// Build a new SMTP service.
-    #[rhai_fn(global, return_raw)]
-    pub fn smtp(parameters: rhai::Map) -> crate::api::EngineResult<Smtp> {
+    #[rhai_fn(return_raw)]
+    pub fn connect(parameters: rhai::Map) -> EngineResult<Smtp> {
         let parameters = rhai::serde::from_dynamic::<SmtpParameters>(&parameters.into())?;
 
         Ok(rhai::Shared::new(crate::dsl::smtp::service::Smtp {
@@ -77,11 +78,5 @@ pub mod smtp {
     #[rhai_fn(global, pure)]
     pub fn to_debug(cmd: &mut Smtp) -> String {
         format!("{cmd:#?}")
-    }
-
-    /// Get the receiver address from a smtp service.
-    #[rhai_fn(global, get = "receiver_address", pure)]
-    pub fn receiver_address(smtp: &mut Smtp) -> String {
-        smtp.receiver.to_string()
     }
 }

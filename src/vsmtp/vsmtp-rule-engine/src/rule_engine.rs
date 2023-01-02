@@ -15,7 +15,7 @@
  *
  */
 use crate::{
-    api::{rule_state::deny, Server, StandardVSLPackage},
+    api::{state::deny, Server},
     dsl::{
         directives::{Directive, Directives},
         smtp::service,
@@ -34,12 +34,6 @@ use vsmtp_common::{status::Status, CodeID, Domain, Reply, ReplyOrCodeID, Transac
 use vsmtp_config::{field::FieldAppVSL, Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
 
-macro_rules! block_on {
-    ($future:expr) => {
-        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
-    };
-}
-
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
@@ -51,13 +45,12 @@ pub struct RuleEngine {
     pub(super) static_modules: Vec<(String, rhai::Shared<rhai::Module>)>,
     /// Readonly server API to inject into the context of Rhai.
     pub(super) server: Server,
-
     /// rules split by domain and transaction types.
     pub(super) rules: SubDomainHierarchy,
 }
 
 type RuleEngineInput =
-    either::Either<FieldAppVSL, Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>>;
+    either::Either<(), Box<dyn Fn(Builder<'_>) -> anyhow::Result<SubDomainHierarchy>>>;
 
 impl RuleEngine {
     /// creates a new instance of the rule engine, reading all files in the
@@ -73,12 +66,7 @@ impl RuleEngine {
         resolvers: std::sync::Arc<DnsResolvers>,
         queue_manager: std::sync::Arc<dyn GenericQueueManager>,
     ) -> anyhow::Result<Self> {
-        Self::new_inner(
-            either::Left(config.app.vsl.clone()),
-            config,
-            resolvers,
-            queue_manager,
-        )
+        Self::new_inner(either::Left(()), config, resolvers, queue_manager)
     }
 
     // NOTE: since a single engine instance is created for each postq emails
@@ -126,58 +114,45 @@ impl RuleEngine {
 
         let global_modules = Self::build_global_modules(&mut engine)?;
 
-        engine.set_module_resolver(match &input {
-            // TODO: handle canonicalization.
-            either::Either::Left(FieldAppVSL {
-                domain_dir: Some(path),
-                ..
-            }) => {
-                let path = path.parent().ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "the domain directory '{}' should be placed in `/etc/vsmtp`",
-                        path.display()
-                    )
-                })?;
-
-                let mut resolvers = ModuleResolversCollection::new();
-
-                resolvers.push(FileModuleResolver::new_with_path_and_extension(path, "vsl"));
-                resolvers.push(DylibModuleResolver::with_path(path));
-
-                resolvers
-            }
-            either::Either::Left(FieldAppVSL {
-                domain_dir: None, ..
-            })
-            | either::Either::Right(_) => {
+        engine.set_module_resolver(config.path.as_ref().and_then(|path| path.parent()).map_or_else(|| {
+                // TODO: replace this code by meta programming to simplify things.
+                tracing::warn!("No configuration path found, if you receive this message in production please open an issue.");
                 let mut resolvers = ModuleResolversCollection::new();
 
                 resolvers.push(FileModuleResolver::new_with_extension("vsl"));
                 resolvers.push(DylibModuleResolver::new());
 
                 resolvers
-            }
-        });
+            }, |path| {
+                let mut resolvers = ModuleResolversCollection::new();
+
+                resolvers.push(FileModuleResolver::new_with_path_and_extension(path, "vsl"));
+                resolvers.push(DylibModuleResolver::with_path(path));
+
+                resolvers
+            }));
 
         let rules = match input {
-            either::Either::Left(FieldAppVSL {
-                filter_path: Some(filter_path),
-                domain_dir,
-            }) => {
-                tracing::info!("Analyzing vSL rules at {filter_path:?}");
+            either::Either::Left(()) => match &config.app.vsl {
+                FieldAppVSL {
+                    filter_path: Some(filter_path),
+                    domain_dir,
+                } => {
+                    tracing::info!("Analyzing vSL rules at {filter_path:?}");
 
-                SubDomainHierarchy::new(&engine, &filter_path, domain_dir.as_deref())?
-            }
+                    SubDomainHierarchy::new(&engine, filter_path, domain_dir.as_deref())?
+                }
+                FieldAppVSL {
+                    filter_path: None, ..
+                } => {
+                    tracing::warn!(
+                            "No 'filter.vsl' provided in the config, the server will deny any incoming transaction by default."
+                        );
 
-            either::Either::Left(FieldAppVSL {
-                filter_path: None, ..
-            }) => {
-                tracing::warn!(
-                    "No 'filter.vsl' provided in the config, the server will deny any incoming transaction by default."
-                );
+                    SubDomainHierarchy::new_empty(&engine)?
+                }
+            },
 
-                SubDomainHierarchy::new_empty(&engine)?
-            }
             // NOTE: could be marked as debug.
             either::Either::Right(builder) => builder(Builder::new(&engine)?)?,
         };
@@ -420,7 +395,11 @@ impl RuleEngine {
                 },
                 Err(e) => {
                     #[cfg(not(debug_assertions))]
-                    return deny();
+                    {
+                        // TODO: print a better error message.
+                        tracing::warn!(error = ?e, "Failed to get delegation directive from the delegation header. Stopping processing.");
+                        return deny();
+                    }
                     #[cfg(debug_assertions)]
                     return Status::Deny(either::Right(e));
                 }
@@ -473,8 +452,6 @@ impl RuleEngine {
 
     /// Get the desired batch of directives for the current smtp state and transaction context.
     /// The transaction context is whether the email is incoming, outgoing or internal.
-    #[allow(clippy::cognitive_complexity)]
-    #[allow(clippy::too_many_lines)]
     #[tracing::instrument(skip_all, err)]
     fn get_directives_for_smtp_state<'a>(
         &'a self,
@@ -482,67 +459,23 @@ impl RuleEngine {
         smtp_state: ExecutionStage,
     ) -> anyhow::Result<&'a Script> {
         match smtp_state {
-            // running root script, the sender has not been received yet.
             ExecutionStage::Connect | ExecutionStage::Helo | ExecutionStage::Authenticate => {
                 Ok(&self.rules.root_filter)
             }
 
             ExecutionStage::MailFrom => {
-                let sender = context.reverse_path().context("bad state")?;
-
-                // Outgoing email, we execute the outgoing script from the sender's domain.
-                if context.is_outgoing().context("bad state")? {
-                    if let Some(domain_directives) = self.get_domain_directives(sender.domain()) {
-                        return Ok(&domain_directives.outgoing);
+                match context.reverse_path().context("bad state")? {
+                    // Outgoing email, we execute the outgoing script from the sender's domain.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        self.get_domain_directives(reverse_path.domain()).map_or_else(|| {
+                            tracing::error!(%reverse_path, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                            Ok(&self.rules.fallback)
+                        }, |domain_directives| Ok(&domain_directives.outgoing))
                     }
-                    tracing::error!(%sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
-                    Ok(&self.rules.fallback)
-                } else {
-                    Ok(&self.rules.root_filter)
+                    Some(_) | None => Ok(&self.rules.root_filter),
                 }
             }
 
-            // Sender domain handled, running outgoing / internal rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
-            ExecutionStage::RcptTo if context.is_outgoing().context("bad state")? => {
-                let sender = context
-                    .reverse_path()
-                    .context("sender not found in rcpt stage")?;
-                let rcpt = context
-                    .forward_paths()
-                    .context("rcpt not found in rcpt stage")?
-                    .last()
-                    .ok_or_else(|| anyhow::anyhow!("could not get the latests recipient"))?;
-                let transaction_type = context
-                    .transaction_type()
-                    .context("could not get the transaction type")?;
-
-                match (
-                    self.get_domain_directives(sender.domain()),
-                    transaction_type,
-                ) {
-                    (Some(rules), TransactionType::Internal) => {
-                        tracing::debug!(%rcpt, %sender, "Internal email for current recipient.");
-
-                        Ok(&rules.internal)
-                    }
-                    (Some(rules), TransactionType::Outgoing { .. }) => {
-                        tracing::debug!(%rcpt, %sender, "Outgoing email for current recipient.");
-
-                        Ok(&rules.outgoing)
-                    }
-
-                    // Edge case that should never happen because incoming is never paired with is_outgoing = true.
-                    _ => {
-                        tracing::error!(%rcpt, %sender, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
-
-                        Ok(&self.rules.fallback)
-                    }
-                }
-            }
-
-            // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
             ExecutionStage::RcptTo => {
                 let rcpt = context
                     .forward_paths()
@@ -552,70 +485,97 @@ impl RuleEngine {
                 let transaction_type = context
                     .transaction_type()
                     .context("could not get the transaction type")?;
-
-                if let (Some(rules), TransactionType::Incoming(Some(_))) = (
-                    self.get_domain_directives(rcpt.address.domain()),
-                    transaction_type,
-                ) {
-                    tracing::debug!(%rcpt, "Incoming recipient.");
-
-                    Ok(&rules.incoming)
-                } else {
-                    tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
-
-                    Ok(&self.rules.root_filter)
-                }
-            }
-
-            // Sender domain known. Run the outgoing / internal preq rules.
-            ExecutionStage::PreQ | ExecutionStage::PostQ | ExecutionStage::Delivery
-                if context.is_outgoing().context("bad state")? =>
-            {
-                let sender = context
+                let reverse_path = context
                     .reverse_path()
-                    .context("sender not found in rcpt stage")?;
-                let transaction_type = context
-                    .transaction_type()
-                    .context("could not get the transaction type")?;
+                    .context("reverse_path not found in rcpt stage")?;
 
-                match (
-                    self.get_domain_directives(sender.domain()),
-                    transaction_type,
-                ) {
-                    // Current batch of recipients is marked as internal, we execute the internal rules.
-                    (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
-                    // Otherwise, we call the outgoing rules.
-                    (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
-                    // Should never happen.
-                    _ => {
-                        // Should never happen.
-                        tracing::error!(%sender, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
-
-                        Ok(&self.rules.fallback)
+                match reverse_path {
+                    // Sender domain handled, running outgoing / internal rules for each recipient which the domain is handled by the configuration,
+                    // otherwise run the fallback script.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        match (
+                            self.get_domain_directives(reverse_path.domain()),
+                            transaction_type,
+                        ) {
+                            (Some(rules), TransactionType::Internal) => {
+                                tracing::debug!(%rcpt, %reverse_path, "Internal email for current recipient.");
+                                Ok(&rules.internal)
+                            }
+                            (Some(rules), TransactionType::Outgoing { .. }) => {
+                                tracing::debug!(%rcpt, %reverse_path, "Outgoing email for current recipient.");
+                                Ok(&rules.outgoing)
+                            }
+                            // Edge case that should never happen because incoming is never paired with is_outgoing = true.
+                            _ => {
+                                tracing::error!(%rcpt, %reverse_path, "email is supposed to be outgoing but the sender's domain was not found in your vSL scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
+                    }
+                    None => Ok(&self.rules.root_filter),
+                    Some(_) => {
+                        // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
+                        // otherwise run the fallback script.
+                        if let (Some(rules), TransactionType::Incoming(Some(_))) = (
+                            self.get_domain_directives(rcpt.address.domain()),
+                            transaction_type,
+                        ) {
+                            tracing::debug!(%rcpt, "Incoming recipient.");
+                            Ok(&rules.incoming)
+                        } else {
+                            tracing::debug!(%rcpt, "Recipient unknown in unknown sender context, running fallback script.");
+                            Ok(&self.rules.root_filter)
+                        }
                     }
                 }
             }
 
-            // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
-            // otherwise run the fallback script.
             ExecutionStage::PreQ | ExecutionStage::PostQ | ExecutionStage::Delivery => {
                 let transaction_type = context
                     .transaction_type()
                     .context("could not get the transaction type")?;
+                let reverse_path = context
+                    .reverse_path()
+                    .context("sender not found in rcpt stage")?;
 
-                match transaction_type {
-                    TransactionType::Incoming(Some(domain)) => self
-                        .get_domain_directives(domain)
-                        .map_or_else(|| Ok(&self.rules.fallback), |rules| Ok(&rules.incoming)),
-                    TransactionType::Incoming(None) => {
-                        tracing::info!("No recipient has a domain handled by your configuration, running root incoming script");
-
-                        Ok(&self.rules.root_filter)
+                match reverse_path {
+                    // Sender domain known. Run the outgoing / internal preq rules.
+                    Some(reverse_path) if self.is_handled_domain(reverse_path) => {
+                        match (
+                            self.get_domain_directives(reverse_path.domain()),
+                            transaction_type,
+                        ) {
+                            // Current batch of recipients is marked as internal, we execute the internal rules.
+                            (Some(rules), TransactionType::Internal) => Ok(&rules.internal),
+                            // Otherwise, we call the outgoing rules.
+                            (Some(rules), TransactionType::Outgoing { .. }) => Ok(&rules.outgoing),
+                            // Should never happen.
+                            _ => {
+                                tracing::error!(%reverse_path, "email is supposed to be outgoing / internal but the sender's domain was not found in your vSL scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
                     }
-                    TransactionType::Outgoing { .. } | TransactionType::Internal => {
-                        tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
-
-                        Ok(&self.rules.fallback)
+                    None => Ok(&self.rules.root_filter),
+                    Some(_) => {
+                        // Sender domain unknown, running incoming rules for each recipient which the domain is handled by the configuration,
+                        // otherwise run the fallback script.
+                        match transaction_type {
+                            TransactionType::Incoming(Some(domain)) => {
+                                self.get_domain_directives(domain).map_or_else(
+                                    || Ok(&self.rules.fallback),
+                                    |rules| Ok(&rules.incoming),
+                                )
+                            }
+                            TransactionType::Incoming(None) => {
+                                tracing::info!("No recipient has a domain handled by your configuration, running root incoming script");
+                                Ok(&self.rules.root_filter)
+                            }
+                            TransactionType::Outgoing { .. } | TransactionType::Internal => {
+                                tracing::error!("email is supposed to incoming but was marked has outgoing, running fallback scripts.");
+                                Ok(&self.rules.fallback)
+                            }
+                        }
                     }
                 }
             }
@@ -635,7 +595,6 @@ impl RuleEngine {
         Domain::iter(domain).find_map(|parent| self.rules.domains.get(parent))
     }
 
-    #[tracing::instrument(skip_all, ret)]
     fn execute_directives(
         rule_state: &RuleState,
         ast: &rhai::AST,
@@ -649,7 +608,8 @@ impl RuleEngine {
                 .execute(rule_state, ast, smtp_state)
                 .unwrap_or_else(|e| {
                     let error_status = deny();
-                    tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
+                    println!("error: {e:?}");
+                    // tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
                     error_status
                 });
 
@@ -714,39 +674,32 @@ impl RuleEngine {
         engine
     }
 
+    /// Build vsl global modules.
     ///
-    fn build_global_modules(
+    /// # Errors
+    /// * Failed to build modules.
+    pub fn build_global_modules(
         engine: &mut rhai::Engine,
     ) -> anyhow::Result<Vec<rhai::Shared<rhai::Module>>> {
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
 
         engine.register_global_module(std_module.clone());
 
-        let vsl_objects_module = vsmtp_plugin_vsl::new_module();
-        let cmd_module = crate::dsl::cmd::new_module();
-        let smtp_module = crate::dsl::smtp::new_module();
-
-        engine
-            .register_global_module(vsl_objects_module.clone())
-            .register_global_module(cmd_module.clone())
-            .register_global_module(smtp_module.clone());
-
-        let vsl_rhai_module =
-            rhai::Shared::new(Self::compile_api(engine).context("failed to compile vsl's api")?);
+        // TODO: fully replace the rhai API by a native Rust API.
+        let vsl_rhai_module: rhai::Shared<_> = Self::compile_api(engine)
+            .context("failed to compile vsl's api")?
+            .into();
 
         engine.register_global_module(vsl_rhai_module.clone());
 
-        Ok(vec![
-            std_module,
-            vsl_objects_module,
-            vsl_rhai_module,
-            cmd_module,
-            smtp_module,
-        ])
+        Ok(vec![std_module, vsl_rhai_module])
     }
 
+    /// Build vsl static modules.
     ///
-    fn build_static_modules(
+    /// # Errors
+    /// * Failed to build modules.
+    pub fn build_static_modules(
         engine: &mut rhai::Engine,
         config: &Config,
     ) -> anyhow::Result<Vec<(String, rhai::Shared<rhai::Module>)>> {
@@ -757,23 +710,24 @@ impl RuleEngine {
                 .context("failed to convert the app configuration to json")?,
         );
 
-        let vsl_sys_module = StandardVSLPackage::new().as_shared_module();
-        let config_module = {
+        let mut vsl_modules = crate::api::vsmtp_static_modules()
+            .into_iter()
+            .map(|(name, module)| (name.to_owned(), rhai::Shared::new(module)))
+            .collect::<Vec<_>>();
+
+        vsl_modules.push(("cfg".to_owned(), {
             let mut config_module = rhai::Module::new();
             config_module
                 .set_var("server", engine.parse_json(server_config, true)?)
                 .set_var("app", engine.parse_json(app_config, true)?);
             rhai::Shared::new(config_module)
-        };
+        }));
 
-        engine
-            .register_static_module("sys", vsl_sys_module.clone())
-            .register_static_module("cfg", config_module.clone());
+        for (name, module) in &vsl_modules {
+            engine.register_static_module(name, module.clone());
+        }
 
-        Ok(vec![
-            ("sys".to_owned(), vsl_sys_module),
-            ("cfg".to_owned(), config_module),
-        ])
+        Ok(vsl_modules)
     }
 
     /// compile vsl's api into a module.
@@ -784,23 +738,7 @@ impl RuleEngine {
     pub fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
         let ast = engine.compile_scripts_with_scope(
             &rhai::Scope::new(),
-            [
-                // objects.
-                include_str!("../api/codes.rhai"),
-                include_str!("../api/networks.rhai"),
-                // functions.
-                include_str!("../api/auth.rhai"),
-                include_str!("../api/connection.rhai"),
-                include_str!("../api/delivery.rhai"),
-                include_str!("../api/envelop.rhai"),
-                include_str!("../api/getters.rhai"),
-                include_str!("../api/internal.rhai"),
-                include_str!("../api/message.rhai"),
-                include_str!("../api/security.rhai"),
-                include_str!("../api/status.rhai"),
-                include_str!("../api/transaction.rhai"),
-                include_str!("../api/utils.rhai"),
-            ],
+            [include_str!("../api/internal.rhai")],
         )?;
 
         rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, engine)
@@ -815,11 +753,7 @@ impl RuleEngine {
         ast: &rhai::AST,
     ) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
-        scope
-            .push("date", ())
-            .push("time", ())
-            .push_constant("CTX", ())
-            .push_constant("SRV", ());
+        scope.push_constant("CTX", ()).push_constant("SRV", ());
 
         let raw_directives = engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, ast)

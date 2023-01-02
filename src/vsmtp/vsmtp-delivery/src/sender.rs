@@ -23,8 +23,10 @@ extern crate alloc;
 #[non_exhaustive]
 #[derive(Debug, Eq, Clone, Hash, PartialEq)]
 pub struct SenderParameters {
-    ///
-    pub server: String,
+    /// ip
+    pub relay_target: String,
+    /// server name
+    pub server_name: String,
     ///
     pub hello_name: String,
     ///
@@ -102,7 +104,7 @@ impl Sender {
         tracing::trace!(?params, "Creating a transport");
 
         let builder = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
-            params.server.clone(),
+            params.relay_target.clone(),
         )
         .port(params.port)
         .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
@@ -130,7 +132,7 @@ impl Sender {
             .collect::<Vec<_>>();
 
         let builder = builder.tls(lettre::transport::smtp::client::Tls::Required(
-            lettre::transport::smtp::client::TlsParameters::builder(params.server.clone())
+            lettre::transport::smtp::client::TlsParameters::builder(params.server_name.clone())
                 .add_root_certificate(lettre::transport::smtp::client::Certificate::from_pem(
                     &certs,
                 )?)

@@ -19,6 +19,11 @@ pub mod api;
 pub mod service;
 
 /// Create a new smtp module.
-pub fn new_module() -> rhai::Shared<rhai::Module> {
-    rhai::exported_module!(api::smtp).into()
+#[must_use]
+pub fn new_module() -> rhai::Module {
+    let mut module = rhai::exported_module!(api::smtp);
+
+    module.set_id("smtp");
+
+    module
 }

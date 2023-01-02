@@ -13,8 +13,6 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [1.4.0-rc.7] - 2022-12-19
-
 ### Added
 
 * The `rhai-dylib` crate to handle Rust dynamic libraries with a Rhai API. (#753)
@@ -35,7 +33,7 @@ db::csv(#{ ... });
 
 ```rust
 fn on_config(config) {
-  config.version_requirement = ">=1.4.0-rc.0, <2.0.0";
+  config.version_requirement = ">=1.4.0, <2.0.0";
 
   config.server.name = "my.fqdn.com";
 
@@ -111,6 +109,8 @@ for addr in whitelist {
   // ...
 }
 ```
+
+* Add the support of null reverse path
 
 ## [1.3.4] - 2022-10-20
 

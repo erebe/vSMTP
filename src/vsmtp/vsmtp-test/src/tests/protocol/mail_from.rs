@@ -18,30 +18,34 @@
 use crate::run_test;
 use vqueue::GenericQueueManager;
 use vsmtp_common::addr;
+use vsmtp_common::Address;
 use vsmtp_common::ClientName;
 use vsmtp_common::CodeID;
 use vsmtp_common::ContextFinished;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_server::OnMail;
 
-// TODO: add empty reverse path
 // TODO: add SMTPUTF8
 // TODO: add errors tests
 
 #[rstest::rstest]
-#[case("<foo@bar>")]
-#[case::whitespace_before("       <foo@bar>")]
-#[case::whitespace_after("<foo@bar>           ")]
-#[case::bit7("<foo@bar> BODY=7BIT")]
-#[case::bitmime8("<foo@bar> BODY=8BITMIME")]
-#[case::bit7_whitespace("<foo@bar>      BODY=7BIT")]
-#[case::bitmime8_whitespace("      <foo@bar>      BODY=8BITMIME   ")]
+#[case("<foo@bar>", Some("foo@bar"))]
+#[case::null("<>", None)]
+#[case::null_with_body("<> BODY=8BITMIME", None)]
+#[case::whitespace_before("       <foo@bar>", Some("foo@bar"))]
+#[case::whitespace_after("<foo@bar>           ", Some("foo@bar"))]
+#[case::bit7("<foo@bar> BODY=7BIT", Some("foo@bar"))]
+#[case::bitmime8("<foo@bar> BODY=8BITMIME", Some("foo@bar"))]
+#[case::bit7_whitespace("<foo@bar>      BODY=7BIT", Some("foo@bar"))]
+#[case::bitmime8_whitespace("      <foo@bar>      BODY=8BITMIME   ", Some("foo@bar"))]
 #[trace]
-fn test(#[case] mail_from: &str) {
+fn test(#[case] mail_from: &str, #[case] reverse_path: Option<&str>) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap();
+
+    let reverse_path = reverse_path.map(|s| addr!(s));
 
     runtime.block_on(async move {
         run_test! {
@@ -64,7 +68,9 @@ fn test(#[case] mail_from: &str) {
                 "250 Ok\r\n",
             ],
             mail_handler = {
-                struct T;
+                struct T {
+                    reverse_path: Option<Address>,
+                }
 
                 #[async_trait::async_trait]
                 impl OnMail for T {
@@ -75,13 +81,15 @@ fn test(#[case] mail_from: &str) {
                         _: std::sync::Arc<dyn GenericQueueManager>,
                     ) -> CodeID {
                         assert_eq!(ctx.helo.client_name, ClientName::Domain("foobar".to_string()));
-                        assert_eq!(ctx.mail_from.reverse_path, addr!("foo@bar"));
+                        assert_eq!(ctx.mail_from.reverse_path, self.reverse_path);
 
                         CodeID::Ok
                     }
                 }
 
-                T
+                T {
+                    reverse_path,
+                }
             }
         }
     });

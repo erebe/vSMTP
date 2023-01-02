@@ -132,7 +132,6 @@ mod tests {
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
-  "outgoing": false,
   "forward_paths": [],
   "transaction_type": {{
     "incoming": null
@@ -220,7 +219,6 @@ Message body:
   "reverse_path": "client@client.testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
-  "outgoing": false,
   "forward_paths": [],
   "transaction_type": {{
     "incoming": null

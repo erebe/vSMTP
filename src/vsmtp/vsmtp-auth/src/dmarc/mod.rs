@@ -17,4 +17,5 @@
 
 mod record;
 
+pub use record::ReceiverPolicy;
 pub use record::Record;

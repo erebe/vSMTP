@@ -23,10 +23,10 @@ fn mutate_headers() {
     const from_header = "From";
     const green = address("green@foo.net");
 
-    append_header(header_name, header_value);
-    append_header("X-Another-Header", another_header_value);
-    append_header(from_header, "<john@doe.com>");
-    append_header("To", green);
+    msg::append_header(header_name, header_value);
+    msg::append_header("X-Another-Header", another_header_value);
+    msg::append_header(from_header, "<john@doe.com>");
+    msg::append_header("To", green);
 
     const status = "X-VSMTP-STATUS";
     const status_delivered = "delivered";
@@ -34,115 +34,111 @@ fn mutate_headers() {
     const tracing = "X-VSMTP-TRACING";
     const default_sender = fqdn("example.com");
 
-    prepend_header(status, status_delivered);
-    prepend_header(tracing, "empty");
-    prepend_header("X-VSMTP-SENDER", default_sender);
+    msg::prepend_header(status, status_delivered);
+    msg::prepend_header(tracing, "empty");
+    msg::prepend_header("X-VSMTP-SENDER", default_sender);
 
-    if !has_header(header_name)
-    || !has_header("X-Another-Header")
-    || !has_header("From")
-    || !has_header("To")
-    || !has_header("X-VSMTP-STATUS")
-    || !has_header("X-VSMTP-TRACING")
-    || !has_header("X-VSMTP-SENDER")
+    if !msg::has_header(header_name)
+    || !msg::has_header("X-Another-Header")
+    || !msg::has_header("From")
+    || !msg::has_header("To")
+    || !msg::has_header("X-VSMTP-STATUS")
+    || !msg::has_header("X-VSMTP-TRACING")
+    || !msg::has_header("X-VSMTP-SENDER")
     {
-        return deny();
+        return state::deny();
     }
 
     const new_value = "blah blah blah";
 
-    set_header(header_name, header_value);
-    set_header(header_name, "new value!");
-    set_header("X-Another-Header", "value of another");
-    set_header("X-Yet-Another-Header", new_value);
+    msg::set_header(header_name, header_value);
+    msg::set_header(header_name, "new value!");
+    msg::set_header("X-Another-Header", "value of another");
+    msg::set_header("X-Yet-Another-Header", new_value);
 
-    print(get_header(header_name));
-    print(get_header("X-Yet-Another-Header"));
-    print(get_header("X-VSMTP-STATUS"));
+    print(msg::get_header(header_name));
+    print(msg::get_header("X-Yet-Another-Header"));
+    print(msg::get_header("X-VSMTP-STATUS"));
 
-    if !has_header("X-New-Header")
-    || !has_header("X-Another-Header")
-    || !has_header("X-Yet-Another-Header")
+    if !msg::has_header("X-New-Header")
+    || !msg::has_header("X-Another-Header")
+    || !msg::has_header("X-Yet-Another-Header")
     {
-        return deny();
+        return state::deny();
     }
 
-    if !(get_header("X-New-Header") == "new value!")
-    && !(get_header("X-Another-Header") == "value of another")
-    && !(get_header("From") == "<john@doe.com>")
-    && !(get_header("To") == "green@foo.net")
-    && !(get_header("X-Yet-Another-Header") == "blah blah blah")
-    && !(get_header("X-VSMTP-STATUS") == "delivered")
-    && !(get_header("X-VSMTP-TRACING") == "empty")
-    && !(get_header("X-VSMTP-SENDER") == "example.com")
+    if !(msg::get_header("X-New-Header") == "new value!")
+    && !(msg::get_header("X-Another-Header") == "value of another")
+    && !(msg::get_header("From") == "<john@doe.com>")
+    && !(msg::get_header("To") == "green@foo.net")
+    && !(msg::get_header("X-Yet-Another-Header") == "blah blah blah")
+    && !(msg::get_header("X-VSMTP-STATUS") == "delivered")
+    && !(msg::get_header("X-VSMTP-TRACING") == "empty")
+    && !(msg::get_header("X-VSMTP-SENDER") == "example.com")
     {
-        return deny();
+        return state::deny();
     }
 
-print("passed");
-    prepend_header("X-To-Rename", "Value should not change");
-print("passed");
+    msg::prepend_header("X-To-Rename", "Value should not change");
 
-    if get_header("X-To-Rename") != "Value should not change"
+    if msg::get_header("X-To-Rename") != "Value should not change"
     {
-        print(`to rename: ${get_header("X-To-Rename")}`);
-        return deny();
+        print(`to rename: ${msg::get_header("X-To-Rename")}`);
+        return state::deny();
     }
-print("passed");
 
-    rename_header("X-To-Rename", "X-Renamed");
+    msg::rename_header("X-To-Rename", "X-Renamed");
 
-print("passed");
-    if has_header("X-To-Rename")
-    || get_header("X-Renamed") != "Value should not change"
+    if msg::has_header("X-To-Rename")
+    || msg::get_header("X-Renamed") != "Value should not change"
     {
-        print(`to rename: ${get_header("X-To-Rename")}`);
-        print(`renamed: ${get_header("X-Renamed")}`);
-        return deny();
+        print(`to rename: ${msg::get_header("X-To-Rename")}`);
+        print(`renamed: ${msg::get_header("X-Renamed")}`);
+        return state::deny();
     }
 
-    print(get_all_headers());
+    print(msg::get_all_headers());
 
-    prepend_header("X-Multi-Header", "1");
-    prepend_header("X-Multi-Header", "2");
-    prepend_header("X-Multi-Header", "3");
-    prepend_header("X-Multi-Header", "4");
-    prepend_header("X-Multi-Header", "5");
+    msg::prepend_header("X-Multi-Header", "1");
+    msg::prepend_header("X-Multi-Header", "2");
+    msg::prepend_header("X-Multi-Header", "3");
+    msg::prepend_header("X-Multi-Header", "4");
+    msg::prepend_header("X-Multi-Header", "5");
 
-    if has_header("X-Multi-Header") == false
-    || count_header("X-Multi-Header") != 5
-    || get_all_headers("X-Multi-Header") != [" 5", " 4", " 3", " 2", " 1"] {
-        return deny();
+    if msg::has_header("X-Multi-Header") == false
+    || msg::count_header("X-Multi-Header") != 5
+    || msg::get_all_headers("X-Multi-Header") != [" 5", " 4", " 3", " 2", " 1"] {
+        return state::deny();
     }
 
-    while remove_header("X-Multi-Header") {}
-    remove_header("X-Another-Header");
-    remove_header(status);
+    while msg::rm_header("X-Multi-Header") {}
+    msg::rm_header("X-Another-Header");
+    msg::rm_header(status);
 
-    print(get_all_headers());
+    print(msg::get_all_headers());
 
-    if !has_header("X-Another-Header")
-    && !has_header("X-Multi-Header")
-    && !has_header(status) {
-        next()
+    if !msg::has_header("X-Another-Header")
+    && !msg::has_header("X-Multi-Header")
+    && !msg::has_header(status) {
+        state::next()
     } else {
-        deny()
+        state::deny()
     }
 }
 
 #{
     connect: [
         rule "adding headers when body is empty" || mutate_headers(),
-        rule "trailing connect" || accept(),
+        rule "trailing connect" || state::accept(),
     ],
 
     preq: [
         rule "adding headers to raw email" || mutate_headers(),
-        rule "trailing preq" || accept(),
+        rule "trailing preq" || state::accept(),
     ],
 
     postq: [
         rule "adding headers to parsed email" || mutate_headers(),
-        rule "trailing postq" || accept(),
+        rule "trailing postq" || state::accept(),
     ],
 }

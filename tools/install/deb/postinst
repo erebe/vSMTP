@@ -10,7 +10,6 @@ CONF_DIR="/etc/vsmtp/"
 CONF_FILE=${CONF_DIR}"vsmtp.vsl"
 USER_CONF_DIR=${CONF_DIR}"conf.d/"
 USER_CONF_FILE=${USER_CONF_DIR}"config.vsl"
-TARGETS=${CONF_DIR}"targets"
 DOMAIN_AVAILABE=${CONF_DIR}"domain-availabe"
 DOMAIN_ENABLED=${CONF_DIR}"domain-enabled"
 SERVICES=${CONF_DIR}"services"
@@ -49,7 +48,7 @@ check_dir() {
     fi
     # vSMTP config directory.
     if [ ! -d "${CONF_DIR}" ]; then
-        mkdir -p ${USER_CONF_DIR} ${TARGETS} ${DOMAIN_AVAILABE} ${DOMAIN_ENABLED} ${SERVICES} ${OBJECTS} ${PLUGINS}
+        mkdir -p ${USER_CONF_DIR} ${DOMAIN_AVAILABE} ${DOMAIN_ENABLED} ${SERVICES} ${OBJECTS} ${PLUGINS}
 
         chown -R ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR}
         chmod -R 755 ${CONF_DIR}

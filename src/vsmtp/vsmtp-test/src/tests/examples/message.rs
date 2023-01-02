@@ -98,7 +98,7 @@ run_test! {
                         println!("Internal");
 
                         assert_eq!(mail.helo.client_name.to_string(), "foo");
-                        assert_eq!(mail.mail_from.reverse_path.full(), "john.doe@example.com");
+                        assert_eq!(mail.mail_from.reverse_path, Some(addr!("john.doe@example.com")));
                         assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("green@example.com").into(), addr!("grey@example.com").into()]);
 
                         assert!(body.get_header("X-Connect").is_some());

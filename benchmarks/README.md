@@ -66,34 +66,34 @@ time smtp-source -s <nbr-of-sessions>    \
 
 To reproduce the README's benchmarks, you can use the following configuration for vsmtp:
 
-```toml
-# copy-paste this to `/etc/vsmtp/vsmtp.toml`
-version_requirement = ">=1.0.0"
+```rust
+// copy-paste this to `/etc/vsmtp/conf.d/config.vsl`
+fn on_config(config) {
+    config.server.client_count_max = -1
 
-[server]
-client_count_max = -1
+    config.server.logs.level = [ "error" ];
 
-[server.logs.level]
-default = "error"
+    config.server.interfaces = #{
+        addr: ["127.0.0.1:25"]
+        addr_submission: ["127.0.0.1:587"]
+        addr_submissions: ["127.0.0.1:465"]
+    };
 
-[server.interfaces]
-addr = ["127.0.0.1:25"]
-addr_submission = ["127.0.0.1:587"]
-addr_submissions = ["127.0.0.1:465"]
+    config.server.system.thread_pool = #{
+        receiver: 6,
+        processing: 6,
+        delivery: 6,
+    };
 
-[server.system.thread_pool]
-receiver = 6
-processing = 6
-delivery = 6
+    config.app.vsl.filter_path = "/etc/vsmtp/filter.vsl"
+}
 
-[app.vsl]
-filepath = "/etc/vsmtp/rules/main.vsl"
 ```
 
 ```rust
-// copy-paste this to `/etc/vsmtp/rules/main.vsl`
+// copy-paste this to `/etc/vsmtp/filter.vsl`
 #{
-    preq: [ rule "hold emails" || quarantine("bench") ]
+    preq: [ rule "hold emails" || state::quarantine("bench") ]
 }
 ```
 

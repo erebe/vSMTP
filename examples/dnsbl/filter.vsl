@@ -6,17 +6,19 @@
     helo: [
         // The database we will query is spamhaus in this case.
         rule "spamhaus block list" || {
+            const helo = ctx::helo();
+
             try {
-                const records = lookup(`${helo()}.zen.spamhaus.org.`);
+                const records = dns::lookup(`${helo}.zen.spamhaus.org.`);
 
                 // If a record is found, that means that the recipient domain
                 // is probably a spam.
-                log("error", `${helo()}: SPAM DETECTED. Records: ${records}`);
-                return deny(code_greylist);
+                log("error", `${helo}: SPAM DETECTED. Records: ${records}`);
+                return state::deny(code::c451_7_1());
             } catch (err) {
                 // No record were found, the email is probably not a spam.
-                log("debug", `Seems ${helo()} was not not found in dnsbl. (eventual error: ${err})`);
-                return next();
+                log("debug", `Seems ${helo} was not not found in dnsbl. (eventual error: ${err})`);
+                return state::next();
             }
         }
     ]

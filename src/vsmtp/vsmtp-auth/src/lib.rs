@@ -1,7 +1,3 @@
-//! vSMTP Authentication library
-//!
-//! SPF / DKIM / DMARC
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,6 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+//! vSMTP Authentication library
+//!
+//! SPF / DKIM / DMARC
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //
@@ -47,6 +47,8 @@
 /// such authorization.
 /// ```
 pub mod spf;
+
+pub use viaspf;
 
 /// The implementation follow the RFC 6376 & 8301 & 8463
 ///

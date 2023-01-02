@@ -15,120 +15,179 @@
  *
 */
 
-use crate::api::{EngineResult, Message, Object, Server};
+use crate::api::{EngineResult, Message, Server};
 use rhai::plugin::{
-    mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, RhaiResult, TypeId,
+    Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
 use rhai::EvalAltResult;
-use vsmtp_auth::dmarc;
 use vsmtp_common::Address;
 
-pub use dmarc_rhai::*;
+pub use dmarc::*;
 
+/// Domain-based message authentication, reporting and conformance implementation
+/// specified by RFC 7489. (<https://www.rfc-editor.org/rfc/rfc7489>)
 #[rhai::plugin::export_module]
-mod dmarc_rhai {
-    use crate::api::SharedObject;
+mod dmarc {
+    use crate::api::state;
+    use crate::get_global;
 
-    /// Get the address of the sender in the message body, also known as RFC5322.From
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn parse_rfc5322_from(message: &mut Message) -> EngineResult<SharedObject> {
-        let guard = vsl_guard_ok!(message.read());
-        let from = guard
-            .get_header("From")
-            .ok_or_else::<Box<EvalAltResult>, _>(|| "only one `From` header is allowed".into())?;
-
-        let from_parsed = match from
-            .find('<')
-            .and_then(|begin| from.find('>').map(|end| (begin, end)))
-        {
-            Some((start, end)) => &from[start..end],
-            None => &from,
-        };
-
-        <Address as std::str::FromStr>::from_str(from_parsed)
-            .map(|addr| SharedObject::new(Object::Address(addr)))
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
-    }
-
-    /// Produce a debug output for the parsed [`dmarc::Record`]
-    #[rhai_fn(global, pure)]
-    pub fn to_debug(record: &mut dmarc::Record) -> String {
-        format!("{record:#?}")
-    }
-
-    /// Get a valid DMARC record for the domain.
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "get_dmarc_record", pure, return_raw)]
-    pub fn get_dmarc_record_obj(
-        server: &mut Server,
-        domain: SharedObject,
-    ) -> EngineResult<dmarc::Record> {
-        super::get_dmarc_record(server, &domain.to_string())
-    }
-
-    /// Get a valid DMARC record for the domain.
-    #[rhai_fn(global, name = "get_dmarc_record", pure, return_raw)]
-    pub fn get_dmarc_record_str(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
-        super::get_dmarc_record(server, domain)
-    }
-
+    /// Apply the DMARC policy to the mail.
     ///
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, pure)]
-    pub fn dmarc_check(
-        record: &mut dmarc::Record,
-        rfc5322_from: &str,
-        dkim_result: rhai::Map,
-        spf_mail_from: &str,
-        spf_result: &str,
-    ) -> bool {
-        let dkim_domain: String = match dkim_result
-            .get("sdid")
-            .cloned()
-            .and_then(rhai::Dynamic::try_cast)
-        {
-            Some(domain) => domain,
-            None => return false,
-        };
-        let dkim_status: String = match dkim_result
-            .get("status")
-            .cloned()
-            .and_then(rhai::Dynamic::try_cast)
-        {
-            Some(status) => status,
-            None => return false,
-        };
-
-        if record.dkim_is_aligned(rfc5322_from, &dkim_domain) && dkim_status == "pass" {
-            return true;
-        }
-
-        if record.spf_is_aligned(rfc5322_from, spf_mail_from) && spf_result == "pass" {
-            return true;
-        }
-
-        false
-    }
-
+    /// # Effective smtp stage
     ///
-    #[rhai_fn(global, get = "receiver_policy", pure)]
-    pub fn receiver_policy(record: &mut dmarc::Record) -> String {
-        record.get_policy()
+    /// `preq` and onwards.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// #{
+    ///   preq: [
+    ///     rule "check dmarc" || { dmarc::check() },
+    ///   ]
+    /// }
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(name = "check", return_raw)]
+    pub fn check(ncc: NativeCallContext) -> EngineResult<vsmtp_common::status::Status> {
+        let msg = get_global!(ncc, msg)?;
+        let srv = get_global!(ncc, srv)?;
+
+        let rfc5322_from = super::parse_rfc5322_from(&msg)?;
+        let rfc5322_from = rfc5322_from.domain();
+        let record = get_dmarc_record(&srv, rfc5322_from)?;
+
+        // tracing::warn!(%error, "DMARC record not found:");
+        // return rule_state::next();
+        let ctx = get_global!(ncc, ctx)?;
+
+        let dkim = crate::api::dkim::Impl::verify_inner(
+            &ctx, &msg, &srv, // TODO: only take `d == rfc5322_from`
+            5, "cycle", 1000,
+        )?;
+
+        let spf = crate::api::spf::check(&ctx, &srv)?;
+        let ctx = vsl_guard_ok!(ctx.read());
+
+        let (hostname, sender, client_ip) = {
+            (
+                crate::api::utils::hostname()?,
+                vsl_generic_ok!(ctx.reverse_path()).clone(),
+                ctx.client_addr().ip().to_string(),
+            )
+        };
+        let sender_addr = sender.as_ref().map_or("null", |s| s.full());
+
+        let header = format!(
+            r#"{};
+ dkim={}
+ spf={}
+ reason="{}"
+ smtp.mailfrom={}"#,
+            crate::api::utils::get_root_domain(ctx.server_name()),
+            dkim.get("status")
+                .map(std::string::ToString::to_string)
+                .unwrap_or_default(),
+            spf.result,
+            crate::api::spf::key_value_list(&spf, &hostname, sender_addr, &client_ip),
+            sender_addr
+        );
+
+        let dmarc_pass = dmarc_check(
+            &record,
+            rfc5322_from,
+            &dkim,
+            sender.as_ref().map_or("null", |s| s.domain()),
+            spf.result.as_str(),
+        );
+
+        crate::api::message::Impl::prepend_header(
+            &msg,
+            "Authentication-Results",
+            &format!(
+                r#"${}
+ dmarc={}"#,
+                header,
+                if dmarc_pass { "pass" } else { "fail" }
+            ),
+        )?;
+
+        Ok(if dmarc_pass {
+            state::next()
+        } else {
+            tracing::warn!(record = %record.receiver_policy, "DMARC check failed.");
+
+            match record.receiver_policy {
+                vsmtp_auth::dmarc::ReceiverPolicy::None => state::next(),
+                vsmtp_auth::dmarc::ReceiverPolicy::Quarantine => state::quarantine_str("dmarc"),
+                vsmtp_auth::dmarc::ReceiverPolicy::Reject => state::deny(/*code_...*/),
+            }
+        })
     }
 }
 
-fn get_dmarc_record(server: &mut Server, domain: &str) -> EngineResult<dmarc::Record> {
+fn dmarc_check(
+    record: &vsmtp_auth::dmarc::Record,
+    rfc5322_from: &str,
+    dkim_result: &rhai::Map,
+    spf_mail_from: &str,
+    spf_result: &str,
+) -> bool {
+    let dkim_domain: String = match dkim_result
+        .get("sdid")
+        .cloned()
+        .and_then(rhai::Dynamic::try_cast)
+    {
+        Some(domain) => domain,
+        None => return false,
+    };
+    let dkim_status: String = match dkim_result
+        .get("status")
+        .cloned()
+        .and_then(rhai::Dynamic::try_cast)
+    {
+        Some(status) => status,
+        None => return false,
+    };
+
+    if record.dkim_is_aligned(rfc5322_from, &dkim_domain) && dkim_status == "pass" {
+        return true;
+    }
+
+    if record.spf_is_aligned(rfc5322_from, spf_mail_from) && spf_result == "pass" {
+        return true;
+    }
+
+    false
+}
+
+/// Get the address of the sender in the message body, also known as RFC5322.From
+fn parse_rfc5322_from(msg: &Message) -> EngineResult<Address> {
+    let from = vsl_guard_ok!(msg.read())
+        .get_header("From")
+        .ok_or_else::<Box<EvalAltResult>, _>(|| "only one `From` header is allowed".into())?;
+
+    let from_parsed = match from
+        .find('<')
+        .and_then(|begin| from.find('>').map(|end| (begin, end)))
+    {
+        Some((start, end)) => &from[start..end],
+        None => &from,
+    };
+
+    <Address as std::str::FromStr>::from_str(from_parsed)
+        .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+}
+
+fn get_dmarc_record(server: &Server, domain: &str) -> EngineResult<vsmtp_auth::dmarc::Record> {
     let resolver = server.resolvers.get_resolver_root();
 
-    let txt_record = tokio::task::block_in_place(move || {
-        tokio::runtime::Handle::current().block_on(resolver.txt_lookup(format!("_dmarc.{domain}")))
-    })
-    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+    let txt_record =
+        block_on!(resolver.txt_lookup(format!("_dmarc.{domain}")))
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
     let records = txt_record
         .into_iter()
-        .map(|i| <dmarc::Record as std::str::FromStr>::from_str(&i.to_string()));
+        .map(|i| <vsmtp_auth::dmarc::Record as std::str::FromStr>::from_str(&i.to_string()));
 
     let first = records
         .into_iter()

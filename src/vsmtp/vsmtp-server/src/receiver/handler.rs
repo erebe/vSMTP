@@ -17,7 +17,7 @@
 use crate::on_mail::OnMail;
 use tokio_rustls::rustls;
 use vqueue::GenericQueueManager;
-use vsmtp_common::{status::Status, CodeID, Reply, Stage, TransactionType};
+use vsmtp_common::{status::Status, Address, CodeID, Reply, Stage, TransactionType};
 use vsmtp_config::Config;
 use vsmtp_protocol::{
     AcceptArgs, AuthArgs, AuthError, CallbackWrap, EhloArgs, Error, HeloArgs, MailFromArgs,
@@ -145,18 +145,14 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
     async fn on_mail_from(&mut self, ctx: &mut ReceiverContext, args: MailFromArgs) -> Reply {
         let reverse_path = args
             .reverse_path
-            .expect("TODO: handle null reverse path")
-            .parse()
-            .expect("handle invalid mailbox");
-
-        let is_outgoing = self.rule_engine.is_handled_domain(&reverse_path);
+            .map(|reverse_path| reverse_path.parse().expect("handle invalid mailbox"));
 
         self.state
             .context()
             .write()
             .expect("state poisoned")
-            .to_mail_from(reverse_path, is_outgoing)
-            .unwrap();
+            .to_mail_from(reverse_path)
+            .expect("bad state");
 
         let e = match self.rule_engine.run_when(
             &self.state,
@@ -192,21 +188,26 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             return self.reply_in_config(CodeID::TooManyRecipients);
         }
 
-        let forward_path = args.forward_path.parse().unwrap();
+        let forward_path = args
+            .forward_path
+            .parse()
+            .expect("todo: handle invalid mailbox");
 
         let is_internal = {
             let ctx = self.state.context();
-            let mut ctx = ctx.write().unwrap();
+            let mut ctx = ctx.write().expect("state poisoned");
+            let reverse_path = ctx.reverse_path().expect("bad state").clone();
+            let reverse_path_domain = reverse_path.as_ref().map(Address::domain);
 
             let (is_outgoing, is_handled) = (
-                ctx.is_outgoing().expect("bad state"),
+                reverse_path.as_ref().map_or(false, |reverse_path| {
+                    self.rule_engine.is_handled_domain(reverse_path)
+                }),
                 self.rule_engine.is_handled_domain(&forward_path),
             );
 
-            let reverse_path = ctx.reverse_path().unwrap().clone();
-
             match (is_outgoing, is_handled) {
-                (true, true) if forward_path.domain() == reverse_path.domain() => {
+                (true, true) if Some(forward_path.domain()) == reverse_path_domain => {
                     tracing::debug!(
                         "INTERNAL: forward and reverse path domain are both: {}",
                         forward_path.domain()
@@ -233,15 +234,24 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
                         );
                     }
 
-                    let internal_ctx = self.state_internal.as_ref().unwrap().context();
+                    let internal_ctx = self
+                        .state_internal
+                        .as_ref()
+                        .expect("has been set above")
+                        .context();
                     let mut internal_guard = internal_ctx.write().expect("state poisoned");
-                    internal_guard.add_forward_path(forward_path).unwrap();
+                    internal_guard
+                        .add_forward_path(forward_path)
+                        .expect("bad state");
                     internal_guard
                         .set_transaction_type(TransactionType::Internal)
                         .expect("bad state");
 
                     ctx.set_transaction_type(TransactionType::Outgoing {
-                        domain: reverse_path.domain().to_string(),
+                        domain: reverse_path
+                            .expect("none-null reverse path")
+                            .domain()
+                            .to_string(),
                     })
                     .expect("bad state");
 
@@ -250,22 +260,25 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
                 (true, _) => {
                     tracing::debug!(
                         "OUTGOING: reverse:${} => forward:${}",
-                        reverse_path.domain(),
+                        reverse_path_domain.unwrap_or("none"),
                         forward_path.domain()
                     );
 
-                    ctx.add_forward_path(forward_path).unwrap();
-                    ctx.set_transaction_type(TransactionType::Outgoing {
-                        domain: reverse_path.domain().to_owned(),
-                    })
+                    ctx.add_forward_path(forward_path).expect("bad state");
+                    ctx.set_transaction_type(reverse_path.as_ref().map_or(
+                        TransactionType::Incoming(None),
+                        |reverse_path| TransactionType::Outgoing {
+                            domain: reverse_path.domain().to_owned(),
+                        },
+                    ))
                     .expect("bad state");
 
                     false
                 }
                 (false, forward_path_is_handled) => {
                     tracing::debug!(
-                        "INCOMING: reverse:${} => forward:${}",
-                        reverse_path.domain(),
+                        "INCOMING: reverse:${:?} => forward:${}",
+                        reverse_path,
                         forward_path.domain()
                     );
 

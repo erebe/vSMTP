@@ -11,7 +11,7 @@ import "csv_greylist" as csv;
 
         // you could also use mysql::mysql_greylist.
         rule "greylist" || {
-            let sender = mail_from();
+            let sender = ctx::mail_from();
 
             // If the sender is part of the domains of the server,
             // then it is useless to greylist it. (do not forget to
@@ -20,13 +20,13 @@ import "csv_greylist" as csv;
             // if the sender is not recognized in our database,
             // we deny the transaction and write the sender into
             // the database.
-            if !in_domain(mail_from()) && csv::csv_greylist.get(sender) == [] {
+            if !in_domain(ctx::mail_from()) && csv::csv_greylist.get(sender) == [] {
                 csv::csv_greylist.set([ sender ]);
-                deny(code_greylist)
+                state::deny(code_greylist)
             } else {
                 // the user is known by the server, the transaction
                 // can proceed.
-                accept()
+                state::accept()
             }
         },
     ],

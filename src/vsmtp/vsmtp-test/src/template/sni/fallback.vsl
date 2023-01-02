@@ -17,10 +17,10 @@
 #{
     rcpt: [
         rule "check server_name with sni" || {
-            if server_name() == "second.testserver.com" {
-                accept()
+            if ctx::server_name() == "second.testserver.com" {
+                state::accept()
             } else {
-                deny()
+                state::deny()
             }
         }
     ]

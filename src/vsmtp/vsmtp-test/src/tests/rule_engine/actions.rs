@@ -33,8 +33,8 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
                     connect: [
                       rule "test_connect" || {
-                        log("trace", `${client_ip()}`);
-                        if client_ip() is "127.0.0.1" { next() } else { deny() }
+                        log("trace", `${ctx::client_ip()}`);
+                        if ctx::client_ip() is "127.0.0.1" { state::next() } else { state::deny() }
                       }
                     ],
                   }
@@ -79,17 +79,17 @@ const RULE: &str = r#"
 #{
   {stage}: [
     rule "write to disk preq" || {
-      prepend_header("X-VSMTP-INIT", "done.");
+        msg::prepend_header("X-VSMTP-INIT", "done.");
       {action}("tests/generated/{action}");
-      accept()
+      state::accept()
     },
   ],
 
   preq: [
     action "write to disk preq" || {
-      prepend_header("X-VSMTP-INIT", "done.");
+        msg::prepend_header("X-VSMTP-INIT", "done.");
       {action}("tests/generated/{action}");
-      accept()
+      state::accept()
     },
   ],
 }"#;

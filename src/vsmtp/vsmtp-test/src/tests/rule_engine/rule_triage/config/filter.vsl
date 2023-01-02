@@ -1,9 +1,9 @@
 #{
     mail: [
-        rule "accept with code" || accept(code(0, "incoming main"))
+        rule "accept with code" || state::accept(code(0, "incoming main"))
     ],
 
     rcpt: [
-        rule "unhandled domain" || deny(code(550, `unhandled domain. sender='${mail_from().domain}', rcpt='${rcpt().domain}'`)),
+        rule "unhandled domain" || state::deny(code(550, `unhandled domain. sender='${ctx::mail_from().domain}', rcpt='${ctx::rcpt().domain}'`)),
     ],
 }

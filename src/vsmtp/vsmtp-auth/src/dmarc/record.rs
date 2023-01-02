@@ -44,11 +44,15 @@ enum FailureReportOption {
     Spf,
 }
 
+///
 #[derive(Debug, Clone, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
-enum ReceiverPolicy {
+pub enum ReceiverPolicy {
+    ///
     None,
+    ///
     Quarantine,
+    ///
     Reject,
 }
 
@@ -67,7 +71,8 @@ pub struct Record {
     adkim: AlignmentMode,
     aspf: AlignmentMode,
     failure_report_options: Vec<FailureReportOption>,
-    receiver_policy: ReceiverPolicy,
+    ///
+    pub receiver_policy: ReceiverPolicy,
     receiver_policy_subdomain: Option<ReceiverPolicy>,
     percentage: u8, // 0-100
     report_failure: ReportFailure,

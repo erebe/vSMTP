@@ -204,7 +204,7 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::Helo`] or [`Stage::MailFrom`]
-    pub fn to_mail_from(&mut self, reverse_path: Address, outgoing: bool) -> Result<(), Error> {
+    pub fn to_mail_from(&mut self, reverse_path: Option<Address>) -> Result<(), Error> {
         match self {
             Context::Helo(ContextHelo { connect, helo }) => {
                 let now = time::OffsetDateTime::now_utc();
@@ -215,14 +215,12 @@ impl Context {
                         reverse_path,
                         mail_timestamp: now,
                         message_uuid: uuid::Uuid::new_v4(),
-                        outgoing,
                     },
                 });
                 Ok(())
             }
             Context::MailFrom(ContextMailFrom { mail_from, .. }) => {
                 mail_from.reverse_path = reverse_path;
-                mail_from.outgoing = outgoing;
                 Ok(())
             }
             _ => Err(Error::BadState),
@@ -481,7 +479,7 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::MailFrom`] or after
-    pub const fn reverse_path(&self) -> Result<&Address, Error> {
+    pub const fn reverse_path(&self) -> Result<&Option<Address>, Error> {
         match self {
             Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
             Context::MailFrom(ContextMailFrom { mail_from, .. })
@@ -495,7 +493,7 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::MailFrom`] or after
-    pub fn set_reverse_path(&mut self, reverse_path: Address) -> Result<(), Error> {
+    pub fn set_reverse_path(&mut self, reverse_path: Option<Address>) -> Result<(), Error> {
         match self {
             Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
             Context::MailFrom(ContextMailFrom { mail_from, .. })
@@ -549,20 +547,6 @@ impl Context {
                 mail_from.message_uuid = uuid::Uuid::new_v4();
                 Ok(())
             }
-        }
-    }
-
-    /// Is the domain of the reverse path in the list of handled domains?
-    ///
-    /// # Errors
-    ///
-    /// * state if not [`Stage::MailFrom`] or after
-    pub const fn is_outgoing(&self) -> Result<bool, Error> {
-        match self {
-            Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(mail_from.outgoing),
         }
     }
 
@@ -877,15 +861,12 @@ pub struct HeloProperties {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MailFromProperties {
     ///
-    // TODO: support null reverse_path
-    pub reverse_path: Address,
+    pub reverse_path: Option<Address>,
     ///
     #[serde(with = "time::serde::iso8601")]
     pub mail_timestamp: time::OffsetDateTime,
     ///
     pub message_uuid: uuid::Uuid,
-    ///
-    pub outgoing: bool,
 }
 
 ///

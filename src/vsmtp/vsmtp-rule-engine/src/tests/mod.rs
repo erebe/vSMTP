@@ -22,10 +22,10 @@ use vsmtp_config::DnsResolvers;
 use vsmtp_test::config::local_test;
 
 const TIME: &str = r#"
-print(time().to_string());
-print(time().to_debug());
-print(date().to_string());
-print(date().to_debug());
+print(time::now().to_string());
+print(time::now().to_debug());
+print(time::date().to_string());
+print(time::date().to_debug());
 
 #{}
 "#;

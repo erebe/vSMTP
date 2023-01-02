@@ -67,7 +67,7 @@ impl Deliver<'_> {
         config: &Config,
         ctx: &ContextFinished,
         message: &str,
-        from: &Address,
+        from: &Option<Address>,
         domain: String,
         mut rcpt: Vec<Rcpt>,
     ) -> Vec<Rcpt> {
@@ -84,9 +84,13 @@ impl Deliver<'_> {
             Err(error) => {
                 tracing::warn!(?error);
 
-                tracing::trace!(rcpt = ?rcpt.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>(), sender = %from.full(), %domain);
+                tracing::trace!(
+                    rcpt = ?rcpt.iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                    sender = ?from,
+                    %domain
+                );
 
                 let is_permanent = error.is_permanent();
 
@@ -108,17 +112,11 @@ impl Deliver<'_> {
         config: &Config,
         ctx: &ContextFinished,
         message: &str,
-        from: &Address,
+        from: &Option<Address>,
         domain: &str,
         rcpt: &[Rcpt],
     ) -> Result<(), TransferErrorsVariant> {
-        let envelop = to_lettre_envelope(from, rcpt).map_err(|e| {
-            tracing::error!("{}", e.to_string());
-            TransferErrorsVariant::EnvelopIllFormed {
-                reverse_path: from.clone(),
-                forward_paths: rcpt.to_vec(),
-            }
-        })?;
+        let envelop = to_lettre_envelope(from, rcpt);
         tracing::trace!(?envelop);
 
         let records =
@@ -137,7 +135,8 @@ impl Deliver<'_> {
             self.senders
                 .send(
                     &SenderParameters {
-                        server: domain.to_owned(),
+                        relay_target: domain.to_owned(),
+                        server_name: domain.to_owned(),
                         hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
@@ -156,18 +155,18 @@ impl Deliver<'_> {
             return Ok(());
         }
 
-        let hosts = records
+        let mxs = records
             .into_iter()
             .map(|r| r.exchange().to_string())
             .collect::<Vec<_>>();
 
-        for host in &hosts {
+        for mx in &mxs {
             tracing::debug!("Trying to send an email.");
-            tracing::trace!(%host);
+            tracing::trace!(%mx);
 
             // checking for a null mx record.
             // see https://datatracker.ietf.org/doc/html/rfc7505
-            if host == "." {
+            if mx == "." {
                 tracing::error!(
                     "Trying to deliver to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
@@ -181,7 +180,8 @@ impl Deliver<'_> {
                 .senders
                 .send(
                     &SenderParameters {
-                        server: host.to_string(),
+                        relay_target: mx.clone(),
+                        server_name: domain.to_owned(),
                         hello_name: ctx.connect.server_name.clone(),
                         pool_idle_timeout: core::time::Duration::from_secs(60),
                         pool_max_size: 3,
@@ -197,17 +197,22 @@ impl Deliver<'_> {
             {
                 Ok(response) => {
                     tracing::info!("Email sent successfully");
-                    tracing::trace!(%host, sender = %from, ?envelop, ?response);
+                    tracing::trace!(%mx, sender = ?from, ?envelop, ?response);
 
                     return Ok(());
                 }
                 Err(err) => {
-                    tracing::error!("failed to send message from '{from}' to '{host}': {err}");
+                    tracing::error!(
+                        ?from,
+                        ?mx,
+                        %err,
+                        "failed to send message"
+                    );
                 }
             }
         }
 
-        Err(TransferErrorsVariant::DeliveryError { targets: hosts })
+        Err(TransferErrorsVariant::DeliveryError { targets: mxs })
     }
 }
 
@@ -218,7 +223,7 @@ impl Transport for Deliver<'_> {
         self,
         config: &Config,
         ctx: &ContextFinished,
-        from: &vsmtp_common::Address,
+        from: &Option<Address>,
         to: Vec<Rcpt>,
         message: &str,
     ) -> Vec<Rcpt> {
@@ -272,7 +277,7 @@ mod test {
         .deliver(
             &config,
             &ctx,
-            &"root@foo.bar".parse().unwrap(),
+            &Some("root@foo.bar".parse().unwrap()),
             vec![Rcpt {
                 address: "root@foo.bar".parse().unwrap(),
                 transfer_method: Transfer::Deliver,

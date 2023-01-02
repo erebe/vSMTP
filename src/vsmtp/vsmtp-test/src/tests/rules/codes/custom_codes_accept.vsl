@@ -1,18 +1,20 @@
 #{
     authenticate: [
         rule "auth hardcoded" || {
-            let db = #{ "admin": "password" };
-            switch auth().type {
+            const db = #{ "admin": "password" };
+            const credentials = auth::credentials();
+
+            switch credentials.type {
                 "Verify" => {
-                    if db[auth().authid] == auth().authpass { accept() } else { deny() }
+                    if db[credentials.authid] == credentials.authpass { state::accept() } else { state::deny() }
                 }
             }
         }
     ],
     mail: [
         rule "admin" || {
-            if is_authenticated() && mail_from() == "admin@company.com" {
-                faccept("250 welcome aboard chief")
+            if auth::is_authenticated() && ctx::mail_from() == "admin@company.com" {
+                state::faccept("250 welcome aboard chief")
             }
         }
     ]

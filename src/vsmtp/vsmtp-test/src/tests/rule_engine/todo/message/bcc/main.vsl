@@ -21,16 +21,16 @@ import "bcc" as bcc;
         rule "bcc with invalid address (str)"       || bcc::invalid_object("invalid-address"),
         rule "bcc with invalid address (obj ident)" || bcc::invalid_object(identifier("green.foo")),
         rule "add bcc" || {
-            if bcc::add_bcc("string@address.com") == next()
-            && bcc::add_bcc("my.string@address.eu") == next()
-            && bcc::add_bcc(address("my.addr@address.com")) == next()
+            if bcc::add_bcc("string@address.com") == state::next()
+            && bcc::add_bcc("my.string@address.eu") == state::next()
+            && bcc::add_bcc(address("my.addr@address.com")) == state::next()
             {
-                next()
+                state::next()
             } else {
-                deny()
+                state::deny()
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing" || state::accept(),
     ]
 }
