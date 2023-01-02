@@ -17,10 +17,10 @@ import "objects/family" as fam;
     //   delegate svc::clamsmtpd "antivirus" || {
     //     // clamav inserts the 'X-Virus-Infected' header
     //     // once a virus is detected.
-    //     if has_header("X-Virus-Infected") {
-    //       quarantine("virus_q")
+    //     if msg::has_header("X-Virus-Infected") {
+    //       state::quarantine("virus_q")
     //     } else {
-    //       next()
+    //       state::next()
     //     }
     //   }
     // ],
@@ -28,9 +28,9 @@ import "objects/family" as fam;
     delivery: [
         // In 'incoming', all recipients are guarantied to have the 'doe-family.com' domain.
         action "setup delivery" || {
-            for rcpt in rcpt_list() {
+            for rcpt in ctx::rcpt_list() {
                 // Deliver locally using Mailbox if the recipient is from Doe's family.
-                if rcpt in fam::family_addr { mailbox(rcpt) }
+                if rcpt in fam::family_addr { transport::mailbox(rcpt) }
             }
         } 
     ],

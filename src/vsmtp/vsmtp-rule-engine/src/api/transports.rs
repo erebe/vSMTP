@@ -25,41 +25,61 @@ use rhai::plugin::{
 };
 use vsmtp_common::transfer::{ForwardTarget, Transfer};
 
-pub use transports_rhai::*;
+pub use transport::*;
 
+/// Functions to configure delivery methods of emails.
 #[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
-mod transports_rhai {
+mod transport {
+    use crate::get_global;
 
-    /// Set the delivery method to [`Transfer::Forward`] for a single recipient.
+    /// Set the delivery method to forwarding for a single recipient.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email to the recipient.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    /// ```ignore
+    /// const rules = #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward("john.doe@example.com", "mta-john.example.com"),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
     /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
-    ///   rcpt: [
-    ///     action "forward (str/str)" || {
-    ///       add_rcpt_envelop("my.address@foo.com");
-    ///       forward("my.address@foo.com", "127.0.0.1");
-    ///     },
-    ///     action "forward (obj/str)" || {
-    ///       let rcpt = address("my.address@bar.com");
-    ///       add_rcpt_envelop(rcpt);
-    ///       forward(rcpt, "127.0.0.2");
-    ///     },
-    ///     action "forward (str/obj)" || {
-    ///       let target = ip6("::1");
-    ///       add_rcpt_envelop("my.address@baz.com");
-    ///       forward("my.address@baz.com", target);
-    ///     },
-    ///     action "forward (obj/obj)" || {
-    ///       let rcpt = address("my.address@boz.com");
-    ///       add_rcpt_envelop(rcpt);
-    ///       forward(rcpt, ip4("127.0.0.4"));
-    ///     },
-    ///   ],
+    ///     rcpt: [
+    ///       action "forward (str/str)" || {
+    ///         envelop::add_rcpt("my.address@foo.com");
+    ///         transport::forward("my.address@foo.com", "127.0.0.1");
+    ///       },
+    ///       action "forward (obj/str)" || {
+    ///         let rcpt = address("my.address@bar.com");
+    ///         envelop::add_rcpt(rcpt);
+    ///         transport::forward(rcpt, "127.0.0.2");
+    ///       },
+    ///       action "forward (str/obj)" || {
+    ///         let target = ip6("::1");
+    ///         envelop::add_rcpt("my.address@baz.com");
+    ///         transport::forward("my.address@baz.com", target);
+    ///       },
+    ///       action "forward (obj/obj)" || {
+    ///         let rcpt = address("my.address@boz.com");
+    ///         envelop::add_rcpt(rcpt);
+    ///         transport::forward(rcpt, ip4("127.0.0.4"));
+    ///       },
+    ///     ],
     /// }
     /// # "#)?.build()));
     ///
@@ -84,56 +104,142 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, name = "forward", return_raw, pure)]
-    pub fn forward(context: &mut Context, rcpt: &str, forward: &str) -> EngineResult<()> {
+    #[rhai_fn(name = "forward", return_raw)]
+    pub fn forward(ncc: NativeCallContext, rcpt: &str, forward: &str) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_for_one(context, rcpt, &Transfer::Forward(forward))
+        set_transport_for_one(&get_global!(ncc, ctx)?, rcpt, &Transfer::Forward(forward))
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    /// Set the delivery method to forwarding for a single recipient.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email to the recipient.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward("john.doe@example.com", "mta-john.example.com"),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "forward", return_raw)]
     pub fn forward_obj_str(
-        context: &mut Context,
+        ncc: NativeCallContext,
         rcpt: SharedObject,
         forward: &str,
     ) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_for_one(context, &rcpt.to_string(), &Transfer::Forward(forward))
+        set_transport_for_one(
+            &get_global!(ncc, ctx)?,
+            &rcpt.to_string(),
+            &Transfer::Forward(forward),
+        )
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    /// Set the delivery method to forwarding for a single recipient.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email to the recipient.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward("john.doe@example.com", "mta-john.example.com"),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "forward", return_raw)]
     pub fn forward_str_obj(
-        context: &mut Context,
+        ncc: NativeCallContext,
         rcpt: &str,
         forward: SharedObject,
     ) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_for_one(context, rcpt, &Transfer::Forward(forward))
+        set_transport_for_one(&get_global!(ncc, ctx)?, rcpt, &Transfer::Forward(forward))
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    /// Set the delivery method to forwarding for a single recipient.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email to the recipient.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward("john.doe@example.com", "mta-john.example.com"),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "forward", return_raw)]
     pub fn forward_obj_obj(
-        context: &mut Context,
+        ncc: NativeCallContext,
         rcpt: SharedObject,
         forward: SharedObject,
     ) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_for_one(context, &rcpt.to_string(), &Transfer::Forward(forward))
+        set_transport_for_one(
+            &get_global!(ncc, ctx)?,
+            &rcpt.to_string(),
+            &Transfer::Forward(forward),
+        )
     }
 
-    /// Set the delivery method to [`Transfer::Forward`] for all recipients.
+    /// Set the delivery method to forwarding for all recipients.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email.
+    ///
+    /// # Args
+    ///
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward_all("mta-john.example.com"),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -141,14 +247,14 @@ mod transports_rhai {
     /// #{
     ///   rcpt: [
     ///     action "forward_all" || {
-    ///       add_rcpt_envelop("my.address@foo.com");
-    ///       add_rcpt_envelop("my.address@bar.com");
-    ///       forward_all("127.0.0.1");
+    ///       envelop::add_rcpt("my.address@foo.com");
+    ///       envelop::add_rcpt("my.address@bar.com");
+    ///       transport::forward_all("127.0.0.1");
     ///     },
     ///     action "forward_all (obj)" || {
-    ///       add_rcpt_envelop("my.address@foo2.com");
-    ///       add_rcpt_envelop("my.address@bar2.com");
-    ///       forward_all(ip4("127.0.0.1"));
+    ///       envelop::add_rcpt("my.address@foo2.com");
+    ///       envelop::add_rcpt("my.address@bar2.com");
+    ///       transport::forward_all(ip4("127.0.0.1"));
     ///     },
     ///   ],
     /// }
@@ -173,26 +279,63 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
-    pub fn forward_all(context: &mut Context, forward: &str) -> EngineResult<()> {
+    #[rhai_fn(name = "forward_all", return_raw)]
+    pub fn forward_all(ncc: NativeCallContext, forward: &str) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_foreach(context, &Transfer::Forward(forward))
+        set_transport_foreach(&get_global!(ncc, ctx)?, &Transfer::Forward(forward))
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
-    pub fn forward_all_obj(context: &mut Context, forward: SharedObject) -> EngineResult<()> {
+    /// Set the delivery method to forwarding for all recipients.
+    /// After all rules are evaluated, forwarding will be used to deliver
+    /// the email.
+    ///
+    /// # Args
+    ///
+    /// * `target` - the target to forward the email to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup forwarding" || transport::forward_all(fqdn("mta-john.example.com")),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "forward_all", return_raw)]
+    pub fn forward_all_obj(ncc: NativeCallContext, forward: SharedObject) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport_foreach(context, &Transfer::Forward(forward))
+        set_transport_foreach(&get_global!(ncc, ctx)?, &Transfer::Forward(forward))
     }
 
-    /// Set the delivery method to [`Transfer::Deliver`] for a single recipient.
+    /// Set the delivery method to deliver for a single recipient.
+    /// After all rules are evaluated, the email will be sent
+    /// to the recipient using the domain of its address.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup delivery" || transport::deliver("john.doe@example.com"),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -200,23 +343,23 @@ mod transports_rhai {
     /// #{
     ///   rcpt: [
     ///     action "deliver (str/str)" || {
-    ///       add_rcpt_envelop("my.address@foo.com");
-    ///       deliver("my.address@foo.com");
+    ///       envelop::add_rcpt("my.address@foo.com");
+    ///       transport::deliver("my.address@foo.com");
     ///     },
     ///     action "deliver (obj/str)" || {
     ///       let rcpt = address("my.address@bar.com");
-    ///       add_rcpt_envelop(rcpt);
-    ///       deliver(rcpt);
+    ///       envelop::add_rcpt(rcpt);
+    ///       transport::deliver(rcpt);
     ///     },
     ///     action "deliver (str/obj)" || {
     ///       let target = ip6("::1");
-    ///       add_rcpt_envelop("my.address@baz.com");
-    ///       deliver("my.address@baz.com");
+    ///       envelop::add_rcpt("my.address@baz.com");
+    ///       transport::deliver("my.address@baz.com");
     ///     },
     ///     action "deliver (obj/obj)" || {
     ///       let rcpt = address("my.address@boz.com");
-    ///       add_rcpt_envelop(rcpt);
-    ///       deliver(rcpt);
+    ///       envelop::add_rcpt(rcpt);
+    ///       transport::deliver(rcpt);
     ///     },
     ///   ],
     /// }
@@ -243,20 +386,57 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, name = "deliver", return_raw, pure)]
-    pub fn deliver(context: &mut Context, rcpt: &str) -> EngineResult<()> {
-        set_transport_for_one(context, rcpt, &Transfer::Deliver)
+    #[rhai_fn(name = "deliver", return_raw)]
+    pub fn deliver(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
+        set_transport_for_one(&get_global!(ncc, ctx)?, rcpt, &Transfer::Deliver)
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "deliver", return_raw, pure)]
-    pub fn deliver_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
-        set_transport_for_one(context, &rcpt.to_string(), &Transfer::Deliver)
+    /// Set the delivery method to deliver for a single recipient.
+    /// After all rules are evaluated, the email will be sent
+    /// to the recipient using the domain of its address.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Example
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup delivery" || transport::deliver(address("john.doe@example.com")),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "deliver", return_raw)]
+    pub fn deliver_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for_one(
+            &get_global!(ncc, ctx)?,
+            &rcpt.to_string(),
+            &Transfer::Deliver,
+        )
     }
 
-    /// Set the delivery method to [`Transfer::Deliver`] for all recipients.
+    /// Set the delivery method to deliver for all recipients.
+    /// After all rules are evaluated, the email will be sent
+    /// to all recipients using the domain of their respective address.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup delivery" || transport::deliver_all(),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -264,9 +444,9 @@ mod transports_rhai {
     /// #{
     ///   rcpt: [
     ///     action "deliver_all" || {
-    ///       add_rcpt_envelop("my.address@foo.com");
-    ///       add_rcpt_envelop("my.address@bar.com");
-    ///       deliver_all();
+    ///       envelop::add_rcpt("my.address@foo.com");
+    ///       envelop::add_rcpt("my.address@bar.com");
+    ///       transport::deliver_all();
     ///     },
     ///   ],
     /// }
@@ -291,14 +471,32 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn deliver_all(context: &mut Context) -> EngineResult<()> {
-        set_transport_foreach(context, &Transfer::Deliver)
+    #[rhai_fn(return_raw)]
+    pub fn deliver_all(ncc: NativeCallContext) -> EngineResult<()> {
+        set_transport_foreach(&get_global!(ncc, ctx)?, &Transfer::Deliver)
     }
 
-    /// Set the delivery method to [`Transfer::Mbox`] for a single recipient.
+    /// Set the delivery method to mbox for a recipient.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in the mail box of the recipient if it exists on the server.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup mbox" || transport::mbox("john.doe@example.com"),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -307,10 +505,10 @@ mod transports_rhai {
     ///   rcpt: [
     ///     action "setup mbox" || {
     ///         const doe = address("doe@example.com");
-    ///         add_rcpt_envelop(doe);
-    ///         add_rcpt_envelop("a@example.com");
-    ///         mbox(doe);
-    ///         mbox("a@example.com");
+    ///         envelop::add_rcpt(doe);
+    ///         envelop::add_rcpt("a@example.com");
+    ///         transport::mbox(doe);
+    ///         transport::mbox("a@example.com");
     ///     },
     ///   ],
     /// }
@@ -335,20 +533,53 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, name = "mbox", return_raw, pure)]
-    pub fn mbox(context: &mut Context, rcpt: &str) -> EngineResult<()> {
-        set_transport_for_one(context, rcpt, &Transfer::Mbox)
+    #[rhai_fn(name = "mbox", return_raw)]
+    pub fn mbox(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
+        set_transport_for_one(&get_global!(ncc, ctx)?, rcpt, &Transfer::Mbox)
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "mbox", return_raw, pure)]
-    pub fn mbox_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
-        set_transport_for_one(context, &rcpt.to_string(), &Transfer::Mbox)
+    /// Set the delivery method to mbox for a recipient.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in the mail box of the recipient if it exists on the server.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Example
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup mbox" || transport::mbox(address("john.doe@example.com")),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "mbox", return_raw)]
+    pub fn mbox_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for_one(&get_global!(ncc, ctx)?, &rcpt.to_string(), &Transfer::Mbox)
     }
 
-    /// Set the delivery method to [`Transfer::Mbox`] for all recipients.
+    /// Set the delivery method to mbox for all recipients.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in the mail box of all recipients if they exists on the server.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup mbox" || transport::mbox_all(),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -357,9 +588,9 @@ mod transports_rhai {
     ///   rcpt: [
     ///     action "setup mbox" || {
     ///         const doe = address("doe@example.com");
-    ///         add_rcpt_envelop(doe);
-    ///         add_rcpt_envelop("a@example.com");
-    ///         mbox_all();
+    ///         envelop::add_rcpt(doe);
+    ///         envelop::add_rcpt("a@example.com");
+    ///         transport::mbox_all();
     ///     },
     ///   ],
     /// }
@@ -384,14 +615,31 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn mbox_all(context: &mut Context) -> EngineResult<()> {
-        set_transport_foreach(context, &Transfer::Mbox)
+    #[rhai_fn(return_raw)]
+    pub fn mbox_all(ncc: NativeCallContext) -> EngineResult<()> {
+        set_transport_foreach(&get_global!(ncc, ctx)?, &Transfer::Mbox)
     }
 
-    /// Set the delivery method to [`Transfer::Maildir`] for a single recipient.
+    /// Set the delivery method to maildir for a recipient.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in the `~/Maildir/new/` folder of the recipient's user if it exists on the server.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup maildir" || transport::maildir("john.doe@example.com"),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -400,10 +648,10 @@ mod transports_rhai {
     ///   rcpt: [
     ///     action "setup maildir" || {
     ///         const doe = address("doe@example.com");
-    ///         add_rcpt_envelop(doe);
-    ///         add_rcpt_envelop("a@example.com");
-    ///         maildir(doe);
-    ///         maildir("a@example.com");
+    ///         envelop::add_rcpt(doe);
+    ///         envelop::add_rcpt("a@example.com");
+    ///         transport::maildir(doe);
+    ///         transport::maildir("a@example.com");
     ///     },
     ///   ],
     /// }
@@ -428,20 +676,58 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, name = "maildir", return_raw, pure)]
-    pub fn maildir(context: &mut Context, rcpt: &str) -> EngineResult<()> {
-        set_transport_for_one(context, rcpt, &Transfer::Maildir)
+    #[rhai_fn(name = "maildir", return_raw)]
+    pub fn maildir(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
+        set_transport_for_one(&get_global!(ncc, ctx)?, rcpt, &Transfer::Maildir)
     }
 
-    #[doc(hidden)]
-    #[rhai_fn(global, name = "maildir", return_raw, pure)]
-    pub fn maildir_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
-        set_transport_for_one(context, &rcpt.to_string(), &Transfer::Maildir)
+    /// Set the delivery method to maildir for a recipient.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in the `~/Maildir/new/` folder of the recipient's user if it exists on the server.
+    ///
+    /// # Args
+    ///
+    /// * `rcpt` - the recipient to apply the method to.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Example
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup maildir" || transport::maildir(address("john.doe@example.com")),
+    ///     ]
+    /// }
+    /// ```
+    #[rhai_fn(name = "maildir", return_raw)]
+    pub fn maildir_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for_one(
+            &get_global!(ncc, ctx)?,
+            &rcpt.to_string(),
+            &Transfer::Maildir,
+        )
     }
 
-    /// Set the delivery method to [`Transfer::Maildir`] for all recipients.
+    /// Set the delivery method to maildir for all recipients.
+    /// After all rules are evaluated, the email will be stored
+    /// locally in each `~/Maildir/new` folder of they respective recipient
+    /// if they exists on the server.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
     ///
     /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     delivery: [
+    ///        action "setup maildir" || transport::maildir_all(),
+    ///     ]
+    /// }
+    /// ```
     ///
     /// ```
     /// # let states = vsmtp_test::vsl::run(
@@ -450,9 +736,9 @@ mod transports_rhai {
     ///   rcpt: [
     ///     action "setup maildir" || {
     ///         const doe = address("doe@example.com");
-    ///         add_rcpt_envelop(doe);
-    ///         add_rcpt_envelop("a@example.com");
-    ///         maildir_all();
+    ///         envelop::add_rcpt(doe);
+    ///         envelop::add_rcpt("a@example.com");
+    ///         transport::maildir_all();
     ///     },
     ///   ],
     /// }
@@ -477,17 +763,13 @@ mod transports_rhai {
     /// #   );
     /// # }
     /// ```
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn maildir_all(context: &mut Context) -> EngineResult<()> {
-        set_transport_foreach(context, &Transfer::Maildir)
+    #[rhai_fn(return_raw)]
+    pub fn maildir_all(ncc: NativeCallContext) -> EngineResult<()> {
+        set_transport_foreach(&get_global!(ncc, ctx)?, &Transfer::Maildir)
     }
 }
 
-fn set_transport_for_one(
-    context: &mut Context,
-    search: &str,
-    method: &Transfer,
-) -> EngineResult<()> {
+fn set_transport_for_one(context: &Context, search: &str, method: &Transfer) -> EngineResult<()> {
     vsl_missing_ok!(
         ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",
@@ -499,7 +781,7 @@ fn set_transport_for_one(
     .map(|rcpt| rcpt.transfer_method = method.clone())
 }
 
-fn set_transport_foreach(context: &mut Context, method: &Transfer) -> EngineResult<()> {
+fn set_transport_foreach(context: &Context, method: &Transfer) -> EngineResult<()> {
     vsl_missing_ok!(
         ref vsl_guard_ok!(context.write()).forward_paths_mut().ok(),
         "rcpt_list",

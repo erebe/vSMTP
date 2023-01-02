@@ -165,5 +165,5 @@ jobs:
         uses: docker/build-push-action@v3.2.0
         with:
           push: true
-          tags: "viridIT/vSMTP:${{ needs.create-release.outputs.release_version }}"
+          tags: "viridIT/vsmtp:${{ needs.create-release.outputs.release_version }}"
           dockerfile: ./docker/Dockerfile

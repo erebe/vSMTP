@@ -18,10 +18,10 @@ import "objects/mail" as mail;
             // to those received, use `append_header` from the `preq` stage and onward.
 
             // use string interpolation to insert variables into the header's value (or name!).
-            append_header("X-Connect", `from ${client_ip()}:${client_port()} at ${connection_timestamp()} by ${server_name()}`);
-            prepend_header(mail::info_header, "processing");
+            msg::append_header("X-Connect", `from ${ctx::client_ip()}:${ctx::client_port()} at ${ctx::connection_timestamp()} by ${ctx::server_name()}`);
+            msg::prepend_header(mail::info_header, "processing");
         }
     ],
 
-    rcpt: [ rule "reject relay" || deny(code554_7_1) ]
+    rcpt: [ rule "reject relay" || state::deny(code::c554_7_1()) ]
 }

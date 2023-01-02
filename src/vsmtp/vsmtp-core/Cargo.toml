@@ -20,6 +20,20 @@ rust-version = "1.63.0"
 
 build = "build.rs"
 
+[build-dependencies]
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.4.0-rc.7" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.4.0-rc.7" }
+vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "1.4.0-rc.7" }
+rhai = { version = "1.11.0", features = [
+    "unchecked",
+    "sync",
+    "internals",
+    "no_closure",
+    "metadata",
+] }
+serde_json = "1.0.89"
+serde = "1.0.152"
+
 [package.metadata.release]
 tag = true
 pre-release-replacements = [
@@ -31,6 +45,27 @@ pre-release-replacements = [
     { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
     { file = "Cargo.toml", prerelease = true, search = "rule-engine\\]\nversion = .*", replace = "rule-engine]\nversion = \"={{version}}\"" },
 ]
+
+[features]
+#! # Features flags
+#! Customize the build with the following [features flags](https://doc.rust-lang.org/cargo/reference/features.html):
+default = []
+
+#! ## Debugging
+
+## Enable the [`console-subscriber`](https://docs.rs/console-subscriber) layer to collect and aggregate the runtime's
+## [`tracing`](https://docs.rs/tracing) data, and use a gRPC server to exports telemetry to clients.
+##
+## * build the project using `RUSTFLAGS="--cfg tokio_unstable" cargo build --features tokio_console`.
+## * add `tokio=trace,runtime=trace` to the log level.
+## * run [`tokio-console`](https://docs.rs/tokio-console).
+tokio_console = ["dep:console-subscriber"]
+
+#! ## Documentation
+
+## Enable [document-features](https://docs.rs/document-features) to generate
+## the documentation of the dependencies and features flags.
+document-features = ["dep:document-features"]
 
 [dependencies.vsmtp-common]
 version = "=1.4.0-rc.7"
@@ -49,25 +84,44 @@ version = "=1.4.0-rc.7"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
-clap = { version = "4.0.29", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
+clap = { version = "4.0.32", default-features = false, features = [
+    "std",
+    "derive",
+    "cargo",
+    "usage",
+    "help",
+    "color",
+] }
 diff = { version = "0.1.13", default-features = false }
-serde_json = { version = "1.0.89", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.91", default-features = false, features = [
+    "std",
+] }
 
-anyhow = { version = "1.0.66", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 humantime = { version = "2.1.0", default-features = false }
 
-console-subscriber = { version = "0.1.7", optional = true, default-features = false }
-
-tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = ["smallvec", "fmt", "ansi", "std"] }
+tracing = { version = "0.1.37", default-features = false, features = [
+    "std",
+    "attributes",
+    "release_max_level_info",
+] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = [
+    "smallvec",
+    "fmt",
+    "ansi",
+    "std",
+] }
 tracing-appender = { version = "0.2.2", default-features = false }
 tracing-journald = { version = "0.3.0", default-features = false }
 syslog = { version = "6.0.1", default-features = false }
 
-[features]
-default = []
-tokio_console = ["console-subscriber"]
+document-features = { version = "0.2.7", optional = true }
+console-subscriber = { version = "0.1.7", optional = true, default-features = false }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 #
 # DEBIAN PACKAGING

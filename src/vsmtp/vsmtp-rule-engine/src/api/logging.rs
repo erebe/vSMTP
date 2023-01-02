@@ -16,37 +16,29 @@
 */
 
 use crate::api::SharedObject;
+#[allow(unused_imports)]
 use rhai::plugin::{
-    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
+    PluginFunction, RhaiResult, TypeId,
 };
 
-pub use logging_rhai::*;
+pub use logging::*;
 
+/// Logging mechanisms.
 #[rhai::plugin::export_module]
-mod logging_rhai {
+mod logging {
 
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "log")]
-    #[doc(hidden)]
-    pub fn log_str_obj(level: &str, message: SharedObject) {
-        log(level, &message.to_string());
-    }
-
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "log")]
-    #[doc(hidden)]
-    pub fn log_obj_str(level: &mut SharedObject, message: &str) {
-        log(&level.to_string(), message);
-    }
-
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "log")]
-    #[doc(hidden)]
-    pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
-        log(&level.to_string(), &message.to_string());
-    }
-
+    /// Log information to stdout in `nodaemon` mode or to a file.
+    ///
+    /// # Args
+    ///
+    /// * `level` - the level of the message, can be "trace", "debug", "info", "warn" or "error".
+    /// * `message` - the message to log.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
     /// # Examples
     ///
     /// ```
@@ -55,7 +47,145 @@ mod logging_rhai {
     /// #{
     ///   connect: [
     ///     action "log on connection (str/str)" || {
-    ///       log("info", `[${date()}/${time()}] client=${client_ip()}`);
+    ///       log("info", `[${date()}/${time()}] client=${ctx::client_ip()}`);
+    ///     },
+    ///     action "log on connection (str/obj)" || {
+    ///       log("error", identifier("Ehllo world!"));
+    ///     },
+    ///     action "log on connection (obj/obj)" || {
+    ///       const level = "trace";
+    ///       const message = "connection established";
+    ///
+    ///       log(identifier(level), identifier(message));
+    ///     },
+    ///     action "log on connection (obj/str)" || {
+    ///       const level = "warn";
+    ///
+    ///       log(identifier(level), "I love vsl!");
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "log")]
+    #[doc(hidden)]
+    pub fn log_str_obj(level: &str, message: SharedObject) {
+        log(level, &message.to_string());
+    }
+
+    /// Log information to stdout in `nodaemon` mode or to a file.
+    ///
+    /// # Args
+    ///
+    /// * `level` - the level of the message, can be "trace", "debug", "info", "warn" or "error".
+    /// * `message` - the message to log.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (str/str)" || {
+    ///       log("info", `[${date()}/${time()}] client=${ctx::client_ip()}`);
+    ///     },
+    ///     action "log on connection (str/obj)" || {
+    ///       log("error", identifier("Ehllo world!"));
+    ///     },
+    ///     action "log on connection (obj/obj)" || {
+    ///       const level = "trace";
+    ///       const message = "connection established";
+    ///
+    ///       log(identifier(level), identifier(message));
+    ///     },
+    ///     action "log on connection (obj/str)" || {
+    ///       const level = "warn";
+    ///
+    ///       log(identifier(level), "I love vsl!");
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "log", pure)]
+    #[doc(hidden)]
+    pub fn log_obj_str(level: &mut SharedObject, message: &str) {
+        log(&level.to_string(), message);
+    }
+
+    /// Log information to stdout in `nodaemon` mode or to a file.
+    ///
+    /// # Args
+    ///
+    /// * `level` - the level of the message, can be "trace", "debug", "info", "warn" or "error".
+    /// * `message` - the message to log.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (str/str)" || {
+    ///       log("info", `[${date()}/${time()}] client=${ctx::client_ip()}`);
+    ///     },
+    ///     action "log on connection (str/obj)" || {
+    ///       log("error", identifier("Ehllo world!"));
+    ///     },
+    ///     action "log on connection (obj/obj)" || {
+    ///       const level = "trace";
+    ///       const message = "connection established";
+    ///
+    ///       log(identifier(level), identifier(message));
+    ///     },
+    ///     action "log on connection (obj/str)" || {
+    ///       const level = "warn";
+    ///
+    ///       log(identifier(level), "I love vsl!");
+    ///     },
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// ```
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "log", pure)]
+    #[doc(hidden)]
+    pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
+        log(&level.to_string(), &message.to_string());
+    }
+
+    /// Log information to stdout in `nodaemon` mode or to a file.
+    ///
+    /// # Args
+    ///
+    /// * `level` - the level of the message, can be "trace", "debug", "info", "warn" or "error".
+    /// * `message` - the message to log.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// All of them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     action "log on connection (str/str)" || {
+    ///       log("info", `[${date()}/${time()}] client=${ctx::client_ip()}`);
     ///     },
     ///     action "log on connection (str/obj)" || {
     ///       log("error", identifier("Ehllo world!"));

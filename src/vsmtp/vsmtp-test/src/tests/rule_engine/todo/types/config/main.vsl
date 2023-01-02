@@ -25,12 +25,12 @@
 
             && cfg::app.dirpath == "./tmp/app"
             && cfg::app.vsl.domain_dir == "./tmp/nothing" {
-                next()
+                state::next()
             } else {
-                deny()
+                state::deny()
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing" || state::accept(),
    ],
 }

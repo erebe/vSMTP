@@ -184,7 +184,7 @@ mod try_from {
         fn try_from(inner: &InnerPublicKey) -> Result<Self, Self::Error> {
             match inner {
                 InnerPublicKey::Rsa(rsa) => {
-                    if rsa::PublicKeyParts::size(&rsa) * 8 < RSA_MINIMUM_ACCEPTABLE_KEY_SIZE {
+                    if rsa::PublicKeyParts::size(rsa) * 8 < RSA_MINIMUM_ACCEPTABLE_KEY_SIZE {
                         return Err(());
                     }
                     Ok(Self {

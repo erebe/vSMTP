@@ -79,7 +79,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo@bar");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
@@ -132,7 +132,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo@bar");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
@@ -181,7 +181,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo@bar");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
@@ -230,7 +230,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo@bar");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
@@ -357,7 +357,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo@bar");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
                 CodeID::Ok
             }
@@ -388,7 +388,7 @@ run_test! {
         Ok(builder.add_root_filter_rules(r#"#{
           mail: [
             rule "must be authenticated" || {
-              if is_authenticated() { next() } else { deny(code(530, "5.7.0", "Authentication required\r\n")) }
+              if auth::is_authenticated() { state::next() } else { state::deny(code(530, "5.7.0", "Authentication required\r\n")) }
             }
           ],
         }

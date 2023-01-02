@@ -17,23 +17,23 @@
 #{
     connect: [
         rule "test_status" || {
-            if next() is next()
-            && next() == next()
+            if state::next() is state::next()
+            && state::next() == state::next()
 
-            && next() not accept()
-            && next() != accept()
+            && state::next() not state::accept()
+            && state::next() != state::accept()
 
-            && next().to_string() == "next"
-            && next().to_debug() == "next" {
+            && state::next().to_string() == "next"
+            && state::next().to_debug() == "next" {
 
                 print(next());
                 print(accept());
                 print(faccept());
                 print(deny());
 
-                accept()
+                state::accept()
             } else {
-                deny()
+                state::deny()
             }
         }
     ]

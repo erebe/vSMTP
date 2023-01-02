@@ -1,13 +1,13 @@
 #{
     mail: [
-        rule "accept with code mail" || accept(code(0, "sender outgoing example.com")),
+        rule "accept with code mail" || state::accept(code(0, "sender outgoing example.com")),
     ],
 
     rcpt: [
-        rule "accept with code rcpt" || accept(code(0, "rcpt outgoing example.com")),
+        rule "accept with code rcpt" || state::accept(code(0, "rcpt outgoing example.com")),
     ],
 
     preq: [
-        action "add header" || append_header("X-OUTGOING", rcpt()),
+        action "add header" || msg::append_header("X-OUTGOING", ctx::rcpt()),
     ]
 }

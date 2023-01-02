@@ -3,20 +3,20 @@
     rule "test helo using a fqdn object" || {
       const bar = fqdn("example.com");
 
-      if helo() is bar && bar is helo() {
-        next()
+      if ctx::helo() is bar && bar is ctx::helo() {
+        state::next()
       } else {
-        deny()
+        state::deny()
       }
     },
 
     rule "test helo using a regex object" || {
       const com = regex("^[a-z0-9.]+.com$");
 
-      if helo() is com {
-        next()
+      if ctx::helo() is com {
+        state::next()
       } else {
-        deny()
+        state::deny()
       }
     },
   ]

@@ -66,7 +66,7 @@ run_test! {
             ) -> CodeID {
 
                 assert_eq!(mail.helo.client_name.to_string(), "foo");
-                assert_eq!(mail.mail_from.reverse_path.full(), "a@b");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("a@b")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
 
                 assert_eq!(
@@ -171,7 +171,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foo2");
-                assert_eq!(mail.mail_from.reverse_path.full(), "d@e");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("d@e")));
                 assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
                 assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
@@ -253,7 +253,7 @@ run_test! {
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foo");
-                assert_eq!(mail.mail_from.reverse_path.full(), "foo2@foo");
+                assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo2@foo")));
                 assert_eq!(*mail.rcpt_to.forward_paths,
                    vec![addr!("toto2@bar").into(), addr!("toto3@bar").into()]
                 );

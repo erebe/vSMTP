@@ -25,12 +25,14 @@
                 "stress5": "fhi",
             };
 
-            switch auth().type {
+            const credentials = auth::credentials();
+
+            switch credentials.type {
                 "Verify" => {
-                    if db[auth().authid] == auth().authpass {
-                        vsl::accept()
+                    if db[credentials.authid] == credentials.authpass {
+                        state::accept()
                     } else {
-                        vsl::deny()
+                        state::deny()
                     }
                 }
             }

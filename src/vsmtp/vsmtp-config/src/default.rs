@@ -38,7 +38,7 @@ impl Default for Config {
                     major: current_version.major,
                     minor: Some(current_version.minor),
                     patch: Some(current_version.patch),
-                    pre: semver::Prerelease::EMPTY,
+                    pre: current_version.pre,
                 },
                 semver::Comparator {
                     op: semver::Op::Less,

@@ -1,25 +1,27 @@
 #{
     mail: [
         rule "blacklist" || {
-            if mail_from().domain == "satan.org" {
-                const deny_satan = code(
+            const sender = ctx::mail_from();
+
+            if sender.domain == "satan.org" {
+                const deny_satan = obj::code(
                     501,
                     "4.7.1",
                     "satan is blacklisted on this server",
                 );
 
-                deny(deny_satan)
-            } else if mail_from().domain == "evil.com" {
-                const deny_evil = code(501, "4.7.1", "evil is blacklisted on this server");
+                state::deny(deny_satan)
+            } else if sender.domain == "evil.com" {
+                const deny_evil = obj::code(501, "4.7.1", "evil is blacklisted on this server");
 
-                deny(deny_evil)
-            } else if mail_from().domain == "unpleasant.eu" {
-                deny("501 4.7.1 unpleasant is blacklisted on this server")
+                state::deny(deny_evil)
+            } else if sender.domain == "unpleasant.eu" {
+                state::deny("501 4.7.1 unpleasant is blacklisted on this server")
             } else {
-                next()
+                state::next()
             }
         },
 
-        rule "mail trailing" || accept(),
+        rule "mail trailing" || state::accept(),
     ],
 }

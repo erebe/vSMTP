@@ -3,23 +3,23 @@ import "objects/net" as net;
 #{
     authenticate: [
         // Any incoming transaction should identify itself to the server.
-        rule "auth /etc/shadow" || { authenticate() },
+        rule "auth /etc/shadow" || { auth::unix_users() },
     ],
 
     mail: [
         // If the sender's domain is not handled in your configuration at this stage,
         // you can use the main script to apply rule.
         rule "check for untrusted email" || {
-            if mail_from() == net::untrusted_email {
-                deny(code_greylist)
+            if ctx::mail_from() == net::untrusted_email {
+                state::deny(code::c451_7_1())
             } else {
-                next()
+                state::next()
             }
         }
     ],
 
     rcpt: [
         // Deny any email that is not handled by our 'example.com' configuration.
-        rule "anti-relaying" || deny(code554_7_1),
+        rule "anti-relaying" || state::deny(code::c554_7_1()),
     ],
 }

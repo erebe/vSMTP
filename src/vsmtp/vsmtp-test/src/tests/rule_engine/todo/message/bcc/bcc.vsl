@@ -17,19 +17,19 @@
 
 fn invalid_object(obj) {
     try {
-        bcc(obj);
-        return deny();
+        envelop::bcc(obj);
+        return state::deny();
     } catch (err) {
-        if "invalid type conversion expected" in err { return next(); } else { return deny(); }
+        if "invalid type conversion expected" in err { return state::next(); } else { return state::deny(); }
     }
 }
 
 fn add_bcc(bcc) {
-    if bcc in rcpt_list() {
-        return deny();
+    if bcc in ctx::rcpt_list() {
+        return state::deny();
     }
 
-    bcc(bcc);
+    envelop::bcc(bcc);
 
-    if bcc in rcpt_list() { next() } else { deny() }
+    if bcc in ctx::rcpt_list() { state::next() } else { state::deny() }
 }

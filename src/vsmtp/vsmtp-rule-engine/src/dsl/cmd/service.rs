@@ -37,7 +37,7 @@ impl std::fmt::Display for Cmd {
 }
 
 impl Cmd {
-    /// run a cmd service.
+    /// run a cmd service with it's internal arguments.
     ///
     /// # Errors
     ///
@@ -45,11 +45,11 @@ impl Cmd {
     /// * if the group used to launch commands is not found.
     /// * if the cmd service failed to spawn.
     /// * if the cmd returned an error.
-    pub fn run(&self) -> anyhow::Result<rhai::Map> {
+    pub fn run(&self) -> anyhow::Result<std::process::ExitStatus> {
         self.run_inner(self.args.as_ref().unwrap_or(&vec![]))
     }
 
-    /// run a cmd service using dynamic arguments.
+    /// run a cmd service using the provided arguments.
     ///
     /// # Errors
     ///
@@ -57,7 +57,7 @@ impl Cmd {
     /// * if the group used to launch commands is not found.
     /// * if the cmd service failed to spawn.
     /// * if the cmd returned an error.
-    pub fn run_with_args(&self, args: &Vec<String>) -> anyhow::Result<rhai::Map> {
+    pub fn run_with_args(&self, args: &Vec<String>) -> anyhow::Result<std::process::ExitStatus> {
         self.run_inner(args)
     }
 
@@ -67,7 +67,7 @@ impl Cmd {
     /// * if the group used to launch commands is not found.
     /// * if the cmd service failed to spawn.
     /// * if the cmd returned an error.
-    pub fn run_inner(&self, args: &Vec<String>) -> anyhow::Result<rhai::Map> {
+    pub fn run_inner(&self, args: &Vec<String>) -> anyhow::Result<std::process::ExitStatus> {
         let mut child = std::process::Command::new(&self.command);
 
         child.args(args);
@@ -94,21 +94,24 @@ impl Cmd {
             Err(err) => anyhow::bail!("cmd process failed to spawn: {err:?}"),
         };
 
-        let status = match wait_timeout::ChildExt::wait_timeout(&mut child, self.timeout) {
-            Ok(status) => status.unwrap_or_else(|| {
+        match wait_timeout::ChildExt::wait_timeout(&mut child, self.timeout) {
+            Ok(status) => Ok(status.unwrap_or_else(|| {
                 child.kill().expect("child has already exited");
                 child.wait().expect("command wasn't running")
-            }),
+            })),
 
             Err(err) => anyhow::bail!("cmd unexpected error: {err:?}"),
-        };
+        }
+    }
 
+    /// Map an exit status code to a rhai map.
+    pub fn status_to_map(status: std::process::ExitStatus) -> rhai::Map {
         let code = status.code().map(i64::from).map(rhai::Dynamic::from);
         let signal = std::os::unix::prelude::ExitStatusExt::signal(&status)
             .map(i64::from)
             .map(rhai::Dynamic::from);
 
-        Ok(rhai::Map::from_iter([
+        rhai::Map::from_iter([
             ("has_code".into(), rhai::Dynamic::from_bool(code.is_some())),
             ("code".into(), code.unwrap_or(rhai::Dynamic::UNIT)),
             (
@@ -116,6 +119,6 @@ impl Cmd {
                 rhai::Dynamic::from_bool(signal.is_some()),
             ),
             ("signal".into(), signal.unwrap_or(rhai::Dynamic::UNIT)),
-        ]))
+        ])
     }
 }

@@ -4,9 +4,9 @@
             if in_domain(address("rcpt@testserver.com"))
             && in_domain("testserver.com")
             && server_name() == "testserver.com" {
-                accept()
+                state::accept()
             } else {
-                deny()
+                state::deny()
             }
         },
     ],
@@ -15,14 +15,14 @@
         action "reverse lookup" || print(`client ip: ${"127.0.0.1"} -> ${rlookup("127.0.0.1")}`),
 
         action "lookup recipients" || {
-            let domain = rcpt().domain;
-            let ips = lookup(domain);
+            let domain = ctx::rcpt().domain;
+            let ips = dns::lookup(domain);
 
             print(`ips found for ${domain}`);
             for ip in ips { print(`- ${ip}`); }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing" || state::accept(),
     ],
 
     preq: [
@@ -33,9 +33,9 @@
             && in_domain(address("john@unknown.com")) == false
             && in_domain("unknown.com") == false
             && in_domain("invalid") == false {
-                accept()
+                state::accept()
             } else {
-                deny()
+                state::deny()
             }
         }
     ],

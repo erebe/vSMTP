@@ -26,12 +26,29 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::use_self)]
+// Triggered by `rust_2018_idioms` for the `rhai::NativeCallContext`.
+// Rhai must do something with lifetimes in plugin modules to prevent
+// a Clone impl on the context, but it fails if adding an anonymous lifetime.
+#![allow(elided_lifetimes_in_paths)]
 
+macro_rules! block_on {
+    ($future:expr) => {
+        tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on($future))
+    };
+}
+
+/// DSL specifications for vsl.
 mod dsl {
+    /// Command plugin implementation.
     pub mod cmd;
+    /// Rules implementation.
     pub mod directives;
+    /// SMTP plugin implementation.
     pub mod smtp;
 }
+
+pub use dsl::cmd::new_module as new_module_cmd;
+pub use dsl::smtp::new_module as new_module_smtp;
 
 #[macro_use]
 mod error;
@@ -68,10 +85,20 @@ pub mod api {
     /// ``vSL`` object type implementation.
     pub use vsmtp_plugin_vsl::objects::{Object, SharedObject};
 
+    /// Authentication systems.
+    pub mod auth;
+    /// Default return codes exposed by vsmtp.
+    pub mod code;
     /// backend for DKIM functionality.
     pub mod dkim;
     /// backend for DMARC functionality.
     pub mod dmarc;
+    /// API to interact with the DNS.
+    pub mod dns;
+    /// Functions used to change the content of the envelop.
+    pub mod envelop;
+    /// API to write of the message on disk.
+    pub mod fs;
     /// Log a message of `level` in the `app` target, which will be written to the
     /// the fie you specified in the field `app.logs.filename` form the [`vsmtp_config::Config`].
     pub mod logging;
@@ -79,39 +106,57 @@ pub mod api {
     pub mod mail_context;
     /// Extensions for the [`MessageBody`](vsmtp_mail_parser::MessageBody) type.
     pub mod message;
-    /// Extensions for the [`MessageBody`](vsmtp_mail_parser::MessageBody) type.
-    pub mod message_parsed;
-    /// State Engine & filtering backend.
-    pub mod rule_state;
+    /// Default network ranges exposed by vsmtp.
+    pub mod net;
     /// backend for SPF functionality.
     pub mod spf;
+    /// State Engine & filtering backend.
+    pub mod state;
+    /// Functions to get date and time.
+    pub mod time;
     /// API for the delivery methods.
     pub mod transports;
-    /// Getter for common types
-    pub mod types;
-    /// utility methods.
+    /// Utility functions.
     pub mod utils;
-    /// API to write of the message on disk.
-    pub mod write;
 
-    rhai::def_package! {
-        /// vsl's standard api.
-        pub StandardVSLPackage(module) {
-            rhai::packages::StandardPackage::init(module);
+    // TODO: add read/write variants and vsl_guard_ok macro.
+    /// Fetch rule engine global variables by calling the rhai system functions.
+    #[macro_export]
+    macro_rules! get_global {
+        ($ncc:expr, ctx) => {
+            $ncc.call_fn::<$crate::api::Context>("ctx", ())
+        };
+        ($ncc:expr, srv) => {
+            $ncc.call_fn::<$crate::api::Server>("srv", ())
+        };
+        ($ncc:expr, msg) => {
+            $ncc.call_fn::<$crate::api::Message>("msg", ())
+        };
+    }
 
-            module
-                .combine(rhai::exported_module!(logging))
-                .combine(rhai::exported_module!(dkim))
-                .combine(rhai::exported_module!(dmarc))
-                .combine(rhai::exported_module!(rule_state))
-                .combine(rhai::exported_module!(spf))
-                .combine(rhai::exported_module!(transports))
-                .combine(rhai::exported_module!(utils))
-                .combine(rhai::exported_module!(write))
-                .combine(rhai::exported_module!(types))
-                .combine(rhai::exported_module!(mail_context))
-                .combine(rhai::exported_module!(message))
-                .combine(rhai::exported_module!(message_parsed));
-        }
+    /// Get vsmtp static modules.
+    #[must_use]
+    pub fn vsmtp_static_modules() -> [(&'static str, rhai::Module); 19] {
+        [
+            ("state", rhai::exported_module!(state)),
+            ("envelop", rhai::exported_module!(envelop)),
+            ("code", rhai::exported_module!(code)),
+            ("net", rhai::exported_module!(net)),
+            ("time", rhai::exported_module!(time)),
+            ("dns", rhai::exported_module!(dns)),
+            ("fs", rhai::exported_module!(fs)),
+            ("logging", rhai::exported_module!(logging)),
+            ("auth", rhai::exported_module!(auth)),
+            ("spf", rhai::exported_module!(spf)),
+            ("dkim", rhai::exported_module!(dkim)),
+            ("dmarc", rhai::exported_module!(dmarc)),
+            ("transport", rhai::exported_module!(transports)),
+            ("utils", rhai::exported_module!(utils)),
+            ("ctx", rhai::exported_module!(mail_context)),
+            ("msg", rhai::exported_module!(message)),
+            ("obj", vsmtp_plugin_vsl::new_module()),
+            ("cmd", crate::dsl::cmd::new_module()),
+            ("smtp", crate::dsl::smtp::new_module()),
+        ]
     }
 }

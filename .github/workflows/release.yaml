@@ -35,10 +35,6 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 0
-      - uses: mstachniuk/ci-skip@v1
-        with:
-          fail-fast: true
-          commit-filter: "(cargo-release)"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal

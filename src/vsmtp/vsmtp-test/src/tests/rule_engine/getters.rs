@@ -61,8 +61,8 @@ run_test! {
             ) -> vsmtp_common::CodeID {
 
                 assert_eq!(
-                    "john.doe@example.com",
-                    ctx.mail_from.reverse_path.full()
+                    Some(addr!("john.doe@example.com")),
+                    ctx.mail_from.reverse_path
                 );
 
                 assert_eq!(

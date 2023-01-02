@@ -15,57 +15,61 @@
  *
 */
 
-use crate::api::{mail_context::message_id, Context, EngineResult, Message, Server, SharedObject};
+use crate::api::{mail_context::message_id, Context, EngineResult, Message, Server};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
 
-pub use write_rhai::*;
+pub use fs::*;
 
+/// APIs to interact with the file system.
 #[rhai::plugin::export_module]
-mod write_rhai {
+mod fs {
+    use crate::get_global;
 
-    /// write the current email to a specified folder.
+    /// Export the current raw message to a file as an `eml` file.
+    /// The message id of the email is used to name the file.
+    ///
+    /// # Args
+    ///
+    /// * `dir` - the directory where to store the email. Relative to the
+    /// application path.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `preq` and onwards.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// #{
+    ///     preq: [
+    ///        action "write to file" || fs::write("archives"),
+    ///     ]
+    /// }
+    /// ```
     #[allow(clippy::needless_pass_by_value, clippy::module_name_repetitions)]
-    #[rhai_fn(global, name = "write", return_raw, pure)]
-    pub fn write_str(
-        srv: &mut Server,
-        mut ctx: Context,
-        message: Message,
-        dir: &str,
-    ) -> EngineResult<()> {
-        super::write(srv, &mut ctx, &message, dir)
-    }
-
-    /// write the current email to a specified folder.
-    #[allow(clippy::needless_pass_by_value, clippy::module_name_repetitions)]
-    #[rhai_fn(global, name = "write", return_raw, pure)]
-    pub fn write_obj(
-        srv: &mut Server,
-        mut ctx: Context,
-        message: Message,
-        dir: SharedObject,
-    ) -> EngineResult<()> {
-        super::write(srv, &mut ctx, &message, &dir.to_string())
-    }
-
-    /// write the content of the current email with it's metadata in a json file.
-    #[rhai_fn(global, name = "dump", return_raw, pure)]
-    pub fn dump_str(srv: &mut Server, mut ctx: Context, dir: &str) -> EngineResult<()> {
-        super::dump(srv, &mut ctx, dir)
+    #[rhai_fn(name = "write", return_raw)]
+    pub fn write_str(ncc: NativeCallContext, message: Message, dir: &str) -> EngineResult<()> {
+        super::write(
+            &get_global!(ncc, srv)?,
+            &get_global!(ncc, ctx)?,
+            &message,
+            dir,
+        )
     }
 
     /// write the content of the current email with it's metadata in a json file.
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "dump", return_raw, pure)]
-    pub fn dump_obj(srv: &mut Server, mut ctx: Context, dir: SharedObject) -> EngineResult<()> {
-        super::dump(srv, &mut ctx, &dir.to_string())
+    #[rhai_fn(name = "dump", return_raw)]
+    pub fn dump_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
+        super::dump(&get_global!(ncc, srv)?, &get_global!(ncc, ctx)?, dir)
     }
 }
 
 // TODO: handle canonicalization
-fn write(srv: &mut Server, ctx: &mut Context, message: &Message, dir: &str) -> EngineResult<()> {
+fn write(srv: &Server, ctx: &Context, message: &Message, dir: &str) -> EngineResult<()> {
     let mut dir = srv.config.app.dirpath.join(dir);
     std::fs::create_dir_all(&dir).map_err::<Box<EvalAltResult>, _>(|err| {
         format!("cannot create folder '{}': {err}", dir.display()).into()
@@ -90,7 +94,7 @@ fn write(srv: &mut Server, ctx: &mut Context, message: &Message, dir: &str) -> E
         .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
 }
 
-fn dump(srv: &mut Server, ctx: &mut Context, dir: &str) -> EngineResult<()> {
+fn dump(srv: &Server, ctx: &Context, dir: &str) -> EngineResult<()> {
     let mut dir = srv.config.app.dirpath.join(dir);
     std::fs::create_dir_all(&dir).map_err::<Box<EvalAltResult>, _>(|err| {
         format!("cannot create folder '{}': {err}", dir.display()).into()

@@ -18,19 +18,19 @@ fn replace_recipients_by_alias() {
     let alias_found = false;
 
     // iterate trough all recipients to check for aliases.
-    for rcpt in rcpt_list() {
+    for rcpt in ctx::rcpt_list() {
         let user = rcpt.local_part;
 
         // If the user is within our alias list, then
         // we can safely remove the recipient that
         // we will replace by our forwarding address.
         if user in al::my_aliases {
-            remove_rcpt_envelop(rcpt);
+            envelop::rm_rcpt(rcpt);
             alias_found = true;
         }
     }
 
     if alias_found == true {
-        add_rcpt_envelop(al::my_main_address);
+        envelop::add_rcpt(al::my_main_address);
     }
 }

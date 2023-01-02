@@ -18,24 +18,24 @@ import "../error_handling/errors" as err;
 
 #{
     connect: [
-        rule "short rule" || next(),
+        rule "short rule" || state::next(),
         action "short action" || {},
 
         rule "extended rule format" #{
             evaluate: || {
-                next()
+                state::next()
             },
             description: "an extended rule",
             color: "#ffffff",
         },
 
         action "extended action format" #{
-            evaluate: || next(),
+            evaluate: || state::next(),
             description: "an extended rule",
             color: "#ffffff",
         },
 
-        rule "trailing connect" || accept(),
+        rule "trailing connect" || state::accept(),
     ],
 
     helo: [
@@ -44,7 +44,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing helo" || deny(),
+        rule "trailing helo" || state::deny(),
     ],
 
     mail: [
@@ -53,14 +53,14 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing mail" || deny(),
+        rule "trailing mail" || state::deny(),
     ],
 
     rcpt: [
         rule "invalid action" || import "bad_action",
 
         // should not be reached.
-        rule "trailing rcpt" || deny(),
+        rule "trailing rcpt" || state::deny(),
     ],
 
     preq: [
@@ -69,7 +69,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing preq" || deny(),
+        rule "trailing preq" || state::deny(),
     ],
 
     postq: [
@@ -78,6 +78,6 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing postq" || deny(),
+        rule "trailing postq" || state::deny(),
     ],
 }

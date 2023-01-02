@@ -20,5 +20,5 @@
 //! Rules loaded by default if no configuration as been found for a domain's outgoing script.
 
 #{
-    mail: [ rule "outgoing deny by default" || deny() ],
+    mail: [ rule "outgoing deny by default" || state::deny() ],
 }

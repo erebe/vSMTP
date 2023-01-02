@@ -194,9 +194,8 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         )
     };
 
-    let writer_backend = writer_backend.with_filter(|metadata| {
-        metadata.target() != "vsmtp_rule_engine::api::logging::logging_rhai"
-    });
+    let writer_backend = writer_backend
+        .with_filter(|metadata| metadata.target() != "vsmtp_rule_engine::api::logging::logging");
 
     let app_logs = &config.app.logs.filename;
 
@@ -211,9 +210,8 @@ pub fn initialize(args: &Args, config: &Config) -> anyhow::Result<()> {
         )
     };
 
-    let writer_app = writer_app.with_filter(|metadata| {
-        metadata.target() == "vsmtp_rule_engine::api::logging::logging_rhai"
-    });
+    let writer_app = writer_app
+        .with_filter(|metadata| metadata.target() == "vsmtp_rule_engine::api::logging::logging");
 
     let subscriber = tracing_subscriber::registry().with({
         let mut e = tracing_subscriber::EnvFilter::default();

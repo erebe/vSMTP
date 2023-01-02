@@ -1,13 +1,13 @@
 #{
     connect: [
-        rule "accept any connection" || accept(code(0, "welcome to the test")),
+        rule "accept any connection" || state::accept(code(0, "welcome to the test")),
     ],
 
     mail: [
-        rule "accept any sender" || accept(code(0, `We accept everybody, even '${mail_from().domain}'`)),
+        rule "accept any sender" || state::accept(code(0, `We accept everybody, even '${ctx::mail_from().domain}'`)),
     ],
 
     rcpt: [
-        rule "unhandled domain" || deny(code(550, `unhandled domain. sender='${mail_from().domain}', rcpt='${rcpt().domain}'`)),
+        rule "unhandled domain" || state::deny(code(550, `unhandled domain. sender='${ctx::mail_from().domain}', rcpt='${ctx::rcpt().domain}'`)),
     ],
 }
