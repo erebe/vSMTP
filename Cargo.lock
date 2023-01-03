@@ -4270,7 +4270,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "1.4.0-rc.9"
+version = "1.4.0-rc.10"
 dependencies = [
  "anyhow",
  "async-stream",
