@@ -4062,7 +4062,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.4.0-rc.9"
+version = "1.4.0-rc.10"
 dependencies = [
  "addr",
  "anyhow",
