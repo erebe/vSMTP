@@ -8,11 +8,11 @@ license = "GPL-3.0-only"
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "A plugin for vSMTP that supports CSV databases"
 
-homepage = "https://github.com/viridIT/vsmtp-plugin-csv"
-repository = "https://github.com/viridIT/vsmtp-plugin-csv"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-plugin-csv/"
 
-readme = "README.md"
+readme = "../../../README.md"
 keywords = ["vsmtp", "csv"]
 categories = ["email", "database", "plugin"]
 
