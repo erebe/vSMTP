@@ -51,11 +51,11 @@ mod fs {
     /// ```
     #[allow(clippy::needless_pass_by_value, clippy::module_name_repetitions)]
     #[rhai_fn(name = "write", return_raw)]
-    pub fn write_str(ncc: NativeCallContext, message: Message, dir: &str) -> EngineResult<()> {
+    pub fn write_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
         super::write(
             &get_global!(ncc, srv)?,
             &get_global!(ncc, ctx)?,
-            &message,
+            &get_global!(ncc, msg)?,
             dir,
         )
     }

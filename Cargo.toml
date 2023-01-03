@@ -17,8 +17,8 @@ members = [
   # Plugins.
   "src/vsmtp/plugins/vsmtp-plugin-vsl",
 
-  # "src/vsmtp/plugins/vsmtp-plugin-csv",
-  # "src/vsmtp/plugins/vsmtp-plugin-mysql",
+  "src/plugins/vsmtp-plugin-csv",
+  "src/plugins/vsmtp-plugin-mysql",
 ]
 
 exclude = ["fuzz", "benchmarks/stress", "src/vsmtp/plugins/"]
