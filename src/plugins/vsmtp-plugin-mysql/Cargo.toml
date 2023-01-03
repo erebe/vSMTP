@@ -1,0 +1,65 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-plugin-mysql"
+version = "0.1.0"
+license = "GPL-3.0-only"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "A plugin for vSMTP that enable support for mysql databases"
+
+homepage = "https://github.com/viridIT/vsmtp-plugin-mysql"
+repository = "https://github.com/viridIT/vsmtp-plugin-mysql"
+documentation = "https://docs.rs/crate/vsmtp-plugin-mysql/"
+
+readme = "README.md"
+keywords = ["vsmtp", "mysql"]
+categories = ["email", "database", "plugin"]
+
+rust-version = "1.63.0"
+
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+rhai-autodocs = { git = "https://github.com/ltabis/rhai-autodocs.git" }
+vsmtp-rule-engine = { version = "=1.4.0-rc.9", path = "../../vsmtp/vsmtp-rule-engine" }
+
+rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
+mysql = { version = "23.0.0", default-features = false, features = ["rustls-tls", "buffer-pool"] }
+flate2 = { version = "1.0.24", default-features = false, features = ["zlib"] }
+mysql_common = { version = "0.29.1", default-features = false, features = [
+    "bigdecimal03",
+    "rust_decimal",
+    "time03",
+    "uuid",
+    "frunk",
+] }
+
+r2d2 = { version = "0.8.10", default-features = false }
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+serde = { version = "1.0.144", default-features = false, features = ["std", "derive"] }
+humantime-serde = { version = "1.1.1", default-features = false }
+
+[dependencies]
+# FIXME: necessary for vsl base types. Should those be split from the crate ?
+vsmtp-rule-engine = { version = "=1.4.0-rc.9", path = "../../vsmtp/vsmtp-rule-engine" }
+
+rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
+
+mysql = { version = "23.0.0", default-features = false, features = ["rustls-tls", "buffer-pool"] }
+flate2 = { version = "1.0.24", default-features = false, features = ["zlib"] }
+mysql_common = { version = "0.29.1", default-features = false, features = [
+    "bigdecimal03",
+    "rust_decimal",
+    "time03",
+    "uuid",
+    "frunk",
+] }
+
+r2d2 = { version = "0.8.10", default-features = false }
+anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
+serde = { version = "1.0.144", default-features = false, features = ["std", "derive"] }
+humantime-serde = { version = "1.1.1", default-features = false }

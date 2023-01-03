@@ -1,9 +1,3 @@
-[submodule "src/vsmtp/plugins/vsmtp-plugin-csv"]
-	path = src/vsmtp/plugins/vsmtp-plugin-csv
-	url = git@github.com:viridIT/vsmtp-plugin-csv.git
-[submodule "src/vsmtp/plugins/vsmtp-plugin-mysql"]
-	path = src/vsmtp/plugins/vsmtp-plugin-mysql
-	url = git@github.com:viridIT/vsmtp-plugin-mysql.git
 [submodule "src/vsmtp/plugins/vsmtp-plugin-ldap"]
 	path = src/vsmtp/plugins/vsmtp-plugin-ldap
 	url = git@github.com:viridIT/vsmtp-plugin-ldap.git
