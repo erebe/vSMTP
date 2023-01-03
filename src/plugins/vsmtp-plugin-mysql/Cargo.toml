@@ -8,11 +8,11 @@ license = "GPL-3.0-only"
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "A plugin for vSMTP that enable support for mysql databases"
 
-homepage = "https://github.com/viridIT/vsmtp-plugin-mysql"
-repository = "https://github.com/viridIT/vsmtp-plugin-mysql"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-plugin-mysql/"
 
-readme = "README.md"
+readme = "../../../README.md"
 keywords = ["vsmtp", "mysql"]
 categories = ["email", "database", "plugin"]
 

@@ -55,6 +55,8 @@ jobs:
           - path: "src/vsmtp/vsmtp-server"
           - path: "src/vsmtp/vsmtp-core"
           - path: "src/vsmtp/plugins/vsmtp-plugin-vsl"
+          - path: "src/plugins/vsmtp-plugin-csv"
+          - path: "src/plugins/vsmtp-plugin-mysql"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
