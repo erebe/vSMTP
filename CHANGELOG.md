@@ -13,11 +13,15 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [1.4.0-rc.9] - 2023-01-02
+### Plugin System
 
-### Added
+To extend the functionality of vSMTP, we have added a plugin system. You will be able to choose plugins you
+are interested in by importing them in your vSL script.
 
-* The `rhai-dylib` crate to handle Rust dynamic libraries with a Rhai API. (#753)
+Plugins are implemented as dynamic libraries, and are imported in rhai scripts using
+[`rhai-dylib`](https://crates.io/crates/rhai-dylib). (#753)
+
+Example:
 
 ```rust
 // import the dynamic library in Rhai.
@@ -27,11 +31,11 @@ import "/usr/lib/vsmtp/libvsmtp-plugin-csv" as db;
 db::csv(#{ ... });
 ```
 
-* A delegation feature gate on `vsmtp-rule-engine`. (#660)
+Implementing csv and mysql databases as a plugins. (#625)
 
-### Changed
+### Configuration in vSL
 
-* Configuration is written using Rhai. (#685)
+Previous configurations were written in TOML, now they are written in vSL. (#685)
 
 ```rust
 fn on_config(config) {
@@ -54,7 +58,12 @@ fn on_config(config) {
 }
 ```
 
-* vSL scripts are split between transaction types and handled sub domains. (#709)
+The `toml` vsl module has been renamed to `cfg`. (#709)
+
+### Filtering enhancement
+
+* The policy execution has changed, it depends on the virtual domain
+and the transaction types (incoming, outgoing, internal). (#709)
 
 ```
 /etc/vsmtp
@@ -77,7 +86,6 @@ fn on_config(config) {
       ┗ example.com -> /etc/vsmtp/domain-available/example.com
 ```
 
-* The `toml` vsl module has been renamed to `cfg`. (#709)
 * Changed the API of objects to be simple rhai functions, removing implicit `export` of
   objects. (#647)
 
@@ -88,9 +96,6 @@ object localhost ip4 = "127.0.0.1";
 const localhost = ip4("127.0.0.1");
 ```
 
-* Moved the csv database to an external plugin. (#625)
-* Moved the mysql database to an external plugin. (#625)
-* Moved vSL syntax to a crate for better reusability. (#660)
 * Remove Group object & function, replaced by Rhai arrays. (#660)
 
 ```js
@@ -101,6 +106,7 @@ const john = identifier("john.doe");
 const group = [ localhost, john ];
 ```
 
+* Moved vSL syntax to a crate for better reusability. (#660)
 * Remove File object, replaced by Rhai arrays. (#660)
 
 ```js
@@ -113,6 +119,7 @@ for addr in whitelist {
 ```
 
 * Add the support of null reverse path
+* A delegation cargo feature on `vsmtp-rule-engine`. (#660)
 
 ## [1.3.4] - 2022-10-20
 
