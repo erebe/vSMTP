@@ -4177,7 +4177,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-mysql"
-version = "1.4.0-rc.12"
+version = "1.4.0-rc.13"
 dependencies = [
  "anyhow",
  "flate2",
