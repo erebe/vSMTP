@@ -34,7 +34,7 @@ version = "=1.4.0-rc.13"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.12"
+version = "=1.4.0-rc.13"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-mail-parser]
