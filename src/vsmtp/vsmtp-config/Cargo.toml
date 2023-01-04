@@ -25,7 +25,7 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.11"
+version = "=1.4.0-rc.12"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-auth]
