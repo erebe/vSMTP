@@ -29,7 +29,7 @@ version = "=1.4.0-rc.11"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.11"
+version = "=1.4.0-rc.12"
 path = "../vsmtp-auth"
 
 [dependencies]
