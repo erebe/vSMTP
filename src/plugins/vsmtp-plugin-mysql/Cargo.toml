@@ -27,7 +27,7 @@ crate-type = ["cdylib"]
 
 [build-dependencies]
 rhai-autodocs = "0.1.0"
-vsmtp-rule-engine = { version = "=1.4.0-rc.10", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=1.4.0-rc.11", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.11.0", features = [
     "unchecked",
@@ -59,7 +59,7 @@ humantime-serde = { version = "1.1.1", default-features = false }
 
 [dependencies]
 # FIXME: necessary for vsl base types. Should those be split from the crate ?
-vsmtp-rule-engine = { version = "=1.4.0-rc.10", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=1.4.0-rc.11", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.11.0", features = [
     "unchecked",
