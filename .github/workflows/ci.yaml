@@ -46,10 +46,9 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v1
+      - uses: taiki-e/install-action@v2
         with:
-          crate: cargo-udeps
+          tool: cargo-udeps@0.1.35
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -63,10 +62,9 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v1
+      - uses: taiki-e/install-action@v2
         with:
-          crate: cargo-deny
+          tool: cargo-deny@0.13.5
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: ${{ env.RUST_MSRV }}
@@ -77,10 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v1
+      - uses: taiki-e/install-action@v2
         with:
-          crate: cargo-hack
+          tool: cargo-hack@0.5.25
       - run: cargo hack check --each-feature --no-dev-deps
   nextest:
     runs-on: ubuntu-latest
@@ -88,9 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v1
+      - uses: taiki-e/install-action@v2
         with:
-          crate: cargo-nextest
+          tool: cargo-nextest@0.9.48
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -125,7 +122,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -145,7 +141,6 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
