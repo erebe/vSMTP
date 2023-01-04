@@ -16,6 +16,8 @@ readme = "../../../README.md"
 keywords = ["vsmtp", "csv"]
 categories = ["email", "database", "plugin"]
 
+publish = false
+
 rust-version = "1.63.0"
 
 [lib]
