@@ -23,6 +23,9 @@ rust-version = "1.63.0"
 [lib]
 crate-type = ["cdylib"]
 
+[package.metadata.release]
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
+
 [dependencies]
 vsmtp-plugin-vsl = { version = "=1.4.0-rc.11", path = "../../vsmtp/plugins/vsmtp-plugin-vsl" }
 

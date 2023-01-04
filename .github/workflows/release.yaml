@@ -40,7 +40,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install cargo-release
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-release@0.24.2
       - run: cargo login ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - run: |
           git config --global user.name 'CI [bot]'
