@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.4.0-rc.11] - 2023-01-04
+
 ## [1.4.0-rc.10] - 2023-01-03
 
 ### Plugin System
