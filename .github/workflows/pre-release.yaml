@@ -38,7 +38,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install cargo-release
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-release@0.24.2
       - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --allow-branch "HEAD"
   check-cargo-pkg:
     strategy:
