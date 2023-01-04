@@ -4092,7 +4092,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "1.4.0-rc.10"
+version = "1.4.0-rc.11"
 dependencies = [
  "anyhow",
  "base64 0.20.0",
