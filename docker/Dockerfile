@@ -9,6 +9,8 @@ WORKDIR /vSMTP
 # Add dependencies
 RUN apk update && apk add musl-dev
 
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+
 # Run cargo
 RUN cargo install --force cargo-strip
 RUN cargo build --all --release
@@ -16,8 +18,6 @@ RUN cargo strip
 
 # Copy the binaries to a slimer image
 FROM alpine
-
-RUN apk update && apk add cyrus-sasl
 
 RUN adduser -D -H vsmtp
 
@@ -27,6 +27,8 @@ RUN mkdir /etc/vsmtp/ && chown vsmtp:vsmtp /etc/vsmtp/ && chmod 755 /etc/vsmtp/
 
 COPY --from=build vSMTP/target/release/vsmtp /usr/sbin/vsmtp
 COPY --from=build vSMTP/target/release/vqueue /usr/sbin/vqueue
-COPY --from=build vSMTP/examples/config/minimal.toml /etc/vsmtp/vsmtp.toml
+COPY --from=build vSMTP/target/release/libvsmtp_plugin_csv.so /usr/sbin/libvsmtp_plugin_csv.so
+COPY --from=build vSMTP/target/release/libvsmtp_plugin_mysql.so /usr/sbin/libvsmtp_plugin_mysql.so
+COPY --from=build vSMTP/examples/config/minimal.vsl /etc/vsmtp/vsmtp.vsl
 
 EXPOSE 25/tcp 465/tcp 587/tcp
