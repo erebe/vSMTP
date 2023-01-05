@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-plugin-mysql"
-version = "1.4.0-rc.13"
+version = "1.4.0-rc.14"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -30,7 +30,7 @@ pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
 
 [build-dependencies]
 rhai-autodocs = "0.1.0"
-vsmtp-rule-engine = { version = "=1.4.0-rc.13", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=1.4.0-rc.14", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 mysql = { version = "23.0.0", default-features = false, features = ["rustls-tls", "buffer-pool"] }
@@ -50,7 +50,7 @@ humantime-serde = { version = "1.1.1", default-features = false }
 
 [dependencies]
 # FIXME: necessary for vsl base types. Should those be split from the crate ?
-vsmtp-rule-engine = { version = "=1.4.0-rc.13", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=1.4.0-rc.14", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 

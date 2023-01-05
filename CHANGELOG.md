@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.4.0-rc.14] - 2023-01-05
+
 ## [1.4.0-rc.13] - 2023-01-04
 
 ## [1.4.0-rc.12] - 2023-01-04
