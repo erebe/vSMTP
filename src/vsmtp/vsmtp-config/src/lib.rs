@@ -203,15 +203,15 @@ impl Config {
     }
 
     fn default_json() -> anyhow::Result<rhai::Map> {
-        let mut config = Self::default();
+        let mut config = Self::default_with_current_user_and_group();
 
-        // NOTE: serde_json will try to serialize those fields using
-        //       the `ReplyCode` `parse` function, which will fail with
-        //       multi line codes. Those codes will be added later with
-        //       `[Self::ensure]`.
+        // FIXME: serde_json will try to serialize those fields using
+        //        the `ReplyCode` `parse` function, which will fail with
+        //        multi line codes. Those codes will be added later with
+        //        `[Self::ensure]`.
         //
-        //      This is a workaround and should be fixed by parsing multi-line
-        //      ehlo codes.
+        //        This is a workaround and should be fixed by parsing multi-line
+        //        ehlo codes.
         config
             .server
             .smtp
@@ -223,7 +223,31 @@ impl Config {
             .codes
             .remove(&vsmtp_common::CodeID::EhloSecured);
 
-        Ok(rhai::Engine::new().parse_json(serde_json::to_string(&config)?, true)?)
+        let mut config_json =
+            rhai::Engine::new().parse_json(serde_json::to_string(&config)?, true)?;
+
+        // We remove the created default `vsmtp` user & group so the server can use the right defaults if the
+        // user does not specify any user / group in it's configuration.
+        //
+        // See `default_with_current_user_and_group` for context.
+        {
+            let server = &mut *config_json
+                .get_mut("server")
+                .expect("server key should be present")
+                .write_lock::<rhai::Map>()
+                .expect("failed to lock server config option");
+
+            let system = &mut *server
+                .get_mut("system")
+                .expect("system key should be present")
+                .write_lock::<rhai::Map>()
+                .expect("failed to lock system config option");
+
+            system.remove("user");
+            system.remove("group");
+        }
+
+        Ok(config_json)
     }
 
     /// Get the configuration for a virtual domain.

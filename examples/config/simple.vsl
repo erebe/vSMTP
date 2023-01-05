@@ -1,6 +1,4 @@
 fn on_config(config) {
-
-
     config.server.name = "my.fqdn.com";
 
     config.server.system = #{
