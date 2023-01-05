@@ -55,6 +55,76 @@ impl Default for Config {
     }
 }
 
+impl Config {
+    /// This function is primarily used to inject a config structure into vsl.
+    ///
+    /// Context: groups & users MUST be initialized when creating a default configuration.
+    /// The configuration COULD be changed in a `vsmtp.vsl` or `config.vsl` script.
+    /// But rust does not know that in advance, thus, even tough the user does not
+    /// want to use the 'vsmtp' user by default, vsmtp will try to get that user
+    /// when creating a default config. This leads to users that MUST create a 'vsmtp'
+    /// user, even tough they want to change it in the configuration.
+    ///
+    /// We could also wrap the user & group configuration variable into an enum, but that will lead
+    /// either to a lot of match patters to check if they are set or not, or simply more
+    /// unwrap because we know that after the config has been loaded that it is correct.
+    #[must_use]
+    pub(crate) fn default_with_current_user_and_group() -> Self {
+        let current_version =
+            semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("valid semver");
+        Self {
+            version_requirement: semver::VersionReq::from_iter([
+                semver::Comparator {
+                    op: semver::Op::GreaterEq,
+                    major: current_version.major,
+                    minor: Some(current_version.minor),
+                    patch: Some(current_version.patch),
+                    pre: current_version.pre,
+                },
+                semver::Comparator {
+                    op: semver::Op::Less,
+                    major: current_version.major + 1,
+                    minor: Some(0),
+                    patch: Some(0),
+                    pre: semver::Prerelease::EMPTY,
+                },
+            ]),
+            server: FieldServer {
+                // NOTE: Dirty fix to prevent vsmtp 'default user not found' error message
+                //       when injecting a default config instance in vsl config.
+                system: FieldServerSystem {
+                    user: {
+                        let uid = users::get_current_uid();
+
+                        users::get_user_by_uid(uid).expect("current uid must be valid")
+                    },
+                    group: {
+                        let gid = users::get_current_gid();
+
+                        users::get_group_by_gid(gid).expect("current gid must be valid")
+                    },
+                    group_local: None,
+                    thread_pool: FieldServerSystemThreadPool::default(),
+                },
+                // All of this is necessary since `FieldServer` implements a custom
+                // default function instead of using the derivative macro.
+                name: FieldServer::hostname(),
+                client_count_max: FieldServer::default_client_count_max(),
+                message_size_limit: FieldServer::default_message_size_limit(),
+                interfaces: FieldServerInterfaces::default(),
+                logs: FieldServerLogs::default(),
+                queues: FieldServerQueues::default(),
+                tls: None,
+                smtp: FieldServerSMTP::default(),
+                dns: FieldServerDNS::default(),
+                r#virtual: std::collections::BTreeMap::default(),
+            },
+            app: FieldApp::default(),
+            path: None,
+        }
+    }
+}
+
 impl Default for FieldServer {
     fn default() -> Self {
         Self {
@@ -104,7 +174,7 @@ impl FieldServerSystem {
             Some(_) => "root",
             None => "vsmtp",
         })
-        .expect("user 'vsmtp' not found")
+        .expect("default user 'vsmtp' not found.")
     }
 
     pub(crate) fn default_group() -> users::Group {
@@ -112,7 +182,7 @@ impl FieldServerSystem {
             Some(_) => "root",
             None => "vsmtp",
         })
-        .expect("user 'vsmtp' not found")
+        .expect("default group 'vsmtp' not found.")
     }
 }
 
