@@ -46,7 +46,7 @@ version = "=1.4.0-rc.14"
 path = "../vsmtp-mail-parser"
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.13"
+version = "=1.4.0-rc.14"
 path = "../vsmtp-auth"
 
 [dependencies.vqueue]
