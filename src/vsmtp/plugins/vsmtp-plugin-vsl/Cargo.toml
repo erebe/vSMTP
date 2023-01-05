@@ -24,7 +24,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.13" }
+vsmtp-common = { path = "../../vsmtp-common", version = "=1.4.0-rc.14" }
 
 rhai = { version = "1.11.0", features = [
     "unchecked",
