@@ -4313,7 +4313,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "1.4.0-rc.13"
+version = "1.4.0-rc.14"
 dependencies = [
  "anyhow",
  "async-trait",
