@@ -18,15 +18,15 @@ jobs:
         run: |
           echo ${{ github.event.pull_request.labels.*.name }}
           if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
-            echo '::set-output name=BUMP::rc'
+            echo "BUMP=rc" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-release') }}; then
-            echo '::set-output name=BUMP::release'
+            echo "BUMP=release" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
-            echo '::set-output name=BUMP::patch'
+            echo "BUMP=patch" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
-            echo '::set-output name=BUMP::minor'
+            echo "BUMP=minor" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-major') }}; then
-            echo '::set-output name=BUMP::major'
+            echo "BUMP=major" >> $GITHUB_OUTPUT
           else
             exit 1
           fi

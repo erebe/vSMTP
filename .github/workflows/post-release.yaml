@@ -54,6 +54,8 @@ jobs:
             host_os: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
             host_os: ubuntu-20.04
+          - target: aarch64-unknown-linux-gnu
+            host_os: ubuntu-22.04
     runs-on: ${{ matrix.host_os }}
     steps:
       - uses: actions/checkout@v3
@@ -68,6 +70,14 @@ jobs:
           cargo build
           cd ..
       - run: rustup target add ${{ matrix.target }}
+      - run: |
+          echo "asset name will be"
+          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
+            var suffix="arm64"
+          else
+            var suffix="amd64"
+          fi
+          echo "vsmtp_${{ needs.create-release.outputs.release_version }}+${${{ matrix.target }}//-/}_${suffix}.deb"
       - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: |
           cat > ~/.cargo/config <<EOF
@@ -166,4 +176,5 @@ jobs:
         with:
           push: true
           tags: "viridit/vsmtp:${{ needs.create-release.outputs.release_version }}"
+          platforms: linux/amd64,linux/arm64
           file: ./docker/Dockerfile

@@ -15,15 +15,15 @@ jobs:
       - run: |
           echo ${{ github.event.pull_request.labels.*.name }}
           if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
-            echo '::set-output name=BUMP::rc'
+            echo "BUMP=rc" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-release') }}; then
-            echo '::set-output name=BUMP::release'
+            echo "BUMP=release" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
-            echo '::set-output name=BUMP::patch'
+            echo "BUMP=patch" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
-            echo '::set-output name=BUMP::minor'
+            echo "BUMP=minor" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-major') }}; then
-            echo '::set-output name=BUMP::major'
+            echo "BUMP=major" >> $GITHUB_OUTPUT
           else
             exit 1
           fi
@@ -111,3 +111,14 @@ jobs:
           RUSTFLAGS: "--cfg procmacro2_semver_exempt"
       - run: sudo apt-get update && sudo apt-get install -y lintian
       - run: lintian ./target/${{ matrix.target }}/debian/*.deb
+  check-docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-buildx-action@v2
+      - name: Build, tag, and push
+        uses: docker/build-push-action@v3.2.0
+        with:
+          tags: "viridit/vsmtp:testing"
+          platforms: linux/amd64,linux/arm64
+          file: ./docker/Dockerfile
