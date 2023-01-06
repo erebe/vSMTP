@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vqueue"
-version = "1.4.0-rc.14"
+version = "1.4.0-rc.15"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
