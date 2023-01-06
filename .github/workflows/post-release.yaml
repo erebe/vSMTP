@@ -56,6 +56,7 @@ jobs:
             host_os: ubuntu-20.04
           - target: aarch64-unknown-linux-gnu
             host_os: ubuntu-22.04
+    continue-on-error: true
     runs-on: ${{ matrix.host_os }}
     steps:
       - uses: actions/checkout@v3
@@ -133,12 +134,10 @@ jobs:
         with:
           key: ${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.target }}
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
-          target: ${{ matrix.target }}
+          targets: ${{ matrix.target }}
       - name: Build release binary
         run: cargo build --target ${{ matrix.target }} --verbose --release
       - name: Build archive
