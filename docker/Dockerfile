@@ -19,6 +19,8 @@ RUN cargo strip
 # Copy the binaries to a slimer image
 FROM alpine
 
+RUN apk upgrade --no-cache && apk add --no-cache libgcc
+
 RUN adduser -D -H vsmtp
 
 RUN mkdir /var/log/vsmtp/ && chown vsmtp:vsmtp /var/log/vsmtp/ && chmod 755 /var/log/vsmtp/

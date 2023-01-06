@@ -32,11 +32,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.toolchain }}-${{ matrix.path }}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: ${{ matrix.toolchain }}
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -49,11 +47,9 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-udeps@0.1.35
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly
-          profile: minimal
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
@@ -85,14 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest@0.9.48
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: nextest
@@ -103,10 +97,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly-2022-08-08
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -122,11 +115,9 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: "rustfmt, clippy"
       - uses: actions-rs/cargo@v1
         with:
@@ -141,11 +132,9 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
-          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: doc

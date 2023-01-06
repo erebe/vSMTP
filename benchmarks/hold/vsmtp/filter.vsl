@@ -1,0 +1,3 @@
+#{
+    connect: [ rule "hold emails" || state::quarantine("hold") ]
+}

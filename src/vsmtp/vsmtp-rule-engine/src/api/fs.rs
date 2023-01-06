@@ -42,14 +42,29 @@ mod fs {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # let dir = tempfile::tempdir().expect("fs api: failed to create tmpdir");
+    /// # let mut config = vsmtp_test::config::local_test();
+    /// # config.app.dirpath = dir.path().into();
+    ///
+    /// # vsmtp_test::vsl::run_with_msg_and_config(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
     /// #{
     ///     preq: [
     ///        action "write to file" || fs::write("archives"),
     ///     ]
     /// }
+    /// # "#)?.build()),
+    /// # None,
+    /// # config,
+    /// # );
+    /// # eprintln!("{:?}", dir.path());
+    /// # assert!(std::path::PathBuf::from_iter([
+    /// #     dir.path(),
+    /// #     &std::path::Path::new("archives")
+    /// # ]).exists());
     /// ```
-    #[allow(clippy::needless_pass_by_value, clippy::module_name_repetitions)]
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "write", return_raw)]
     pub fn write_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
         super::write(
@@ -60,7 +75,42 @@ mod fs {
         )
     }
 
-    /// write the content of the current email with it's metadata in a json file.
+    /// Write the content of the current email with it's metadata in a json file.
+    /// The message id of the email is used to name the file.
+    ///
+    /// # Args
+    ///
+    /// * `dir` - the directory where to store the email. Relative to the
+    /// application path.
+    ///
+    /// # Effective smtp stage
+    ///
+    /// `preq` and onwards.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let dir = tempfile::tempdir().expect("fs api: failed to create tmpdir");
+    /// # let mut config = vsmtp_test::config::local_test();
+    /// # config.app.dirpath = dir.path().into();
+    ///
+    /// # vsmtp_test::vsl::run_with_msg_and_config(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///     preq: [
+    ///        action "write to file" || fs::dump("metadata"),
+    ///     ]
+    /// }
+    /// # "#)?.build()),
+    /// # None,
+    /// # config,
+    /// # );
+    /// # eprintln!("{:?}", dir.path());
+    /// # assert!(std::path::PathBuf::from_iter([
+    /// #     dir.path(),
+    /// #     &std::path::Path::new("metadata")
+    /// # ]).exists());
+    /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "dump", return_raw)]
     pub fn dump_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
