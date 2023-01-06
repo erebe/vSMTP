@@ -16,7 +16,7 @@
 */
 #{
     authenticate: [
-        rule "auth hardcoded" || {
+        rule "hardcoded auth" || {
             let db = #{
                 "stress1": "abc",
                 "stress2": "bcd",
