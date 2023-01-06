@@ -67,9 +67,9 @@ mod logging {
     /// }
     /// # "#)?.build()));
     /// ```
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
-    #[doc(hidden)]
     pub fn log_str_obj(level: &str, message: SharedObject) {
         log(level, &message.to_string());
     }
@@ -113,9 +113,9 @@ mod logging {
     /// }
     /// # "#)?.build()));
     /// ```
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log", pure)]
-    #[doc(hidden)]
     pub fn log_obj_str(level: &mut SharedObject, message: &str) {
         log(&level.to_string(), message);
     }
@@ -159,9 +159,9 @@ mod logging {
     /// }
     /// # "#)?.build()));
     /// ```
+    #[doc(hidden)]
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log", pure)]
-    #[doc(hidden)]
     pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
         log(&level.to_string(), &message.to_string());
     }

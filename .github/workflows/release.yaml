@@ -18,15 +18,15 @@ jobs:
         run: |
           echo ${{ github.event.pull_request.labels.*.name }}
           if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
-            echo '::set-output name=BUMP::rc'
+            echo "BUMP=rc" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-release') }}; then
-            echo '::set-output name=BUMP::release'
+            echo "BUMP=release" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
-            echo '::set-output name=BUMP::patch'
+            echo "BUMP=patch" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
-            echo '::set-output name=BUMP::minor'
+            echo "BUMP=minor" >> $GITHUB_OUTPUT
           elif ${{ contains(github.event.pull_request.labels.*.name, 'B-major') }}; then
-            echo '::set-output name=BUMP::major'
+            echo "BUMP=major" >> $GITHUB_OUTPUT
           else
             exit 1
           fi
@@ -35,11 +35,9 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 0
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-release@0.24.2

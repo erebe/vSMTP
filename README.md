@@ -167,7 +167,7 @@ Comparison between Postfix 3.6.4 & vSMTP 1.0.1 performances, performed on a Ubun
   </a>
 </div>
 
-Check out the [benchmarks readme](./benchmarks/README.md#benchmarks) to get reproducible examples.
+Check out the ["hold" benchmark readme](./benchmarks/hold/README.md) to reproduce the above example, and the [benchmarks readme](./benchmarks/README.md#benchmarks) to try other benchmarks.
 
 ## Documentation
 

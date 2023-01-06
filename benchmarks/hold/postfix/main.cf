@@ -1,0 +1,12 @@
+smtpd_banner = $myhostname ESMTP $mail_name
+
+compatibility_level = 2
+
+smtpd_client_restrictions = permit_mynetworks
+smtpd_recipient_restrictions = static:hold
+
+message_size_limit = 200000000
+
+myhostname = host.example.com
+mydestination = postfix.com
+mynetworks = 127.0.0.0/24

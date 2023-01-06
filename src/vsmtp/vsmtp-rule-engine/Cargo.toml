@@ -118,7 +118,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "tokio-runtime",
 ] }
 
-tokio = { version = "1.23.0", default-features = false, features = [
+tokio = { version = "1.23.1", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -149,3 +149,4 @@ rsa = { version = "0.7.2", default-features = false, features = [
   "pem",
   # "serde" # TODO
 ] }
+tempfile = { version = "3.2.0", optional = false, default-features = false }
