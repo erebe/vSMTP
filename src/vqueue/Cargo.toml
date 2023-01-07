@@ -62,7 +62,7 @@ serde_json = { version = "1.0.91", default-features = false, features = [
 ] }
 strum = { version = "0.24.1", features = ["std", "derive"] }
 
-tokio = { version = "1.23.1", default-features = false, features = [
+tokio = { version = "1.24.1", default-features = false, features = [
     "macros",
     "time",
     "sync",
