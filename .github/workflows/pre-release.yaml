@@ -81,6 +81,14 @@ jobs:
     runs-on: ${{ matrix.host_os }}
     steps:
       - uses: actions/checkout@v3
+      - run: |
+          echo "asset name will be"
+          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
+            suffix="arm64"
+          else
+            suffix="amd64"
+          fi
+          echo "vsmtp_${{ needs.create-release.outputs.release_version }}+${${{ matrix.target }}//-/}_${suffix}.deb"
       - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: |
           sudo apt-get update && sudo apt-get install -y \
