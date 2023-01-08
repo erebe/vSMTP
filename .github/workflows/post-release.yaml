@@ -71,14 +71,6 @@ jobs:
           cargo build
           cd ..
       - run: rustup target add ${{ matrix.target }}
-      - run: |
-          echo "asset name will be"
-          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
-            suffix="arm64"
-          else
-            suffix="amd64"
-          fi
-          echo "vsmtp_${{ needs.create-release.outputs.release_version }}+${${{ matrix.target }}//-/}_${suffix}.deb"
       - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: |
           cat > ~/.cargo/config <<EOF
@@ -102,6 +94,17 @@ jobs:
           asset_filename=`ls $asset_folder | head -n 1`
           echo "$asset_folder/$asset_filename"
           echo "ASSET=$asset_folder/$asset_filename" >> $GITHUB_ENV
+
+          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
+            suffix="arm64"
+          else
+            suffix="amd64"
+          fi
+          os_version=${{ matrix.host_os }}
+          os_version=${os_version//-/}
+          asset_name="vsmtp_${{ needs.create-release.outputs.release_version }}+${os_version}_${suffix}.deb"
+          echo "asset name will be $asset_name"
+          echo "ASSET_NAME=$asset_name" >> $GITHUB_ENV
       - name: Upload release archive
         uses: actions/upload-release-asset@v1.0.2
         env:
@@ -109,7 +112,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ env.ASSET }}
-          asset_name: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET_NAME }}
           asset_content_type: application/octet-stream
   build-release:
     name: build-release
