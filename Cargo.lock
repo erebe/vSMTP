@@ -4150,7 +4150,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "1.4.0-rc.15"
+version = "1.4.0-rc.16"
 dependencies = [
  "anyhow",
  "async-trait",
