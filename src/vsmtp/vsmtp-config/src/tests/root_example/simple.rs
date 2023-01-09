@@ -26,7 +26,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_vsl_file(&path_to_config).unwrap(),
         Config::builder()
-            .with_version_str(&format!(">={}, <2.0.0", env!("CARGO_PKG_VERSION")))
+            .with_version_str(&format!(">={}, <3.0.0", env!("CARGO_PKG_VERSION")))
             .unwrap()
             .with_path(path_to_config)
             .with_server_name("my.fqdn.com")

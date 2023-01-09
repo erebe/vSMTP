@@ -3,7 +3,5 @@ import "conf.d/config" as cfg;
 fn on_config(config) {
     let config = cfg::on_config(config);
 
-
-
     config
 }

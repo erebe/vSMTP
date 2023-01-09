@@ -177,14 +177,14 @@ If you want to check examples for the latest vSMTP versions, switch to the "main
 are delivered.
 
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
-Documentation for the "develop" branch is also available in the vBook at https://vsmtp.rs/next
+Documentation for the "develop" branch is also available in the vBook at <https://vsmtp.rs/next>
 
 To stay tuned, ask questions and get in-depth answers feel free to join our [Discord](https://discord.gg/N8JGBRBshf) server.
 You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
 
-The next releases "1.4.x" focuses on plugin development for vSMTP. You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
+You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
 
 Check out updates history in [Changelogs](https://github.com/viridIT/vSMTP/blob/develop/CHANGELOG.md).
 

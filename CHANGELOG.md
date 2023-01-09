@@ -41,7 +41,7 @@ Previous configurations were written in TOML, now they are written in vSL. (#685
 
 ```rust
 fn on_config(config) {
-  config.version_requirement = ">=1.4.0, <2.0.0";
+  config.version_requirement = ">=2.0.0, <3.0.0";
 
   config.server.name = "my.fqdn.com";
 
