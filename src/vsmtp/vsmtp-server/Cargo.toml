@@ -42,7 +42,7 @@ version = "=1.4.0-rc.16"
 path = "../vsmtp-mail-parser"
 
 [dependencies.vqueue]
-version = "=1.4.0-rc.15"
+version = "=1.4.0-rc.16"
 path = "../../vqueue"
 
 [dependencies.vsmtp-protocol]
