@@ -54,7 +54,7 @@ version = "=1.4.0-rc.16"
 path = "../vsmtp-delivery"
 
 [dependencies.vsmtp-rule-engine]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
