@@ -17,6 +17,7 @@
 
 use super::{Canonicalization, SigningAlgorithm};
 use crate::ParseError;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use vsmtp_mail_parser::RawBody;
 
 #[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display, Default)]
@@ -281,16 +282,20 @@ impl std::str::FromStr for Signature {
                     );
                 }
                 ("bh", p_body_hash) => {
-                    base64::decode(p_body_hash).map_err(|e| ParseError::SyntaxError {
-                        reason: format!("failed to pase `body_hash`: got `{e}`"),
-                    })?;
+                    STANDARD
+                        .decode(p_body_hash)
+                        .map_err(|e| ParseError::SyntaxError {
+                            reason: format!("failed to pase `body_hash`: got `{e}`"),
+                        })?;
 
                     body_hash = Some(p_body_hash.to_string());
                 }
                 ("b", p_signature) => {
-                    base64::decode(p_signature).map_err(|e| ParseError::SyntaxError {
-                        reason: format!("failed to pase `signature`: got `{e}`"),
-                    })?;
+                    STANDARD
+                        .decode(p_signature)
+                        .map_err(|e| ParseError::SyntaxError {
+                            reason: format!("failed to pase `signature`: got `{e}`"),
+                        })?;
 
                     signature = Some(p_signature.to_string());
                 }

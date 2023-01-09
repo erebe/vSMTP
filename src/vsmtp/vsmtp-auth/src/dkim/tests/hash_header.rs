@@ -16,6 +16,7 @@
 */
 
 use crate::dkim::Signature;
+use base64::Engine;
 use vsmtp_mail_parser::MessageBody;
 
 #[test]
@@ -43,6 +44,6 @@ fn mail_5() {
 
     println!(
         "{}",
-        base64::encode(signature.get_header_hash(body.inner()))
+        base64::engine::general_purpose::STANDARD.encode(signature.get_header_hash(body.inner()))
     );
 }

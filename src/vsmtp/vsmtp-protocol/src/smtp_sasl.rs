@@ -16,6 +16,7 @@
 */
 
 use crate::{Receiver, ReceiverHandler};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt;
 use vsmtp_common::auth::Mechanism;
@@ -112,7 +113,7 @@ where
             fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
                 block_on! { async move {
                     self.0.write_all(b"334 ").await?;
-                    self.0.write_all(base64::encode(buf).as_bytes()).await?;
+                    self.0.write_all(STANDARD.encode(buf).as_bytes()).await?;
                     self.0.write_all(b"\r\n").await?;
                     std::io::Result::Ok(())
                 }}
@@ -162,7 +163,9 @@ where
                 match challenge_stream.next().await {
                     Some(Ok(buffer)) if buffer == b"*" => return Err(AuthError::Canceled),
                     Some(Ok(buffer)) => Some(
-                        base64::decode(buffer).map_err(|source| AuthError::Base64 { source })?,
+                        STANDARD
+                            .decode(buffer)
+                            .map_err(|source| AuthError::Base64 { source })?,
                     ),
                     Some(Err(e)) => todo!("{}", e),
                     None => todo!("what happen when the client close the connection?"),
@@ -177,7 +180,7 @@ where
                 next_challenge_line!(challenge_stream)
             }
             (Some(_), true) => return Err(AuthError::ClientMustNotStart),
-            (Some(data), false) => Some(base64::decode(data)?),
+            (Some(data), false) => Some(STANDARD.decode(data)?),
         };
 
         #[allow(clippy::wildcard_enum_match_arm)]

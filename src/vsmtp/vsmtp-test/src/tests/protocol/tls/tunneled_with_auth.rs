@@ -16,6 +16,8 @@
 */
 
 use crate::run_test;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use vsmtp_config::field::FieldServerVirtual;
 use vsmtp_config::field::FieldServerVirtualTls;
 use vsmtp_config::Config;
@@ -51,7 +53,7 @@ run_test! {
     input = [
         "EHLO client.com\r\n",
         "AUTH PLAIN\r\n",
-        &format!("{}\r\n", base64::encode("\0hello\0world")),
+        &format!("{}\r\n", STANDARD.encode("\0hello\0world")),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<bar@foo>\r\n",
         "DATA\r\n",

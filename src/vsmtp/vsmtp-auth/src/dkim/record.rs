@@ -16,6 +16,7 @@
 */
 use super::HashAlgorithm;
 use crate::ParseError;
+use base64::{engine::general_purpose::STANDARD, Engine};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "UPPERCASE")]
@@ -82,7 +83,7 @@ impl std::fmt::Debug for Record {
             )
             .field("type", &self.r#type)
             .field("notes", &self.notes)
-            .field("public_key", &base64::encode(&self.public_key))
+            .field("public_key", &STANDARD.encode(&self.public_key))
             .field("service_type", &self.service_type)
             .field("flags", &self.flags)
             .finish()
@@ -129,7 +130,7 @@ impl std::str::FromStr for Record {
                 }
                 ("n", p_notes) => notes = Some(p_notes.to_string()),
                 ("p", p_public_key) => {
-                    public_key = Some(base64::decode(p_public_key).map_err(|e| {
+                    public_key = Some(STANDARD.decode(p_public_key).map_err(|e| {
                         ParseError::SyntaxError {
                             reason: format!("failed to pase `public_key`: got `{e}`"),
                         }
