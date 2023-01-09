@@ -72,7 +72,7 @@ tokio = { version = "1.24.1", default-features = false, features = [
     "io-std",
     "rt-multi-thread",
 ] }
-async-trait = "0.1.60"
+async-trait = "0.1.61"
 futures-util = { version = "0.3.24", default-features = false, features = [
     "async-await",
 ] }
