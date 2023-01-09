@@ -22,6 +22,8 @@ use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_auth::viaspf;
+use vsmtp_common::ClientName;
 
 const AUTH_HEADER: &str = "Authentication-Results";
 const SPF_HEADER: &str = "Received-SPF";
@@ -284,29 +286,34 @@ mod spf {
 /// # Errors
 /// # Panics
 pub fn check(ctx: &Context, srv: &Server) -> EngineResult<vsmtp_auth::spf::Result> {
-    use vsmtp_auth::viaspf;
-    use vsmtp_common::ClientName;
-
     let (spf_sender, ip) = {
         let ctx = vsl_guard_ok!(ctx.read());
         let mail_from = ctx
             .reverse_path()
             .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
 
-        let spf_sender = vsl_generic_ok!(match mail_from {
-            Some(mail_from) => viaspf::Sender::from_address(mail_from.full()),
+        let spf_sender = match mail_from {
+            Some(mail_from) => vsl_generic_ok!(viaspf::Sender::from_address(mail_from.full())),
             None => {
                 let client_name = ctx
                     .client_name()
                     .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
                 match client_name {
-                    ClientName::Domain(domain) => viaspf::Sender::from_domain(domain),
+                    ClientName::Domain(domain) => {
+                        vsl_generic_ok!(viaspf::Sender::from_domain(domain))
+                    }
+                    // See https://www.rfc-editor.org/rfc/rfc7208#section-2.3
                     ClientName::Ip4(_) | ClientName::Ip6(_) => {
-                        todo!("handle scenario where client_name is an IP address and reverse_path is null")
+                        return Ok(vsmtp_auth::spf::Result {
+                            result: "fail".to_owned(),
+                            details: vsmtp_auth::spf::Details::Problem(
+                                "HELO identity is invalid".to_lowercase(),
+                            ),
+                        })
                     }
                 }
             }
-        });
+        };
 
         (spf_sender, ctx.client_addr().ip())
     };
