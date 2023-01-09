@@ -133,6 +133,7 @@ import "service/database" as db;
       let sender = ctx::mail_from();
 
       // is the user in our greylist ?
+      // (Don't forget to sanitize your inputs to prevent SQL injection)
       if db::greylist.query(`SELECT * FROM greylist.sender WHERE address = '${sender}';`).is_empty() {
         // it does not, we add the address to the database, then deny the email.
         db::greylist.query(`
