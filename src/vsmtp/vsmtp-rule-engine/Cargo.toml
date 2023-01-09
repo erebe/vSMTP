@@ -54,7 +54,7 @@ version = "=1.4.0-rc.16"
 path = "../../vqueue"
 
 [dependencies.vsmtp-plugin-vsl]
-version = "=1.4.0-rc.15"
+version = "=1.4.0-rc.16"
 path = "../plugins/vsmtp-plugin-vsl"
 
 [dependencies]
