@@ -327,7 +327,8 @@ impl Config {
     ) -> anyhow::Result<String> {
         let path = error.path();
         let mut invalid_value_path =
-            serde_json::to_value(&Self::default()).context("The configuration is malformed")?;
+            serde_json::to_value(&Self::default_with_current_user_and_group())
+                .context("The configuration is malformed")?;
 
         // Tracing back the path where the error have been generated to get the type of the key.
         for segment in path.iter() {

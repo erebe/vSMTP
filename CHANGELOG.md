@@ -13,6 +13,10 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Display proper configuration error messages on machine that do not have a 'vsmtp' user (#926)
+
 ## [2.0.0] - 2023-01-09
 
 ### Plugin System
