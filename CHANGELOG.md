@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [1.4.0-rc.16] - 2023-01-09
+
 ### Plugin System
 
 To extend the functionality of vSMTP, we have added a plugin system. You will be able to choose plugins you
