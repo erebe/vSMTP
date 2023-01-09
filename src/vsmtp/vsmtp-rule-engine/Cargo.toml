@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.4.0-rc.16"
+version = "2.0.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
@@ -34,27 +34,27 @@ pre-release-replacements = [
 ]
 
 [dependencies.vsmtp-common]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-config]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-mail-parser]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../vsmtp-mail-parser"
 
 [dependencies.vsmtp-auth]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../vsmtp-auth"
 
 [dependencies.vqueue]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../../vqueue"
 
 [dependencies.vsmtp-plugin-vsl]
-version = "=1.4.0-rc.16"
+version = "=2.0.0"
 path = "../plugins/vsmtp-plugin-vsl"
 
 [dependencies]
