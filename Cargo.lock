@@ -4166,7 +4166,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-csv"
-version = "1.4.0-rc.16"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "csv",
