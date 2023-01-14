@@ -46,7 +46,7 @@ strum = { version = "0.24.1", default-features = false, features = ["std", "deri
 ring-compat = { version = "0.5.1", default-features = false, features = ["std", "alloc", "digest", "signature"] }
 
 rustls = { version = "0.20.7", default-features = false, features = ["tls12", "logging"] }
-rustls-pemfile = { version = "1.0.1", default-features = false }
+rustls-pemfile = { version = "1.0.2", default-features = false }
 
 pem = { version = "1.1.1", default-features = false, features = [
   # "serde" # TODO

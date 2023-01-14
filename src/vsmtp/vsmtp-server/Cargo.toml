@@ -127,7 +127,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-rustls-pemfile = { version = "1.0.1", default-features = false }
+rustls-pemfile = { version = "1.0.2", default-features = false }
 
 test-log = { version = "0.2.11", features = ["trace"] }
 env_logger = "0.10.0"
