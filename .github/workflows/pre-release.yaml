@@ -119,7 +119,7 @@ jobs:
           # see https://github.com/atanunq/viu/issues/68
           RUSTFLAGS: "--cfg procmacro2_semver_exempt"
       - run: sudo apt-get update && sudo apt-get install -y lintian
-      - run: lintian ./target/${{ matrix.target }}/debian/*.deb
+      - run: lintian -v --fail-on=warning ./target/${{ matrix.target }}/debian/*.deb
   check-docker-build:
     runs-on: ubuntu-latest
     steps:
