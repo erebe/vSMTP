@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-ARG VSMTP_BRANCH
 ARG UBUNTU_VERSION
 FROM ubuntu:${UBUNTU_VERSION} as builder
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,7 +16,8 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Get vSMTP.
-RUN git clone -b ${VSMTP_BRANCH} --single-branch https://github.com/viridIT/vSMTP.git
+ARG VSMTP_BRANCH=main
+RUN git clone -b $VSMTP_BRANCH --single-branch https://github.com/viridIT/vSMTP.git
 WORKDIR /vSMTP
 
 # Install desired targets.

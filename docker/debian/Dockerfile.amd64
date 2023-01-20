@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
-ARG VSMTP_BRANCH
 FROM rust:bullseye as builder
 # Run apt updates and installs unattended.
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Get vSMTP.
-RUN git clone -b ${VSMTP_BRANCH} --single-branch https://github.com/viridIT/vSMTP.git
+ARG VSMTP_BRANCH=main
+RUN git clone -b $VSMTP_BRANCH --single-branch https://github.com/viridIT/vSMTP.git
 WORKDIR /vSMTP
 
 # Install desired targets.
