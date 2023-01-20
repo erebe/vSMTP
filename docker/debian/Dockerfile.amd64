@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+FROM rust:bullseye as builder
+# Run apt updates and installs unattended.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Get vSMTP.
+RUN git clone -b main --single-branch https://github.com/viridIT/vSMTP.git
+WORKDIR /vSMTP
+
+# Install desired targets.
+RUN rustup target add x86_64-unknown-linux-gnu
+
+# Install fork of cargo deb.
+RUN git clone https://github.com/viridIT/cargo-deb.git && cd cargo-deb && git checkout fix/changelog-path && cargo build --release && cd ..
+
+# Package the app.
+RUN ./cargo-deb/target/release/cargo-deb -p vsmtp -v --target=x86_64-unknown-linux-gnu
+
+# Install and test vSMTP on amd64 arch.
+FROM --platform=linux/amd64 debian:bullseye as tester-x86_64
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY --from=builder /vSMTP/target/x86_64-unknown-linux-gnu/debian/*.deb ./vsmtp.deb
+
+# https://piuparts.debian.org/doc/README.txt
+RUN apt update -y && apt install -y piuparts
+
+# piuparts installs the package in a chroot environment, thus I am unsure of the relevance of creating
+# a new image to test the package. This will do for the time being.
+CMD [ "piuparts", "vsmtp.deb" ]

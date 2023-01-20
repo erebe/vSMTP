@@ -15,7 +15,8 @@ release. They will however *never* happen in a patch release.
 
 ### Fixed
 
-- Display proper configuration error messages on machine that do not have a 'vsmtp' user (#926)
+- Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
+- Create proper build systems to share debian and ubuntu packages. (#933)
 
 ## [2.0.0] - 2023-01-09
 

@@ -2,10 +2,13 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
 
-* Fixed
-  * Display proper configuration errors. (#926)
+  * Fixed
+    * Display proper configuration errors. (#926)
+    * Create proper build systems to share vsmtp packages. (#933)
 
  -- ltabis <l.tabis@viridit.com>  Mon, 09 Jan 2023 21:52:36 +0100
+
+Old Changelog:
 
 vsmtp (2.0.0) UNRELEASED; urgency=low
 

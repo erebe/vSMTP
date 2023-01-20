@@ -39,6 +39,7 @@ jobs:
         with:
           command: check
           args: --manifest-path ${{ matrix.path }}
+
   cargo-udeps:
     runs-on: ubuntu-latest
     needs: check
@@ -53,6 +54,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
+
   cargo-deny:
     runs-on: ubuntu-latest
     needs: check
@@ -66,6 +68,7 @@ jobs:
           rust-version: ${{ env.RUST_MSRV }}
           command: check
           arguments: ""
+
   cargo-hack-check:
     runs-on: ubuntu-latest
     steps:
@@ -75,6 +78,7 @@ jobs:
         with:
           tool: cargo-hack@0.5.25
       - run: cargo hack check --each-feature --no-dev-deps
+
   nextest:
     runs-on: ubuntu-latest
     needs: check
@@ -91,6 +95,7 @@ jobs:
         with:
           command: nextest
           args: run --workspace --all-features
+
   test:
     runs-on: ubuntu-latest
     needs: check
@@ -110,6 +115,7 @@ jobs:
           RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
       - uses: actions-rs/grcov@v0.1
       - uses: codecov/codecov-action@v3
+
   lints:
     runs-on: ubuntu-latest
     needs: check
@@ -127,6 +133,7 @@ jobs:
         with:
           command: clippy
           args: "--all-targets --all-features -- -D warnings"
+
   check-doc:
     runs-on: ubuntu-latest
     needs: check

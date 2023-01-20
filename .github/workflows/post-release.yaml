@@ -9,162 +9,150 @@ on:
 permissions:
   contents: write
 
-env:
-  BIN_NAME: vsmtp
-
 jobs:
-  create-release:
-    name: create-release
+  get-release-version:
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
-      release_version: ${{ env.RELEASE_VERSION }}
+      rv: ${{ steps.get.outputs.version }}
     steps:
-      - name: Get the release version from the tag
+      - name: Get release version from tag
+        id: get
         shell: bash
-        if: env.RELEASE_VERSION == ''
         run: |
-          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "version is: ${{ env.RELEASE_VERSION }}"
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-      - name: Generate Release Notes
-        run: |
-          ./.github/release-notes.py --tag ${{ env.RELEASE_VERSION }} --output notes-${{ env.RELEASE_VERSION }}.md
-          cat notes-${{ env.RELEASE_VERSION }}.md
-      - name: Create GitHub release
-        id: release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.RELEASE_VERSION }}
-          release_name: ${{ env.RELEASE_VERSION }}
-          body_path: notes-${{ env.RELEASE_VERSION }}.md
-  build-deb-package:
-    needs: create-release
+          version=""
+          if [ -n ${{ env.RELEASE_VERSION }} ]; then
+            version=${{ env.RELEASE_VERSION }}
+          else
+            version=${GITHUB_REF#refs/tags/}
+          fi
+
+          echo "version=${version}" >> $GITHUB_OUTPUT
+          echo "New release version=${version}"
+
+  build-ubuntu-package:
+    runs-on: ubuntu-latest
+    needs: get-release-version
     strategy:
       matrix:
+        version: [20.04, 22.04]
+        # TODO: add arm64 support.
+        platform: [amd64]
         include:
-          - target: x86_64-unknown-linux-gnu
-            host_os: ubuntu-20.04
-          - target: x86_64-unknown-linux-gnu
-            host_os: ubuntu-22.04
-          - target: aarch64-unknown-linux-gnu
-            host_os: ubuntu-20.04
-          - target: aarch64-unknown-linux-gnu
-            host_os: ubuntu-22.04
-    continue-on-error: true
-    runs-on: ${{ matrix.host_os }}
+          - platform: amd64
+            platform_path: x86_64-unknown-linux-gnu
+
     steps:
       - uses: actions/checkout@v3
-      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
-        run: |
-          sudo apt-get update && sudo apt-get install -y \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-      - run: |
-          git clone https://github.com/viridIT/cargo-deb.git
-          cd cargo-deb
-          git checkout fix/changelog-path
-          cargo build
-          cd ..
-      - run: rustup target add ${{ matrix.target }}
-      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
-        run: |
-          cat > ~/.cargo/config <<EOF
-          [target.${{ matrix.target }}]
-          strip = { path = "aarch64-linux-gnu-strip" }
-          EOF
-          ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
-        env:
-          TARGET_CC: aarch64-linux-gnu-gcc
-          TARGET_AR: aarch64-linux-gnu-gcc-ar
-          RUSTFLAGS: "--cfg procmacro2_semver_exempt -C linker=aarch64-linux-gnu-gcc"
-      - if: ${{ matrix.target != 'aarch64-unknown-linux-gnu' }}
-        run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
-        env:
-          # see https://github.com/atanunq/viu/issues/68
-          RUSTFLAGS: "--cfg procmacro2_semver_exempt"
-      - name: Build archive
+      - name: Build package for ubuntu ${{ matrix.version }}
         shell: bash
         run: |
-          asset_folder="target/${{ matrix.target }}/debian"
-          asset_filename=`ls $asset_folder | head -n 1`
-          echo "$asset_folder/$asset_filename"
-          echo "ASSET=$asset_folder/$asset_filename" >> $GITHUB_ENV
+          docker image build --build-arg UBUNTU_VERSION=${{ matrix.version }} \
+            -t vsmtp-ubuntu-${{ matrix.version }}-${{ matrix.platform }} \
+            -f docker/ubuntu/Dockerfile.${{ matrix.platform }} \
+            docker/ubuntu
 
-          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
-            suffix="arm64"
-          else
-            suffix="amd64"
-          fi
-          os_version=${{ matrix.host_os }}
-          os_version=${os_version//-/}
-          asset_name="vsmtp_${{ needs.create-release.outputs.release_version }}+${os_version}_${suffix}.deb"
-          echo "asset name will be $asset_name"
-          echo "ASSET_NAME=$asset_name" >> $GITHUB_ENV
-      - name: Upload release archive
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run piuparts for ubuntu ${{ matrix.version }}
+        shell: bash
+        run: |
+          docker run --privileged --name piuparts-ubuntu-${{ matrix.version }} \
+            vsmtp-ubuntu-${{ matrix.version }}-${{ matrix.platform }}
+
+      - name: Extract ubuntu ${{ matrix.version }} artifacts
+        shell: bash
+        run: |
+          docker cp piuparts-ubuntu-${{ matrix.version }}:./vsmtp.deb \
+            vsmtp_${{ needs.get-release-version.outputs.rv }}-ubuntu${{ matrix.version }}_${{ matrix.platform }}.deb
+
+      - name: Archive ubuntu ${{ matrix.version }} artifacts
+        uses: actions/upload-artifact@v3
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.ASSET }}
-          asset_name: ${{ env.ASSET_NAME }}
-          asset_content_type: application/octet-stream
-  build-release:
-    name: build-release
-    needs: create-release
+          name: vsmtp-ubuntu-${{ matrix.version }}-pkg
+          path: |
+            vsmtp_${{ needs.get-release-version.outputs.rv }}-ubuntu${{ matrix.version }}_${{ matrix.platform }}.deb
+
+  build-debian-package:
+    runs-on: ubuntu-latest
+    needs: get-release-version
     strategy:
-      fail-fast: false
       matrix:
+        # TODO: add arm64 support.
+        platform: [amd64]
         include:
-          - os: ubuntu-20.04
-            rust: stable
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-22.04
-            rust: stable
-            target: x86_64-unknown-linux-gnu
-    runs-on: ${{ matrix.os }}
+          - platform: amd64
+            platform_path: x86_64-unknown-linux-gnu
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: build for debian
+        shell: bash
+        run: |
+          docker image build \
+            -t vsmtp-debian-${{ matrix.platform }} \
+            -f docker/debian/Dockerfile.${{ matrix.platform }} \
+            docker/debian
+
+      - name: run piuparts for debian
+        shell: bash
+        run: |
+          docker run --privileged --name piuparts-debian \
+            vsmtp-debian-${{ matrix.platform }}
+
+      - name: Extract debian artifacts
+        shell: bash
+        run: |
+          docker cp piuparts-debian:./vsmtp.deb \
+            vsmtp_${{ needs.get-release-version.outputs.rv }}_${{ matrix.platform }}.deb
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: vsmtp-debian-pkg
+          path: |
+            vsmtp_${{ needs.get-release-version.outputs.rv }}_${{ matrix.platform }}.deb
+
+  # TODO: add rpm support.
+  # build-redhat-docker:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       version: [ubi8, ubi9]
+  #     # TODO: add arm64 support.
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: build for redhat
+  #       shell: bash
+  #       run: |
+  #         docker image build --build-arg REDHAT_VERSION=${{ matrix.version }}   \
+  #           -t vsmtp-redhat-${{ matrix.version }}                               \
+  #           docker/redhat
+
+  create-release:
+    needs: [get-release-version, build-ubuntu-package, build-debian-package]
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.target }}
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.target }}
-      - name: Build release binary
-        run: cargo build --target ${{ matrix.target }} --verbose --release
-      - name: Build archive
-        shell: bash
+
+      - name: Download all workflow artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate release notes
         run: |
-          outdir="./target/${{ env.TARGET_DIR }}/release"
-          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.os }}-${{ matrix.target }}"
-          mkdir -p "$staging"/{complete,doc}
-          cp {README.md,LICENSE*} "$staging/"
-          cp CHANGELOG.md "$staging/doc/"
-          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
-          tar czf "$staging.tar.gz" -C "$staging" .
-          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
-      - name: Upload release archive
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ./.github/release-notes.py --tag ${{ needs.get-release-version.outputs.rv }} --output notes-${{ needs.get-release-version.outputs.rv }}.md
+          cat notes-${{ needs.get-release-version.outputs.rv }}.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.ASSET }}
-          asset_name: ${{ env.ASSET }}
-          asset_content_type: application/octet-stream
+          body_path: notes-${{ needs.get-release-version.outputs.rv }}.md
+          tag_name: ${{ needs.get-release-version.outputs.rv }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            ./**/*.deb
+
   push-dockerhub:
-    needs: create-release
+    needs: get-release-version
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-qemu-action@v2
@@ -177,6 +165,6 @@ jobs:
         uses: docker/build-push-action@v3.2.0
         with:
           push: true
-          tags: "viridit/vsmtp:${{ needs.create-release.outputs.release_version }}"
+          tags: "viridit/vsmtp:${{ needs.get-release-version.outputs.rv }}"
           platforms: linux/amd64,linux/arm64
           file: ./docker/Dockerfile

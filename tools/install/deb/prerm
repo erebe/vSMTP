@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+DPKG_NAME="vsmtp"
+DPKG_VER=$(dpkg -s $DPKG_NAME | sed -n 's/^Version: //p')
+DYLIB_DIR="/usr/local/lib/vsmtp/"
+
+case "$1" in
+remove)
+    # https://www.debian.org/doc/debian-policy/ch-opersys.html#site-specific-programs
+    rm -rf $DYLIB_DIR 2>/dev/null || true
+    ;;
+esac
+
+#DEBHELPER#

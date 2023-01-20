@@ -1,0 +1,6 @@
+# vSMTP and plugins requires libc. The dependency is wrote in the package, but lintian
+# seems to complain anyways with dynamic libraries, so we suppress this error.
+vsmtp binary: missing-dependency-on-libc
+vsmtp: unknown-field Vcs-Git
+vsmtp: unknown-field Vcs-Browser
+vsmtp: wrong-name-for-changelog-of-native-package usr/share/doc/vsmtp/changelog.Debian.gz

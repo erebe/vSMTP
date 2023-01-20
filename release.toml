@@ -5,7 +5,6 @@ push-remote = "origin"
 release = true
 publish = true
 verify = true
-owners = []
 push = true
 push-options = []
 shared-version = true

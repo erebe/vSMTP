@@ -40,7 +40,8 @@ jobs:
         with:
           tool: cargo-release@0.24.2
       - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --allow-branch "HEAD"
-  check-cargo-pkg:
+
+  check-cargo-package:
     strategy:
       fail-fast: false
       matrix:
@@ -65,69 +66,72 @@ jobs:
         with:
           toolchain: stable
       - run: cargo package --manifest-path ${{ matrix.path }}/Cargo.toml
-  check-deb-pkg:
+
+  build-and-test-ubuntu-package:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
+        version: [20.04, 22.04]
+        # TODO: add arm64 support.
+        platform: [amd64]
         include:
-          - target: x86_64-unknown-linux-gnu
-            host_os: ubuntu-20.04
-          - target: x86_64-unknown-linux-gnu
-            host_os: ubuntu-22.04
-          - target: aarch64-unknown-linux-gnu
-            host_os: ubuntu-20.04
-          - target: aarch64-unknown-linux-gnu
-            host_os: ubuntu-22.04
-    continue-on-error: true
-    runs-on: ${{ matrix.host_os }}
+          - platform: amd64
+            platform_path: x86_64-unknown-linux-gnu
+
     steps:
       - uses: actions/checkout@v3
-      - run: |
-          echo "asset name will be"
-          if [ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]; then
-            suffix="arm64"
-          else
-            suffix="amd64"
-          fi
-          os_version=${{ matrix.host_os }}
-          os_version=${os_version//-/}
-          echo "vsmtp_${{ needs.create-release.outputs.release_version }}+${os_version}_${suffix}.deb"
-      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+      - name: Build package for ubuntu ${{ matrix.version }}
+        shell: bash
         run: |
-          sudo apt-get update && sudo apt-get install -y \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-      - run: |
-          git clone https://github.com/viridIT/cargo-deb.git
-          cd cargo-deb
-          git checkout fix/changelog-path
-          cargo build
-          cd ..
-      - run: rustup target add ${{ matrix.target }}
-      - if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+          docker image build --build-arg UBUNTU_VERSION=${{ matrix.version }} \
+            -t vsmtp-ubuntu-${{ matrix.version }}-${{ matrix.platform }} \
+            -f docker/ubuntu/Dockerfile.${{ matrix.platform }} \
+            docker/ubuntu
+
+      - name: Run piuparts for ubuntu ${{ matrix.version }}
+        shell: bash
         run: |
-          cat > ~/.cargo/config <<EOF
-          [target.${{ matrix.target }}]
-          strip = { path = "aarch64-linux-gnu-strip" }
-          EOF
-          ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
-        env:
-          TARGET_CC: aarch64-linux-gnu-gcc
-          TARGET_AR: aarch64-linux-gnu-gcc-ar
-          RUSTFLAGS: "--cfg procmacro2_semver_exempt -C linker=aarch64-linux-gnu-gcc"
-      - if: ${{ matrix.target != 'aarch64-unknown-linux-gnu' }}
-        run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v --target=${{ matrix.target }}
-        env:
-          # see https://github.com/atanunq/viu/issues/68
-          RUSTFLAGS: "--cfg procmacro2_semver_exempt"
-      - run: sudo apt-get update && sudo apt-get install -y lintian
-      - run: lintian -v --fail-on=warning ./target/${{ matrix.target }}/debian/*.deb
-  check-docker-build:
+          docker run --privileged --name piuparts-ubuntu-${{ matrix.version }} \
+            vsmtp-ubuntu-${{ matrix.version }}-${{ matrix.platform }}
+
+  build-and-test-debian-package:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # TODO: add arm64 support.
+        platform: [amd64]
+        include:
+          - platform: amd64
+            platform_path: x86_64-unknown-linux-gnu
+
     steps:
-      - uses: docker/setup-qemu-action@v2
-      - uses: docker/setup-buildx-action@v2
-      - name: Build, tag, and push
-        uses: docker/build-push-action@v3.2.0
-        with:
-          tags: "viridit/vsmtp:testing"
-          platforms: linux/amd64,linux/arm64
-          file: ./docker/Dockerfile
+      - uses: actions/checkout@v3
+      - name: build for debian
+        shell: bash
+        run: |
+          docker image build \
+            -t vsmtp-debian-${{ matrix.platform }} \
+            -f docker/debian/Dockerfile.${{ matrix.platform }} \
+            docker/debian
+
+      - name: run piuparts for debian
+        shell: bash
+        run: |
+          docker run --privileged --name piuparts-debian \
+            vsmtp-debian-${{ matrix.platform }}
+
+  # TODO: add rpm support.
+  # compile-and-test-redhat-docker:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       version: [ubi8, ubi9]
+  #     # TODO: add arm64 support.
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: build for redhat
+  #       shell: bash
+  #       run: |
+  #         docker image build --build-arg REDHAT_VERSION=${{ matrix.version }}   \
+  #           -t vsmtp-redhat-${{ matrix.version }}                               \
+  #           docker/redhat
