@@ -23,7 +23,7 @@ vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
 
-async-trait = "0.1.61"
+async-trait = "0.1.62"
 lettre = { version = "0.10.1", default-features = false, features = [
   "smtp-transport",
   "builder",
