@@ -21,7 +21,7 @@ rust-version = "1.63.0"
 build = "build.rs"
 
 [build-dependencies]
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "2.0.0" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "2.0.1-rc.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "2.0.1-rc.1" }
 vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "2.0.1-rc.1" }
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
@@ -78,7 +78,7 @@ version = "=2.0.1-rc.1"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-rule-engine]
-version = "=2.0.0"
+version = "=2.0.1-rc.1"
 path = "../vsmtp-rule-engine"
 
 [dependencies]

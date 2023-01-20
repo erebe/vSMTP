@@ -4016,7 +4016,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "either",
