@@ -46,7 +46,9 @@ jobs:
       - name: Build package for ubuntu ${{ matrix.version }}
         shell: bash
         run: |
-          docker image build --build-arg UBUNTU_VERSION=${{ matrix.version }} \
+          docker image build \
+            --build-arg UBUNTU_VERSION=${{ matrix.version }} \
+            --build-arg VSMTP_BRANCH=main \
             -t vsmtp-ubuntu-${{ matrix.version }}-${{ matrix.platform }} \
             -f docker/ubuntu/Dockerfile.${{ matrix.platform }} \
             docker/ubuntu
@@ -87,6 +89,7 @@ jobs:
         shell: bash
         run: |
           docker image build \
+            --build-arg VSMTP_BRANCH=main \
             -t vsmtp-debian-${{ matrix.platform }} \
             -f docker/debian/Dockerfile.${{ matrix.platform }} \
             docker/debian
@@ -123,6 +126,7 @@ jobs:
   #       shell: bash
   #       run: |
   #         docker image build --build-arg REDHAT_VERSION=${{ matrix.version }}   \
+  #           --build-arg VSMTP_BRANCH=main \
   #           -t vsmtp-redhat-${{ matrix.version }}                               \
   #           docker/redhat
 

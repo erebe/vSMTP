@@ -20,7 +20,8 @@ fn main() {
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
-        .map(|out| out.stdout).unwrap_or("unknown".as_bytes().to_vec());
+        .map(|out| out.stdout)
+        .unwrap_or_else(|_| "unknown".as_bytes().to_vec());
 
     println!(
         "cargo:rustc-env=GIT_HASH={}",
