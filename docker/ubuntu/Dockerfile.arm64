@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+ARG UBUNTU_VERSION
+FROM --platform=linux/arm64/v8 ubuntu:${UBUNTU_VERSION} as builder
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Basic reaquirements
+# + aarch64 cross compilation dependencies.
+RUN apt update -yq && apt -yq install \
+    gcc \
+    curl \
+    git \
+    qemu-user \
+    gcc-aarch64-linux-gnu \
+    libc6-dev-arm64-cross
+
+# Install Rust unattended.
+# https://github.com/rust-lang/rustup/issues/297#issuecomment-444818896
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Get vSMTP.
+RUN git clone -b main --single-branch https://github.com/viridIT/vSMTP.git
+WORKDIR /vSMTP
+
+# Install desired targets.
+RUN rustup target add aarch64-unknown-linux-gnu
+
+# Configure specific linker for arm64 architecture.
+RUN echo '\
+[target.aarch64-unknown-linux-gnu]\n\
+linker = "aarch64-linux-gnu-gcc"\
+' >>.cargo/config.toml
+
+# Install fork of cargo deb.
+RUN git clone https://github.com/viridIT/cargo-deb.git && cd cargo-deb && git checkout fix/changelog-path && cargo build --release && cd ..
+
+# Package the app.
+RUN ./cargo-deb/target/release/cargo-deb -p vsmtp -v --target=aarch64-unknown-linux-gnu
+
+# Install and test vSMTP.
+FROM --platform=linux/arm64/v8 ubuntu:${UBUNTU_VERSION} as tester-aarch64
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY --from=builder /vSMTP/target/aarch64-unknown-linux-gnu/debian/*.deb ./vsmtp.deb
+
+# https://piuparts.debian.org/doc/README.txt
+RUN apt update -y && apt install -y piuparts
+
+# piuparts installs the package in a chroot environment, thus I am unsure of the relevance of creating
+# a new image to test the package. This will do for the time being.
+CMD [ "piuparts", "vsmtp.deb" ]

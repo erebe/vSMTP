@@ -23,19 +23,14 @@ vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
 
-async-trait = "0.1.60"
+async-trait = "0.1.62"
 lettre = { version = "0.10.1", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.15", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-  "serde-well-known",
-] }
+time = { version = "0.3.15", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
@@ -43,7 +38,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
 ] }
 
 tokio-rustls = "0.23.4"
-rustls-pemfile = { version = "1.0.1", default-features = false }
+rustls-pemfile = { version = "1.0.2", default-features = false }
 rand = "0.8.5"
 
 lazy_static = "1.4.0-rc.7"
@@ -72,23 +67,14 @@ tokio = { version = "1.24.1", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-tokio-stream = { version = "0.1.11", default-features = false, features = [
-  "time",
-] }
+tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 
-base64 = { version = "0.20.0", default-features = false, features = ["std"] }
+base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 
-tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-  "env-filter",
-  "fmt",
-] }
+tracing = { version = "0.1.37", default-features = false }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
-uuid = { version = "1.2.2", default-features = false, features = [
-  "std",
-  "v4",
-  "fast-rng",
-] }
+uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
 
 
 [dev-dependencies]

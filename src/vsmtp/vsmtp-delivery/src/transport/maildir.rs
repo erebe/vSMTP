@@ -163,58 +163,65 @@ mod test {
         error: "failed to create /root/Maildir".to_owned()
     }))]
     #[case::valid(users::get_current_username().unwrap().to_str().unwrap().to_owned(), Ok(()))]
-    async fn maildir(#[case] mailbox: String, #[case] expected: Result<(), TransferErrorsVariant>) {
-        let config = local_test();
-        let context = local_ctx();
-        let fake_message = "Hello World!\r\n";
+    fn maildir(#[case] mailbox: String, #[case] expected: Result<(), TransferErrorsVariant>) {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
 
-        let result = Maildir::default()
-            .deliver(
-                &config,
-                &context,
-                &Some(addr!("foo@domain.com")),
-                vec![Rcpt {
-                    address: addr!(&format!("{mailbox}@domain.com")),
-                    transfer_method: Transfer::Maildir,
-                    email_status: EmailTransferStatus::default(),
-                }],
-                fake_message,
-            )
-            .await;
+        runtime.block_on(async move {
+            let config = local_test();
+            let context = local_ctx();
+            let fake_message = "Hello World!\r\n";
 
-        #[allow(
-            clippy::indexing_slicing,
-            clippy::unreachable,
-            clippy::wildcard_enum_match_arm
-        )]
-        match expected {
-            Ok(()) => {
-                assert!(matches!(
-                    result[0].email_status,
-                    EmailTransferStatus::Sent { .. }
-                ));
-                let filepath = std::path::PathBuf::from_iter([
-                    users::get_user_by_uid(users::get_current_uid())
-                        .unwrap()
-                        .home_dir()
-                        .as_os_str()
-                        .to_str()
-                        .unwrap(),
-                    "Maildir",
-                    "new",
-                    &format!("{}.eml", context.mail_from.message_uuid),
-                ]);
-                assert_eq!(
-                    std::fs::read_to_string(filepath).unwrap(),
-                    format!("Delivered-To: {mailbox}@domain.com\nHello World!\r\n")
-                );
-            }
-            Err(error) => match result[0].email_status {
-                EmailTransferStatus::HeldBack { ref errors } => {
-                    assert_eq!(errors[0].variant, error);
+            let result = Maildir::default()
+                .deliver(
+                    &config,
+                    &context,
+                    &Some(addr!("foo@domain.com")),
+                    vec![Rcpt {
+                        address: addr!(&format!("{mailbox}@domain.com")),
+                        transfer_method: Transfer::Maildir,
+                        email_status: EmailTransferStatus::default(),
+                    }],
+                    fake_message,
+                )
+                .await;
+
+            #[allow(
+                clippy::indexing_slicing,
+                clippy::unreachable,
+                clippy::wildcard_enum_match_arm
+            )]
+            match expected {
+                Ok(()) => {
+                    assert!(matches!(
+                        result[0].email_status,
+                        EmailTransferStatus::Sent { .. }
+                    ));
+                    let filepath = std::path::PathBuf::from_iter([
+                        users::get_user_by_uid(users::get_current_uid())
+                            .unwrap()
+                            .home_dir()
+                            .as_os_str()
+                            .to_str()
+                            .unwrap(),
+                        "Maildir",
+                        "new",
+                        &format!("{}.eml", context.mail_from.message_uuid),
+                    ]);
+                    assert_eq!(
+                        std::fs::read_to_string(filepath).unwrap(),
+                        format!("Delivered-To: {mailbox}@domain.com\nHello World!\r\n")
+                    );
                 }
-                _ => unreachable!(),
-            },
-        }
+                Err(error) => match result[0].email_status {
+                    EmailTransferStatus::HeldBack { ref errors } => {
+                        assert_eq!(errors[0].variant, error);
+                    }
+                    _ => unreachable!(),
+                },
+            }
+        });
     }
 }

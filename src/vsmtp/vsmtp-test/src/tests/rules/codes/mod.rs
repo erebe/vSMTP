@@ -15,6 +15,7 @@
  *
 */
 use crate::{run_test, tests::protocol::auth::unsafe_auth_config};
+use base64::{engine::general_purpose::STANDARD, Engine};
 
 run_test! {
     fn info_message,
@@ -92,7 +93,7 @@ run_test! {
     fn accept_message,
     input = [
         "HELO client.com\r\n",
-        &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "admin", "password"))),
+        &format!("AUTH PLAIN {}\r\n", STANDARD.encode(format!("\0{}\0{}", "admin", "password"))),
         "MAIL FROM:<admin@company.com>\r\n",
         "QUIT\r\n",
     ],

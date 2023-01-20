@@ -13,6 +13,12 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
+- Create proper build systems to share debian and ubuntu packages. (#933)
+- Building without `.git` no longer causes a hard failure. (#952)
+
 ## [2.0.0] - 2023-01-09
 
 ### Plugin System
@@ -41,7 +47,7 @@ Previous configurations were written in TOML, now they are written in vSL. (#685
 
 ```rust
 fn on_config(config) {
-  config.version_requirement = ">=1.4.0, <2.0.0";
+  config.version_requirement = ">=2.0.0, <3.0.0";
 
   config.server.name = "my.fqdn.com";
 

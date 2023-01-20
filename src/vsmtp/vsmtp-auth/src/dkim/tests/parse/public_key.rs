@@ -18,6 +18,7 @@ use crate::dkim::{
     record::{Flags, Record, ServiceType, Type, Version},
     HashAlgorithm, PublicKey,
 };
+use base64::{engine::general_purpose::STANDARD, Engine};
 
 const TXT: &str = "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5FLLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnOIRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB";
 
@@ -39,7 +40,7 @@ fn rsa_record() {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: Type::Rsa,
             notes: None,
-            public_key: base64::decode(RAW).unwrap(),
+            public_key: STANDARD.decode(RAW).unwrap(),
             service_type: vec![ServiceType::Wildcard],
             flags: vec![],
         }
@@ -84,7 +85,7 @@ fn rsa_record_service_email() {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: Type::Rsa,
             notes: None,
-            public_key: base64::decode(RAW).unwrap(),
+            public_key: STANDARD.decode(RAW).unwrap(),
             service_type: vec![ServiceType::Email],
             flags: vec![],
         }
@@ -101,7 +102,7 @@ fn rsa_record_flags_testing() {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: Type::Rsa,
             notes: None,
-            public_key: base64::decode(RAW).unwrap(),
+            public_key: STANDARD.decode(RAW).unwrap(),
             service_type: vec![ServiceType::Wildcard],
             flags: vec![Flags::Testing],
         }
@@ -134,7 +135,7 @@ fn rsa_record_2() {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: Type::Rsa,
             notes: None,
-            public_key: base64::decode(RAW_2).unwrap(),
+            public_key: STANDARD.decode(RAW_2).unwrap(),
             service_type: vec![ServiceType::Wildcard],
             flags: vec![Flags::SameDomain],
         }
@@ -153,7 +154,8 @@ fn ed25519_record() {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: Type::Ed25519,
             notes: None,
-            public_key: base64::decode(concat!("11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="))
+            public_key: STANDARD
+                .decode(concat!("11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="))
                 .unwrap(),
             service_type: vec![ServiceType::Wildcard],
             flags: vec![],

@@ -19,7 +19,7 @@ use crate::run_test;
 
 run_test! {
     fn test_check_relay_1,
-    input =  [
+    input = [
         "HELO foo\r\n",
         // Basic open-relay tentative.
         "MAIL FROM: <john.doe@foobar.com>\r\n",

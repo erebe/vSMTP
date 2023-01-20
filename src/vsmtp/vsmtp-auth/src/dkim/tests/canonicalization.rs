@@ -22,7 +22,10 @@ macro_rules! canonicalization_empty_body {
         #[test]
         fn $name() {
             assert_eq!(
-                base64::encode($algo.hash($canon.canonicalize_body(""))),
+                base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    $algo.hash($canon.canonicalize_body(""))
+                ),
                 $expected
             );
         }

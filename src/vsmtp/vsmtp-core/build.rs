@@ -21,11 +21,12 @@ fn main() {
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
-        .expect("failed to get git commit hash");
+        .map(|out| out.stdout)
+        .unwrap_or_else(|_| "unknown".as_bytes().to_vec());
 
     println!(
         "cargo:rustc-env=GIT_HASH={}",
-        String::from_utf8(output.stdout).expect("failed to convert hash to valid utf8")
+        String::from_utf8(output).expect("failed to convert hash to valid utf8")
     );
 
     if std::env::var("DOCS_DIR").is_ok() {

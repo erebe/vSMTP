@@ -1,16 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 CONF_DIR="/etc/vsmtp/"
-CONF_FILE=${CONF_DIR}"vsmtp.vsl"
+VSMTP_LOGS="/var/log/vsmtp/"
+VSMTP_SPOOL="/var/spool/vsmtp/"
 
 case "$1" in
 purge)
     # Per https://www.debian.org/doc/debian-policy/ch-files.html#behavior
     # "configuration files must be preserved when the package is removed, and
     #  only deleted when the package is purged."
-    if [ -f ${CONF_FILE} ]; then
-        rm ${CONF_FILE}
+    if [ -d ${CONF_DIR} ]; then
+        rm -rf ${CONF_DIR} ${VSMTP_LOGS} ${VSMTP_SPOOL}
     fi
     ;;
 esac

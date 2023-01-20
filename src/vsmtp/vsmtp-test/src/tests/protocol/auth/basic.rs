@@ -16,6 +16,8 @@
 */
 use super::{safe_auth_config, unsafe_auth_config};
 use crate::run_test;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use vqueue::GenericQueueManager;
 use vsmtp_common::ContextFinished;
 use vsmtp_common::{addr, CodeID};
@@ -44,7 +46,7 @@ run_test! {
     fn plain_in_clair_unsecured,
     input = [
         "EHLO client.com\r\n",
-        &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
+        &format!("AUTH PLAIN {}\r\n", STANDARD.encode(format!("\0{}\0{}", "hello", "world"))),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<joe@doe>\r\n",
         "DATA\r\n",
@@ -94,8 +96,8 @@ run_test! {
     input = [
         "EHLO client.com\r\n",
         "AUTH LOGIN\r\n",
-        &format!("{}\r\n", base64::encode("hello")),
-        &format!("{}\r\n", base64::encode("world")),
+        &format!("{}\r\n", STANDARD.encode("hello")),
+        &format!("{}\r\n", STANDARD.encode("world")),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<joe@doe>\r\n",
         "DATA\r\n",
@@ -109,8 +111,8 @@ run_test! {
         "250-STARTTLS\r\n",
         "250-8BITMIME\r\n",
         "250 SMTPUTF8\r\n",
-        &format!("334 {}\r\n", base64::encode("User Name\0")),
-        &format!("334 {}\r\n", base64::encode("Password\0")),
+        &format!("334 {}\r\n", STANDARD.encode("User Name\0")),
+        &format!("334 {}\r\n", STANDARD.encode("Password\0")),
         "235 2.7.0 Authentication succeeded\r\n",
         "250 Ok\r\n",
         "250 Ok\r\n",
@@ -146,7 +148,7 @@ run_test! {
     fn anonymous_in_clair_unsecured,
     input = [
         "EHLO client.com\r\n",
-        &format!("AUTH ANONYMOUS {}\r\n", base64::encode("my-anonymous-token")),
+        &format!("AUTH ANONYMOUS {}\r\n", STANDARD.encode("my-anonymous-token")),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<joe@doe>\r\n",
         "DATA\r\n",
@@ -195,7 +197,7 @@ run_test! {
     fn plain_in_clair_unsecured_utf8,
     input = [
         "EHLO client.com\r\n",
-        &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "héllo", "wÖrld"))),
+        &format!("AUTH PLAIN {}\r\n", STANDARD.encode(format!("\0{}\0{}", "héllo", "wÖrld"))),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<joe@doe>\r\n",
         "DATA\r\n",
@@ -244,7 +246,7 @@ run_test! {
     fn plain_in_clair_invalid_credentials,
     input = [
         "EHLO client.com\r\n",
-        &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "foo", "bar"))),
+        &format!("AUTH PLAIN {}\r\n", STANDARD.encode(format!("\0{}\0{}", "foo", "bar"))),
         "MAIL FROM:<foo@bar>\r\n",
     ],
     expected = [
@@ -320,7 +322,7 @@ run_test! {
     input = [
         "EHLO client.com\r\n",
         "AUTH PLAIN\r\n",
-        &format!("{}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
+        &format!("{}\r\n", STANDARD.encode(format!("\0{}\0{}", "hello", "world"))),
         "MAIL FROM:<foo@bar>\r\n",
         "RCPT TO:<joe@doe>\r\n",
         "DATA\r\n",
