@@ -53,6 +53,7 @@ enum BackendError {
 
 mod verify {
     use super::{BackendError, HashAlgorithm, PublicKey, Signature, SigningAlgorithm};
+    use base64::{engine::general_purpose::STANDARD, Engine};
     use vsmtp_mail_parser::RawBody;
 
     /// The result of the verification of a DKIM signature.
@@ -155,7 +156,7 @@ mod verify {
                 None => &body,
             });
 
-        if signature.body_hash != base64::encode(&body_hash) {
+        if signature.body_hash != STANDARD.encode(&body_hash) {
             return Err(InnerError::BodyHashMismatch {
                 expected: signature.body_hash.clone(),
                 got: body_hash,
@@ -164,9 +165,10 @@ mod verify {
         }
 
         let headers_hash = signature.get_header_hash(message);
-        tracing::debug!("headers_hash={}", base64::encode(&headers_hash));
+        tracing::debug!("headers_hash={}", STANDARD.encode(&headers_hash));
 
-        let signature_base64_decoded = base64::decode(&signature.signature)
+        let signature_base64_decoded = STANDARD
+            .decode(&signature.signature)
             .map_err(|e| InnerError::Base64Error { error: e })?;
 
         public_key
@@ -185,6 +187,7 @@ mod sign {
         private_key::PrivateKey, signature::QueryMethod, BackendError, Canonicalization, Signature,
         SigningAlgorithm, RSA_MINIMUM_ACCEPTABLE_KEY_SIZE,
     };
+    use base64::{engine::general_purpose::STANDARD, Engine};
     use vsmtp_mail_parser::RawBody;
 
     #[must_use]
@@ -256,7 +259,7 @@ mod sign {
             body_length: None,
             headers_field,
             copy_header_fields: None,
-            body_hash: base64::encode(
+            body_hash: STANDARD.encode(
                 signing_algorithm.get_preferred_hash_algo().hash(
                     canonicalization.canonicalize_body(
                         &message
@@ -272,7 +275,7 @@ mod sign {
         };
         signature.raw = signature.to_string();
 
-        signature.signature = base64::encode(private_key.sign(
+        signature.signature = STANDARD.encode(private_key.sign(
             signature.signing_algorithm,
             &signature.get_header_hash(message),
         )?);

@@ -134,6 +134,7 @@ fn ed25519_sha256() {
 
 mod error {
     use super::*;
+    use base64::{engine::general_purpose::STANDARD, Engine};
 
     #[test]
     fn forbidden_header() {
@@ -278,7 +279,7 @@ mod error {
         )
         .unwrap();
 
-        signature.body_hash = base64::encode("foobar");
+        signature.body_hash = STANDARD.encode("foobar");
 
         message.prepend_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 

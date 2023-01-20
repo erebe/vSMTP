@@ -191,5 +191,7 @@
   ],
   "rust-analyzer.server.extraEnv": {
     "RUSTUP_TOOLCHAIN": "stable"
-  }
+  },
+  "editor.wordWrapColumn": 120,
+  "evenBetterToml.formatter.columnWidth": 120,
 }

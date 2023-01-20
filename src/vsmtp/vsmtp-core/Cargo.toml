@@ -6,7 +6,7 @@ version = "2.0.0"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
-description = "Next-gen MTA. Secured, Faster and Greener"
+description = "Next-gen Mail Transfer Agent (MTA) written in Rust."
 
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
@@ -24,13 +24,7 @@ build = "build.rs"
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "2.0.0" }
 vsmtp-config = { path = "../vsmtp-config", version = "2.0.0" }
 vsmtp-plugin-vsl = { path = "../plugins/vsmtp-plugin-vsl", version = "2.0.0" }
-rhai = { version = "1.11.0", features = [
-    "unchecked",
-    "sync",
-    "internals",
-    "no_closure",
-    "metadata",
-] }
+rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 serde_json = "1.0.89"
 serde = "1.0.152"
 
@@ -45,6 +39,9 @@ pre-release-replacements = [
     { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
     { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
     { file = "Cargo.toml", prerelease = true, search = "rule-engine\\]\nversion = .*", replace = "rule-engine]\nversion = \"={{version}}\"" },
+
+    # Update plugins paths in packages.
+    { file = "Cargo.toml", prerelease = true, search = "\\/usr\\/lib\\/vsmtp\\/[a-z0-9\\.-]+", replace = "/usr/lib/vsmtp/{{version}}" },
 ]
 
 [features]
@@ -85,34 +82,16 @@ version = "=2.0.0"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
-clap = { version = "4.0.32", default-features = false, features = [
-    "std",
-    "derive",
-    "cargo",
-    "usage",
-    "help",
-    "color",
-] }
+clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
 diff = { version = "0.1.13", default-features = false }
-serde_json = { version = "1.0.91", default-features = false, features = [
-    "std",
-] }
+serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 
 anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 humantime = { version = "2.1.0", default-features = false }
 
-tracing = { version = "0.1.37", default-features = false, features = [
-    "std",
-    "attributes",
-    "release_max_level_info",
-] }
-tracing-subscriber = { version = "0.3.16", default-features = false, features = [
-    "smallvec",
-    "fmt",
-    "ansi",
-    "std",
-] }
+tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["smallvec", "fmt", "ansi", "std"] }
 tracing-appender = { version = "0.2.2", default-features = false }
 tracing-journald = { version = "0.3.0", default-features = false }
 syslog = { version = "6.0.1", default-features = false }
@@ -134,37 +113,39 @@ rustdoc-args = ["--cfg", "docsrs"]
 name = "vsmtp"
 maintainer = "Pag <pag@viridit.com>"
 copyright = "Copyright (c) 2022, viridIT SAS. All rights reserved."
-extended-description = "A high performance MTA written in RUST."
+extended-description = "High performance MTA written in RUST."
 changelog = "../../../tools/install/deb/changelog"
 depends = "$auto, adduser"
 section = "mail"
 priority = "optional"
 assets = [
+    ["target/release/vsmtp", "/usr/sbin/", "755"],
+    ["target/release/vqueue", "/usr/sbin/", "755"],
     [
-        "target/release/vsmtp",
-        "usr/sbin/",
+        # https://www.debian.org/doc/debian-policy/ch-sharedlibs.html#shared-library-support-files
+        "target/release/*.so",
+        "/usr/lib/vsmtp/2.0.0/",
         "755",
     ],
-    [
-        "target/release/vqueue",
-        "usr/sbin/",
-        "755",
-    ],
-    [
-        "../../../tools/install/man/*",
-        "usr/share/man/man1",
-        "644",
-    ],
-    [
-        "../../../README.md",
-        "usr/share/doc/vsmtp/README",
-        "644",
-    ],
+    ["../../../tools/install/deb/lintian-overrides", "/usr/share/lintian/overrides/vsmtp", "644"],
+    ["../../../tools/install/man/*", "/usr/share/man/man1", "644"],
+    ["../../../README.md", "/usr/share/doc/vsmtp/README", "644"],
 ]
-maintainer-scripts = "tools/install/deb/"
+maintainer-scripts = "../../../tools/install/deb/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
 
 #
 # RPM PACKAGING
 #
 #
+[package.metadata.generate-rpm]
+name = "vsmtp"
+post_install_script = "../../../tools/install/deb/postinst"
+post_uninstall_script = "../../../tools/install/deb/postrm"
+assets = [
+    { source = "target/release/vsmtp", dest = "/usr/sbin/vsmtp", mode = "755" },
+    { source = "target/release/vqueue", dest = "/usr/sbin/vqueue", mode = "755" },
+    { source = "target/release/*.so", dest = "/usr/lib/vsmtp/2.0.0/", mode = "755" },
+    { source = "../../../tools/install/man/*", dest = "/usr/share/man/man1/", mode = "644", doc = true },
+    { source = "../../../README.md", dest = "/usr/share/doc/vsmtp/", mode = "644", doc = true },
+]

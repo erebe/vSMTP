@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 VSMTP_USER="vsmtp"
@@ -10,14 +10,18 @@ CONF_DIR="/etc/vsmtp/"
 CONF_FILE=${CONF_DIR}"vsmtp.vsl"
 USER_CONF_DIR=${CONF_DIR}"conf.d/"
 USER_CONF_FILE=${USER_CONF_DIR}"config.vsl"
-DOMAIN_AVAILABE=${CONF_DIR}"domain-availabe"
-DOMAIN_ENABLED=${CONF_DIR}"domain-enabled"
-SERVICES=${CONF_DIR}"services"
-OBJECTS=${CONF_DIR}"objects"
-PLUGINS=${CONF_DIR}"plugins"
+DOMAIN_AVAILABE_DIR=${CONF_DIR}"domain-availabe/"
+DOMAIN_ENABLED_DIR=${CONF_DIR}"domain-enabled/"
+SERVICES_DIR=${CONF_DIR}"services/"
+OBJECTS_DIR=${CONF_DIR}"objects/"
+PLUGINS_DIR=${CONF_DIR}"plugins/"
+DYLIB_DIR="/usr/lib/${DPKG_NAME}/${DPKG_VER}/"
 
-LOG_DIR="/var/log/vsmtp/"
-SPOOL_DIR="/var/spool/vsmtp/"
+PLUGINS_NOMENCLATURE="libvsmtp_plugin_"
+PLUGINS=(mysql csv)
+
+LOG_DIR="/var/log/${DPKG_NAME}/"
+SPOOL_DIR="/var/spool/${DPKG_NAME}/"
 
 add_user() {
     if id ${VSMTP_USER} >/dev/null 2>&1; then return; fi
@@ -48,22 +52,22 @@ check_dir() {
     fi
     # vSMTP config directory.
     if [ ! -d "${CONF_DIR}" ]; then
-        mkdir -p ${USER_CONF_DIR} ${DOMAIN_AVAILABE} ${DOMAIN_ENABLED} ${SERVICES} ${OBJECTS} ${PLUGINS}
+        mkdir -p ${USER_CONF_DIR} ${DOMAIN_AVAILABE_DIR} ${DOMAIN_ENABLED_DIR} ${SERVICES_DIR} ${OBJECTS_DIR} ${PLUGINS_DIR}
 
-        chown -R ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR}
-        chmod -R 755 ${CONF_DIR}
+        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR} ${DOMAIN_AVAILABE_DIR} ${DOMAIN_ENABLED_DIR} ${SERVICES_DIR} ${OBJECTS_DIR} ${PLUGINS_DIR}
+        chmod 755 ${CONF_DIR} ${DOMAIN_AVAILABE_DIR} ${DOMAIN_ENABLED_DIR} ${SERVICES_DIR} ${OBJECTS_DIR} ${PLUGINS_DIR}
     fi
 }
 
 check_config() {
-    if [ ! -f "${CONF_FILE}" ]; then
-        cat >${CONF_FILE} <<EOF
+    # Root configuration file is always overridden.
+    cat >"${CONF_FILE}" <<EOF
 //! This is the first file that vSMTP reads when it starts.
 //!
 //! This file is maintained by vSMTP package maintainers and it is recommended that administrators
 //! avoid editing this file unless they also follow changes made by upstream.
 //! It's advised to instead add customizations in the files underneath
-//! the $(conf.d/) directory.
+//! the "conf.d" directory.
 
 import "conf.d/config" as cfg;
 
@@ -75,28 +79,42 @@ fn on_config(config) {
 }
 
 EOF
+    chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE}
+    chmod 664 ${CONF_FILE}
 
-        cat >${USER_CONF_FILE} <<EOF
+    # User defined config file is preserved if it already exists.
+    if [ ! -f "${USER_CONF_FILE}" ]; then
+        cat >"${USER_CONF_FILE}" <<EOF
 //! This is the entrypoint for vSMTP's configuration.
 //!
 //! To make the configuration easier to maintain, we recommend that you split
-//! it into a set of feature‑specific files stored in this directory that you
-//! can import via the Rhai $(import) statement.
+//! it into a set of feature-specific files stored in this directory that you
+//! can import via the Rhai import statement.
 //!
-//! See https://vsmtp.rs/reference/config-file.html?highlight=config#complete-vsmtp-toml-keyvalue-list
+//! See https://vsmtp.rs/ref/config/config.html
 
 fn on_config(config) {
     // Configure vSMTP here using the config variable.
     config.app.vsl.domain_dir = "/etc/vsmtp/domain-enabled";
-    config.app.vsl.filter_path = "/etc/vsmtp/filter.vsl";
+
+    // Create the /etc/vsmtp/filter.vsl file and uncomment this line to enable filtering.
+    // config.app.vsl.filter_path = "/etc/vsmtp/filter.vsl";
 
     config
 }
 EOF
-
-        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE} ${USER_CONF_FILE}
-        chmod 664 ${CONF_FILE} ${USER_CONF_FILE}
+        chown ${VSMTP_USER}:${VSMTP_USER} ${USER_CONF_FILE}
+        chmod 664 ${USER_CONF_FILE}
     fi
+}
+
+add_plugins_and_symlinks() {
+    for plugin in ${PLUGINS[@]}; do
+        plugin_name=${PLUGINS_NOMENCLATURE}${plugin}.so
+
+        # Symlink plugins to /etc/vsmtp/plugins directory.
+        ln -s ${DYLIB_DIR}${plugin_name} ${PLUGINS_DIR}${plugin_name}
+    done
 }
 
 case "$1" in
@@ -104,6 +122,7 @@ configure)
     add_user
     check_dir
     check_config
+    add_plugins_and_symlinks
     ;;
 esac
 
