@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-plugin-mysql"
-version = "2.0.1-rc.1"
+version = "2.0.1-rc.2"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
