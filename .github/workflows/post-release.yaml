@@ -19,13 +19,7 @@ jobs:
         id: get
         shell: bash
         run: |
-          version=""
-          if [ -n ${{ env.RELEASE_VERSION }} ]; then
-            version=${{ env.RELEASE_VERSION }}
-          else
-            version=${GITHUB_REF#refs/tags/}
-          fi
-
+          version="${GITHUB_REF#refs/tags/}"
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "New release version=${version}"
 
