@@ -17,6 +17,7 @@ release. They will however *never* happen in a patch release.
 
 - Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
 - Create proper build systems to share debian and ubuntu packages. (#933)
+- Building without `.git` no longer causes a hard failure. (#952)
 
 ## [2.0.0] - 2023-01-09
 
