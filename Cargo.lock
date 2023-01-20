@@ -3773,7 +3773,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3797,7 +3797,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "clap 4.0.32",
@@ -3823,7 +3823,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-auth"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3846,7 +3846,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3876,7 +3876,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
@@ -3906,7 +3906,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3933,7 +3933,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3949,7 +3949,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-csv"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "csv",
@@ -3960,7 +3960,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-mysql"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "flate2",
@@ -3976,7 +3976,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-plugin-vsl"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -3991,7 +3991,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-protocol"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "addr",
  "anyhow",
@@ -4016,7 +4016,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "either",
@@ -4054,7 +4054,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4097,7 +4097,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "2.0.0"
+version = "2.0.1-rc.1"
 dependencies = [
  "anyhow",
  "async-trait",
