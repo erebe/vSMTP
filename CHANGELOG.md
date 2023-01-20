@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [2.0.1-rc.1] - 2023-01-20
+
 ### Fixed
 
 - Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
