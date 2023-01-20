@@ -41,7 +41,7 @@ pre-release-replacements = [
     { file = "Cargo.toml", prerelease = true, search = "rule-engine\\]\nversion = .*", replace = "rule-engine]\nversion = \"={{version}}\"" },
 
     # Update plugins paths in packages.
-    { file = "Cargo.toml", prerelease = true, search = "\\/usr\\/lib\\/vsmtp\\/[a-z0-9\\.-]+", replace = "/usr/lib/vsmtp/{{version}}" },
+    { file = "Cargo.toml", prerelease = true, search = "/usr/lib/vsmtp/[a-z0-9\\.-]+", replace = "/usr/lib/vsmtp/{{version}}" },
 ]
 
 [features]
