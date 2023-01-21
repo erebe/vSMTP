@@ -3823,7 +3823,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-auth"
-version = "2.0.1-rc.2"
+version = "2.0.1-rc.3"
 dependencies = [
  "addr",
  "anyhow",
