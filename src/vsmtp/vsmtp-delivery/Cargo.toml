@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-delivery"
-version = "2.0.1-rc.2"
+version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
 rust-version = "1.63.0"
