@@ -13,11 +13,21 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
-## [2.0.1-rc.3] - 2023-01-21
+### Added
 
-## [2.0.1-rc.2] - 2023-01-20
+- Support for fqdn in the `config.server.interfaces` `addr`, `addr_submission` and `addr_submissions` fields. (#965)
 
-## [2.0.1-rc.1] - 2023-01-20
+```rust
+fn on_config(config) {
+
+  config.server.interfaces = #{
+      addr: ["example.com:25", "localhost:10025"],
+      // ...
+  };
+
+  config
+}
+``` 
 
 ### Fixed
 

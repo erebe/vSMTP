@@ -2,6 +2,8 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
 
+  * Added
+    * fqdn resolution support in `config.server.interfaces`. (#965)
   * Fixed
     * Display proper configuration errors. (#926)
     * Create proper build systems to share vsmtp packages. (#933)
