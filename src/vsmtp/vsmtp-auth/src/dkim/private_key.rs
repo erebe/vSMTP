@@ -50,16 +50,10 @@ impl PrivateKey {
                     }
                     #[cfg(feature = "historic")]
                     SigningAlgorithm::RsaSha1 => rsa
-                        .sign(
-                            rsa::PaddingScheme::new_pkcs1v15_sign::<sha1::Sha1>(),
-                            digest_in,
-                        )
+                        .sign(rsa::Pkcs1v15Sign::new::<sha1::Sha1>(), digest_in)
                         .map_err(|e| InnerError::BackendError(BackendError::Rsa(e))),
                     SigningAlgorithm::RsaSha256 => rsa
-                        .sign(
-                            rsa::PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>(),
-                            digest_in,
-                        )
+                        .sign(rsa::Pkcs1v15Sign::new::<sha2::Sha256>(), digest_in)
                         .map_err(|e| InnerError::BackendError(BackendError::Rsa(e))),
                 }
             }
