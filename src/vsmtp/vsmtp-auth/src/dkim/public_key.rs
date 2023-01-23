@@ -85,7 +85,7 @@ impl InnerPublicKey {
             )
             .map_err(BackendError::Rsa),
             (InnerPublicKey::Ed25519(ed25519), SigningAlgorithm::Ed25519Sha256) => {
-                match ring_compat::signature::ed25519::Signature::from_bytes(signature).map(
+                match ring_compat::signature::ed25519::Signature::from_slice(signature).map(
                     |signature| {
                         ring_compat::signature::Verifier::verify(ed25519, hashed, &signature)
                     },
