@@ -22,6 +22,7 @@ categories = ["data-structures"]
 pre-release-replacements = [
   { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "plugin-vsl\\]\nversion = .*", replace = "plugin-vsl]\nversion = \"={{version}}\"" },
 ]
 
 [dependencies.vsmtp-common]
@@ -31,6 +32,12 @@ path = "../vsmtp-common"
 [dependencies.vsmtp-auth]
 version = "=2.0.1-rc.3"
 path = "../vsmtp-auth"
+
+[dependencies.vsmtp-plugin-vsl]
+version = "=2.0.1-rc.3"
+path = "../vsmtp-plugin-vsl"
+default-features = false
+features = ["unix"]
 
 [dependencies]
 

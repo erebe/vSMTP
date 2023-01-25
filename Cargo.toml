@@ -13,9 +13,9 @@ members = [
   "src/vsmtp/vsmtp-rule-engine",
   "src/vsmtp/vsmtp-server",
   "src/vsmtp/vsmtp-test",
+  "src/vsmtp/vsmtp-plugin-vsl",
 
   # Plugins.
-  "src/vsmtp/plugins/vsmtp-plugin-vsl",
 
   "src/plugins/vsmtp-plugin-csv",
   "src/plugins/vsmtp-plugin-mysql",

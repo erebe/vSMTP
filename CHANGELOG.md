@@ -15,6 +15,19 @@ release. They will however *never* happen in a patch release.
 
 ### Added
 
+- A `env` function, enable fetching environment variables in `vsl` scripts. (#927)
+  exported globally and available in the `unix` module.
+
+```rust
+fn on_config(config) {
+
+  config.app.vsl.filter_path = env("VSMTP_FILTER_PATH");
+
+  config
+}
+``` 
+
+- The `user_exist`, `env` and `hostname` functions are available in the config scripts. (#927)
 - Support for fqdn in the `config.server.interfaces` `addr`, `addr_submission` and `addr_submissions` fields. (#965)
 
 ```rust

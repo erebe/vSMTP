@@ -70,7 +70,7 @@ mod dmarc {
 
         let (hostname, sender, client_ip) = {
             (
-                crate::api::utils::hostname()?,
+                vsmtp_plugin_vsl::unix::hostname()?,
                 vsl_generic_ok!(ctx.reverse_path()).clone(),
                 ctx.client_addr().ip().to_string(),
             )

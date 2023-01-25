@@ -163,6 +163,8 @@ impl Config {
             );
         }
 
+        engine.register_global_module(vsmtp_plugin_vsl::unix_module().into());
+
         let ast = engine
             .compile(script)
             .context("Failed to compile root configuration (config.vsl)")?;

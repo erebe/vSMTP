@@ -14,17 +14,17 @@ homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-rule-engine/"
 
-readme = "../../../../README.md"
+readme = "../../../README.md"
 keywords = ["vsmtp", "scripting-language", "scripting", "rhai"]
 categories = ["config"]
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", version = \"={{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
-vsmtp-common = { path = "../../vsmtp-common", version = "=2.0.1-rc.3" }
+vsmtp-common = { path = "../vsmtp-common", version = "=2.0.1-rc.3" }
 
 rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
@@ -39,3 +39,19 @@ ipnet = { version = "2.7.1", default-features = false, features = [
 either = { version = "1.8.0", default-features = false, features = ["use_std"] }
 anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
+
+# Unix feature dependencies.
+hostname = { version = "0.3.1", default-features = false, optional = true }
+users = { version = "0.11.0", default-features = true, optional = true }
+
+[dev-dependencies]
+vsmtp-test = { path = "../vsmtp-test" }
+
+[features]
+default = ["objects", "unix"]
+
+# vSL objects, like email addresses, ips or files.
+objects = []
+
+# Utils functions to interact with an unix system.
+unix = ["hostname", "users"]

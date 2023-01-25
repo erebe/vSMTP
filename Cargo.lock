@@ -928,9 +928,9 @@ dependencies = [
 
 [[package]]
 name = "ecdsa"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82508ce57bd2b245e9914411800f87fd8fc8288f501bb26919cb9b2ee964028f"
+checksum = "12844141594ad74185a926d030f3b605f6a903b4e3fec351f3ea338ac5b7637e"
 dependencies = [
  "der",
  "elliptic-curve",
@@ -3754,6 +3754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24cc0f6d6f267b73e5a2cadf007ba8f9bc39c6a6f9666f8cf25ea809a153b032"
 dependencies = [
  "libc",
+ "log",
 ]
 
 [[package]]
@@ -3934,6 +3935,7 @@ dependencies = [
  "users",
  "vsmtp-auth",
  "vsmtp-common",
+ "vsmtp-plugin-vsl",
  "vsmtp-test",
 ]
 
@@ -4014,12 +4016,15 @@ dependencies = [
  "addr",
  "anyhow",
  "either",
+ "hostname",
  "ipnet",
  "iprange",
  "regex",
  "rhai",
  "strum",
+ "users",
  "vsmtp-common",
+ "vsmtp-test",
 ]
 
 [[package]]
@@ -4053,7 +4058,6 @@ version = "2.0.1-rc.3"
 dependencies = [
  "anyhow",
  "either",
- "hostname",
  "humantime-serde",
  "lettre",
  "pretty_assertions",

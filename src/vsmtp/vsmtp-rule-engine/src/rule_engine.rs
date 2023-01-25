@@ -685,7 +685,6 @@ impl RuleEngine {
 
         engine.register_global_module(std_module.clone());
 
-        // TODO: fully replace the rhai API by a native Rust API.
         let vsl_rhai_module: rhai::Shared<_> = Self::compile_api(engine)
             .context("failed to compile vsl's api")?
             .into();

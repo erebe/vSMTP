@@ -136,7 +136,7 @@ pub mod api {
 
     /// Get vsmtp static modules.
     #[must_use]
-    pub fn vsmtp_static_modules() -> [(&'static str, rhai::Module); 19] {
+    pub fn vsmtp_static_modules() -> [(&'static str, rhai::Module); 20] {
         [
             ("state", rhai::exported_module!(state)),
             ("envelop", rhai::exported_module!(envelop)),
@@ -154,7 +154,8 @@ pub mod api {
             ("utils", rhai::exported_module!(utils)),
             ("ctx", rhai::exported_module!(mail_context)),
             ("msg", rhai::exported_module!(message)),
-            ("obj", vsmtp_plugin_vsl::new_module()),
+            ("obj", vsmtp_plugin_vsl::object_module()),
+            ("unix", vsmtp_plugin_vsl::unix_module()),
             ("cmd", crate::dsl::cmd::new_module()),
             ("smtp", crate::dsl::smtp::new_module()),
         ]
