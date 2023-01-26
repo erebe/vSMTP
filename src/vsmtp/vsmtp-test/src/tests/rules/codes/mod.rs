@@ -18,36 +18,6 @@ use crate::{run_test, tests::protocol::auth::unsafe_auth_config};
 use base64::{engine::general_purpose::STANDARD, Engine};
 
 run_test! {
-    fn info_message,
-    input = [
-        "HELO someone\r\n",
-        "HELO foo\r\n",
-        "HELO bar\r\n",
-        "HELO example.com\r\n",
-        "MAIL FROM:<a@satan.org>\r\n",
-        "MAIL FROM:<a@ok.org>\r\n",
-        "RCPT TO:<b@ok.org>\r\n",
-        "DATA\r\n",
-        ".\r\n",
-        "QUIT\r\n",
-    ],
-    expected = [
-        "220 testserver.com Service ready\r\n",
-        "250 cannot identify with 'someone'.\r\n",
-        "250 2.0.0 foo is not accepted as a helo value.\r\n",
-        "250 I do not accept this email, sorry\r\n",
-        "250 Ok\r\n",
-        "250 satan.org is not valid, please try again.\r\n",
-        "250 Ok\r\n",
-        "250 Ok\r\n",
-        "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-        "500 I decided that you cannot send data.\r\n",
-        "221 Service closing transmission channel\r\n"
-    ],
-    hierarchy_builder = |builder| Ok(builder.add_root_filter_rules(include_str!("custom_codes_info.vsl"))?.build()),
-}
-
-run_test! {
     fn deny_message_1,
     input = [
         "HELO someone\r\n",

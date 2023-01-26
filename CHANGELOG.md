@@ -50,6 +50,10 @@ fn on_config(config) {
 - Create proper build systems to share debian and ubuntu packages. (#933)
 - Building without `.git` no longer causes a hard failure. (#952)
 
+### Removed
+
+- `info()` and `info(code)` vsl api function (#972)
+
 ## [2.0.0] - 2023-01-09
 
 ### Plugin System

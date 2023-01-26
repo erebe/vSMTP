@@ -159,7 +159,7 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             &mut self.skipped,
             ExecutionStage::MailFrom,
         ) {
-            Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+            Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
                 either::Left(CodeID::Ok)
             }
@@ -306,7 +306,7 @@ impl<M: OnMail + Send + Sync> vsmtp_protocol::ReceiverHandler for Handler<M> {
             .rule_engine
             .run_when(state, &mut self.skipped, ExecutionStage::RcptTo)
         {
-            Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+            Status::Faccept(e) | Status::Accept(e) => e,
             Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
                 either::Left(CodeID::Ok)
             }
