@@ -7,6 +7,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     * `user_exist`, `env` and `hostname` functions are available
       in the config. (#927)
     * fqdn resolution support in `config.server.interfaces`. (#965)
+    * Documentation for docker images. (#968)
   * Fixed
     * Display proper configuration errors. (#926)
     * Create proper build systems to share vsmtp packages. (#933)

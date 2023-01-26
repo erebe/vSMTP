@@ -42,6 +42,8 @@ fn on_config(config) {
 }
 ``` 
 
+- Documentation for docker images. (#968)
+
 ### Fixed
 
 - Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
