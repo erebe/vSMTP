@@ -162,7 +162,6 @@ mod unix {
     /// #       return #{};
     /// # "#)?.build()));
     /// ```
-    #[must_use]
     #[rhai_fn(global, name = "env")]
     pub fn env_str(variable: &str) -> rhai::Dynamic {
         std::env::var(variable).map_or(rhai::Dynamic::UNIT, std::convert::Into::into)
@@ -202,7 +201,6 @@ mod unix {
     /// #       return #{};
     /// # "#)?.build()));
     /// ```
-    #[must_use]
     #[doc(hidden)]
     #[cfg(all(feature = "unix", feature = "objects"))]
     #[rhai_fn(global, name = "env", pure)]

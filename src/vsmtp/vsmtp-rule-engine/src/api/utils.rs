@@ -99,7 +99,6 @@ mod utils {
     /// # ))));
     /// ```
     #[rhai_fn(global, name = "env")]
-    #[must_use]
     pub fn env_str(variable: &str) -> rhai::Dynamic {
         std::env::var(variable).map_or(rhai::Dynamic::UNIT, std::convert::Into::into)
     }
@@ -151,7 +150,6 @@ mod utils {
     /// # ))));
     /// ```
     #[rhai_fn(global, name = "env", pure)]
-    #[must_use]
     #[doc(hidden)]
     pub fn env_obj(variable: &mut SharedObject) -> rhai::Dynamic {
         std::env::var(variable.to_string()).map_or(rhai::Dynamic::UNIT, std::convert::Into::into)

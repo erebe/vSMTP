@@ -29,7 +29,7 @@ pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
 [dependencies]
 vsmtp-plugin-vsl = { version = "=2.0.1-rc.3", path = "../../vsmtp/vsmtp-plugin-vsl" }
 
-rhai = { version = "1.11.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
+rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 csv = { version = "1.1.6", default-features = false }
 anyhow = { version = "1.0.65", default-features = false, features = ["std"] }
 serde = { version = "1.0.144", default-features = false, features = ["std", "derive"] }
