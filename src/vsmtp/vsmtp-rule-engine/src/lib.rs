@@ -25,7 +25,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::use_self)]
 // Triggered by `rust_2018_idioms` for the `rhai::NativeCallContext`.
 // Rhai must do something with lifetimes in plugin modules to prevent
 // a Clone impl on the context, but it fails if adding an anonymous lifetime.

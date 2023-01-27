@@ -18,7 +18,7 @@ categories = ["email", "database", "plugin"]
 
 publish = false
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 [lib]
 crate-type = ["cdylib"]

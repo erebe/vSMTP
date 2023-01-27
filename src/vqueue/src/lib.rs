@@ -29,17 +29,18 @@
 #![warn(clippy::restriction)]
 //
 #![allow(clippy::multiple_crate_versions)]
-#![allow(clippy::use_self)] // false positive with enums
 #![allow(clippy::integer_arithmetic, clippy::arithmetic_side_effects)] // issue with strum
 // restriction we ignore
-#![allow(clippy::missing_docs_in_private_items)]
-#![allow(clippy::pattern_type_mismatch)]
-#![allow(clippy::blanket_clippy_restriction_lints)]
-#![allow(clippy::pub_use)]
-#![allow(clippy::implicit_return)]
-#![allow(clippy::unseparated_literal_suffix)]
-#![allow(clippy::shadow_reuse)]
-#![allow(clippy::mod_module_files)]
+#![allow(
+    clippy::missing_docs_in_private_items,
+    clippy::pattern_type_mismatch,
+    clippy::blanket_clippy_restriction_lints,
+    clippy::pub_use,
+    clippy::implicit_return,
+    clippy::unseparated_literal_suffix,
+    clippy::shadow_reuse,
+    clippy::mod_module_files
+)]
 //
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::std_instead_of_core))]
 #![cfg_attr(docsrs, feature(doc_cfg))]

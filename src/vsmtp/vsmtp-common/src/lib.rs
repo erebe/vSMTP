@@ -28,7 +28,6 @@
 #![warn(clippy::cargo)]
 #![warn(clippy::undocumented_unsafe_blocks)]
 //
-#![allow(clippy::use_self)] // false positive with enums
 #![allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/9271
 
 /// Default smtp port

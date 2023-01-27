@@ -761,9 +761,8 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
-            let stage = match ExecutionStage::try_from(stage.as_str()) {
-                Ok(stage) => stage,
-                Err(_) => anyhow::bail!("the '{stage}' smtp stage does not exist."),
+            let Ok(stage) = ExecutionStage::try_from(stage.as_str()) else {
+                anyhow::bail!("the '{stage}' smtp stage does not exist.")
             };
 
             let directive_set = directive_set

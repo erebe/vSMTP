@@ -45,7 +45,7 @@ impl ReplyCode {
     #[must_use]
     pub fn is_error(&self) -> bool {
         match self {
-            ReplyCode::Code { code } | ReplyCode::Enhanced { code, .. } => code / 100 >= 4,
+            Self::Code { code } | Self::Enhanced { code, .. } => code / 100 >= 4,
         }
     }
 
@@ -127,10 +127,8 @@ impl ReplyCode {
 impl std::fmt::Display for ReplyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReplyCode::Code { code } => f.write_fmt(format_args!("{code}")),
-            ReplyCode::Enhanced { code, enhanced } => {
-                f.write_fmt(format_args!("{code} {enhanced}"))
-            }
+            Self::Code { code } => f.write_fmt(format_args!("{code}")),
+            Self::Enhanced { code, enhanced } => f.write_fmt(format_args!("{code} {enhanced}")),
         }
     }
 }

@@ -375,7 +375,7 @@ mod doc_gen {
             } else if value.is::<SharedObject>() {
                 format!("{:#?}", *value.clone_cast::<SharedObject>())
             } else {
-                format!("{:#?}", value)
+                format!("{value:#?}")
             }
         }
 

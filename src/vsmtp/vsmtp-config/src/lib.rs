@@ -52,7 +52,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::use_self)] // false positive
 #![allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/9271
 
 #[cfg(test)]
@@ -174,7 +173,7 @@ impl Config {
                 &mut rhai::Scope::new(),
                 &ast,
                 "on_config",
-                (Config::default_json()?,),
+                (Self::default_json()?,),
             )
             .context("Could not get main configuration.")?;
 

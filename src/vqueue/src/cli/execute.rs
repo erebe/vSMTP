@@ -29,7 +29,7 @@ impl Commands {
         queue_manager: alloc::sync::Arc<impl GenericQueueManager + Send + Sync>,
     ) -> anyhow::Result<()> {
         match self {
-            Commands::Show {
+            Self::Show {
                 queues,
                 empty_token,
             } => {
@@ -46,7 +46,7 @@ impl Commands {
                 .await
             }
 
-            Commands::Msg { msg, command } => match command {
+            Self::Msg { msg, command } => match command {
                 MessageCommand::Show { format } => {
                     Self::message_show(&msg, &queue_manager, &format, &mut std::io::stdout()).await
                 }

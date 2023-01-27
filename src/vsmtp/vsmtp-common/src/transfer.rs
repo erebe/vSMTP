@@ -88,18 +88,18 @@ impl TransferErrorsVariant {
     #[must_use]
     pub const fn is_permanent(&self) -> bool {
         match self {
-            TransferErrorsVariant::EnvelopIllFormed { .. }
-            | TransferErrorsVariant::NoSuchMailbox { .. }
-            | TransferErrorsVariant::MaxDeferredAttemptReached
-            | TransferErrorsVariant::LocalDeliveryError { .. } => true,
+            Self::EnvelopIllFormed { .. }
+            | Self::NoSuchMailbox { .. }
+            | Self::MaxDeferredAttemptReached
+            | Self::LocalDeliveryError { .. } => true,
 
-            TransferErrorsVariant::DnsRecord { .. }
-            | TransferErrorsVariant::HasNullMX { .. }
-            | TransferErrorsVariant::Smtp { .. }
-            | TransferErrorsVariant::StillWaiting
-            | TransferErrorsVariant::RuleEngine(..)
-            | TransferErrorsVariant::DeliveryError { .. }
-            | TransferErrorsVariant::TlsNoCertificate { .. } => false,
+            Self::DnsRecord { .. }
+            | Self::HasNullMX { .. }
+            | Self::Smtp { .. }
+            | Self::StillWaiting
+            | Self::RuleEngine(..)
+            | Self::DeliveryError { .. }
+            | Self::TlsNoCertificate { .. } => false,
         }
     }
 }
@@ -199,8 +199,8 @@ impl EmailTransferStatus {
     #[must_use]
     pub const fn is_sendable(&self) -> bool {
         match self {
-            EmailTransferStatus::Waiting { .. } | EmailTransferStatus::HeldBack { .. } => true,
-            EmailTransferStatus::Sent { .. } | EmailTransferStatus::Failed { .. } => false,
+            Self::Waiting { .. } | Self::HeldBack { .. } => true,
+            Self::Sent { .. } | Self::Failed { .. } => false,
         }
     }
 
@@ -208,7 +208,7 @@ impl EmailTransferStatus {
     pub fn held_back(&mut self, error: impl Into<TransferErrorsVariant>) {
         let error = error.into();
         match self {
-            EmailTransferStatus::HeldBack { errors } => {
+            Self::HeldBack { errors } => {
                 errors.push(TransferError::new(error));
             }
             _ => {
@@ -288,7 +288,7 @@ impl std::str::FromStr for ForwardTarget {
                         s.parse::<std::net::IpAddr>().map_or_else(
                             |_| {
                                 addr::parse_domain_name(s)
-                                    .map(|domain| ForwardTarget::Domain(domain.to_string()))
+                                    .map(|domain| Self::Domain(domain.to_string()))
                                     .map_err(|err| {
                                         anyhow::anyhow!(
                                             "{} could not be used as a forward target.",
@@ -296,13 +296,13 @@ impl std::str::FromStr for ForwardTarget {
                                         )
                                     })
                             },
-                            |ip| Ok(ForwardTarget::Ip(ip)),
+                            |ip| Ok(Self::Ip(ip)),
                         )
                     },
-                    |socket| Ok(ForwardTarget::Socket(socket)),
+                    |socket| Ok(Self::Socket(socket)),
                 )
             },
-            |_| -> Result<ForwardTarget, _> { ipv6_with_scope_id(s).map(ForwardTarget::Socket) },
+            |_| -> Result<Self, _> { ipv6_with_scope_id(s).map(Self::Socket) },
         )
     }
 }

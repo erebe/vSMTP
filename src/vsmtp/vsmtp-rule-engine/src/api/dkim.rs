@@ -434,7 +434,7 @@ pub enum DkimErrors {
 
 impl From<DkimErrors> for Box<rhai::EvalAltResult> {
     fn from(this: DkimErrors) -> Self {
-        Box::new(rhai::EvalAltResult::ErrorRuntime(
+        Self::new(rhai::EvalAltResult::ErrorRuntime(
             rhai::Dynamic::from_map(rhai::Map::from_iter([
                 (
                     "type".into(),

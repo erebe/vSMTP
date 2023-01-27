@@ -33,9 +33,9 @@ pub enum ClientName {
 impl std::fmt::Display for ClientName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ClientName::Domain(domain) => write!(f, "{domain}"),
-            ClientName::Ip4(ip) => write!(f, "{ip}"),
-            ClientName::Ip6(ip) => write!(f, "{ip}"),
+            Self::Domain(domain) => write!(f, "{domain}"),
+            Self::Ip4(ip) => write!(f, "{ip}"),
+            Self::Ip6(ip) => write!(f, "{ip}"),
         }
     }
 }

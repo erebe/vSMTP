@@ -176,7 +176,7 @@
       "overviewRulerColor": "grey"
     }
   ],
-  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.check.command": "clippy",
   "files.associations": {
     "*.vsl": "rhai"
   },

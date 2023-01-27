@@ -55,7 +55,7 @@ impl Status {
     pub const fn is_finished(&self) -> bool {
         matches!(
             self,
-            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_)
+            Self::Faccept(_) | Self::Deny(_) | Self::Quarantine(_) | Self::Delegated(_)
         )
     }
 }
