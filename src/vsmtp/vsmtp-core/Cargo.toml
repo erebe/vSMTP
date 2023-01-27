@@ -82,7 +82,7 @@ version = "=2.0.1-rc.3"
 path = "../vsmtp-rule-engine"
 
 [dependencies]
-clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
+clap = { version = "4.1.4", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
 diff = { version = "0.1.13", default-features = false }
 serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 
