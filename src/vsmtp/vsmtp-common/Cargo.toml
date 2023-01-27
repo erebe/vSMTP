@@ -63,7 +63,7 @@ serde = { version = "1.0.152", default-features = false, features = ["std", "der
 serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros", "base64"] }
 thiserror = { version = "1.0.38", default-features = false }
 
-either = { version = "1.8.0", default-features = false, features = ["serde"] }
+either = { version = "1.8.1", default-features = false, features = ["serde"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [

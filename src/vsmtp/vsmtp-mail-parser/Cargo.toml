@@ -20,7 +20,7 @@ categories = ["email", "parsing"]
 
 [dependencies]
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
-either = { version = "1.8.0", default-features = false, features = ["use_std"] }
+either = { version = "1.8.1", default-features = false, features = ["use_std"] }
 async-trait = { version = "0.1.63", default-features = false }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "1.0.38", default-features = false }

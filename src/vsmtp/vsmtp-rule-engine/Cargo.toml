@@ -60,7 +60,7 @@ anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
 thiserror = { version = "1.0.38", default-features = false }
 
-either = { version = "1.8.0", default-features = false, features = ["use_std"] }
+either = { version = "1.8.1", default-features = false, features = ["use_std"] }
 
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }

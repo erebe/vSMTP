@@ -67,7 +67,7 @@ thiserror = { version = "1.0.38", default-features = false }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
-either = { version = "1.8.0", default-features = false, features = ["use_std", "serde"] }
+either = { version = "1.8.1", default-features = false, features = ["use_std", "serde"] }
 
 tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 async-stream = { version = "0.3.3", default-features = false }
