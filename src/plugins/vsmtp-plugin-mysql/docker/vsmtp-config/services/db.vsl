@@ -1,0 +1,8 @@
+import "plugins/libvsmtp_plugin_mysql" as mysql;
+
+// A service used to connect to and query our greylist database.
+export const greylist = mysql::connect(#{
+    url: "mysql://greylist:3306/?user=greylist-manager&password=vmstp-plugin-mysql-pass-guest",
+    connections: 4,
+    timeout: "3s",
+});
