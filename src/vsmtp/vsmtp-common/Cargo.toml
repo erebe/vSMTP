@@ -50,7 +50,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
     "pool",
     "serde",
 ] }
-tokio = { version = "1.24.1", default-features = false, features = ["macros", "sync", "fs", "libc", "mio"] }
+tokio = { version = "1.25.0", default-features = false, features = ["macros", "sync", "fs", "libc", "mio"] }
 rustls = { version = "0.20.8", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.2", default-features = false }
 

@@ -47,7 +47,7 @@ itertools = { version = "0.10.5", default-features = false, features = ["use_std
 serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", features = ["std", "derive"] }
 
-tokio = { version = "1.24.1", default-features = false, features = [
+tokio = { version = "1.25.0", default-features = false, features = [
     "macros",
     "time",
     "sync",
