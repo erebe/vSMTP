@@ -54,7 +54,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "dnssec-ring",
   "tokio-runtime",
 ] }
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",

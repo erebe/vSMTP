@@ -78,7 +78,7 @@ signal-hook = { version = "0.3.14", default-features = false, features = ["itera
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
 time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
@@ -121,7 +121,7 @@ criterion = { version = "0.4.0", features = ["async_tokio", "html_reports"] }
 iai = "0.1.1"
 rand = "0.8.5"
 
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",

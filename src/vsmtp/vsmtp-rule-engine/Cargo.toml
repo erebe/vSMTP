@@ -68,7 +68,7 @@ serde_with = { version = "2.2.0", default-features = false, features = ["std", "
 
 serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
