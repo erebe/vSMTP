@@ -184,9 +184,11 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 ## Roadmap
 
-You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones).
+You can find more information about the project agenda in [Milestones](https://github.com/viridIT/vSMTP/milestones) and the [roadmap](ROADMAP.md) section.
 
-Check out updates history in [Changelogs](https://github.com/viridIT/vSMTP/blob/develop/CHANGELOG.md).
+You can check out updates in the [Changelogs](https://github.com/viridIT/vSMTP/blob/develop/CHANGELOG.md).
+
+## Contributing
 
 A guideline about contributing to vSMTP can be found in the [contributing](CONTRIBUTING.md) section.
 
