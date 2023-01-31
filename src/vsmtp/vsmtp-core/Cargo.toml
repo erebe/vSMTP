@@ -71,7 +71,7 @@ version = "=2.0.1-rc.3"
 path = "../vsmtp-server"
 
 [dependencies.vsmtp-config]
-version = "=2.0.1-rc.3"
+version = "=2.0.1-rc.4"
 path = "../vsmtp-config"
 
 [dependencies.vsmtp-rule-engine]
