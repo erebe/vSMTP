@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+  vsmtp:
+    depends_on:
+      greylist:
+        condition: service_healthy
+    build:
+      dockerfile: Dockerfile
+      # Not using the official docker image since latest
+      # updates are on the develop branch.
+      context: ../../../../docker
+      args:
+        VSMTP_BRANCH: feat/memcached
+    volumes:
+      - ./vsmtp-config/conf.d:/etc/vsmtp/conf.d
+      - ./vsmtp-config/services:/etc/vsmtp/services
+      - ./vsmtp-config/vsmtp.vsl:/etc/vsmtp/vsmtp.vsl
+      - ./vsmtp-config/filter.vsl:/etc/vsmtp/filter.vsl
+    ports:
+      - 127.0.0.1:10025:25
+    links:
+      - greylist
+
+  greylist:
+    build:
+      context: ./memcached
+    expose:
+      - "11211"
+
+volumes:
+  vsmtp:

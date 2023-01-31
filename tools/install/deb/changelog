@@ -3,6 +3,7 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   [ Updated by ltabis ]
 
   * Added
+    * A public memcached plugin. (#974)
     * A `env` function to fetch env variables in scripts. (#927)
     * `user_exist`, `env` and `hostname` functions are available
       in the config. (#927)
@@ -12,8 +13,12 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     * Display proper configuration errors. (#926)
     * Create proper build systems to share vsmtp packages. (#933)
     * Building without `.git` no longer causes a failure. (#952)
+  * Changed
+    * Update official docker image with better options. (#974)
   * Removed
     * `info()` and `info(code)` vsl api function (#972)
+  * Compatibility
+    * bumped MSRV to `1.66.1`. (#976)
 
  -- ltabis <l.tabis@viridit.com>  Mon, 09 Jan 2023 21:52:36 +0100
 

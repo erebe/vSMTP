@@ -15,6 +15,7 @@ release. They will however *never* happen in a patch release.
 
 ### Added
 
+- A public [memcached](https://www.memcached.org/) plugin. (#974)
 - A `env` function, enable fetching environment variables in `vsl` scripts. (#927)
   exported globally and available in the `unix` module.
 
@@ -49,6 +50,16 @@ fn on_config(config) {
 - Display proper configuration error messages on machine that do not have a 'vsmtp' user. (#926)
 - Create proper build systems to share debian and ubuntu packages. (#933)
 - Building without `.git` no longer causes a hard failure. (#952)
+
+### Changed
+
+- Changes for vSMTP's official docker image.
+  - Allow specifying vSMTP's branch. (will be used to make an "unstable" tag)
+  - Install missing dependencies required by internal dependencies updates.
+  - Automatically import all plugins into the image.
+  - Symlink all plugins to `/etc/vsmtp/plugins` by default.
+  - Output vSMTP's current version number.
+  - Set default command to a vsmtp without daemon mode.
 
 ### Removed
 
