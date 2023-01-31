@@ -1,0 +1,34 @@
+import "services/db" as db;
+
+#{
+    mail: [
+        rule "log transaction" || {
+            let sender = ctx::mail_from();
+
+            // if the sender is not recognized in our database,
+            // we deny the transaction and write the sender into
+            // the database.
+            //
+            // In this example, we use a mysql table called "sender" in a "greylist" database.
+            // TODO: sanatize inputs.
+            if db::greylist.query(`SELECT * FROM greylist.sender WHERE address = '${sender}';`) == [] {
+                log("info", `New client discovered: ${sender}`);
+                db::greylist.query(`
+                    INSERT INTO greylist.sender (user, domain, address)
+                    values ("${sender.local_part}", "${sender.domain}", "${sender}");
+                `);
+
+                state::deny(code::c451_7_1())
+            } else {
+                log("info", `Known client connected: ${sender}`);
+                // the user is known by the server, the transaction
+                // can proceed.
+                state::accept()
+            }
+        },
+    ],
+
+    delivery: [
+        rule "setup delivery" || state::quarantine("hold")
+    ]
+}

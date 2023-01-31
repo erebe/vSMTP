@@ -46,7 +46,7 @@ impl CanonicalizationAlgorithm {
 
     pub(super) fn canonicalize_body(self, body: &str) -> String {
         match self {
-            CanonicalizationAlgorithm::Relaxed => {
+            Self::Relaxed => {
                 let mut s = Self::dedup_whitespaces(&body.replace('\t', " "));
 
                 while let Some(idx) = s.find(" \r\n") {
@@ -65,7 +65,7 @@ impl CanonicalizationAlgorithm {
 
                 s
             }
-            CanonicalizationAlgorithm::Simple => {
+            Self::Simple => {
                 if body.is_empty() {
                     return "\r\n".to_string();
                 }
@@ -82,27 +82,27 @@ impl CanonicalizationAlgorithm {
 
     pub(super) fn canonicalize_headers(self, headers: &[String]) -> String {
         match self {
-            CanonicalizationAlgorithm::Relaxed => headers
-                .iter()
-                .map(|s| self.canonicalize_header(s))
-                .fold(String::new(), |mut acc, s| {
+            Self::Relaxed => headers.iter().map(|s| self.canonicalize_header(s)).fold(
+                String::new(),
+                |mut acc, s| {
                     acc.push_str(&s);
                     acc.push_str("\r\n");
                     acc
-                }),
-            CanonicalizationAlgorithm::Simple => headers
-                .iter()
-                .map(|s| self.canonicalize_header(s))
-                .fold(String::new(), |mut acc, s| {
+                },
+            ),
+            Self::Simple => headers.iter().map(|s| self.canonicalize_header(s)).fold(
+                String::new(),
+                |mut acc, s| {
                     acc.push_str(&s);
                     acc
-                }),
+                },
+            ),
         }
     }
 
     pub(super) fn canonicalize_header(self, header: &str) -> String {
         match self {
-            CanonicalizationAlgorithm::Relaxed => {
+            Self::Relaxed => {
                 let mut words = header.splitn(2, ':');
                 match (words.next(), words.next()) {
                     (Some(key), Some(value)) => {
@@ -116,7 +116,7 @@ impl CanonicalizationAlgorithm {
                     _ => todo!("handle this case: (not containing `:`) `{header}`"),
                 }
             }
-            CanonicalizationAlgorithm::Simple => header.to_string(),
+            Self::Simple => header.to_string(),
         }
     }
 }

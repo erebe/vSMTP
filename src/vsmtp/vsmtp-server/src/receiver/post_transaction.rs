@@ -107,7 +107,6 @@ impl<M: OnMail + Send> Handler<M> {
                 .expect("has been set to finished");
 
             let reply = match status {
-                Status::Info(code_or_reply) => self.reply_or_code_in_config(code_or_reply),
                 Status::Deny(code_or_reply) => {
                     ctx.deny();
                     self.reply_or_code_in_config(code_or_reply)
@@ -162,7 +161,6 @@ impl<M: OnMail + Send> Handler<M> {
                 None
             } else {
                 let reply = match status {
-                    Status::Info(code_or_reply) => self.reply_or_code_in_config(code_or_reply),
                     Status::Deny(code_or_reply) => {
                         ctx.deny();
                         self.reply_or_code_in_config(code_or_reply)

@@ -685,7 +685,6 @@ impl RuleEngine {
 
         engine.register_global_module(std_module.clone());
 
-        // TODO: fully replace the rhai API by a native Rust API.
         let vsl_rhai_module: rhai::Shared<_> = Self::compile_api(engine)
             .context("failed to compile vsl's api")?
             .into();
@@ -762,9 +761,8 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
-            let stage = match ExecutionStage::try_from(stage.as_str()) {
-                Ok(stage) => stage,
-                Err(_) => anyhow::bail!("the '{stage}' smtp stage does not exist."),
+            let Ok(stage) = ExecutionStage::try_from(stage.as_str()) else {
+                anyhow::bail!("the '{stage}' smtp stage does not exist.")
             };
 
             let directive_set = directive_set

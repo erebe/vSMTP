@@ -19,8 +19,8 @@
         action "auth getters" || {
             const credentials = auth::credentials();
 
-            print(`auth type => ${credentials.type}`);
-            print(`auth token => ${credentials.anonymous_token}`);
+            log("debug", `auth type => ${credentials.type}`);
+            log("debug", `auth token => ${credentials.anonymous_token}`);
         },
 
         rule "trailing authenticate" || state::accept(),
@@ -28,45 +28,47 @@
 
     rcpt: [
         action "rcpt getter" || {
-            print(`rcpt => ${ctx::rcpt()}`);
+            log("debug", `rcpt => ${ctx::rcpt()}`);
         },
 
         rule "trailing rcpt" || state::accept(),
     ],
 
     preq: [
-        action "getters" || {
-            print(`client: ${ctx::client_ip()}:${ctx::client_port()} => ${ctx::client_address()}`);
+        rule "getters" || {
+            log("debug", `client: ${ctx::client_ip()}:${ctx::client_port()} => ${ctx::client_address()}`);
 
             if `${ctx::client_ip()}:${ctx::client_port()}` != ctx::client_address() {
                 return state::deny();
             }
 
-            print(`server: ${ctx::server_ip()}:${ctx::server_port()} => ${ctx::server_address()}`);
+            log("debug", `server: ${ctx::server_ip()}:${ctx::server_port()} => ${ctx::server_address()}`);
 
             if `${ctx::server_ip()}:${ctx::server_port()}` != ctx::server_address() {
                 return state::deny();
             }
 
-            print(`connection timestamp => ${ctx::connection_timestamp()}`);
-            print(`server name => ${ctx::server_name()}`);
-            print(`is secured => ${ctx::is_secured()}`);
-            print(`is authenticated => ${auth::is_authenticated()}`);
+            log("debug", `connection timestamp => ${ctx::connection_timestamp()}`);
+            log("debug", `server name => ${ctx::server_name()}`);
+            log("debug", `is secured => ${ctx::is_secured()}`);
+            log("debug", `is authenticated => ${auth::is_authenticated()}`);
 
-            print(`helo => ${ctx::helo()}`);
-            print(`mail_from => ${ctx::mail_from()}`);
-            print(`rcpt list => ${ctx::rcpt_list()}`);
-            print(`mail timestamp => ${ctx::mail_timestamp()}`);
-            print(`message id => ${ctx::message_id()}`);
+            log("debug", `helo => ${ctx::helo()}`);
+            log("debug", `mail_from => ${ctx::mail_from()}`);
+            log("debug", `rcpt list => ${ctx::rcpt_list()}`);
+            log("debug", `mail timestamp => ${ctx::mail_timestamp()}`);
+            log("debug", `message id => ${ctx::message_id()}`);
+
+            state::next()
         },
 
-        action "rewrite envelop" || {
+        rule "rewrite envelop" || {
             const john = address("john.doe@example.com");
             envelop::rw_mail_from("john.doe@example.com");
             envelop::rw_mail_from(john);
 
             const fail = ip4("127.0.0.1");
-            try { envelop::rw_mail_from(fail); return state::deny(); } catch (e) { print(e) }
+            try { envelop::rw_mail_from(fail); return state::deny(); } catch (e) { log("debug", `${e}`) }
 
             const add1 = address("add1@example.com");
             const add2 = "add2@example.com";
@@ -77,7 +79,9 @@
             envelop::add_rcpt("add4@example.com");
 
             const fail = ip4("127.0.0.1");
-            try { envelop::add_rcpt(fail); return state::deny(); } catch (e) { print(e) }
+            try { envelop::add_rcpt(fail); return state::deny(); } catch (e) { log("debug", `${e}`) }
+
+            log("debug", `rcpt => ${ctx::rcpt_list()}`);
 
             const replace1 = address("replace1@example.com");
             const replace4 = address("replace4@example.com");
@@ -87,12 +91,16 @@
             envelop::rw_rcpt("replace3@example.com", replace4);
 
             const fail = fqdn("example.com");
-            try { envelop::rw_rcpt(fail); return state::deny(); } catch (e) { print(e) }
+            try { envelop::rw_rcpt(fail); return state::deny(); } catch (e) { log("debug", `${e}`) }
 
             envelop::rm_rcpt("add2@example.com");
             envelop::rm_rcpt(add3);
 
-            try { envelop::rm_rcpt(fail); return state::deny(); } catch (e) { print(e) }
+            try { envelop::rm_rcpt(fail); return state::deny(); } catch (e) { log("debug", `${e}`) }
+
+            log("debug", `rcpt => ${ctx::rcpt_list()}`);
+
+            state::next()
         },
 
         rule "trailing preq" || state::accept(),

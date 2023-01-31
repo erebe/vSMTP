@@ -5,7 +5,7 @@ name = "vsmtp-test"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -23,8 +23,8 @@ vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
 
-async-trait = "0.1.62"
-lettre = { version = "0.10.1", default-features = false, features = [
+async-trait = "0.1.64"
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
@@ -59,7 +59,7 @@ anyhow = "1.0.68"
 
 serde_json = "1.0.91"
 
-tokio = { version = "1.24.1", default-features = false, features = [
+tokio = { version = "1.25.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",

@@ -28,137 +28,6 @@ pub use utils::*;
 /// Utility functions to interact with the system.
 #[rhai::plugin::export_module]
 mod utils {
-    /// Check if a user exists on this server.
-    ///
-    /// ### Args
-    ///
-    /// * `name` - the name of the user.
-    ///
-    /// ### Return
-    ///
-    /// * `bool` - true if the user exists, false otherwise.
-    ///
-    /// ### Effective smtp stage
-    ///
-    /// All of them.
-    ///
-    /// ### Examples
-    ///
-    /// ```
-    /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_filter_rules(r#"
-    /// #{
-    ///   connect: [
-    ///     rule "user_exist" || {
-    ///       state::accept(`250 root exist ? ${if utils::user_exist("root") { "yes" } else { "no" }}`);
-    ///     }
-    ///   ],
-    ///   mail: [
-    ///     rule "user_exist (obj)" || {
-    ///       state::accept(`250 ${utils::user_exist(ctx::mail_from())}`);
-    ///     }
-    ///   ]
-    /// }
-    /// # "#)?.build()));
-    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "root exist ? yes".to_string(),
-    /// # ))));
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "false".to_string(),
-    /// # ))));
-    /// ```
-    #[must_use]
-    #[rhai_fn(name = "user_exist")]
-    pub fn user_exist(name: &str) -> bool {
-        super::Impl::user_exist(name)
-    }
-
-    /// Check if a user exists on this server.
-    ///
-    /// ### Args
-    ///
-    /// * `name` - the name of the user.
-    ///
-    /// ### Return
-    ///
-    /// * `bool` - true if the user exists, false otherwise.
-    ///
-    /// ### Effective smtp stage
-    ///
-    /// All of them.
-    ///
-    /// ### Examples
-    ///
-    /// ```
-    /// # let states = vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_filter_rules(r#"
-    /// #{
-    ///   connect: [
-    ///     rule "user_exist" || {
-    ///       state::accept(`250 root exist ? ${if utils::user_exist("root") { "yes" } else { "no" }}`);
-    ///     }
-    ///   ],
-    ///   mail: [
-    ///     rule "user_exist (obj)" || {
-    ///       state::accept(`250 ${utils::user_exist(ctx::mail_from())}`);
-    ///     }
-    ///   ]
-    /// }
-    /// # "#)?.build()));
-    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "root exist ? yes".to_string(),
-    /// # ))));
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "false".to_string(),
-    /// # ))));
-    /// ```
-    #[doc(hidden)]
-    #[must_use]
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(name = "user_exist")]
-    pub fn user_exist_obj(name: SharedObject) -> bool {
-        super::Impl::user_exist(&name.to_string())
-    }
-
-    /// Get the hostname of this machine.
-    ///
-    /// ### Return
-    ///
-    /// * `string` - the host name of the machine.
-    ///
-    /// ### Effective smtp stage
-    ///
-    /// All of them.
-    ///
-    /// ### Examples
-    ///
-    /// ```
-    /// # vsmtp_test::vsl::run(
-    /// # |builder| Ok(builder.add_root_filter_rules(r#"
-    /// #{
-    ///   connect: [
-    ///     rule "hostname" || {
-    ///       state::accept(`250 ${utils::hostname()}`);
-    ///     }
-    ///   ]
-    /// }
-    /// # "#)?.build()));
-    /// ```
-    #[rhai_fn(return_raw)]
-    pub fn hostname() -> EngineResult<String> {
-        hostname::get()
-            .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-                format!("failed to get system's hostname: {err}").into()
-            })?
-            .to_str()
-            .map_or(
-                Err("the system's hostname is not UTF-8 valid".into()),
-                |host| Ok(host.to_string()),
-            )
-    }
-
     /// Get the root domain (the registrable part)
     ///
     /// # Examples
@@ -182,13 +51,107 @@ mod utils {
             _ => Err(format!("type `{}` is not a domain", domain.as_ref()).into()),
         }
     }
-}
 
-struct Impl;
+    /// Fetch an environment variable from the current process.
+    ///
+    /// # Args
+    ///
+    /// * `variable` - the variable to fetch.
+    ///
+    /// # Returns
+    ///
+    /// * `string` - the value of the fetched variable.
+    /// * `()`     - when the variable is not set,  when the variable contains the sign character (=) or the NUL character,
+    /// or that the variable does not contain valid Unicode.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let states = vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     rule "get env variable" || {
+    ///
+    ///       // get the HOME environment variable.
+    ///       let home = utils::env("HOME");
+    ///
+    /// #       if home == () {
+    /// #           return state::deny(`500 home,${home}`);
+    /// #       }
+    ///
+    ///       // "VSMTP=ENV" is malformed, this will return the unit type '()'.
+    ///       let invalid = utils::env("VSMTP=ENV");
+    ///
+    /// #       if invalid != () {
+    /// #           return state::deny(`500 invalid,${invalid}`);
+    /// #       }
+    ///
+    /// #       state::accept(`250 test ok`)
+    ///       // ...
+    ///     }
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "test ok".to_string(),
+    /// # ))));
+    /// ```
+    #[rhai_fn(global, name = "env")]
+    pub fn env_str(variable: &str) -> rhai::Dynamic {
+        std::env::var(variable).map_or(rhai::Dynamic::UNIT, std::convert::Into::into)
+    }
 
-impl Impl {
-    // TODO: use UsersCache to optimize user lookup.
-    fn user_exist(name: &str) -> bool {
-        users::get_user_by_name(name).is_some()
+    /// Fetch an environment variable from the current process.
+    ///
+    /// # Args
+    ///
+    /// * `variable` - the variable to fetch.
+    ///
+    /// # Returns
+    ///
+    /// * `string` - the value of the fetched variable.
+    /// * `()`     - when the variable is not set,  when the variable contains the sign character (=) or the NUL character,
+    /// or that the variable does not contain valid Unicode.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let states = vsmtp_test::vsl::run(
+    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// #{
+    ///   connect: [
+    ///     rule "get env variable" || {
+    ///
+    ///       // get the HOME environment variable.
+    ///       let home = utils::env(identifier("HOME"));
+    ///
+    /// #       if home == () {
+    /// #           return state::deny(`500 home,${home}`);
+    /// #       }
+    ///
+    ///       // "VSMTP=ENV" is malformed, this will return the unit type '()'.
+    ///       let invalid = utils::env(identifier("VSMTP=ENV"));
+    ///
+    /// #       if invalid != () {
+    /// #           return state::deny(`500 invalid,${invalid}`);
+    /// #       }
+    ///
+    /// #       state::accept(`250 test ok`)
+    ///       // ...
+    ///     }
+    ///   ],
+    /// }
+    /// # "#)?.build()));
+    /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
+    /// #  Code { code: 250 }, "test ok".to_string(),
+    /// # ))));
+    /// ```
+    #[rhai_fn(global, name = "env", pure)]
+    #[doc(hidden)]
+    pub fn env_obj(variable: &mut SharedObject) -> rhai::Dynamic {
+        std::env::var(variable.to_string()).map_or(rhai::Dynamic::UNIT, std::convert::Into::into)
     }
 }

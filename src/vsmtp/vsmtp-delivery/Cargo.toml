@@ -5,7 +5,7 @@ name = "vsmtp-delivery"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -38,7 +38,7 @@ version = "=2.0.1-rc.3"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-async-trait = { version = "0.1.62", default-features = false }
+async-trait = { version = "0.1.64", default-features = false }
 anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
@@ -54,7 +54,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "dnssec-ring",
   "tokio-runtime",
 ] }
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
@@ -64,7 +64,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
 rustls = { version = "0.20.8", default-features = false, features = ["tls12", "logging"] }
 pem = { version = "1.1.1", default-features = false }
 
-tokio = { version = "1.24.1", default-features = false, features = [
+tokio = { version = "1.25.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",

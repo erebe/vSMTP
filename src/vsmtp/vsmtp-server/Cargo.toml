@@ -5,7 +5,7 @@ name = "vsmtp-server"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -61,13 +61,13 @@ path = "../vsmtp-rule-engine"
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 log = { version = "0.4.17", default-features = false, features = ["std", "release_max_level_info"] }
 
-async-trait = { version = "0.1.62", default-features = false }
+async-trait = { version = "0.1.64", default-features = false }
 fastrand = { version = "1.8.0", default-features = false }
 thiserror = { version = "1.0.38", default-features = false }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 
-either = { version = "1.8.0", default-features = false, features = ["use_std", "serde"] }
+either = { version = "1.8.1", default-features = false, features = ["use_std", "serde"] }
 
 tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
 async-stream = { version = "0.3.3", default-features = false }
@@ -78,14 +78,14 @@ signal-hook = { version = "0.3.14", default-features = false, features = ["itera
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
 time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
   "tracing",
   "pool",
 ] }
-tokio = { version = "1.24.1", default-features = false, features = [
+tokio = { version = "1.25.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
@@ -121,7 +121,7 @@ criterion = { version = "0.4.0", features = ["async_tokio", "html_reports"] }
 iai = "0.1.1"
 rand = "0.8.5"
 
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",

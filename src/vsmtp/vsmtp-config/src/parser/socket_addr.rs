@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use anyhow::Context;
 use vsmtp_common::utils::ipv6_with_scope_id;
 
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<std::net::SocketAddr>, D::Error>
@@ -25,9 +26,28 @@ where
         .map(|s| {
             <std::net::SocketAddr as std::str::FromStr>::from_str(&s)
                 .or_else(|_| ipv6_with_scope_id(&s))
+                .or_else(|_| get_first_valid_socket_from_default_resolver(&s))
         })
         .collect::<anyhow::Result<Vec<std::net::SocketAddr>>>()
         .map_err(serde::de::Error::custom)
+}
+
+fn get_first_valid_socket_from_default_resolver(s: &str) -> anyhow::Result<std::net::SocketAddr> {
+    let (fqdn, port) = s
+        .rsplit_once(':')
+        .with_context(|| format!("could not parse address '{s}'"))?;
+    let port = port
+        .parse::<u16>()
+        .with_context(|| format!("could not parse port for '{s}'"))?;
+    let ip = trust_dns_resolver::Resolver::from_system_conf()
+        .map_err(|error| anyhow::anyhow!(error))?
+        .lookup_ip(fqdn)
+        .with_context(|| format!("Failed to resolve ips for '{fqdn}'"))?
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No ip found during lookup for '{fqdn}'"))?;
+
+    Ok(std::net::SocketAddr::new(ip, port))
 }
 
 #[cfg(test)]
@@ -133,5 +153,39 @@ mod test {
         assert!(serde_json::from_str::<S>(r#"{"v": ["[::1!scope_id]:25"]}"#)
             .unwrap_err()
             .is_data());
+    }
+
+    #[test]
+    fn socket_addr_with_fqdn() {
+        assert_eq!(
+            vec![std::net::SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                25
+            )],
+            serde_json::from_str::<S>(r#"{"v": ["localhost:25"]}"#)
+                .unwrap()
+                .v
+        );
+
+        assert_eq!(
+            vec![
+                std::net::SocketAddr::new(
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED),
+                    25
+                ),
+                std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 465)
+            ],
+            serde_json::from_str::<S>(r#"{"v": ["0.0.0.0:25", "localhost:465"]}"#)
+                .unwrap()
+                .v
+        );
+    }
+
+    #[test]
+    fn socket_addr_with_fqdn_errors() {
+        serde_json::from_str::<S>(r#"{"v": ["unknown.domain.xxx:25"]}"#).unwrap_err();
+        serde_json::from_str::<S>(r#"{"v": ["localhost"]}"#).unwrap_err();
+        serde_json::from_str::<S>(r#"{"v": ["localhost:x"]}"#).unwrap_err();
+        serde_json::from_str::<S>(r#"{"v": ["localhost:25", "localhost:x"]}"#).unwrap_err();
     }
 }

@@ -21,20 +21,32 @@
 //! The Rule Engine of vSMTP will always register this plugin, you can use the [`object.rs`]
 //! file to support vSL's types within your own plugin.
 
-/// The rhai plugin implementation.
-pub mod api;
-/// vSL objects and their implementation.
+/// vSL objects, their implementation and their Rhai API. Enabled with the "objects" feature.
+#[cfg(feature = "objects")]
 pub mod objects;
 
-/// Build a module that can be registered by a Rhai engine.
-pub fn new_module() -> rhai::Module {
+/// Utils functions to interact with an unix system. Enabled with the "unix" feature.
+#[cfg(feature = "unix")]
+pub mod unix;
+
+/// Build a module for the objects api that can be registered by a Rhai engine.
+/// Enabled with the "objects" feature.
+#[cfg(feature = "objects")]
+pub fn object_module() -> rhai::Module {
     let mut module = rhai::Module::new();
 
     module
-        .combine(rhai::exported_module!(api::objects))
-        .combine(rhai::exported_module!(api::utils))
-        .combine(rhai::exported_module!(api::comparisons))
+        .combine(rhai::exported_module!(objects::constructors))
+        .combine(rhai::exported_module!(objects::utils))
+        .combine(rhai::exported_module!(objects::comparisons))
         .set_id("vsl-objects");
 
     module
+}
+
+/// Build a module for the unix api that can be registered by a Rhai engine.
+/// Enabled with the "unix" feature.
+#[cfg(feature = "unix")]
+pub fn unix_module() -> rhai::Module {
+    rhai::exported_module!(unix)
 }

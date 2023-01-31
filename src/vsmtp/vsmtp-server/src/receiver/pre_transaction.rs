@@ -44,7 +44,7 @@ impl<M: OnMail + Send> Handler<M> {
                 .rule_engine
                 .run_when(&self.state, &mut self.skipped, ExecutionStage::Helo)
             {
-                Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+                Status::Faccept(e) | Status::Accept(e) => e,
                 Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
                     either::Left(default)
                 }
@@ -96,7 +96,7 @@ impl<M: OnMail + Send> Handler<M> {
                 .run_when(&self.state, &mut self.skipped, ExecutionStage::Connect)
             {
                 // FIXME: do we really want to let the end-user override the EHLO/HELO reply?
-                Status::Info(e) | Status::Faccept(e) | Status::Accept(e) => e,
+                Status::Faccept(e) | Status::Accept(e) => e,
                 Status::Quarantine(_) | Status::Next | Status::DelegationResult => {
                     either::Left(CodeID::Greetings)
                 }

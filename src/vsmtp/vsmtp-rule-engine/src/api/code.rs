@@ -25,7 +25,7 @@ pub use code::*;
 /// Predefined codes for SMTP responses.
 #[rhai::plugin::export_module]
 mod code {
-    use vsmtp_plugin_vsl::api::objects::code_enhanced;
+    use vsmtp_plugin_vsl::objects::constructors::code_enhanced;
 
     /// Return a relay access denied code.
     ///

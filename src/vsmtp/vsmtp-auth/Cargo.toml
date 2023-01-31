@@ -5,7 +5,7 @@ name = "vsmtp-auth"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -36,8 +36,8 @@ anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 viaspf = { version = "0.5.0", default-features = false, features = ["tokio-timeout", "trust-dns-resolver"] }
-ring-compat = { version = "0.5.1", default-features = false, features = ["std", "alloc", "digest", "signature"] }
-rsa = { version = "0.7.2", default-features = false, features = [
+ring-compat = { version = "0.6.0", default-features = false, features = ["std", "alloc", "digest", "signature"] }
+rsa = { version = "0.8.1", default-features = false, features = [
     "std",
     "pem",
     # "serde", # TODO

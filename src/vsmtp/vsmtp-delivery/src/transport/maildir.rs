@@ -154,7 +154,6 @@ mod test {
     use vsmtp_common::{addr, transfer::Transfer};
     use vsmtp_test::config::{local_ctx, local_test};
 
-    #[allow(clippy::std_instead_of_core)]
     #[rstest::rstest]
     #[case::not_existing("foobar", Err(TransferErrorsVariant::NoSuchMailbox {
         name: "foobar".to_owned()

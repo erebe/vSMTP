@@ -5,7 +5,7 @@ name = "vsmtp-config"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -22,6 +22,7 @@ categories = ["data-structures"]
 pre-release-replacements = [
   { file = "Cargo.toml", prerelease = true, search = "auth\\]\nversion = .*", replace = "auth]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "plugin-vsl\\]\nversion = .*", replace = "plugin-vsl]\nversion = \"={{version}}\"" },
 ]
 
 [dependencies.vsmtp-common]
@@ -31,6 +32,12 @@ path = "../vsmtp-common"
 [dependencies.vsmtp-auth]
 version = "=2.0.1-rc.3"
 path = "../vsmtp-auth"
+
+[dependencies.vsmtp-plugin-vsl]
+version = "=2.0.1-rc.3"
+path = "../vsmtp-plugin-vsl"
+default-features = false
+features = ["unix"]
 
 [dependencies]
 
@@ -43,7 +50,7 @@ base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 humantime-serde = { version = "1.1.1", default-features = false }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
-ring-compat = { version = "0.5.1", default-features = false, features = ["std", "alloc", "digest", "signature"] }
+ring-compat = { version = "0.6.0", default-features = false, features = ["std", "alloc", "digest", "signature"] }
 
 rustls = { version = "0.20.8", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.2", default-features = false }
@@ -51,7 +58,7 @@ rustls-pemfile = { version = "1.0.2", default-features = false }
 pem = { version = "1.1.1", default-features = false, features = [
   # "serde" # TODO
 ] }
-rsa = { version = "0.7.2", default-features = false, features = [
+rsa = { version = "0.8.1", default-features = false, features = [
   "std",
   "pem",
   # "serde" # TODO
@@ -69,7 +76,7 @@ serde_with = { version = "2.2.0", default-features = false, features = ["std", "
 serde_json = "1.0.91"
 serde_path_to_error = "0.1.9"
 
-rhai = { version = "1.11.0", features = ["sync", "serde"] }
+rhai = { version = "1.12.0", features = ["sync", "serde"] }
 
 [dev-dependencies]
 vsmtp-test = { path = "../vsmtp-test" }

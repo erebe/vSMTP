@@ -21,9 +21,6 @@ use crate::{transfer::SmtpConnection, ReplyOrCodeID};
 #[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum Status {
-    /// informational data needs to be sent to the client.
-    Info(ReplyOrCodeID),
-
     /// accepts the current stage value, skips all rules in the stage.
     Accept(ReplyOrCodeID),
 
@@ -58,7 +55,7 @@ impl Status {
     pub const fn is_finished(&self) -> bool {
         matches!(
             self,
-            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_)
+            Self::Faccept(_) | Self::Deny(_) | Self::Quarantine(_) | Self::Delegated(_)
         )
     }
 }

@@ -34,7 +34,6 @@ type MessageByLifetime = std::collections::HashMap<u64, Vec<DetailedMailContext>
 impl Content {
     fn lifetimes() -> Vec<u64> {
         (0i32..9i32)
-            .into_iter()
             .scan(5, |state, _| {
                 let out = *state;
                 *state *= 2;

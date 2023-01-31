@@ -28,8 +28,8 @@ pub enum PrivateKey {
 impl PrivateKey {
     pub(super) const fn get_preferred_signing_algo(&self) -> SigningAlgorithm {
         match self {
-            PrivateKey::Rsa(_) => SigningAlgorithm::RsaSha256,
-            PrivateKey::Ed25519(_) => SigningAlgorithm::Ed25519Sha256,
+            Self::Rsa(_) => SigningAlgorithm::RsaSha256,
+            Self::Ed25519(_) => SigningAlgorithm::Ed25519Sha256,
         }
     }
 
@@ -39,7 +39,7 @@ impl PrivateKey {
         digest_in: &[u8],
     ) -> Result<Vec<u8>, InnerError> {
         match self {
-            PrivateKey::Rsa(rsa) => {
+            Self::Rsa(rsa) => {
                 let size = rsa::PublicKeyParts::size(rsa.as_ref()) * 8;
                 if size < RSA_MINIMUM_ACCEPTABLE_KEY_SIZE {
                     return Err(InnerError::InvalidSize(size));
@@ -50,20 +50,14 @@ impl PrivateKey {
                     }
                     #[cfg(feature = "historic")]
                     SigningAlgorithm::RsaSha1 => rsa
-                        .sign(
-                            rsa::PaddingScheme::new_pkcs1v15_sign::<sha1::Sha1>(),
-                            digest_in,
-                        )
+                        .sign(rsa::Pkcs1v15Sign::new::<sha1::Sha1>(), digest_in)
                         .map_err(|e| InnerError::BackendError(BackendError::Rsa(e))),
                     SigningAlgorithm::RsaSha256 => rsa
-                        .sign(
-                            rsa::PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>(),
-                            digest_in,
-                        )
+                        .sign(rsa::Pkcs1v15Sign::new::<sha2::Sha256>(), digest_in)
                         .map_err(|e| InnerError::BackendError(BackendError::Rsa(e))),
                 }
             }
-            PrivateKey::Ed25519(ed25519) => match signing_algorithm {
+            Self::Ed25519(ed25519) => match signing_algorithm {
                 #[cfg(feature = "historic")]
                 SigningAlgorithm::RsaSha1 => {
                     Err(InnerError::HashAlgorithmUnsupported { signing_algorithm })
@@ -89,7 +83,7 @@ impl std::fmt::Debug for PrivateKey {
 impl PartialEq for PrivateKey {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (PrivateKey::Rsa(a), PrivateKey::Rsa(b)) => a == b,
+            (Self::Rsa(a), Self::Rsa(b)) => a == b,
             _ => false,
         }
     }

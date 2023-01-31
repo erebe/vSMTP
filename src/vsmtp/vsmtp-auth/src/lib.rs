@@ -32,7 +32,6 @@
 #![warn(clippy::cargo)]
 // #![warn(clippy::restriction)]
 //
-#![allow(clippy::use_self)] // false positive with enums
 
 /// The implementation follow the RFC 7208
 ///
@@ -105,7 +104,7 @@ pub enum ParseError {
 // FIXME: remove me (only used for strum::EnumIter)
 impl Default for ParseError {
     fn default() -> Self {
-        ParseError::InvalidArgument {
+        Self::InvalidArgument {
             reason: "`default` invoked".to_string(),
         }
     }
