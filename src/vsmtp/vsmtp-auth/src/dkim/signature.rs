@@ -308,7 +308,7 @@ impl std::str::FromStr for Signature {
             field: "sdid".to_string(),
         })?;
 
-        Ok(Signature {
+        Ok(Self {
             version: version.ok_or(ParseError::MissingRequiredField {
                 field: "version".to_string(),
             })?,

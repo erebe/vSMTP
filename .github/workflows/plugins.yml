@@ -1,0 +1,21 @@
+name: Plugins
+"on":
+  pull_request:
+    branches:
+      - "**"
+      - "!doc/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test-plugins:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        plugin: ["mysql", "memcached"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: run ${{ matrix.plugin }} tests
+        run: |
+          cd src/plugins/vsmtp-plugin-${{ matrix.plugin }}/docker/tests/simple && ./test.sh

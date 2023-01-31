@@ -27,7 +27,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::use_self)]
 
 mod channel_message;
 mod delivery;

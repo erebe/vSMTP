@@ -112,7 +112,7 @@ impl TryFrom<(&rsasl::callback::SessionData, &rsasl::callback::Context<'_>)> for
                     .to_string(),
                 })
             }
-            mech if mech == Mechanism::Anonymous.as_ref() => Ok(Credentials::AnonymousToken {
+            mech if mech == Mechanism::Anonymous.as_ref() => Ok(Self::AnonymousToken {
                 token: context
                     .get_ref::<rsasl::mechanisms::anonymous::AnonymousToken>()
                     .ok_or(Error::MissingField)?

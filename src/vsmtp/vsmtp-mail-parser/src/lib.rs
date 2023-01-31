@@ -26,7 +26,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::use_self)] // false positive with enums
 
 pub(crate) mod helpers;
 

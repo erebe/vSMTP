@@ -133,11 +133,11 @@ impl Directive {
         stage: ExecutionStage,
     ) -> Result<Status, ExecutionError> {
         match self {
-            Directive::Rule { pointer, .. } => rule_state
+            Self::Rule { pointer, .. } => rule_state
                 .engine()
                 .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())
                 .map_err(Into::into),
-            Directive::Action { pointer, .. } => {
+            Self::Action { pointer, .. } => {
                 rule_state
                     .engine()
                     .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ())?;
@@ -145,7 +145,7 @@ impl Directive {
                 Ok(Status::Next)
             }
             #[cfg(feature = "delegation")]
-            Directive::Delegation {
+            Self::Delegation {
                 pointer,
                 service,
                 name,

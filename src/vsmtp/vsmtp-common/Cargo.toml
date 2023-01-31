@@ -5,7 +5,7 @@ name = "vsmtp-common"
 version = "2.0.1-rc.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.63.0"
+rust-version = "1.66.1"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -42,7 +42,7 @@ time = { version = "0.3.17", default-features = false, features = ["std", "forma
 libc = { version = "0.2.139", default-features = false, features = ["std"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
-lettre = { version = "0.10.0", default-features = false, features = [
+lettre = { version = "0.10.2", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",
@@ -50,7 +50,7 @@ lettre = { version = "0.10.0", default-features = false, features = [
     "pool",
     "serde",
 ] }
-tokio = { version = "1.24.1", default-features = false, features = ["macros", "sync", "fs", "libc", "mio"] }
+tokio = { version = "1.25.0", default-features = false, features = ["macros", "sync", "fs", "libc", "mio"] }
 rustls = { version = "0.20.8", default-features = false, features = ["tls12", "logging"] }
 rustls-pemfile = { version = "1.0.2", default-features = false }
 
@@ -63,7 +63,7 @@ serde = { version = "1.0.152", default-features = false, features = ["std", "der
 serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros", "base64"] }
 thiserror = { version = "1.0.38", default-features = false }
 
-either = { version = "1.8.0", default-features = false, features = ["serde"] }
+either = { version = "1.8.1", default-features = false, features = ["serde"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [

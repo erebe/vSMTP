@@ -1,0 +1,14 @@
+//! WARNING: You should never change this file since it can be modified
+//! by the vSMTP team when updating the software.
+//!
+//! Modify it at your own risk.
+
+// This is the main entrypoint for vSMTP.
+import "conf.d/config" as cfg;
+
+fn on_config(config) {
+    let config = cfg::on_config(config);
+
+    config.version_requirement = ">=2.0.1-rc.3";
+    config
+}

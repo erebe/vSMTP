@@ -198,10 +198,11 @@ mod mail_context {
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "server_ip", return_raw)]
-    pub fn server_ip(ncc: NativeCallContext) -> EngineResult<std::net::IpAddr> {
+    pub fn server_ip(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
             .server_addr()
-            .ip())
+            .ip()
+            .to_string())
     }
 
     /// Get the server's port.

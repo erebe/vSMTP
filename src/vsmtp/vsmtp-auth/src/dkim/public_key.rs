@@ -70,22 +70,22 @@ impl InnerPublicKey {
     ) -> Result<(), InnerError> {
         match (self, signing_algorithm) {
             #[cfg(feature = "historic")]
-            (InnerPublicKey::Rsa(rsa), SigningAlgorithm::RsaSha1) => rsa::PublicKey::verify(
+            (Self::Rsa(rsa), SigningAlgorithm::RsaSha1) => rsa::PublicKey::verify(
                 rsa,
-                rsa::PaddingScheme::new_pkcs1v15_sign::<sha1::Sha1>(),
+                rsa::Pkcs1v15Sign::new::<sha1::Sha1>(),
                 hashed,
                 signature,
             )
             .map_err(BackendError::Rsa),
-            (InnerPublicKey::Rsa(rsa), SigningAlgorithm::RsaSha256) => rsa::PublicKey::verify(
+            (Self::Rsa(rsa), SigningAlgorithm::RsaSha256) => rsa::PublicKey::verify(
                 rsa,
-                rsa::PaddingScheme::new_pkcs1v15_sign::<sha2::Sha256>(),
+                rsa::Pkcs1v15Sign::new::<sha2::Sha256>(),
                 hashed,
                 signature,
             )
             .map_err(BackendError::Rsa),
-            (InnerPublicKey::Ed25519(ed25519), SigningAlgorithm::Ed25519Sha256) => {
-                match ring_compat::signature::ed25519::Signature::from_bytes(signature).map(
+            (Self::Ed25519(ed25519), SigningAlgorithm::Ed25519Sha256) => {
+                match ring_compat::signature::ed25519::Signature::from_slice(signature).map(
                     |signature| {
                         ring_compat::signature::Verifier::verify(ed25519, hashed, &signature)
                     },

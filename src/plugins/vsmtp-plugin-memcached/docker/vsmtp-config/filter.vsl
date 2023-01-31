@@ -1,0 +1,27 @@
+import "services/db" as db;
+
+#{
+    mail: [
+        rule "log transaction" || {
+            let sender = ctx::mail_from().to_string();
+
+            // if the sender is not recognized in our database,
+            // we deny the transaction and write the sender into
+            // the database.
+            if db::greylist.get(sender) == () {
+                log("info", `New client discovered: ${sender}`);
+                db::greylist.set(sender, true, 0);
+                state::deny(code::c451_7_1())
+            } else {
+                log("info", `Known client connected: ${sender}`);
+                // the user is known by the server, the transaction
+                // can proceed.
+                state::accept()
+            }
+        },
+    ],
+
+    delivery: [
+        rule "setup delivery" || state::quarantine("hold")
+    ]
+}

@@ -41,7 +41,6 @@
     clippy::shadow_same
 )]
 // FIXME:
-#![allow(clippy::use_self)]
 #![allow(clippy::std_instead_of_core)] // issue with thiserror
 #![allow(clippy::indexing_slicing)] // issue with async_stream
 

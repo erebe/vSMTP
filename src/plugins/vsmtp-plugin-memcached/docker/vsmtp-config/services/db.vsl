@@ -1,0 +1,8 @@
+import "plugins/libvsmtp_plugin_memcached" as memcached;
+
+// A service used to connect to and query our greylist database.
+export const greylist = memcached::connect(#{
+    url: "memcache://greylist:11211",
+    connections: 4,
+    timeout: "20s",
+});

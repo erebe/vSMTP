@@ -54,7 +54,7 @@ impl TryFrom<&str> for MessageBody {
             });
         }
 
-        Ok(MessageBody {
+        Ok(Self {
             raw: BasicParser::default().parse_sync(bytes)?.unwrap_left(),
             parsed: None,
         })

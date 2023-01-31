@@ -424,68 +424,6 @@ mod state {
         reply_or_code_id_from_string(code).map(Status::Deny)
     }
 
-    /// Ask the client to retry to send the current command by sending an information code.
-    ///
-    /// # Args
-    ///
-    /// * `code` - A custom code using a `code` object to send to the client.
-    ///            See `code()` for more information.
-    ///
-    /// # Error
-    ///
-    /// * The given parameter was not a code object.
-    ///
-    /// # Effective smtp stage
-    ///
-    /// all of them.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// #{
-    ///     connect: [
-    ///         rule "please retry" || {
-    ///            const info_code = code(451, "failed to understand you request, please retry.");
-    ///            state::info(info_code)
-    ///        },
-    ///     ],
-    /// }
-    /// ```
-    #[rhai_fn(name = "info", return_raw, pure)]
-    pub fn info_with_code(code: &mut SharedObject) -> EngineResult<Status> {
-        reply_or_code_id_from_object(code).map(Status::Info)
-    }
-
-    /// Ask the client to retry to send the current command by sending an information code.
-    ///
-    /// # Args
-    ///
-    /// * `code` - A custom code as a string to send to the client.
-    ///
-    /// # Error
-    ///
-    /// * Could not parse the parameter as a valid SMTP reply code.
-    ///
-    /// # Effective smtp stage
-    ///
-    /// all of them.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// #{
-    ///     connect: [
-    ///         rule "please retry" || {
-    ///            state::info("451 failed to understand you request, please retry")
-    ///        },
-    ///     ],
-    /// }
-    /// ```
-    #[rhai_fn(name = "info", return_raw)]
-    pub fn info_with_string(code: &str) -> EngineResult<Status> {
-        reply_or_code_id_from_string(code).map(Status::Info)
-    }
-
     /// Skip all rules until the email is received and place the email in a
     /// quarantine queue. The email will never be sent to the recipients and
     /// will stop being processed after the `PreQ` stage.

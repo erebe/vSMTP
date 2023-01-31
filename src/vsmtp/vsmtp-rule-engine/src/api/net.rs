@@ -25,7 +25,7 @@ pub use net::*;
 /// Predefined network ip ranges.
 #[rhai::plugin::export_module]
 mod net {
-    use vsmtp_plugin_vsl::api::objects::rg4;
+    use vsmtp_plugin_vsl::objects::constructors::rg4;
 
     /// Return an ip range over "192.168.0.0/16".
     ///

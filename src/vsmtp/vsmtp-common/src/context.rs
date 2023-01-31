@@ -88,25 +88,25 @@ impl Context {
     #[must_use]
     pub fn stage(&self) -> Stage {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect { .. } => Stage::Connect,
-            Context::Helo { .. } => Stage::Helo,
-            Context::MailFrom { .. } => Stage::MailFrom,
-            Context::RcptTo { .. } => Stage::RcptTo,
-            Context::Finished { .. } => Stage::Finished,
+            Self::Empty => unreachable!(),
+            Self::Connect { .. } => Stage::Connect,
+            Self::Helo { .. } => Stage::Helo,
+            Self::MailFrom { .. } => Stage::MailFrom,
+            Self::RcptTo { .. } => Stage::RcptTo,
+            Self::Finished { .. } => Stage::Finished,
         }
     }
 
     /// Called when a "RSET" is issued
     pub fn reset(&mut self) {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(_) => (),
-            Context::Helo(ContextHelo { connect, helo })
-            | Context::MailFrom(ContextMailFrom { connect, helo, .. })
-            | Context::RcptTo(ContextRcptTo { connect, helo, .. })
-            | Context::Finished(ContextFinished { connect, helo, .. }) => {
-                *self = Context::Helo(ContextHelo {
+            Self::Empty => unreachable!(),
+            Self::Connect(_) => (),
+            Self::Helo(ContextHelo { connect, helo })
+            | Self::MailFrom(ContextMailFrom { connect, helo, .. })
+            | Self::RcptTo(ContextRcptTo { connect, helo, .. })
+            | Self::Finished(ContextFinished { connect, helo, .. }) => {
+                *self = Self::Helo(ContextHelo {
                     connect: connect.clone(),
                     helo: helo.clone(),
                 });
@@ -128,7 +128,7 @@ impl Context {
         uuid: uuid::Uuid,
     ) -> Result<&mut Self, Error> {
         match self {
-            Context::Empty => {
+            Self::Empty => {
                 *self = Self::Connect(ContextConnect {
                     connect: ConnectProperties {
                         connect_timestamp: timestamp,
@@ -158,7 +158,7 @@ impl Context {
         using_deprecated: bool,
     ) -> Result<&mut Self, Error> {
         match self {
-            Context::Connect(ContextConnect { connect }) => {
+            Self::Connect(ContextConnect { connect }) => {
                 *self = Self::Helo(ContextHelo {
                     connect: connect.clone(),
                     helo: HeloProperties {
@@ -168,7 +168,7 @@ impl Context {
                 });
                 Ok(self)
             }
-            Context::Helo(ContextHelo { helo, .. }) => {
+            Self::Helo(ContextHelo { helo, .. }) => {
                 helo.client_name = client_name;
                 helo.using_deprecated = using_deprecated;
                 Ok(self)
@@ -184,8 +184,7 @@ impl Context {
     /// * state if not [`Stage::Helo`] or [`Stage::MailFrom`]
     pub fn with_credentials(&mut self, credentials: Credentials) -> Result<(), Error> {
         match self {
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. }) => {
+            Self::Connect(ContextConnect { connect }) | Self::Helo(ContextHelo { connect, .. }) => {
                 connect.auth = Some(AuthProperties {
                     credentials: Some(credentials),
                     cancel_count: 0,
@@ -193,7 +192,7 @@ impl Context {
                 });
                 Ok(())
             }
-            Context::Empty | Context::MailFrom(_) | Context::RcptTo(_) | Context::Finished(_) => {
+            Self::Empty | Self::MailFrom(_) | Self::RcptTo(_) | Self::Finished(_) => {
                 Err(Error::BadState)
             }
         }
@@ -206,7 +205,7 @@ impl Context {
     /// * state if not [`Stage::Helo`] or [`Stage::MailFrom`]
     pub fn to_mail_from(&mut self, reverse_path: Option<Address>) -> Result<(), Error> {
         match self {
-            Context::Helo(ContextHelo { connect, helo }) => {
+            Self::Helo(ContextHelo { connect, helo }) => {
                 let now = time::OffsetDateTime::now_utc();
                 *self = Self::MailFrom(ContextMailFrom {
                     connect: connect.clone(),
@@ -219,7 +218,7 @@ impl Context {
                 });
                 Ok(())
             }
-            Context::MailFrom(ContextMailFrom { mail_from, .. }) => {
+            Self::MailFrom(ContextMailFrom { mail_from, .. }) => {
                 mail_from.reverse_path = reverse_path;
                 Ok(())
             }
@@ -234,7 +233,7 @@ impl Context {
     /// * state if not [`Stage::RcptTo`]
     pub fn to_finished(&mut self) -> Result<(), Error> {
         match self {
-            Context::RcptTo(ContextRcptTo {
+            Self::RcptTo(ContextRcptTo {
                 connect,
                 helo,
                 mail_from,
@@ -260,24 +259,24 @@ impl Context {
     #[must_use]
     pub fn skipped(&self) -> &Option<Status> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.skipped,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.skipped,
         }
     }
 
     ///
     pub fn set_skipped(&mut self, status: Status) {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => connect.skipped = Some(status),
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => connect.skipped = Some(status),
         }
     }
 
@@ -285,12 +284,12 @@ impl Context {
     #[must_use]
     pub fn connection_timestamp(&self) -> &time::OffsetDateTime {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.connect_timestamp,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.connect_timestamp,
         }
     }
 
@@ -298,12 +297,12 @@ impl Context {
     #[must_use]
     pub fn client_addr(&self) -> &std::net::SocketAddr {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.client_addr,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.client_addr,
         }
     }
 
@@ -311,12 +310,12 @@ impl Context {
     #[must_use]
     pub fn server_addr(&self) -> &std::net::SocketAddr {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.server_addr,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.server_addr,
         }
     }
 
@@ -324,12 +323,12 @@ impl Context {
     #[must_use]
     pub fn server_name(&self) -> &String {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.server_name,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.server_name,
         }
     }
 
@@ -337,12 +336,12 @@ impl Context {
     #[must_use]
     pub fn is_secured(&self) -> bool {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => connect.tls.is_some(),
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => connect.tls.is_some(),
         }
     }
 
@@ -350,12 +349,12 @@ impl Context {
     #[must_use]
     pub fn is_authenticated(&self) -> bool {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => connect
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => connect
                 .auth
                 .as_ref()
                 .map_or(false, |auth| auth.authenticated),
@@ -376,9 +375,8 @@ impl Context {
         alpn_protocol: Option<Vec<u8>>,
     ) -> Result<(), Error> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. }) => {
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect }) | Self::Helo(ContextHelo { connect, .. }) => {
                 connect.tls = Some(TlsProperties {
                     protocol_version: ProtocolVersion(protocol_version),
                     cipher_suite: CipherSuite(cipher_suite),
@@ -390,9 +388,9 @@ impl Context {
                 }
                 Ok(())
             }
-            Context::MailFrom(ContextMailFrom { .. })
-            | Context::RcptTo(ContextRcptTo { .. })
-            | Context::Finished(ContextFinished { .. }) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { .. })
+            | Self::RcptTo(ContextRcptTo { .. })
+            | Self::Finished(ContextFinished { .. }) => Err(Error::BadState),
         }
     }
 
@@ -403,12 +401,12 @@ impl Context {
     /// * state if not [`Stage::Helo`] or after
     pub fn client_name(&self) -> Result<&ClientName, Error> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { .. }) => Err(Error::BadState),
-            Context::Helo(ContextHelo { helo, .. })
-            | Context::MailFrom(ContextMailFrom { helo, .. })
-            | Context::RcptTo(ContextRcptTo { helo, .. })
-            | Context::Finished(ContextFinished { helo, .. }) => Ok(&helo.client_name),
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { .. }) => Err(Error::BadState),
+            Self::Helo(ContextHelo { helo, .. })
+            | Self::MailFrom(ContextMailFrom { helo, .. })
+            | Self::RcptTo(ContextRcptTo { helo, .. })
+            | Self::Finished(ContextFinished { helo, .. }) => Ok(&helo.client_name),
         }
     }
 
@@ -416,12 +414,12 @@ impl Context {
     #[must_use]
     pub fn tls(&self) -> &Option<TlsProperties> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.tls,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.tls,
         }
     }
 
@@ -429,12 +427,12 @@ impl Context {
     #[must_use]
     pub fn auth(&self) -> &Option<AuthProperties> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => &connect.auth,
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => &connect.auth,
         }
     }
 
@@ -442,12 +440,12 @@ impl Context {
     #[must_use]
     pub fn auth_mut(&mut self) -> Option<&mut AuthProperties> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. })
-            | Context::MailFrom(ContextMailFrom { connect, .. })
-            | Context::RcptTo(ContextRcptTo { connect, .. })
-            | Context::Finished(ContextFinished { connect, .. }) => connect.auth.as_mut(),
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect })
+            | Self::Helo(ContextHelo { connect, .. })
+            | Self::MailFrom(ContextMailFrom { connect, .. })
+            | Self::RcptTo(ContextRcptTo { connect, .. })
+            | Self::Finished(ContextFinished { connect, .. }) => connect.auth.as_mut(),
         }
     }
 
@@ -458,9 +456,8 @@ impl Context {
     /// * state if not [`Stage::Connect`] or [`Stage::Helo`]
     pub fn to_auth(&mut self) -> Result<&mut AuthProperties, Error> {
         match self {
-            Context::Empty => unreachable!(),
-            Context::Connect(ContextConnect { connect })
-            | Context::Helo(ContextHelo { connect, .. }) => {
+            Self::Empty => unreachable!(),
+            Self::Connect(ContextConnect { connect }) | Self::Helo(ContextHelo { connect, .. }) => {
                 connect.auth = Some(AuthProperties {
                     authenticated: false,
                     cancel_count: 0,
@@ -468,9 +465,9 @@ impl Context {
                 });
                 Ok(connect.auth.as_mut().expect("has been set just above"))
             }
-            Context::MailFrom(ContextMailFrom { .. })
-            | Context::RcptTo(ContextRcptTo { .. })
-            | Context::Finished(ContextFinished { .. }) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { .. })
+            | Self::RcptTo(ContextRcptTo { .. })
+            | Self::Finished(ContextFinished { .. }) => Err(Error::BadState),
         }
     }
 
@@ -481,10 +478,10 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub const fn reverse_path(&self) -> Result<&Option<Address>, Error> {
         match self {
-            Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.reverse_path),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.reverse_path),
         }
     }
 
@@ -495,10 +492,10 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub fn set_reverse_path(&mut self, reverse_path: Option<Address>) -> Result<(), Error> {
         match self {
-            Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => {
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => {
                 mail_from.reverse_path = reverse_path;
                 Ok(())
             }
@@ -512,10 +509,10 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub const fn mail_timestamp(&self) -> Result<&time::OffsetDateTime, Error> {
         match self {
-            Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.mail_timestamp),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.mail_timestamp),
         }
     }
 
@@ -526,10 +523,10 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub const fn message_uuid(&self) -> Result<&uuid::Uuid, Error> {
         match self {
-            Context::Empty | Context::Connect { .. } | Context::Helo { .. } => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.message_uuid),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => Ok(&mail_from.message_uuid),
         }
     }
 
@@ -540,10 +537,10 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub fn generate_message_id(&mut self) -> Result<(), Error> {
         match self {
-            Context::Empty | Context::Connect(_) | Context::Helo(_) => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom { mail_from, .. })
-            | Context::RcptTo(ContextRcptTo { mail_from, .. })
-            | Context::Finished(ContextFinished { mail_from, .. }) => {
+            Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => {
                 mail_from.message_uuid = uuid::Uuid::new_v4();
                 Ok(())
             }
@@ -558,13 +555,13 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub fn add_forward_path(&mut self, forward_path: Address) -> Result<(), Error> {
         match self {
-            Context::Empty | Context::Connect(_) | Context::Helo(_) => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom {
+            Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom {
                 connect,
                 helo,
                 mail_from,
             }) => {
-                *self = Context::RcptTo(ContextRcptTo {
+                *self = Self::RcptTo(ContextRcptTo {
                     connect: connect.clone(),
                     helo: helo.clone(),
                     mail_from: mail_from.clone(),
@@ -575,8 +572,8 @@ impl Context {
                 });
                 Ok(())
             }
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => {
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => {
                 rcpt_to.forward_paths.push(Rcpt::new(forward_path));
                 Ok(())
             }
@@ -591,11 +588,11 @@ impl Context {
     /// * state if not [`Stage::RcptTo`] or after
     pub fn remove_forward_path(&mut self, forward_path: &Address) -> Result<bool, Error> {
         match self {
-            Context::Empty | Context::Connect(_) | Context::Helo(_) | Context::MailFrom(_) => {
+            Self::Empty | Self::Connect(_) | Self::Helo(_) | Self::MailFrom(_) => {
                 Err(Error::BadState)
             }
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => {
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => {
                 if let Some(index) = rcpt_to
                     .forward_paths
                     .iter()
@@ -617,12 +614,11 @@ impl Context {
     /// * state if not [`Stage::RcptTo`] or after
     pub const fn forward_paths(&self) -> Result<&Vec<Rcpt>, Error> {
         match self {
-            Context::Empty
-            | Context::Connect { .. }
-            | Context::Helo { .. }
-            | Context::MailFrom { .. } => Err(Error::BadState),
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => Ok(&rcpt_to.forward_paths),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
+                Err(Error::BadState)
+            }
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&rcpt_to.forward_paths),
         }
     }
 
@@ -633,12 +629,11 @@ impl Context {
     /// * state if not [`Stage::RcptTo`] or after
     pub fn forward_paths_mut(&mut self) -> Result<&mut Vec<Rcpt>, Error> {
         match self {
-            Context::Empty
-            | Context::Connect { .. }
-            | Context::Helo { .. }
-            | Context::MailFrom { .. } => Err(Error::BadState),
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => Ok(&mut rcpt_to.forward_paths),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
+                Err(Error::BadState)
+            }
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&mut rcpt_to.forward_paths),
         }
     }
 
@@ -649,12 +644,11 @@ impl Context {
     /// * state if not [`Stage::RcptTo`] or after
     pub const fn transaction_type(&self) -> Result<&TransactionType, Error> {
         match self {
-            Context::Empty
-            | Context::Connect { .. }
-            | Context::Helo { .. }
-            | Context::MailFrom { .. } => Err(Error::BadState),
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => Ok(&rcpt_to.transaction_type),
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
+                Err(Error::BadState)
+            }
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&rcpt_to.transaction_type),
         }
     }
 
@@ -666,13 +660,13 @@ impl Context {
     /// * state if not [`Stage::MailFrom`] or after
     pub fn set_transaction_type(&mut self, transaction_type: TransactionType) -> Result<(), Error> {
         match self {
-            Context::Empty | Context::Connect(_) | Context::Helo(_) => Err(Error::BadState),
-            Context::MailFrom(ContextMailFrom {
+            Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom {
                 connect,
                 helo,
                 mail_from,
             }) => {
-                *self = Context::RcptTo(ContextRcptTo {
+                *self = Self::RcptTo(ContextRcptTo {
                     connect: connect.clone(),
                     helo: helo.clone(),
                     mail_from: mail_from.clone(),
@@ -683,8 +677,8 @@ impl Context {
                 });
                 Ok(())
             }
-            Context::RcptTo(ContextRcptTo { rcpt_to, .. })
-            | Context::Finished(ContextFinished { rcpt_to, .. }) => {
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => {
                 rcpt_to.transaction_type = transaction_type;
                 Ok(())
             }
@@ -698,12 +692,12 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub const fn spf(&self) -> Result<Option<&spf::Result>, Error> {
         match self {
-            Context::Empty
-            | Context::Connect(_)
-            | Context::Helo(_)
-            | Context::MailFrom(_)
-            | Context::RcptTo(_) => Err(Error::BadState),
-            Context::Finished(ContextFinished { finished, .. }) => Ok(finished.spf.as_ref()),
+            Self::Empty
+            | Self::Connect(_)
+            | Self::Helo(_)
+            | Self::MailFrom(_)
+            | Self::RcptTo(_) => Err(Error::BadState),
+            Self::Finished(ContextFinished { finished, .. }) => Ok(finished.spf.as_ref()),
         }
     }
 
@@ -714,12 +708,12 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub fn set_spf(&mut self, spf: spf::Result) -> Result<(), Error> {
         match self {
-            Context::Empty
-            | Context::Connect(_)
-            | Context::Helo(_)
-            | Context::MailFrom(_)
-            | Context::RcptTo(_) => Err(Error::BadState),
-            Context::Finished(ContextFinished { finished, .. }) => {
+            Self::Empty
+            | Self::Connect(_)
+            | Self::Helo(_)
+            | Self::MailFrom(_)
+            | Self::RcptTo(_) => Err(Error::BadState),
+            Self::Finished(ContextFinished { finished, .. }) => {
                 finished.spf = Some(spf);
                 Ok(())
             }
@@ -733,12 +727,12 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub const fn dkim(&self) -> Result<Option<&dkim::VerificationResult>, Error> {
         match self {
-            Context::Empty
-            | Context::Connect(_)
-            | Context::Helo(_)
-            | Context::MailFrom(_)
-            | Context::RcptTo(_) => Err(Error::BadState),
-            Context::Finished(ContextFinished { finished, .. }) => Ok(finished.dkim.as_ref()),
+            Self::Empty
+            | Self::Connect(_)
+            | Self::Helo(_)
+            | Self::MailFrom(_)
+            | Self::RcptTo(_) => Err(Error::BadState),
+            Self::Finished(ContextFinished { finished, .. }) => Ok(finished.dkim.as_ref()),
         }
     }
 
@@ -749,12 +743,12 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub fn set_dkim(&mut self, result: dkim::VerificationResult) -> Result<(), Error> {
         match self {
-            Context::Empty
-            | Context::Connect(_)
-            | Context::Helo(_)
-            | Context::MailFrom(_)
-            | Context::RcptTo(_) => Err(Error::BadState),
-            Context::Finished(ContextFinished { finished, .. }) => {
+            Self::Empty
+            | Self::Connect(_)
+            | Self::Helo(_)
+            | Self::MailFrom(_)
+            | Self::RcptTo(_) => Err(Error::BadState),
+            Self::Finished(ContextFinished { finished, .. }) => {
                 finished.dkim = Some(result);
                 Ok(())
             }
@@ -768,7 +762,7 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub fn unwrap_finished(self) -> Result<ContextFinished, Error> {
         match self {
-            Context::Finished(finished) => Ok(finished),
+            Self::Finished(finished) => Ok(finished),
             _ => Err(Error::BadState),
         }
     }
