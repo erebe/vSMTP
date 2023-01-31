@@ -11,7 +11,7 @@ services:
       # updates are on the develop branch.
       context: ../../../../docker
       args:
-        VSMTP_BRANCH: feat/memcached
+        VSMTP_BRANCH: develop
     volumes:
       - ./vsmtp-config/conf.d:/etc/vsmtp/conf.d
       - ./vsmtp-config/services:/etc/vsmtp/services
