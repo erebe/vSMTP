@@ -63,7 +63,7 @@ tokio_console = ["dep:console-subscriber"]
 document-features = ["dep:document-features"]
 
 [dependencies.vsmtp-common]
-version = "=2.0.1-rc.4"
+version = "=2.0.1-rc.5"
 path = "../vsmtp-common"
 
 [dependencies.vsmtp-server]
