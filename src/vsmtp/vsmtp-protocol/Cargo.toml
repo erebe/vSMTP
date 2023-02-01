@@ -76,4 +76,4 @@ addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
 fastrand = { version = "1.8.0", default-features = false }
 
-uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng"] }
+uuid = { version = "1.3.0", default-features = false, features = ["std", "v4", "fast-rng"] }
