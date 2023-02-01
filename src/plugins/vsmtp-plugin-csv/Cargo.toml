@@ -27,7 +27,7 @@ crate-type = ["cdylib"]
 pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
 
 [dependencies]
-vsmtp-plugin-vsl = { version = "=2.0.1-rc.4", path = "../../vsmtp/vsmtp-plugin-vsl" }
+vsmtp-plugin-vsl = { version = "=2.0.1-rc.5", path = "../../vsmtp/vsmtp-plugin-vsl" }
 
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 csv = { version = "1.1.6", default-features = false }
