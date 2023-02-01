@@ -15,10 +15,6 @@ release. They will however *never* happen in a patch release.
 
 ## [2.1.0] - 2023-02-01
 
-## [2.0.1-rc.5] - 2023-02-01
-
-## [2.0.1-rc.4] - 2023-01-31
-
 ### Added
 
 - A public [memcached](https://www.memcached.org/) plugin. (#974)
