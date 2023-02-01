@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-plugin-memcached"
-version = "2.0.1-rc.5"
+version = "2.1.0"
 license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
