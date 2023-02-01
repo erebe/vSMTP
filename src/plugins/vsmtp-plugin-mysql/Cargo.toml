@@ -30,7 +30,7 @@ pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
 
 [build-dependencies]
 rhai-autodocs = "0.1.0"
-vsmtp-rule-engine = { version = "=2.0.1-rc.5", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=2.1.0", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 mysql = { version = "23.0.0", default-features = false, features = ["rustls-tls", "buffer-pool"] }
@@ -50,7 +50,7 @@ humantime-serde = { version = "1.1.1", default-features = false }
 
 [dependencies]
 # FIXME: necessary for vsl base types. Should those be split from the crate ?
-vsmtp-rule-engine = { version = "=2.0.1-rc.5", path = "../../vsmtp/vsmtp-rule-engine" }
+vsmtp-rule-engine = { version = "=2.1.0", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
