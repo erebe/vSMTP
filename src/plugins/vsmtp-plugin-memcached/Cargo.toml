@@ -24,6 +24,9 @@ publish = false
 # You could also use Rust's unstable ABI with "dylib".
 crate-type = ["cdylib"]
 
+[package.metadata.release]
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
+
 [dependencies]
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
