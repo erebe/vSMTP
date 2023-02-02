@@ -76,7 +76,7 @@
 vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
 - It is 100% built in [Rust](https://www.rust-lang.org).
-- It is lighting fast.
+- It is lightning fast.
 - It is modular and highly customizable.
 - It has a complete filtering system.
 - It is actively developed and maintained.
