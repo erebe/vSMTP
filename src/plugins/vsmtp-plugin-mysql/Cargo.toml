@@ -29,7 +29,7 @@ crate-type = ["cdylib"]
 pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
 
 [build-dependencies]
-rhai-autodocs = "0.1.0"
+rhai-autodocs = "0.1.2"
 vsmtp-rule-engine = { version = "=2.1.0", path = "../../vsmtp/vsmtp-rule-engine" }
 
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
