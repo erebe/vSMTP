@@ -114,7 +114,18 @@ impl RuleEngine {
 
         let global_modules = Self::build_global_modules(&mut engine)?;
 
-        engine.set_module_resolver(config.path.as_ref().and_then(|path| path.parent()).map_or_else(|| {
+        // Modules can use the configuration on startup. (i.e. when embedded in modules)
+        let server = std::sync::Arc::new(ServerAPI {
+            config,
+            resolvers,
+            queue_manager,
+        });
+        engine.register_fn("srv", {
+            let server_cpy = server.clone();
+            move || rhai::Dynamic::from(server_cpy.clone())
+        });
+
+        engine.set_module_resolver(server.config.path.as_ref().and_then(|path| path.parent()).map_or_else(|| {
                 // TODO: replace this code by meta programming to simplify things.
                 tracing::warn!("No configuration path found, if you receive this message in production please open an issue.");
                 let mut resolvers = ModuleResolversCollection::new();
@@ -133,7 +144,7 @@ impl RuleEngine {
             }));
 
         let rules = match input {
-            either::Either::Left(()) => match &config.app.vsl {
+            either::Either::Left(()) => match &server.config.app.vsl {
                 FieldAppVSL {
                     filter_path: Some(filter_path),
                     domain_dir,
@@ -169,11 +180,7 @@ impl RuleEngine {
         Ok(Self {
             global_modules,
             static_modules,
-            server: std::sync::Arc::new(ServerAPI {
-                config,
-                resolvers,
-                queue_manager,
-            }),
+            server,
             rules,
         })
     }
@@ -200,17 +207,9 @@ impl RuleEngine {
 
         let mut engine = rhai::Engine::new_raw();
 
-        // NOTE: on_var is not deprecated, just subject to change in future releases.
-        #[allow(deprecated)]
-        engine
-            // NOTE: why do we have to clone the arc instead of just moving it here ?
-            // injecting the state if the current connection into the engine.
-            .on_var(move |name, _, _| match name {
-                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context_cpy.clone()))),
-                "SRV" => Ok(Some(rhai::Dynamic::from(server_cpy.clone()))),
-                "MSG" => Ok(Some(rhai::Dynamic::from(message_cpy.clone()))),
-                _ => Ok(None),
-            });
+        engine.register_fn("ctx", move || rhai::Dynamic::from(mail_context_cpy.clone()));
+        engine.register_fn("msg", move || rhai::Dynamic::from(message_cpy.clone()));
+        engine.register_fn("srv", move || rhai::Dynamic::from(server_cpy.clone()));
 
         #[cfg(debug_assertion)]
         engine
@@ -685,13 +684,7 @@ impl RuleEngine {
 
         engine.register_global_module(std_module.clone());
 
-        let vsl_rhai_module: rhai::Shared<_> = Self::compile_api(engine)
-            .context("failed to compile vsl's api")?
-            .into();
-
-        engine.register_global_module(vsl_rhai_module.clone());
-
-        Ok(vec![std_module, vsl_rhai_module])
+        Ok(vec![std_module])
     }
 
     /// Build vsl static modules.
@@ -729,21 +722,6 @@ impl RuleEngine {
         Ok(vsl_modules)
     }
 
-    /// compile vsl's api into a module.
-    ///
-    /// # Errors
-    /// * Failed to compile the API.
-    /// * Failed to create a module from the API.
-    pub fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
-        let ast = engine.compile_scripts_with_scope(
-            &rhai::Scope::new(),
-            [include_str!("../api/internal.rhai")],
-        )?;
-
-        rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, engine)
-            .context("failed to create a module from vsl's api.")
-    }
-
     // FIXME: could be easily refactored.
     //        every `ok_or_else` could be replaced by an unwrap here.
     /// extract rules & actions from the main vsl script.
@@ -752,8 +730,6 @@ impl RuleEngine {
         ast: &rhai::AST,
     ) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
-        scope.push_constant("CTX", ()).push_constant("SRV", ());
-
         let raw_directives = engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, ast)
             .context("failed to compile your rules.")?;

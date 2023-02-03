@@ -19,11 +19,11 @@ use crate::{dsl::directives::Directives, RuleEngine};
 use anyhow::Context;
 
 /// Rules that automatically deny the transaction once run.
-const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../api/default/root_filter_rules.rhai");
-const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default/fallback_rules.rhai");
-const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default/incoming_rules.rhai");
-const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default/outgoing_rules.rhai");
-const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules.rhai");
+const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../default/root_filter_rules.rhai");
+const DEFAULT_FALLBACK_RULES: &str = include_str!("../default/fallback_rules.rhai");
+const DEFAULT_INCOMING_RULES: &str = include_str!("../default/incoming_rules.rhai");
+const DEFAULT_OUTGOING_RULES: &str = include_str!("../default/outgoing_rules.rhai");
+const DEFAULT_INTERNAL_RULES: &str = include_str!("../default/internal_rules.rhai");
 
 /// Encapsulate all ASTs of rules split by domain and transaction type.
 #[derive(Debug)]
