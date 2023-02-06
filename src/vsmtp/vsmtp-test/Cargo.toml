@@ -43,7 +43,7 @@ rand = "0.8.5"
 
 lazy_static = "1.4.0-rc.7"
 
-rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
+rsasl = { version = "=2.0.0", default-features = false, features = [
   "provider",
   "config_builder",
   # "registry_static",
