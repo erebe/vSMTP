@@ -33,7 +33,7 @@ version = "=2.1.0"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 fastrand = { version = "1.8.0", default-features = false }
 

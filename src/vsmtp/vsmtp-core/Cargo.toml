@@ -83,7 +83,7 @@ clap = { version = "4.1.4", default-features = false, features = ["std", "derive
 diff = { version = "0.1.13", default-features = false }
 serde_json = { version = "1.0.92", default-features = false, features = ["std"] }
 
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 either = { version = "1.8.1", default-features = false, features = ["use_std"] }
 humantime = { version = "2.1.0", default-features = false }
 
