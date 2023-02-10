@@ -31,6 +31,90 @@ use vsmtp_mail_parser::MessageBody;
 
 pub use dkim::*;
 
+#[derive(Debug)]
+struct SignatureParams {
+    sdid: Option<String>,
+    selector: String,
+    private_key: PrivateKey,
+    headers_field: Option<Vec<String>>,
+    canonicalization: Option<Canonicalization>,
+}
+
+impl TryFrom<rhai::Map> for SignatureParams {
+    type Error = Box<rhai::EvalAltResult>;
+
+    fn try_from(value: rhai::Map) -> Result<Self, Self::Error> {
+        let mut sdid = None;
+        let mut selector = None;
+        let mut private_key = None;
+        let mut headers_field = None;
+        let mut canonicalization = None;
+
+        for (key, value) in value {
+            let value_type_name = value.type_name();
+            match key.as_ref() {
+                "sdid" => {
+                    sdid = Some(value.into_string()?);
+                }
+                "selector" => {
+                    selector = Some(value.into_string()?);
+                }
+                "private_key" => {
+                    private_key = Some(value.try_cast::<PrivateKey>().ok_or_else(|| {
+                        Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
+                            "PrivateKey".to_string(),
+                            value_type_name.to_string(),
+                            rhai::Position::NONE,
+                        ))
+                    })?);
+                }
+                "headers_field" => {
+                    headers_field = Some(
+                        value
+                            .into_array()?
+                            .into_iter()
+                            .map(rhai::Dynamic::into_string)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    );
+                }
+                "canonicalization" => {
+                    canonicalization = Some(value.into_string()?.parse().map_err(|_| {
+                        Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
+                            "Canonicalization".to_string(),
+                            value_type_name.to_string(),
+                            rhai::Position::NONE,
+                        ))
+                    })?);
+                }
+                otherwise => {
+                    return Err(Box::new(rhai::EvalAltResult::ErrorPropertyNotFound(
+                        otherwise.to_string(),
+                        rhai::Position::NONE,
+                    )))
+                }
+            }
+        }
+
+        Ok(Self {
+            sdid,
+            selector: selector.ok_or_else(|| {
+                Box::new(rhai::EvalAltResult::ErrorParsing(
+                    rhai::ParseErrorType::VariableUndefined("selector".to_string()),
+                    rhai::Position::NONE,
+                ))
+            })?,
+            private_key: private_key.ok_or_else(|| {
+                Box::new(rhai::EvalAltResult::ErrorParsing(
+                    rhai::ParseErrorType::VariableUndefined("private_key".to_string()),
+                    rhai::Position::NONE,
+                ))
+            })?,
+            headers_field,
+            canonicalization,
+        })
+    }
+}
+
 /// Generate and verify DKIM signatures.
 /// Implementation of RFC 6376. (<https://www.rfc-editor.org/rfc/rfc6376.html>)
 #[rhai::plugin::export_module]
@@ -296,73 +380,38 @@ mod dkim {
     /// #{
     ///   preq: [
     ///     action "sign dkim" || {
-    ///       dkim::sign("2022-09", private_key, ["From", "To", "Date", "Subject", "From"], "simple/relaxed");
-    ///     },
+    ///       for private_key in dkim::get_private_keys("testserver.com") {
+    ///         dkim::sign(#{
+    ///            // default: server_name()
+    ///            sdid:                "testserver.com",
+    ///
+    ///            // mandatory
+    ///            selector:            "2022-09",
+    ///
+    ///            // mandatory
+    ///            private_key:         private_key,
+    ///
+    ///            // default: ["From", "To", "Date", "Subject", "From"]
+    ///            headers:             ["From", "To", "Date", "Subject", "From"],
+    ///
+    ///            // default: "simple/relaxed"
+    ///            canonicalization:    "simple/relaxed"
+    ///         });
+    ///       }
+    ///     }
     ///   ]
     /// }
     /// ```
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "sign", return_raw)]
-    pub fn sign(
-        ncc: NativeCallContext,
-        selector: &str,
-        private_key: std::sync::Arc<PrivateKey>,
-        headers_field: rhai::Array,
-        canonicalization: &str,
-    ) -> EngineResult<()> {
+    pub fn sign(ncc: NativeCallContext, params: rhai::Map) -> EngineResult<()> {
         let signature = vsl_generic_ok!(super::Impl::generate_signature(
             &*vsl_guard_ok!(get_global!(ncc, msg)?.read()),
-            vsl_guard_ok!(get_global!(ncc, ctx)?.read()).server_name(),
-            selector,
-            &private_key,
-            &headers_field,
-            canonicalization,
+            &*vsl_guard_ok!(get_global!(ncc, ctx)?.read()),
+            SignatureParams::try_from(params)?,
         ));
 
         crate::api::message::prepend_header(ncc, "DKIM-Signature", &signature)
-    }
-
-    /// Produce a `DKIM-Signature` header.
-    /// Uses the "From", "To", "Date" and "Subject" headers to sign with the simple/relaxed policy.
-    ///
-    /// # Args
-    ///
-    /// * `selector` - the DNS selector to expose the public key & for the verifier
-    /// * `private_key` - the private key to sign the mail,
-    ///     associated with the public key in the `selector._domainkey.sdid` DNS record
-    ///
-    /// # Effective smtp stage
-    ///
-    /// `preq` and onwards.
-    ///
-    /// # Example
-    ///
-    /// ```text
-    /// #{
-    ///   preq: [
-    ///     action "sign dkim" || {
-    ///       dkim::sign("2022-09", private_key);
-    ///     },
-    ///   ]
-    /// }
-    /// ```
-    #[rhai_fn(name = "sign", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn sign_with_default_headers_and_policy(
-        ncc: NativeCallContext,
-        selector: &str,
-        private_key: std::sync::Arc<PrivateKey>,
-    ) -> EngineResult<()> {
-        sign(
-            ncc,
-            selector,
-            private_key,
-            ["From", "To", "Date", "Subject", "From"]
-                .into_iter()
-                .map(rhai::Dynamic::from)
-                .collect::<rhai::Array>(),
-            "simple/relaxed",
-        )
     }
 }
 
@@ -550,23 +599,23 @@ impl Impl {
     #[tracing::instrument(ret, err)]
     fn generate_signature(
         message: &MessageBody,
-        sdid: &str,
-        selector: &str,
-        private_key: &PrivateKey,
-        headers_field: &rhai::Array,
-        canonicalization: &str,
+        ctx: &vsmtp_common::Context,
+        params: SignatureParams,
     ) -> Result<String, DkimErrors> {
         let signature = sign(
             message.inner(),
-            private_key,
-            sdid.to_string(),
-            selector.to_string(),
-            <Canonicalization as std::str::FromStr>::from_str(canonicalization).map_err(|e| {
-                DkimErrors::InvalidArgument {
-                    inner: e.to_string(),
-                }
-            })?,
-            headers_field.iter().map(ToString::to_string).collect(),
+            &params.private_key,
+            params.sdid.unwrap_or_else(|| ctx.server_name().to_string()),
+            params.selector.to_string(),
+            params
+                .canonicalization
+                .unwrap_or_else(|| "simple/relaxed".parse().expect("default values are valid")),
+            params.headers_field.unwrap_or_else(|| {
+                ["From", "To", "Date", "Subject", "From"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect()
+            }),
         )
         .map_err(|e| DkimErrors::InvalidArgument {
             inner: format!("the signature failed: `{e}`"),
