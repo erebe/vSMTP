@@ -13,6 +13,8 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+## [2.1.1] - 2023-02-10
+
 ### Modified
 
 - `dkim::sign()` prototype changed, taking a map of arguments instead of multiple arguments. (#1008)
