@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "2.1.0"
+version = "2.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.66.1"
