@@ -323,6 +323,11 @@ pub mod field {
     #[derive(Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtual {
+        /// Is this domain considered the default one by vSMTP.
+        ///
+        /// Implying using this domain's parameters for connection not providing SNI.
+        #[serde(default)]
+        pub is_default: bool,
         /// see [`FieldServerVirtualTls`]
         pub tls: Option<FieldServerVirtualTls>,
         /// see [`FieldServerDNS`]

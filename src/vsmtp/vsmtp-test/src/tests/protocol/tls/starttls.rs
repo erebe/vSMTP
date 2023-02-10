@@ -55,6 +55,7 @@ run_test! {
       config.server.r#virtual.insert(
           "testserver.com".to_string(),
           FieldServerVirtual {
+              is_default: false,
               tls: Some(
                   FieldServerVirtualTls::from_path(
                       "src/template/certs/certificate.crt",
@@ -114,6 +115,7 @@ run_test! {
       config.server.r#virtual.insert(
           "testserver.com".to_string(),
           FieldServerVirtual {
+              is_default: false,
               tls: Some(
                   FieldServerVirtualTls::from_path(
                       "src/template/certs/certificate.crt",

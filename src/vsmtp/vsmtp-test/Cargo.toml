@@ -30,18 +30,22 @@ lettre = { version = "0.10.2", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.15", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
+time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
   "tokio-runtime",
 ] }
 
-tokio-rustls = "0.23.4"
+tokio-rustls = { version = "0.23.4", default-features = false, features = [
+  "logging",
+  "tls12",
+  "dangerous_configuration",
+] }
 rustls-pemfile = { version = "1.0.2", default-features = false }
 rand = "0.8.5"
 
-lazy_static = "1.4.0-rc.7"
+lazy_static = "1.4.0"
 
 rsasl = { version = "=2.0.0", default-features = false, features = [
   "provider",
