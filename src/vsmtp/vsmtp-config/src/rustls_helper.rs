@@ -51,9 +51,11 @@ impl rustls::server::ResolvesServerCert for CertResolver {
         &self,
         client_hello: rustls::server::ClientHello<'_>,
     ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
-        self.sni_resolver
-            .resolve(client_hello)
-            .map_or_else(|| self.default_cert.clone(), Some)
+        if client_hello.server_name().is_none() {
+            self.default_cert.clone()
+        } else {
+            self.sni_resolver.resolve(client_hello)
+        }
     }
 }
 
