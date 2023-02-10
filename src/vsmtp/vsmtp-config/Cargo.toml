@@ -34,7 +34,7 @@ version = "=2.1.1"
 path = "../vsmtp-auth"
 
 [dependencies.vsmtp-plugin-vsl]
-version = "=2.1.0"
+version = "=2.1.1"
 path = "../vsmtp-plugin-vsl"
 default-features = false
 features = ["unix"]
