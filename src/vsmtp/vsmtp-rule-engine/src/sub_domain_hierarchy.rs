@@ -15,45 +15,177 @@
  *
 */
 
-use crate::{dsl::directives::Directives, RuleEngine};
+use crate::{
+    api::state::deny, dsl::directives::Directives, Directive, ExecutionStage, RuleEngine, RuleState,
+};
 use anyhow::Context;
+use vsmtp_common::status::Status;
 
 /// Rules that automatically deny the transaction once run.
-const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../api/default/root_filter_rules.rhai");
-const DEFAULT_FALLBACK_RULES: &str = include_str!("../api/default/fallback_rules.rhai");
-const DEFAULT_INCOMING_RULES: &str = include_str!("../api/default/incoming_rules.rhai");
-const DEFAULT_OUTGOING_RULES: &str = include_str!("../api/default/outgoing_rules.rhai");
-const DEFAULT_INTERNAL_RULES: &str = include_str!("../api/default/internal_rules.rhai");
+const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../default/root_filter_rules.rhai");
+const DEFAULT_FALLBACK_RULES: &str = include_str!("../default/fallback_rules.rhai");
+const DEFAULT_INCOMING_RULES: &str = include_str!("../default/incoming_rules.rhai");
+const DEFAULT_OUTGOING_RULES: &str = include_str!("../default/outgoing_rules.rhai");
+const DEFAULT_INTERNAL_RULES: &str = include_str!("../default/internal_rules.rhai");
+
+const PANIC_MSG_INVALID_DEFAULT: &str = "default value are valid";
+const PANIC_MSG_MISSING_DEFAULT: &str = "default value has been set";
 
 /// Encapsulate all ASTs of rules split by domain and transaction type.
 #[derive(Debug)]
 pub struct SubDomainHierarchy {
+    root_filter: Script,
+    fallback: Script,
+    default_values: DomainDirectives,
+    domains: std::collections::BTreeMap<String, DomainDirectives>,
+}
+
+// NOTE: using a macro to avoid code duplication and fatal typo.
+macro_rules! fn_get_script {
+    ($which:tt) => {
+        pub(super) fn $which<'t, 'd: 't>(&'t self, domain: &'d DomainDirectives) -> &Script {
+            domain.$which.as_ref().unwrap_or_else(|| {
+                self.default_values
+                    .$which
+                    .as_ref()
+                    .expect(PANIC_MSG_MISSING_DEFAULT)
+            })
+        }
+    };
+}
+
+impl SubDomainHierarchy {
     /// Generic rules called for pre-mail stages to every transactions.
-    pub root_filter: Script,
+    pub(super) const fn root_filter(&self) -> &Script {
+        &self.root_filter
+    }
+
     /// Used if an error occurred in the hierarchy's logic.
-    pub fallback: Script,
-    /// Domain specific rules, executed following the transaction context.
-    pub domains: std::collections::BTreeMap<String, DomainDirectives>,
+    pub(super) const fn fallback(&self) -> &Script {
+        &self.fallback
+    }
+
+    pub(super) fn get(&self, domain: &str) -> Option<&DomainDirectives> {
+        self.domains.get(domain)
+    }
+
+    pub(super) fn get_all(&self) -> impl Iterator<Item = &DomainDirectives> {
+        self.domains.values()
+    }
+
+    pub(super) fn contains(&self, domain: &str) -> bool {
+        self.domains.contains_key(domain)
+    }
+
+    fn_get_script!(incoming);
+    fn_get_script!(outgoing);
+    fn_get_script!(internal);
 }
 
-/// Encapsulate all ASTs of rules split transaction type.
 #[derive(Debug)]
-pub struct DomainDirectives {
-    ///
-    pub incoming: Script,
-    ///
-    pub outgoing: Script,
-    ///
-    pub internal: Script,
+pub(super) struct DomainDirectives {
+    incoming: Option<Script>,
+    outgoing: Option<Script>,
+    internal: Option<Script>,
 }
 
-/// A set of directives and it's underlying Rhai AST.
+impl DomainDirectives {
+    #[tracing::instrument(skip(engine, domain_dir), err)]
+    fn new(engine: &rhai::Engine, domain_dir: &std::path::Path) -> anyhow::Result<Self> {
+        Ok(Self {
+            incoming: Script::compile_file(engine, &domain_dir.join("incoming.vsl"))?,
+            outgoing: Script::compile_file(engine, &domain_dir.join("outgoing.vsl"))?,
+            internal: Script::compile_file(engine, &domain_dir.join("internal.vsl"))?,
+        })
+    }
+
+    fn default_value(engine: &rhai::Engine) -> Self {
+        Self {
+            incoming: Some(
+                Script::compile_source(engine, DEFAULT_INCOMING_RULES)
+                    .expect(PANIC_MSG_INVALID_DEFAULT),
+            ),
+            internal: Some(
+                Script::compile_source(engine, DEFAULT_INTERNAL_RULES)
+                    .expect(PANIC_MSG_INVALID_DEFAULT),
+            ),
+            outgoing: Some(
+                Script::compile_source(engine, DEFAULT_OUTGOING_RULES)
+                    .expect(PANIC_MSG_INVALID_DEFAULT),
+            ),
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct Script {
-    ///
-    pub ast: rhai::AST,
-    ///
-    pub directives: Directives,
+pub(super) struct Script {
+    directives: Directives,
+    ast: rhai::AST,
+}
+
+impl Script {
+    pub(super) const fn ast(&self) -> &rhai::AST {
+        &self.ast
+    }
+
+    pub(super) fn directives_at(&self, stage: ExecutionStage) -> Option<&Vec<Directive>> {
+        self.directives.get(&stage)
+    }
+
+    pub(super) fn directives(&self) -> impl Iterator<Item = &Directive> {
+        self.directives.values().flatten()
+    }
+
+    pub(super) fn execute(
+        rule_state: &RuleState,
+        ast: &rhai::AST,
+        directives: &[Directive],
+        smtp_state: ExecutionStage,
+    ) -> Status {
+        let mut status = Status::Next;
+
+        for directive in directives {
+            status = directive
+                .execute(rule_state, ast, smtp_state)
+                .unwrap_or_else(|e| {
+                    let error_status = deny();
+                    tracing::warn!(%e, "error while executing directive returning: {:?}", error_status);
+                    error_status
+                });
+
+            if status != Status::Next {
+                break;
+            }
+        }
+
+        status
+    }
+
+    #[tracing::instrument(skip(engine), err)]
+    fn compile_file(engine: &rhai::Engine, path: &std::path::Path) -> anyhow::Result<Option<Self>> {
+        match std::fs::read_to_string(path) {
+            Ok(source) => Some(Self::compile_source(engine, &source)).transpose(),
+            // NOTE: file not found (os error 2) is acceptable as scripts are optional.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                tracing::warn!("script not found, using default rules instead");
+                Ok(None)
+            }
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    fn compile_source(engine: &rhai::Engine, source: &str) -> anyhow::Result<Self> {
+        tracing::trace!(%source, "compiling script...");
+
+        let ast = engine
+            .compile_into_self_contained(&rhai::Scope::new(), source)
+            .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;
+
+        Ok(Self {
+            directives: RuleEngine::extract_directives(engine, &ast)?,
+            ast,
+        })
+    }
 }
 
 impl SubDomainHierarchy {
@@ -61,7 +193,7 @@ impl SubDomainHierarchy {
     ///
     /// # Errors
     /// * Failed to compile scripts.
-    #[tracing::instrument(skip(engine), err)]
+    #[tracing::instrument(skip(engine, filter_path, domain_dir), err)]
     pub fn new(
         engine: &rhai::Engine,
         filter_path: &std::path::Path,
@@ -69,13 +201,12 @@ impl SubDomainHierarchy {
     ) -> anyhow::Result<Self> {
         let mut hierarchy = std::collections::BTreeMap::new();
 
-        tracing::debug!(
-            "Expecting '{:?}/**/{{incoming,outgoing,internal}}.vsl'",
-            domain_dir
-        );
-
         if let Some(domain_dir) = domain_dir {
-            // Searching for domain folders.
+            tracing::info!(
+                "Expecting '{}/**/{{incoming,outgoing,internal}}.vsl'",
+                domain_dir.display()
+            );
+
             for entry in std::fs::read_dir(domain_dir).with_context(|| {
                 format!("Cannot read domain directory in '{}'", domain_dir.display())
             })? {
@@ -90,53 +221,23 @@ impl SubDomainHierarchy {
                     .and_then(std::ffi::OsStr::to_str)
                     .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
 
+                tracing::info!(domain, "loading domain rules...");
+
                 hierarchy.insert(
                     domain.to_owned(),
-                    DomainDirectives {
-                        incoming: Self::rules_from_path_or_default(
-                            engine,
-                            &domain_dir.join("incoming.vsl"),
-                            DEFAULT_INCOMING_RULES,
-                        )
-                        .with_context(|| {
-                            format!(
-                                "failed to compile the 'incoming.vsl' script for the '{domain}' domain"
-                            )
-                        })?,
-                        outgoing: Self::rules_from_path_or_default(
-                            engine,
-                            &domain_dir.join("outgoing.vsl"),
-                            DEFAULT_OUTGOING_RULES,
-                        )
-                        .with_context(|| {
-                            format!(
-                                "failed to compile the 'outgoing.vsl' script for the '{domain}' domain"
-                            )
-                        })?,
-                        internal: Self::rules_from_path_or_default(
-                            engine,
-                            &domain_dir.join("internal.vsl"),
-                            DEFAULT_INTERNAL_RULES,
-                        )
-                        .with_context(|| {
-                            format!(
-                                "failed to compile the 'internal.vsl' script for the '{domain}' domain"
-                            )
-                        })?,
-                    },
+                    DomainDirectives::new(engine, &domain_dir)?,
                 );
             }
         }
 
         Ok(Self {
-            root_filter: Self::rules_from_path_or_default(
-                engine,
-                filter_path,
-                DEFAULT_ROOT_FILTERING_RULES,
-            )
-            .context("failed to load your root filtering script (filter.vsl)")?,
-            fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)
-                .context("failed to load fallback rules: this is a bug, please report it.")?,
+            root_filter: Script::compile_file(engine, filter_path)?.unwrap_or_else(|| {
+                Script::compile_source(engine, DEFAULT_ROOT_FILTERING_RULES)
+                    .expect(PANIC_MSG_INVALID_DEFAULT)
+            }),
+            fallback: Script::compile_source(engine, DEFAULT_FALLBACK_RULES)
+                .expect(PANIC_MSG_INVALID_DEFAULT),
+            default_values: DomainDirectives::default_value(engine),
             domains: hierarchy,
         })
     }
@@ -147,38 +248,13 @@ impl SubDomainHierarchy {
     /// * Fail to compile default scripts.
     pub fn new_empty(engine: &rhai::Engine) -> anyhow::Result<Self> {
         Ok(Self {
-            root_filter: Self::rules_from_script(engine, DEFAULT_ROOT_FILTERING_RULES)?,
-            fallback: Self::rules_from_script(engine, DEFAULT_FALLBACK_RULES)?,
+            root_filter: Script::compile_source(engine, DEFAULT_ROOT_FILTERING_RULES)
+                .expect(PANIC_MSG_INVALID_DEFAULT),
+            fallback: Script::compile_source(engine, DEFAULT_FALLBACK_RULES)
+                .expect(PANIC_MSG_INVALID_DEFAULT),
+            default_values: DomainDirectives::default_value(engine),
             domains: std::collections::BTreeMap::new(),
         })
-    }
-
-    /// Create rules from a path, use a default script if the default path could not be loaded
-    #[tracing::instrument(skip(engine, default), err)]
-    fn rules_from_path_or_default(
-        engine: &rhai::Engine,
-        path: &std::path::Path,
-        default: &str,
-    ) -> anyhow::Result<Script> {
-        let source = std::fs::read_to_string(path).unwrap_or_else(|error| {
-            tracing::warn!(
-                %error, "script at {path:?} could not be loaded, using default rules instead"
-            );
-            default.to_string()
-        });
-        Self::rules_from_script(engine, &source)
-    }
-
-    /// Create rules by compiling the given script and return it's AST and extracted directives.
-    fn rules_from_script(engine: &rhai::Engine, script: &str) -> anyhow::Result<Script> {
-        tracing::debug!("Compiling {script:?}...");
-        let ast = engine
-            .compile_into_self_contained(&rhai::Scope::new(), script)
-            .map_err(|err| anyhow::anyhow!("failed to compile vsl scripts: {err}"))?;
-
-        let directives = RuleEngine::extract_directives(engine, &ast)?;
-
-        Ok(Script { ast, directives })
     }
 }
 
@@ -208,7 +284,7 @@ impl<'a> Builder<'a> {
     /// # Errors
     /// * Failed to compile the script.
     pub fn add_root_filter_rules(mut self, script: &str) -> anyhow::Result<Self> {
-        self.inner.root_filter = SubDomainHierarchy::rules_from_script(self.engine, script)?;
+        self.inner.root_filter = Script::compile_source(self.engine, script)?;
         Ok(self)
     }
 
@@ -258,7 +334,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsIncoming> {
     ) -> anyhow::Result<DomainDirectivesBuilder<'a, WantsOutgoing>> {
         Ok(DomainDirectivesBuilder::<'a, WantsOutgoing> {
             state: WantsOutgoing {
-                incoming: SubDomainHierarchy::rules_from_script(self.inner.engine, incoming)?,
+                incoming: Script::compile_source(self.inner.engine, incoming)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -293,7 +369,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsOutgoing> {
         Ok(DomainDirectivesBuilder::<'a, WantsInternal> {
             state: WantsInternal {
                 parent: self.state,
-                outgoing: SubDomainHierarchy::rules_from_script(self.inner.engine, outgoing)?,
+                outgoing: Script::compile_source(self.inner.engine, outgoing)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -328,7 +404,7 @@ impl<'a> DomainDirectivesBuilder<'a, WantsInternal> {
         Ok(DomainDirectivesBuilder::<'a, WantsBuild> {
             state: WantsBuild {
                 parent: self.state,
-                internal: SubDomainHierarchy::rules_from_script(self.inner.engine, internal)?,
+                internal: Script::compile_source(self.inner.engine, internal)?,
             },
             inner: self.inner,
             domain: self.domain,
@@ -359,9 +435,9 @@ impl<'a> DomainDirectivesBuilder<'a, WantsBuild> {
         self.inner.inner.domains.insert(
             self.domain,
             DomainDirectives {
-                incoming: self.state.parent.parent.incoming,
-                outgoing: self.state.parent.outgoing,
-                internal: self.state.internal,
+                incoming: Some(self.state.parent.parent.incoming),
+                outgoing: Some(self.state.parent.outgoing),
+                internal: Some(self.state.internal),
             },
         );
 

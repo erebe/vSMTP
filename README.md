@@ -76,7 +76,7 @@
 vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
 - It is 100% built in [Rust](https://www.rust-lang.org).
-- It is lighting fast.
+- It is lightning fast.
 - It is modular and highly customizable.
 - It has a complete filtering system.
 - It is actively developed and maintained.
@@ -151,7 +151,7 @@ import "service/database" as db;
 }
 ```
 
-Check out the [api](https://github.com/viridIT/vSMTP/tree/main/src/vsmtp/vsmtp-rule-engine/src/api) folder to get a view of what you can do with vsl.
+Check out the [filtering chapter](https://vsmtp.rs/filtering/filtering.html) of the book and the [vSL reference](https://vsmtp.rs/ref/vSL/api.html) to get an overview of what you can do with vSL.
 
 ## Benchmarks
 

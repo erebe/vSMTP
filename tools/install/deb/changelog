@@ -1,5 +1,23 @@
 vsmtp (x.y.z) UNRELEASED; urgency=low
 
+  [ Updated by mlala ]
+
+  * Modified
+    * `dkim::sign()` prototype changed, taking a map of arguments
+        instead of multiple arguments. (#1008)
+    * TLS connection will be served if the client do not use a SNI,
+        and a `default` domain is configured. (#1005)
+  * Fixed
+    * `srv()` variable can be accessed outside rules. (#1007)
+  * Documented
+    * `cmd` and `smtp` vsl modules. (#1004)
+
+ -- mlala <m.lala@viridit.com>  Fri, 10 Feb 2023 21:52:36 +0100
+
+Old Changelog:
+
+vsmtp (2.1.0) UNRELEASED; urgency=low
+
   [ Updated by ltabis ]
 
   * Added
@@ -21,8 +39,6 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
     * bumped MSRV to `1.66.1`. (#976)
 
  -- ltabis <l.tabis@viridit.com>  Mon, 09 Jan 2023 21:52:36 +0100
-
-Old Changelog:
 
 vsmtp (2.0.0) UNRELEASED; urgency=low
 

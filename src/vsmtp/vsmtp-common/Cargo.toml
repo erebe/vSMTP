@@ -33,7 +33,7 @@ version = "=2.1.0"
 path = "../vsmtp-mail-parser"
 
 [dependencies]
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 fastrand = { version = "1.8.0", default-features = false }
 
@@ -66,7 +66,7 @@ thiserror = { version = "1.0.38", default-features = false }
 either = { version = "1.8.1", default-features = false, features = ["serde"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
-rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
+rsasl = { version = "=2.0.0", default-features = false, features = [
     "provider",
     "config_builder",
     # "scram-sha-1",
@@ -78,9 +78,9 @@ rsasl = { version = "=2.0.0-rc.4", default-features = false, features = [
     "login",
 ] }
 
-uuid = { version = "1.2.2", default-features = false, features = ["std", "v4", "fast-rng", "serde"] }
+uuid = { version = "1.3.0", default-features = false, features = ["std", "v4", "fast-rng", "serde"] }
 
 [dev-dependencies]
-serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 users = { version = "0.11.0", default-features = false }
 pretty_assertions = "1.3.0"

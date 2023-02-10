@@ -19,7 +19,7 @@ members = [
 
   "src/plugins/vsmtp-plugin-csv",
   "src/plugins/vsmtp-plugin-mysql",
-  "src/plugins/vsmtp-plugin-memcached"
+  "src/plugins/vsmtp-plugin-memcached",
 ]
 
-exclude = ["fuzz", "benchmarks/stress", "src/vsmtp/plugins/"]
+exclude = ["fuzz", "benchmarks/stress"]

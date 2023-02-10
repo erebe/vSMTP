@@ -43,7 +43,7 @@ macro_rules! run_test {
     (
         input = $input:expr,
         expected = $expected:expr
-        $(, starttls = $server_name_starttls:expr => $secured_input:expr)?
+        $(, starttls $( = $server_name_starttls:expr )? => $secured_input:expr)?
         $(, tunnel = $server_name_tunnel:expr)?
         $(, config = $config:expr)?
         $(, config_arc = $config_arc:expr)?
@@ -51,7 +51,38 @@ macro_rules! run_test {
         $(, hierarchy_builder = $hierarchy_builder:expr)?
         $(,)?
     ) => {{
+        use tokio_rustls::rustls;
         async fn upgrade_tls(server_name: &str, stream: tokio::net::TcpStream) -> tokio_rustls::client::TlsStream<tokio::net::TcpStream> {
+            struct CertVerifier {
+                webpki: rustls::client::WebPkiVerifier,
+            }
+
+            impl rustls::client::ServerCertVerifier for CertVerifier {
+                fn verify_server_cert(
+                    &self,
+                    end_entity: &rustls::Certificate,
+                    intermediates: &[rustls::Certificate],
+                    server_name: &rustls::ServerName,
+                    scts: &mut dyn Iterator<Item = &[u8]>,
+                    ocsp_response: &[u8],
+                    now: std::time::SystemTime
+                ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+                    match self.webpki.verify_server_cert(
+                        end_entity,
+                        intermediates,
+                        server_name,
+                        scts,
+                        ocsp_response,
+                        now
+                    ) {
+                        Ok(res) => Ok(res),
+                        // got this error when not using SNI
+                        Err(rustls::Error::UnsupportedNameType) => Ok(rustls::client::ServerCertVerified::assertion()),
+                        Err(e) => Err(e)
+                    }
+                }
+            }
+
             const TEST_SERVER_CERT: &str = "src/template/certs/certificate.crt";
             const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
@@ -60,27 +91,34 @@ macro_rules! run_test {
             let pem = rustls_pemfile::certs(&mut reader)
                 .unwrap()
                 .into_iter()
-                .map(tokio_rustls::rustls::Certificate)
+                .map(rustls::Certificate)
                 .collect::<Vec<_>>();
 
-            let mut root_store = tokio_rustls::rustls::RootCertStore::empty();
+            let mut root_store = rustls::RootCertStore::empty();
             for i in pem {
                 root_store.add(&i).unwrap();
             }
 
-            let client_config = std::sync::Arc::new(tokio_rustls::rustls::ClientConfig::builder()
-                .with_safe_default_cipher_suites()
-                .with_safe_default_kx_groups()
-                .with_safe_default_protocol_versions()
-                .unwrap()
-                .with_root_certificates(root_store)
-                .with_no_client_auth());
+            let client_config = std::sync::Arc::new(rustls::ClientConfig::builder()
+                .with_safe_defaults()
+                .with_custom_certificate_verifier(std::sync::Arc::new(
+                    CertVerifier {
+                        webpki: rustls::client::WebPkiVerifier::new(root_store, None),
+                    }
+                ))
+                .with_no_client_auth()
+            );
 
             let connector = tokio_rustls::TlsConnector::from(client_config.clone());
             connector
-                .connect(tokio_rustls::rustls::ServerName::try_from(server_name).unwrap(), stream)
-                .await
-                .unwrap()
+                .connect(
+                    if server_name == "127.0.0.1" {
+                        rustls::ServerName::IpAddress("127.0.0.1".parse().unwrap())
+                    } else {
+                        rustls::ServerName::try_from(server_name).unwrap()
+                    },
+                    stream
+                ).await.unwrap()
         }
 
         let expected: Vec<String> = $expected.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -89,7 +127,13 @@ macro_rules! run_test {
         $( let secured_input: Vec<String> = $secured_input.into_iter().map(|s| s.to_string()).collect::<Vec<_>>(); )?
 
         $( let server_name: &str = $server_name_tunnel; )?
-        $( let server_name: &str = $server_name_starttls; )?
+        $( let server_name: &str = {
+            #[allow(clippy::no_effect)]
+            $secured_input;
+            let _name = "127.0.0.1";
+            $( let _name = $server_name_starttls; )?
+            _name
+        }; )?
 
         let (socket_server, server_addr) = loop {
             let port = rand::random::<u32>().rem_euclid(65535 - 1025) + 1025;
@@ -147,17 +191,15 @@ macro_rules! run_test {
                 mail_handler,
                 config.clone(),
                 {
-                    let _tls_config = Option::<std::sync::Arc<tokio_rustls::rustls::ServerConfig>>::None;
+                    let _tls_config = Option::<std::sync::Arc<rustls::ServerConfig>>::None;
                     $( #[allow(clippy::no_effect)] $server_name_tunnel;
-
                     let _tls_config = config.server.tls.as_ref().map(|tls| {
                         arc!(vsmtp_config::get_rustls_config(
                             tls, &config.server.r#virtual,
                         ).unwrap())
                     }); )?
 
-                    $( #[allow(clippy::no_effect)] $server_name_starttls;
-
+                    $( #[allow(clippy::no_effect)] $secured_input;
                     let _tls_config = config.server.tls.as_ref().map(|tls| {
                         arc!(vsmtp_config::get_rustls_config(
                             tls, &config.server.r#virtual,
@@ -221,7 +263,7 @@ macro_rules! run_test {
                 }
             }
             $(
-                #[allow(clippy::no_effect)] $server_name_starttls;
+                #[allow(clippy::no_effect)] $secured_input;
 
                 if !output.last().unwrap().starts_with("220 ") {
                     todo!();
@@ -264,7 +306,7 @@ macro_rules! run_test {
         fn $name:ident,
         input = $input:expr,
         expected = $expected:expr
-        $(, starttls = $server_name_starttls:expr => $secured_input:expr)?
+        $(, starttls $( = $server_name_starttls:expr )? => $secured_input:expr)?
         $(, tunnel = $server_name_tunnel:expr)?
         $(, config = $config:expr)?
         $(, config_arc = $config_arc:expr)?
@@ -277,7 +319,7 @@ macro_rules! run_test {
             run_test! {
                 input = $input,
                 expected = $expected
-                $(, starttls = $server_name_starttls => $secured_input)?
+                $(, starttls $( = $server_name_starttls )? => $secured_input)?
                 $(, tunnel = $server_name_tunnel)?
                 $(, config = $config)?
                 $(, config_arc = $config_arc)?

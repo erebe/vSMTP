@@ -41,15 +41,41 @@ const fn default_timeout() -> std::time::Duration {
 }
 
 /// This module exposes the `cmd` function, allowing vSMTP to execute system commands.
-
 #[rhai::plugin::export_module]
 pub mod cmd {
-
     use crate::api::EngineResult;
 
     type Cmd = rhai::Shared<crate::dsl::cmd::service::Cmd>;
 
     // NOTE: 'new' cannot be used because it is a reserved keyword in rhai.
+    /// Create a new command executor.
+    ///
+    /// # Args
+    ///
+    /// * `parameters` - a map of the following parameters:
+    ///     * `command` - the command to execute.
+    ///     * `timeout` - a duration after which the command subprocess will be killed.
+    ///     * `args` - an array of parameters passed to the executed program. (optional)
+    ///     * `user` - a user to run the command with. (optional)
+    ///     * `group` - a group to run the command with. (optional)
+    ///
+    /// # Return
+    ///
+    /// A service used to execute the a command.
+    ///
+    /// # Error
+    ///
+    /// * The service failed to parse the command parameters.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// export const echo = cmd::build(#{
+    ///     command: "echo",
+    ///     args: ["-e", "'Hello World. \c This is vSMTP.'"],
+    ///     timeout: "10s",
+    /// });
+    /// ```
     #[rhai_fn(return_raw)]
     pub fn build(parameters: rhai::Map) -> EngineResult<Cmd> {
         let parameters = rhai::serde::from_dynamic::<CmdParameters>(&parameters.into())?;
@@ -64,6 +90,28 @@ pub mod cmd {
     }
 
     /// Execute the given command.
+    ///
+    /// # Return
+    ///
+    /// The command output.
+    ///
+    /// # Error
+    ///
+    /// * The service failed to execute the command.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// const echo = cmd::build(#{
+    ///     command: "echo",
+    ///     args: ["-e", "'Hello World. \c This is vSMTP.'"],
+    ///     timeout: "10s",
+    /// });
+    ///
+    /// // the command executed will be:
+    /// // echo -e 'Hello World. \c This is vSMTP.'
+    /// echo.run();
+    /// ```
     #[rhai_fn(global, name = "run", return_raw, pure)]
     pub fn run(cmd: &mut Cmd) -> EngineResult<rhai::Map> {
         cmd.run()
@@ -72,6 +120,28 @@ pub mod cmd {
     }
 
     /// Execute the given command with dynamic arguments.
+    ///
+    /// # Return
+    ///
+    /// The command output.
+    ///
+    /// # Error
+    ///
+    /// * The service failed to execute the command.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// const echo = cmd::build(#{
+    ///     command: "echo",
+    ///     args: ["-e", "'Hello World. \c This is vSMTP.'"],
+    ///     timeout: "10s",
+    /// });
+    ///
+    /// // run the command with custom arguments (based one are replaced).
+    /// // echo -n 'Hello World.'
+    /// echo.run([ "-n", "'Hello World.'" ]);
+    /// ```
     #[rhai_fn(global, name = "run", return_raw, pure)]
     pub fn run_with_args(cmd: &mut Cmd, args: rhai::Array) -> EngineResult<rhai::Map> {
         let args = args
@@ -85,17 +155,5 @@ pub mod cmd {
         cmd.run_with_args(&args)
             .map(crate::dsl::cmd::service::Cmd::status_to_map)
             .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())
-    }
-
-    ///
-    #[rhai_fn(global, pure)]
-    pub fn to_string(cmd: &mut Cmd) -> String {
-        cmd.to_string()
-    }
-
-    ///
-    #[rhai_fn(global, pure)]
-    pub fn to_debug(cmd: &mut Cmd) -> String {
-        format!("{cmd:#?}")
     }
 }

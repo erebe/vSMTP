@@ -41,6 +41,24 @@ fn to_supported_cipher_suite(
         .collect::<Vec<_>>()
 }
 
+struct CertResolver {
+    sni_resolver: rustls::server::ResolvesServerCertUsingSni,
+    default_cert: Option<std::sync::Arc<rustls::sign::CertifiedKey>>,
+}
+
+impl rustls::server::ResolvesServerCert for CertResolver {
+    fn resolve(
+        &self,
+        client_hello: rustls::server::ClientHello<'_>,
+    ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
+        if client_hello.server_name().is_none() {
+            self.default_cert.clone()
+        } else {
+            self.sni_resolver.resolve(client_hello)
+        }
+    }
+}
+
 #[doc(hidden)]
 pub fn get_rustls_config(
     config: &FieldServerTls,
@@ -89,6 +107,24 @@ pub fn get_rustls_config(
             .map_err(|e| anyhow::anyhow!("cannot add sni to resolver '{virtual_name}': {e}"))?;
     }
 
+    let default_cert = virtual_entries
+        .values()
+        .find(|i| i.is_default)
+        .and_then(|i| i.tls.as_ref())
+        .map(|tls| {
+            rustls::sign::any_supported_type(&tls.private_key.inner).map(|private_key| {
+                rustls::sign::CertifiedKey {
+                    cert: tls.certificate.inner.clone(),
+                    key: private_key,
+                    // TODO: support OCSP and SCT
+                    ocsp: None,
+                    sct_list: None,
+                }
+            })
+        })
+        .transpose()?
+        .map(std::sync::Arc::new);
+
     let mut tls_config = rustls::ServerConfig::builder()
         .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
@@ -96,7 +132,10 @@ pub fn get_rustls_config(
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
         // TODO: allow configurable ClientAuth (DANE)
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
-        .with_cert_resolver(std::sync::Arc::new(cert_resolver));
+        .with_cert_resolver(std::sync::Arc::new(CertResolver {
+            sni_resolver: cert_resolver,
+            default_cert,
+        }));
 
     tls_config.ignore_client_order = config.preempt_cipherlist;
     tls_config.key_log = std::sync::Arc::new(TlsLogger {});
