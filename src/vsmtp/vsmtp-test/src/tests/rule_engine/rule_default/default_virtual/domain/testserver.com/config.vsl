@@ -1,0 +1,11 @@
+fn on_domain_config(config) {
+    config.is_default = true;
+
+    config.tls = #{
+        protocol_version: ["TLSv1.2", "TLSv1.3"],
+        certificate: "src/template/certs/certificate.crt",
+        private_key: "src/template/certs/private_key.rsa.key",
+    };
+
+    config
+}

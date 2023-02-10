@@ -1,0 +1,28 @@
+fn on_config(config) {
+    config.version_requirement = ">=2.0.1-rc.1, <3.0.0";
+
+    config.server.name = "testserver.com";
+
+    config.server.interfaces = #{
+        addr: ["127.0.0.1:10028"],
+    };
+
+    config.server.tls = #{
+        preempt_cipherlist: false,
+        handshake_timeout: "20000ms",
+        protocol_version: ["TLSv1.2", "TLSv1.3"],
+    };
+
+    config.server.logs = #{
+        filename: "./log"
+    };
+    config.app.logs.filename = "./app.log";
+
+    config.server.queues.dirpath = "./spool";
+    config.app.dirpath = "./app";
+
+    config.app.vsl.domain_dir = "src/tests/rule_engine/rule_default/default_virtual/domain";
+    config.app.vsl.filter_path = "src/tests/rule_engine/rule_default/default_virtual/filter.vsl";
+
+    config
+}

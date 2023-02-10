@@ -206,13 +206,6 @@ impl Config {
     fn default_json() -> anyhow::Result<rhai::Map> {
         let mut config = Self::default_with_current_user_and_group();
 
-        // FIXME: serde_json will try to serialize those fields using
-        //        the `ReplyCode` `parse` function, which will fail with
-        //        multi line codes. Those codes will be added later with
-        //        `[Self::ensure]`.
-        //
-        //        This is a workaround and should be fixed by parsing multi-line
-        //        ehlo codes.
         config
             .server
             .smtp
@@ -251,7 +244,6 @@ impl Config {
         Ok(config_json)
     }
 
-    /// Get the configuration for a virtual domain.
     fn get_domain_config(&mut self, engine: &rhai::Engine) -> anyhow::Result<()> {
         if let Some(domains_path) = &self.app.vsl.domain_dir {
             for entry in std::fs::read_dir(domains_path).with_context(|| {
@@ -261,64 +253,89 @@ impl Config {
                 )
             })? {
                 let entry = entry?;
-                if entry.file_type()?.is_file() {
+                let file_type = entry.file_type()?;
+                if file_type.is_file() {
                     continue;
                 }
 
-                let domain_dir = entry.path();
-                let domain = entry.file_name().to_str().unwrap().to_owned();
+                let pre_symlink_domain = entry.file_name().to_string_lossy().to_string();
 
-                // NOTE: non readable file are ignored.
-                let files = std::fs::read_dir(&domain_dir)
-                    .with_context(|| {
-                        format!(
-                            "Cannot read configuration (config.vsl) for domain '{}'",
-                            domain_dir.display()
-                        )
-                    })?
-                    .filter_map(|i| i.map_or(None, |e| Some(e.path())))
-                    .collect::<Vec<_>>();
+                let symlink_domain = if file_type.is_symlink() {
+                    Some(
+                        std::fs::read_link(entry.path())?
+                            .file_name()
+                            .ok_or_else(|| anyhow::anyhow!("error symlink to root is invalid"))?
+                            .to_string_lossy()
+                            .to_string(),
+                    )
+                } else {
+                    None
+                };
 
-                if let Some(config_path) = files
-                    .iter()
-                    .find(|f| f.file_name().map_or(false, |f| f == "config.vsl"))
-                {
-                    let ast = engine.compile_file(config_path.clone()).with_context(|| {
-                        format!(
-                            "Failed to compile configuration (config.vsl) for domain '{}'",
-                            domain_dir.display()
-                        )
-                    })?;
+                let domain_name = symlink_domain
+                    .clone()
+                    .unwrap_or_else(|| pre_symlink_domain.clone());
 
-                    let raw_domain_config: rhai::Map = match engine.call_fn(
-                        &mut rhai::Scope::new(),
-                        &ast,
-                        "on_domain_config",
-                        (FieldServerVirtual::default_json()?,),
-                    ) {
-                        Ok(raw_domain_config) => raw_domain_config,
-                        Err(err) => {
-                            eprintln!("Could not get configuration for the '{domain}' domain because: {err}. The root domain config will be used by default.");
-                            return Ok(());
+                if let Some(v) = self.server.r#virtual.get_mut(&domain_name) {
+                    if pre_symlink_domain == "default" {
+                        v.is_default = true;
+                    }
+                } else {
+                    let domain_config = match Self::get_one_domain_config(&entry.path(), engine) {
+                        Ok(domain_config) => domain_config,
+                        Err(e) => {
+                            eprintln!(
+                                "Could not get configuration for the '{domain_name}' domain because: {e}.."
+                            );
+                            anyhow::bail!(e);
                         }
                     };
 
-                    let raw_domain_config = serde_json::to_string(&raw_domain_config)
-                        .context("The configuration is malformed")?;
-
-                    let domain_config = &mut serde_json::Deserializer::from_str(&raw_domain_config);
-
-                    let domain_config = match serde_path_to_error::deserialize(domain_config) {
-                        Ok(domain_config) => domain_config,
-                        Err(error) => anyhow::bail!(Self::format_error(&error)?),
-                    };
-
-                    self.server.r#virtual.insert(domain.clone(), domain_config);
+                    self.server.r#virtual.insert(
+                        domain_name,
+                        FieldServerVirtual {
+                            is_default: domain_config.is_default || pre_symlink_domain == "default",
+                            ..domain_config
+                        },
+                    );
                 }
             }
         }
 
         Ok(())
+    }
+
+    fn get_one_domain_config(
+        domain_dir: &std::path::Path,
+        engine: &rhai::Engine,
+    ) -> anyhow::Result<FieldServerVirtual> {
+        let config_path = domain_dir.join("config.vsl");
+
+        if config_path.exists() {
+            let ast = engine.compile_file(config_path.clone()).with_context(|| {
+                format!(
+                    "Failed to compile configuration at '{}'",
+                    config_path.display()
+                )
+            })?;
+
+            let raw = engine.call_fn::<rhai::Map>(
+                &mut rhai::Scope::new(),
+                &ast,
+                "on_domain_config",
+                (FieldServerVirtual::default_json()?,),
+            )?;
+
+            let raw_json = serde_json::to_string(&raw).context("The configuration is malformed")?;
+            let domain_config = &mut serde_json::Deserializer::from_str(&raw_json);
+
+            match serde_path_to_error::deserialize(domain_config) {
+                Ok(domain_config) => Ok(domain_config),
+                Err(error) => anyhow::bail!(Self::format_error(&error)?),
+            }
+        } else {
+            Ok(FieldServerVirtual::default())
+        }
     }
 
     /// Tracing back the path where the error have been generated,

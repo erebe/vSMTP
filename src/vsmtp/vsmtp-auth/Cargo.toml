@@ -31,7 +31,7 @@ path = "../vsmtp-mail-parser"
 serde = { version = "1.0.152", default-features = false, features = ["std", "derive"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 thiserror = { version = "1.0.38", default-features = false }
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }

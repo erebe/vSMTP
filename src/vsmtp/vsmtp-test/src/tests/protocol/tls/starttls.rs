@@ -55,6 +55,7 @@ run_test! {
       config.server.r#virtual.insert(
           "testserver.com".to_string(),
           FieldServerVirtual {
+              is_default: false,
               tls: Some(
                   FieldServerVirtualTls::from_path(
                       "src/template/certs/certificate.crt",
@@ -82,6 +83,80 @@ run_test! {
       }
     "#).unwrap().build())
     }
+}
+
+#[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
+#[should_panic] // the client is panicking, not the server
+async fn domain_not_defined() {
+    run_test! {
+      input = [
+          "EHLO client.com\r\n",
+          "STARTTLS\r\n"
+      ],
+      expected = [
+          "220 testserver.com Service ready\r\n",
+      ],
+      starttls = "domain_not_defined.tld" => [
+        "STARTTLS\r\n"
+      ],
+      config = {
+        let mut config = with_tls();
+        config.app.vsl.domain_dir = Some("./src/template/sni".into());
+        config.server.r#virtual.insert(
+            "testserver.com".to_string(),
+            FieldServerVirtual {
+                is_default: false,
+                tls: Some(
+                    FieldServerVirtualTls::from_path(
+                        "src/template/certs/certificate.crt",
+                        "src/template/certs/private_key.rsa.key",
+                    )
+                    .unwrap(),
+                ),
+                dns: None,
+                dkim: None,
+            },
+        );
+        config
+      },
+    };
+}
+
+#[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 2))]
+#[should_panic] // the client is panicking, not the server
+async fn domain_not_defined_with_default() {
+    run_test! {
+      input = [
+          "EHLO client.com\r\n",
+          "STARTTLS\r\n"
+      ],
+      expected = [
+          "220 testserver.com Service ready\r\n",
+      ],
+      starttls = "domain_not_defined.tld" => [
+        "STARTTLS\r\n"
+      ],
+      config = {
+        let mut config = with_tls();
+        config.app.vsl.domain_dir = Some("./src/template/sni".into());
+        config.server.r#virtual.insert(
+            "testserver.com".to_string(),
+            FieldServerVirtual {
+                is_default: true,
+                tls: Some(
+                    FieldServerVirtualTls::from_path(
+                        "src/template/certs/certificate.crt",
+                        "src/template/certs/private_key.rsa.key",
+                    )
+                    .unwrap(),
+                ),
+                dns: None,
+                dkim: None,
+            },
+        );
+        config
+      },
+    };
 }
 
 run_test! {
@@ -114,6 +189,7 @@ run_test! {
       config.server.r#virtual.insert(
           "testserver.com".to_string(),
           FieldServerVirtual {
+              is_default: false,
               tls: Some(
                   FieldServerVirtualTls::from_path(
                       "src/template/certs/certificate.crt",

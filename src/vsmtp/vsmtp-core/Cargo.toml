@@ -23,7 +23,7 @@ build = "build.rs"
 [build-dependencies]
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "2.0.1-rc.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "2.0.1-rc.1" }
-rhai-autodocs = "0.1"
+rhai-autodocs = "0.1.2"
 
 [package.metadata.release]
 tag = true
@@ -81,9 +81,9 @@ path = "../vsmtp-rule-engine"
 [dependencies]
 clap = { version = "4.1.4", default-features = false, features = ["std", "derive", "cargo", "usage", "help", "color"] }
 diff = { version = "0.1.13", default-features = false }
-serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 
-anyhow = { version = "1.0.68", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 either = { version = "1.8.1", default-features = false, features = ["use_std"] }
 humantime = { version = "2.1.0", default-features = false }
 

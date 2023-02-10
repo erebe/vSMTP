@@ -681,21 +681,25 @@ impl Builder<WantsServerVirtual> {
                 entry.domain.clone(),
                 match (entry.tls.as_ref(), entry.dns) {
                     (None, None) => FieldServerVirtual {
+                        is_default: false,
                         tls: None,
                         dns: None,
                         dkim: None,
                     },
                     (None, Some(dns_config)) => FieldServerVirtual {
+                        is_default: false,
                         tls: None,
                         dns: Some(dns_config),
                         dkim: None,
                     },
                     (Some((certificate, private_key)), None) => FieldServerVirtual {
+                        is_default: false,
                         tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
                         dns: None,
                         dkim: None,
                     },
                     (Some((certificate, private_key)), Some(dns_config)) => FieldServerVirtual {
+                        is_default: false,
                         tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
                         dns: Some(dns_config),
                         dkim: None,
