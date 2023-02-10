@@ -13,6 +13,19 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Modified
+
+- `dkim::sign()` prototype changed, taking a map of arguments instead of multiple arguments. (#1008)
+- TLS connection will be served if the client do not use a SNI, and a `default` domain is configured. (#1005)
+
+### Fixed
+
+- `srv()` variable can be accessed outside rules. (#1007)
+
+### Documented
+
+- `cmd` and `smtp` vsl modules. (#1004)
+
 ## [2.1.0] - 2023-02-01
 
 ### Added

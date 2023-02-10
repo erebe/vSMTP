@@ -35,7 +35,7 @@ pub use dkim::*;
 struct SignatureParams {
     sdid: Option<String>,
     selector: String,
-    private_key: PrivateKey,
+    private_key: std::sync::Arc<PrivateKey>,
     headers_field: Option<Vec<String>>,
     canonicalization: Option<Canonicalization>,
 }
@@ -60,13 +60,15 @@ impl TryFrom<rhai::Map> for SignatureParams {
                     selector = Some(value.into_string()?);
                 }
                 "private_key" => {
-                    private_key = Some(value.try_cast::<PrivateKey>().ok_or_else(|| {
-                        Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
-                            "PrivateKey".to_string(),
-                            value_type_name.to_string(),
-                            rhai::Position::NONE,
-                        ))
-                    })?);
+                    private_key = Some(value.try_cast::<rhai::Shared<PrivateKey>>().ok_or_else(
+                        || {
+                            Box::new(rhai::EvalAltResult::ErrorMismatchDataType(
+                                "Arc<PrivateKey>".to_string(),
+                                value_type_name.to_string(),
+                                rhai::Position::NONE,
+                            ))
+                        },
+                    )?);
                 }
                 "headers_field" => {
                     headers_field = Some(
