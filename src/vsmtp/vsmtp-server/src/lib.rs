@@ -19,7 +19,7 @@
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 //
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
@@ -50,7 +50,7 @@ pub use server::{socket_bind_anyhow, Server};
 
 use anyhow::Context;
 use vsmtp_common::transfer::SmtpConnection;
-use vsmtp_common::ContextFinished;
+use vsmtp_common::{Address, ContextFinished};
 use vsmtp_mail_parser::MessageBody;
 
 /// tag for a specific email process.
@@ -73,26 +73,18 @@ pub(crate) fn delegate(
     use lettre::Transport;
 
     let envelope = lettre::address::Envelope::new(
-        match context.mail_from.reverse_path {
-            Some(ref reverse_path) => Some(
-                reverse_path
-                    .full()
-                    .parse::<lettre::Address>()
-                    .context("cannot parse address")?,
-            ),
-            None => None,
-        },
+        context
+            .mail_from
+            .reverse_path
+            .as_ref()
+            .map(Address::to_lettre),
         context
             .rcpt_to
-            .forward_paths
-            .iter()
-            .map(|rcpt| {
-                rcpt.address
-                    .full()
-                    .parse::<lettre::Address>()
-                    .with_context(|| format!("failed to parse address {}", rcpt.address.full()))
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?,
+            .delivery
+            .values()
+            .flatten()
+            .map(|rcpt| rcpt.0.to_lettre())
+            .collect::<Vec<_>>(),
     )?;
 
     delegator

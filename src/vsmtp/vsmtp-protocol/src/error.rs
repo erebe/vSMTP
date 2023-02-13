@@ -15,28 +15,23 @@
  *
 */
 
-use crate::Domain;
-
-/// Identity of the client.
-#[derive(
-    Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
-)]
-#[serde(untagged)]
-pub enum ClientName {
-    /// FQDN of the client.
-    Domain(Domain),
-    /// IP address of the client.
-    Ip4(std::net::Ipv4Addr),
-    /// IP address of the client.
-    Ip6(std::net::Ipv6Addr),
-}
-
-impl std::fmt::Display for ClientName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Domain(domain) => write!(f, "{domain}"),
-            Self::Ip4(ip) => write!(f, "{ip}"),
-            Self::Ip6(ip) => write!(f, "{ip}"),
-        }
-    }
+/// Error while processing the TCP/IP stream.
+#[derive(Debug, thiserror::Error)]
+#[allow(clippy::exhaustive_enums)]
+pub enum Error {
+    /// The buffer is longer than expected.
+    #[error("buffer is not supposed to be longer than {expected} bytes but got {got}")]
+    BufferTooLong {
+        /// Maximum size expected.
+        expected: usize,
+        /// Actual size.
+        got: usize,
+    },
+    /// Other IO error.
+    // TODO: enhance that
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+    /// Invalid UTF-8.
+    #[error("{0}")]
+    Utf8(#[from] std::str::Utf8Error),
 }

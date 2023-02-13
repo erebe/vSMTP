@@ -15,13 +15,14 @@
  *
 */
 
-use crate::{rcpt::Rcpt, utils::ipv6_with_scope_id, Address, CodeID, Reply};
+use crate::{CodeID, Domain, Reply};
 
 /// Error produced received by the Queue manager
 // TODO: enhance the IO error handling
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, strum::Display, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub enum TransferErrorsVariant {
     /// For local delivery (Maildir / Mbox), the requested mailbox does not exist on the system
     NoSuchMailbox {
@@ -34,16 +35,9 @@ pub enum TransferErrorsVariant {
         error: String,
     },
 
-    /// The recipient is still in status [`EmailTransferStatus::Waiting`] after the split_and_sort_and_send()
+    /// The recipient is still in status [`Status::Waiting`] after the split_and_sort_and_send()
     StillWaiting,
 
-    ///
-    EnvelopIllFormed {
-        ///
-        reverse_path: Address,
-        ///
-        forward_paths: Vec<Rcpt>,
-    },
     ///
     DnsRecord {
         ///
@@ -52,7 +46,7 @@ pub enum TransferErrorsVariant {
     ///
     HasNullMX {
         ///
-        domain: String,
+        domain: Domain,
     },
     ///
     Smtp {
@@ -63,8 +57,13 @@ pub enum TransferErrorsVariant {
     DeliveryError {
         /// Currently the delivery try to send the email to all the MX record,
         /// if none, the delivery send to the AAAA record.
-        targets: Vec<String>,
+        targets: Vec<Domain>,
     },
+
+    /// Can occur:
+    ///
+    /// * the connection to the remote server is timed out
+    ConnectionTimedOut {},
 
     ///
     TlsNoCertificate {},
@@ -88,12 +87,12 @@ impl TransferErrorsVariant {
     #[must_use]
     pub const fn is_permanent(&self) -> bool {
         match self {
-            Self::EnvelopIllFormed { .. }
-            | Self::NoSuchMailbox { .. }
+            Self::NoSuchMailbox { .. }
             | Self::MaxDeferredAttemptReached
             | Self::LocalDeliveryError { .. } => true,
 
             Self::DnsRecord { .. }
+            | Self::ConnectionTimedOut { .. }
             | Self::HasNullMX { .. }
             | Self::Smtp { .. }
             | Self::StillWaiting
@@ -106,21 +105,31 @@ impl TransferErrorsVariant {
 
 ///
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(Eq))]
 pub struct TransferError {
     ///
-    #[serde(flatten)]
     pub variant: TransferErrorsVariant,
     ///
     #[serde(with = "time::serde::iso8601")]
     pub timestamp: time::OffsetDateTime,
 }
 
-// TODO: should be in #[cfg(test)] ?
-// NOTE: ignore the timestamp
+#[cfg(feature = "testing")]
 impl PartialEq for TransferError {
+    // NOTE: ignore the timestamp
     fn eq(&self, other: &Self) -> bool {
-        self.variant == other.variant
+        let Self {
+            variant: self_variant,
+            timestamp: _,
+        } = self;
+
+        let Self {
+            variant: other_variant,
+            timestamp: _,
+        } = other;
+
+        self_variant == other_variant
     }
 }
 
@@ -134,10 +143,11 @@ impl TransferError {
 }
 
 /// the delivery status of the email of the current rcpt.
-#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum EmailTransferStatus {
+#[cfg_attr(feature = "testing", derive(Eq))]
+pub enum Status {
     /// the email has not been sent yet.
     /// the email is in the deliver / working queue at this point.
     Waiting {
@@ -146,7 +156,7 @@ pub enum EmailTransferStatus {
         timestamp: time::OffsetDateTime,
     },
     /// email for this recipient has been successfully sent.
-    /// When all [`crate::rcpt::Rcpt`] are [`EmailTransferStatus::Sent`], the files are removed from disk.
+    /// When all recipient are [`Status::Sent`], the files are removed from disk.
     Sent {
         /// timestamp when the status has been set
         #[serde(with = "time::serde::iso8601")]
@@ -170,7 +180,8 @@ pub enum EmailTransferStatus {
 }
 
 // NOTE: ignore the timestamp
-impl PartialEq for EmailTransferStatus {
+#[cfg(feature = "testing")]
+impl PartialEq for Status {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Sent { .. }, Self::Sent { .. })
@@ -186,7 +197,7 @@ impl PartialEq for EmailTransferStatus {
     }
 }
 
-impl Default for EmailTransferStatus {
+impl Default for Status {
     fn default() -> Self {
         Self::Waiting {
             timestamp: time::OffsetDateTime::now_utc(),
@@ -194,7 +205,7 @@ impl Default for EmailTransferStatus {
     }
 }
 
-impl EmailTransferStatus {
+impl Status {
     /// Should the recipient be delivered, or it has been done already ?
     #[must_use]
     pub const fn is_sendable(&self) -> bool {
@@ -204,7 +215,7 @@ impl EmailTransferStatus {
         }
     }
 
-    /// Set the status to [`EmailTransferStatus::HeldBack`] with an error, or increase the previous stack.
+    /// Set the status to [`Status::HeldBack`] with an error, or increase the previous stack.
     pub fn held_back(&mut self, error: impl Into<TransferErrorsVariant>) {
         let error = error.into();
         match self {
@@ -233,77 +244,6 @@ impl EmailTransferStatus {
         Self::Failed {
             error: TransferError::new(error.into()),
         }
-    }
-}
-
-/// possible format of the forward target.
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, serde::Serialize, serde::Deserialize,
-)]
-pub enum ForwardTarget {
-    /// the target is a domain name. (default)
-    Domain(String),
-    /// the target is an ip address, a domain resolution needs to be made.
-    Ip(std::net::IpAddr),
-    /// the target is an ip address with an associated port.
-    Socket(std::net::SocketAddr),
-}
-
-/// the delivery method / protocol used for a specific recipient.
-#[derive(
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum Transfer {
-    /// forward email via the smtp protocol.
-    Forward(ForwardTarget),
-    /// deliver the email via the smtp protocol and mx record resolution.
-    #[default]
-    Deliver,
-    /// local delivery via the mbox protocol.
-    Mbox,
-    /// local delivery via the maildir protocol.
-    Maildir,
-}
-
-impl std::str::FromStr for ForwardTarget {
-    type Err = anyhow::Error;
-
-    /// create a forward target from a string and cast
-    /// it to the correct type.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.find('%').map_or_else(
-            || {
-                s.parse::<std::net::SocketAddr>().map_or_else(
-                    |_| {
-                        s.parse::<std::net::IpAddr>().map_or_else(
-                            |_| {
-                                addr::parse_domain_name(s)
-                                    .map(|domain| Self::Domain(domain.to_string()))
-                                    .map_err(|err| {
-                                        anyhow::anyhow!(
-                                            "{} could not be used as a forward target.",
-                                            err.input()
-                                        )
-                                    })
-                            },
-                            |ip| Ok(Self::Ip(ip)),
-                        )
-                    },
-                    |socket| Ok(Self::Socket(socket)),
-                )
-            },
-            |_| -> Result<Self, _> { ipv6_with_scope_id(s).map(Self::Socket) },
-        )
     }
 }
 

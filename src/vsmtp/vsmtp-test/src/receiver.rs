@@ -153,7 +153,7 @@ macro_rules! run_test {
         };
 
         let queue_manager =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone(), vec![]).unwrap();
 
         let queue_manager_cloned = std::sync::Arc::clone(&queue_manager);
 

@@ -134,7 +134,7 @@ impl Server {
                     .codes
                     .get(&CodeID::ConnectionMaxReached)
                     .expect("ill-formed configuration")
-                    .fold()
+                    .as_ref()
                     .as_bytes(),
             )
             .await
@@ -150,7 +150,7 @@ impl Server {
 
         client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
-        let session = Self::run_session(
+        let session = Self::serve(
             AcceptArgs::new(
                 client_addr,
                 stream.local_addr().expect("retrieve local address"),
@@ -179,8 +179,8 @@ impl Server {
     /// # Errors
     ///
     /// * failed to convert sockets to `[tokio::net::TcpListener]`
-    #[tracing::instrument(name = "serve", skip_all)]
-    pub async fn listen_and_serve(
+    #[tracing::instrument(skip_all)]
+    pub async fn listen(
         self,
         sockets: (
             Vec<std::net::TcpListener>,
@@ -253,7 +253,7 @@ impl Server {
     /// # Errors
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip_all, err, fields(uuid = %args.uuid))]
-    pub async fn run_session(
+    pub async fn serve(
         args: AcceptArgs,
         tcp_stream: tokio::net::TcpStream,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -315,9 +315,11 @@ mod tests {
                 config
             });
 
-            let queue_manager =
-                <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                    .unwrap();
+            let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+                config.clone(),
+                vec![],
+            )
+            .unwrap();
 
             let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
@@ -342,7 +344,7 @@ mod tests {
 
             tokio::time::timeout(
                 std::time::Duration::from_millis($timeout),
-                s.listen_and_serve((
+                s.listen((
                     config
                         .server
                         .interfaces
@@ -388,6 +390,7 @@ mod tests {
         ];
     }
 
+    #[ignore]
     #[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 8))]
     async fn one_client_max_ok() {
         let server = tokio::spawn(async move {

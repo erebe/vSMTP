@@ -65,7 +65,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "client_address", return_raw)]
     pub fn client_address(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -97,7 +96,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "client_ip", return_raw)]
     pub fn client_ip(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -130,7 +128,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "client_port", return_raw)]
     pub fn client_port(ncc: NativeCallContext) -> EngineResult<rhai::INT> {
         Ok(rhai::INT::from(
@@ -164,7 +161,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "server_address", return_raw)]
     pub fn server_address(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -196,7 +192,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "server_ip", return_raw)]
     pub fn server_ip(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -229,7 +224,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "server_port", return_raw)]
     pub fn server_port(ncc: NativeCallContext) -> EngineResult<rhai::INT> {
         Ok(rhai::INT::from(
@@ -247,7 +241,7 @@ mod mail_context {
     ///
     /// # Return
     ///
-    /// * `timestamp` - the connexion timestamp of the client.
+    /// * `timestamp` - the connection timestamp of the client.
     ///
     /// # Example
     ///
@@ -263,7 +257,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "connection_timestamp", return_raw)]
     pub fn connection_timestamp(ncc: NativeCallContext) -> EngineResult<time::OffsetDateTime> {
         Ok(*vsl_guard_ok!(get_global!(ncc, ctx)?.read()).connection_timestamp())
@@ -293,12 +286,11 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "server_name", return_raw)]
     pub fn server_name(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
             .server_name()
-            .clone())
+            .to_string())
     }
 
     /// Has the connection been secured under the encryption protocol SSL/TLS.
@@ -325,7 +317,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "is_secured", return_raw)]
     pub fn is_secured(ncc: NativeCallContext) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read()).tls().is_some())
@@ -353,7 +344,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "helo", return_raw)]
     pub fn helo(ncc: NativeCallContext) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
@@ -385,7 +375,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw)]
     pub fn mail_from(ncc: NativeCallContext) -> EngineResult<SharedObject> {
         let reverse_path = vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -426,7 +415,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rcpt_list", return_raw)]
     pub fn rcpt_list(ncc: NativeCallContext) -> EngineResult<rhai::Array> {
         Ok(vsl_missing_ok!(
@@ -437,7 +425,7 @@ mod mail_context {
             ExecutionStage::RcptTo
         )
         .iter()
-        .map(|rcpt| rcpt.address.clone())
+        .cloned()
         .map(Object::Address)
         .map(std::sync::Arc::new)
         .map(rhai::Dynamic::from)
@@ -468,25 +456,19 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rcpt", return_raw)]
     pub fn rcpt(ncc: NativeCallContext) -> EngineResult<SharedObject> {
-        Ok(std::sync::Arc::new(Object::Address(
-            vsl_missing_ok!(
-                vsl_missing_ok!(
-                    vsl_guard_ok!(get_global!(ncc, ctx)?.read())
-                        .forward_paths()
-                        .ok(),
-                    "rcpt",
-                    ExecutionStage::RcptTo
-                )
-                .last(),
-                "rcpt",
-                ExecutionStage::RcptTo
-            )
-            .address
-            .clone(),
-        )))
+        let binding = get_global!(ncc, ctx)?;
+        let guard = binding.read().unwrap();
+        let rcpts = guard.forward_paths().ok();
+
+        let rcpts = vsl_missing_ok!(ref rcpts, "rcpt", ExecutionStage::RcptTo);
+
+        Ok(std::sync::Arc::new(Object::Address(vsl_missing_ok!(
+            ref rcpts.last().cloned(),
+            "rcpt",
+            ExecutionStage::RcptTo
+        ))))
     }
 
     /// Get the time of reception of the email.
@@ -511,7 +493,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "mail_timestamp", return_raw)]
     pub fn mail_timestamp(ncc: NativeCallContext) -> EngineResult<time::OffsetDateTime> {
         Ok(**vsl_missing_ok!(
@@ -545,7 +526,6 @@ mod mail_context {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "message_id", return_raw)]
     pub fn message_id(ncc: NativeCallContext) -> EngineResult<String> {
         super::message_id(&get_global!(ncc, ctx)?)

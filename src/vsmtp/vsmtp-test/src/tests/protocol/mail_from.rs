@@ -80,7 +80,7 @@ fn test(#[case] mail_from: &str, #[case] reverse_path: Option<&str>) {
                         _: MessageBody,
                         _: std::sync::Arc<dyn GenericQueueManager>,
                     ) -> CodeID {
-                        assert_eq!(ctx.helo.client_name, ClientName::Domain("foobar".to_string()));
+                        assert_eq!(ctx.helo.client_name, ClientName::Domain("foobar".parse().unwrap()));
                         assert_eq!(ctx.mail_from.reverse_path, self.reverse_path);
 
                         CodeID::Ok

@@ -18,20 +18,43 @@ use crate::{receiver::ErrorCounter, ReceiverContext, ReceiverHandler};
 use tokio::io::AsyncWriteExt;
 use vsmtp_common::Reply;
 
-pub struct Sink<W: tokio::io::AsyncWrite + Unpin + Send> {
-    pub inner: W,
+/// Sink for sending reply to the client
+pub struct Writer<W: tokio::io::AsyncWrite + Unpin + Send> {
+    pub(super) inner: W,
 }
 
-impl<W: tokio::io::AsyncWrite + Unpin + Send> Sink<W> {
-    pub const fn new(tcp_sink: W) -> Self {
-        Self { inner: tcp_sink }
+impl<W: tokio::io::AsyncWrite + Unpin + Send> Writer<W> {
+    /// Create a new instance
+    #[inline]
+    pub const fn new(inner: W) -> Self {
+        Self { inner }
     }
 
-    async fn write_all(&mut self, buffer: &str) -> std::io::Result<()> {
+    /// Send the buffer to the client.
+    ///
+    /// # Errors
+    ///
+    /// * [`std::io::Error`] produced by the underlying writer
+    #[inline]
+    pub async fn write_all(&mut self, buffer: &str) -> std::io::Result<()> {
         tracing::trace!(">> {:?}", buffer);
-        self.inner.write_all(buffer.as_bytes()).await
+        self.write_all_bytes(buffer.as_bytes()).await
     }
 
+    /// Send the buffer to the client.
+    ///
+    /// # Errors
+    ///
+    /// * [`std::io::Error`] produced by the underlying writer
+    #[inline]
+    pub async fn write_all_bytes(&mut self, buffer: &[u8]) -> std::io::Result<()> {
+        self.inner.write_all(buffer).await
+    }
+
+    /// # Errors
+    ///
+    /// * [`std::io::Error`] produced by the underlying writer
+    #[inline]
     pub async fn send_reply<T: ReceiverHandler + Send>(
         &mut self,
         ctx: &mut ReceiverContext,
@@ -40,7 +63,7 @@ impl<W: tokio::io::AsyncWrite + Unpin + Send> Sink<W> {
         reply: Reply,
     ) -> std::io::Result<()> {
         if !reply.code().is_error() {
-            return self.write_all(&reply.fold()).await;
+            return self.write_all(reply.as_ref()).await;
         }
         error_counter.error_count += 1;
 
@@ -49,14 +72,14 @@ impl<W: tokio::io::AsyncWrite + Unpin + Send> Sink<W> {
 
         if hard_error != -1 && error_counter.error_count >= hard_error {
             let reply = handler.on_hard_error(ctx, reply).await;
-            return self.write_all(&reply.fold()).await;
+            return self.write_all(reply.as_ref()).await;
         }
 
         if soft_error != -1 && error_counter.error_count >= soft_error {
             let reply = handler.on_soft_error(ctx, reply).await;
-            return self.write_all(&reply.fold()).await;
+            return self.write_all(reply.as_ref()).await;
         }
 
-        self.write_all(&reply.fold()).await
+        self.write_all(reply.as_ref()).await
     }
 }

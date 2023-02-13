@@ -46,20 +46,22 @@
 
 mod command;
 mod connection_kind;
+mod error;
+mod reader;
 mod receiver;
 mod receiver_handler;
-mod sink;
 mod smtp_sasl;
-mod stream;
+mod writer;
 
 pub use command::{
     AcceptArgs, AuthArgs, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs,
     UnparsedArgs, Verb,
 };
 pub use connection_kind::ConnectionKind;
+pub use error::Error;
+pub use reader::Reader;
 pub use receiver::{Receiver, ReceiverContext};
 pub use receiver_handler::ReceiverHandler;
 pub use smtp_sasl::{AuthError, CallbackWrap};
-pub use stream::Error;
-
 pub use tokio_rustls::rustls;
+pub use writer::Writer;

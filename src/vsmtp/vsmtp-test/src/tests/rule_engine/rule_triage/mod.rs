@@ -36,8 +36,8 @@ run_test! {
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
-        "0 incoming main\r\n",
-        "0 incoming example.com\r\n",
+        "100 incoming main\r\n",
+        "100 incoming example.com\r\n",
         "221 Service closing transmission channel\r\n",
     ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
@@ -57,8 +57,8 @@ run_test! {
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
-        "0 sender outgoing example.com\r\n",
-        "0 internal example.com\r\n",
+        "100 sender outgoing example.com\r\n",
+        "100 internal example.com\r\n",
         "221 Service closing transmission channel\r\n",
     ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([
@@ -105,9 +105,9 @@ run_test! {
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
-        "0 sender outgoing example.com\r\n",
-        "0 internal example.com\r\n",
-        "0 rcpt outgoing example.com\r\n",
+        "100 sender outgoing example.com\r\n",
+        "100 internal example.com\r\n",
+        "100 rcpt outgoing example.com\r\n",
         "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
         "250-Ok\r\n",
         "250 Ok\r\n",
@@ -137,7 +137,7 @@ run_test! {
                         assert_eq!(body.inner().to_string(), INTERNAL_EMAIL.replace('\n', "\r\n"));
                     },
                     TransactionType::Outgoing { domain } => {
-                        assert_eq!(domain.as_str(), "example.com");
+                        assert_eq!(domain, "example.com".parse().unwrap());
                         assert_eq!(body.get_header("X-OUTGOING"), Some("bar@other.com".to_owned()));
                         assert_eq!(body.get_header("X-INTERNAL"), None);
                         assert_eq!(body.get_header("X-CUSTOM"), None);
@@ -169,9 +169,9 @@ run_test! {
     expected = [
         "220 testserver.com Service ready\r\n",
         "250 Ok\r\n",
-        "0 incoming main\r\n",
-        "0 incoming example.com\r\n",
-        "0 incoming mta.example.com\r\n",
+        "100 incoming main\r\n",
+        "100 incoming example.com\r\n",
+        "100 incoming mta.example.com\r\n",
         "221 Service closing transmission channel\r\n",
     ],
     config = vsmtp_config::Config::from_vsl_file(std::path::PathBuf::from_iter([

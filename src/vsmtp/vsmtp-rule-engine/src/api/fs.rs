@@ -46,25 +46,27 @@ mod fs {
     /// # let dir = tempfile::tempdir().expect("fs api: failed to create tmpdir");
     /// # let mut config = vsmtp_test::config::local_test();
     /// # config.app.dirpath = dir.path().into();
-    ///
-    /// # vsmtp_test::vsl::run_with_msg_and_config(
-    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// # let rules = r#"
     /// #{
     ///     preq: [
     ///        action "write to file" || fs::write("archives"),
     ///     ]
     /// }
-    /// # "#)?.build()),
-    /// # None,
-    /// # config,
-    /// # );
+    /// # "#;
+    /// # let states = vsmtp_test::vsl::run_with_msg_and_config(|builder| Ok(builder
+    /// #   .add_root_filter_rules("#{}")?
+    /// #      .add_domain_rules("testserver.com".parse().unwrap())
+    /// #        .with_incoming(rules)?
+    /// #        .with_outgoing(rules)?
+    /// #        .with_internal(rules)?
+    /// #      .build()
+    /// #   .build()), None, config);
     /// # eprintln!("{:?}", dir.path());
     /// # assert!(std::path::PathBuf::from_iter([
     /// #     dir.path(),
     /// #     &std::path::Path::new("archives")
     /// # ]).exists());
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "write", return_raw)]
     pub fn write_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
         super::write(
@@ -94,24 +96,27 @@ mod fs {
     /// # let mut config = vsmtp_test::config::local_test();
     /// # config.app.dirpath = dir.path().into();
     ///
-    /// # vsmtp_test::vsl::run_with_msg_and_config(
-    /// # |builder| Ok(builder.add_root_filter_rules(r#"
+    /// # let rules = r#"
     /// #{
     ///     preq: [
     ///        action "write to file" || fs::dump("metadata"),
     ///     ]
     /// }
-    /// # "#)?.build()),
-    /// # None,
-    /// # config,
-    /// # );
+    /// # "#;
+    /// # let states = vsmtp_test::vsl::run_with_msg_and_config(|builder| Ok(builder
+    /// #   .add_root_filter_rules("#{}")?
+    /// #      .add_domain_rules("testserver.com".parse().unwrap())
+    /// #        .with_incoming(rules)?
+    /// #        .with_outgoing(rules)?
+    /// #        .with_internal(rules)?
+    /// #      .build()
+    /// #   .build()), None, config);
     /// # eprintln!("{:?}", dir.path());
     /// # assert!(std::path::PathBuf::from_iter([
     /// #     dir.path(),
     /// #     &std::path::Path::new("metadata")
     /// # ]).exists());
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "dump", return_raw)]
     pub fn dump_str(ncc: NativeCallContext, dir: &str) -> EngineResult<()> {
         super::dump(&get_global!(ncc, srv)?, &get_global!(ncc, ctx)?, dir)

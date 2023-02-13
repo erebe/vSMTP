@@ -86,7 +86,6 @@ mod spf {
     ///     ],
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check", return_raw)]
     pub fn check(ncc: NativeCallContext, header: &str, policy: &str) -> EngineResult<Status> {
         let ctx = get_global!(ncc, ctx)?;
@@ -236,7 +235,6 @@ mod spf {
     ///     ],
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check", return_raw)]
     pub fn check_with_header(ncc: NativeCallContext, header: &str) -> EngineResult<Status> {
         check(ncc, header, "strict")
@@ -271,7 +269,6 @@ mod spf {
     ///     ]
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check_raw", return_raw)]
     pub fn check_raw(ncc: NativeCallContext) -> EngineResult<rhai::Map> {
         let ctx = get_global!(ncc, ctx)?;
@@ -300,7 +297,7 @@ pub fn check(ctx: &Context, srv: &Server) -> EngineResult<vsmtp_auth::spf::Resul
                     .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
                 match client_name {
                     ClientName::Domain(domain) => {
-                        vsl_generic_ok!(viaspf::Sender::from_domain(domain))
+                        vsl_generic_ok!(viaspf::Sender::from_domain(&domain.to_string()))
                     }
                     // See https://www.rfc-editor.org/rfc/rfc7208#section-2.3
                     ClientName::Ip4(_) | ClientName::Ip6(_) => {
@@ -320,7 +317,7 @@ pub fn check(ctx: &Context, srv: &Server) -> EngineResult<vsmtp_auth::spf::Resul
 
     let resolver = srv.resolvers.get_resolver_root();
 
-    let spf_result = block_on!(vsmtp_auth::spf::evaluate(resolver, ip, &spf_sender));
+    let spf_result = block_on!(vsmtp_auth::spf::evaluate(&resolver, ip, &spf_sender));
 
     vsl_guard_ok!(ctx.write())
         .set_spf(spf_result.clone())

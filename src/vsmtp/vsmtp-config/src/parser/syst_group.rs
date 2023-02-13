@@ -14,13 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+/// # Errors
 pub fn serialize<S: serde::Serializer>(
     value: &users::Group,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    serde::Serialize::serialize(&value.name().to_str().unwrap(), serializer)
+    serde::Serialize::serialize(
+        &value.name().to_str().expect("utf8 valid string"),
+        serializer,
+    )
 }
 
+/// # Errors
 pub fn deserialize<'de, D>(deserializer: D) -> Result<users::Group, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -30,17 +35,22 @@ where
         .ok_or_else(|| serde::de::Error::custom(format!("group not found: '{group_name}'")))
 }
 
+/// # Errors
 pub fn opt_serialize<S>(group: &Option<users::Group>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     if let Some(group) = group {
-        serde::Serialize::serialize(&group.name().to_str().unwrap(), serializer)
+        serde::Serialize::serialize(
+            &group.name().to_str().expect("utf8 valid string"),
+            serializer,
+        )
     } else {
         serializer.serialize_none()
     }
 }
 
+/// # Errors
 pub fn opt_deserialize<'de, D>(deserializer: D) -> Result<Option<users::Group>, D::Error>
 where
     D: serde::Deserializer<'de>,

@@ -31,7 +31,7 @@ use crate::field::{
     ResolverOptsWrapper,
 };
 use anyhow::Context;
-use vsmtp_common::{auth::Mechanism, CodeID, Reply, Stage};
+use vsmtp_common::{auth::Mechanism, CodeID, Domain, Reply, Stage};
 
 ///
 pub struct Builder<State> {
@@ -645,7 +645,7 @@ impl Builder<WantsServerDNS> {
 /// metadata for a virtual entry.
 pub struct VirtualEntry {
     /// the domain of the entry.
-    pub domain: String,
+    pub domain: Domain,
     /// path to the certificate and private key used for tls.
     pub tls: Option<(String, String)>,
     /// dns configuration.

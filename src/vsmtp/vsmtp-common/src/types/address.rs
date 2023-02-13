@@ -14,33 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+use crate::Domain;
+
 /// Address Email
 #[derive(Clone, Debug, Eq, serde_with::SerializeDisplay, serde_with::DeserializeFromStr)]
 pub struct Address {
     at_sign: usize,
     full: String,
-}
-
-/// Creates an iterator over a domain that remove the prefix every call to `next`.
-pub struct Domain<'a>(&'a str);
-
-impl<'a> Domain<'a> {
-    /// Create an iterator over the given domain.
-    #[must_use]
-    pub const fn iter(domain: &'a str) -> Self {
-        Self(domain)
-    }
-}
-
-impl<'a> Iterator for Domain<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.split_once('.').map(|(_, rest)| {
-            self.0 = rest;
-            self.0
-        })
-    }
 }
 
 /// Syntax sugar Address object from dyn `ToString`
@@ -66,12 +47,6 @@ impl std::str::FromStr for Address {
             at_sign: s.find('@').expect("no '@' in address"),
             full: s.to_string(),
         })
-    }
-}
-
-impl From<Address> for String {
-    fn from(value: Address) -> Self {
-        value.full().to_string()
     }
 }
 
@@ -108,8 +83,9 @@ impl Address {
 
     /// get the fqdn of the address.
     #[must_use]
-    pub fn domain(&self) -> &str {
-        &self.full[self.at_sign + 1..]
+    pub fn domain(&self) -> Domain {
+        Domain::from_utf8(&self.full[self.at_sign + 1..])
+            .expect("at this point, domain is valid (checked in `new`)")
     }
 
     /// create a new address without verifying the syntax.
@@ -123,6 +99,12 @@ impl Address {
             at_sign: addr.find('@').unwrap(),
             full: addr,
         }
+    }
+
+    ///
+    #[must_use]
+    pub fn to_lettre(&self) -> lettre::Address {
+        lettre::Address::new(self.local_part(), self.domain().to_string()).expect("valid")
     }
 }
 
@@ -142,7 +124,7 @@ mod tests {
             }
         );
         assert_eq!(parsed.local_part(), "hello");
-        assert_eq!(parsed.domain(), "domain.com");
+        assert_eq!(parsed.domain().to_string(), "domain.com");
     }
 
     #[test]
@@ -155,16 +137,5 @@ mod tests {
             .unwrap(),
             r#""hello@domain.com""#
         );
-    }
-
-    #[test]
-    fn domain() {
-        let mut domain = Domain("www.john.doe.example.com");
-
-        assert_eq!(domain.next(), Some("john.doe.example.com"));
-        assert_eq!(domain.next(), Some("doe.example.com"));
-        assert_eq!(domain.next(), Some("example.com"));
-        assert_eq!(domain.next(), Some("com"));
-        assert_eq!(domain.next(), None);
     }
 }

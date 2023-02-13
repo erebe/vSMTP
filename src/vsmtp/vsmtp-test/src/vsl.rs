@@ -33,7 +33,8 @@ pub fn run_with_msg_and_config(
     config: Config,
 ) -> std::collections::HashMap<ExecutionStage, (vsmtp_common::Context, MessageBody, Status)> {
     let config = arc!(config);
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
+    let queue_manager =
+        vqueue::temp::QueueManager::init(config.clone(), vec![]).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
     let rule_engine = std::sync::Arc::new(

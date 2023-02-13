@@ -17,7 +17,6 @@
 
 use vsmtp_common::transfer::SmtpConnection;
 
-use lettre;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };

@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
         )?;
 
         let config = std::sync::Arc::new(config);
-        let manager = vqueue::fs::QueueManager::init(config)?;
+        let manager = vqueue::fs::QueueManager::init(config, vec![])?;
 
         command.execute(manager).await
     } else {

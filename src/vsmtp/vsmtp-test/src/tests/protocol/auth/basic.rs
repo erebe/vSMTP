@@ -82,7 +82,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("joe@doe")
+                    ])
+                );
                 CodeID::Ok
             }
         }
@@ -135,7 +143,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("joe@doe")
+                    ])
+                );
                 CodeID::Ok
             }
         }
@@ -184,7 +200,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("joe@doe")
+                    ])
+                );
                 CodeID::Ok
             }
         }
@@ -233,7 +257,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("joe@doe")
+                    ])
+                );
                 CodeID::Ok
             }
         }
@@ -360,7 +392,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "client.com");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo@bar")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("joe@doe").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("joe@doe")
+                    ])
+                );
                 CodeID::Ok
             }
         }

@@ -20,6 +20,7 @@ use crate::{
 };
 use anyhow::Context;
 use vsmtp_common::status::Status;
+use vsmtp_common::{iter_to_root, Domain};
 
 /// Rules that automatically deny the transaction once run.
 const DEFAULT_ROOT_FILTERING_RULES: &str = include_str!("../default/root_filter_rules.rhai");
@@ -37,7 +38,7 @@ pub struct SubDomainHierarchy {
     root_filter: Script,
     fallback: Script,
     default_values: DomainDirectives,
-    domains: std::collections::BTreeMap<String, DomainDirectives>,
+    domains: std::collections::BTreeMap<Domain, DomainDirectives>,
 }
 
 // NOTE: using a macro to avoid code duplication and fatal typo.
@@ -65,21 +66,40 @@ impl SubDomainHierarchy {
         &self.fallback
     }
 
-    pub(super) fn get(&self, domain: &str) -> Option<&DomainDirectives> {
-        self.domains.get(domain)
-    }
+    // pub(super) fn get(&self, domain: &Domain) -> Option<&DomainDirectives> {
+    //     self.domains.get(domain)
+    // }
 
     pub(super) fn get_all(&self) -> impl Iterator<Item = &DomainDirectives> {
         self.domains.values()
     }
 
-    pub(super) fn contains(&self, domain: &str) -> bool {
-        self.domains.contains_key(domain)
-    }
+    // pub(super) fn contains(&self, domain: &Domain) -> bool {
+    //     self.domains.contains_key(domain)
+    // }
 
     fn_get_script!(incoming);
     fn_get_script!(outgoing);
     fn_get_script!(internal);
+
+    /// Return `true` if the given domain **or any parent domain** is handled by the configuration.
+    #[must_use]
+    pub(super) fn contains_any(&self, domain: &Domain) -> bool {
+        self.get_any(domain).is_some()
+    }
+
+    /// Return the directives for the given domain **or any parent domain**.
+    pub(super) fn get_any(&self, domain: &Domain) -> Option<&DomainDirectives> {
+        if let Some(directives) = self.domains.get(domain) {
+            return Some(directives);
+        }
+
+        let domain_str = domain.to_string();
+        iter_to_root(&domain_str).find_map(|parent| {
+            self.domains
+                .get(&<Domain as std::str::FromStr>::from_str(parent).expect("domain is valid"))
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -219,14 +239,12 @@ impl SubDomainHierarchy {
                 let domain = domain_dir
                     .file_name()
                     .and_then(std::ffi::OsStr::to_str)
-                    .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?;
+                    .ok_or_else(|| anyhow::anyhow!("failed to get file name"))?
+                    .parse::<Domain>()?;
 
-                tracing::info!(domain, "loading domain rules...");
+                tracing::info!(?domain, "loading domain rules...");
 
-                hierarchy.insert(
-                    domain.to_owned(),
-                    DomainDirectives::new(engine, &domain_dir)?,
-                );
+                hierarchy.insert(domain, DomainDirectives::new(engine, &domain_dir)?);
             }
         }
 
@@ -289,16 +307,17 @@ impl<'a> Builder<'a> {
     }
 
     /// compile incoming, outgoing & internal scripts and add them to a domain of the hierarchy.
-    ///     ///
+    ///
     /// # Errors
     /// * Failed to compile any domain script.
-    pub fn add_domain_rules(
+    #[must_use]
+    pub const fn add_domain_rules(
         self,
-        domain: impl Into<String>,
+        domain: Domain,
     ) -> DomainDirectivesBuilder<'a, WantsIncoming> {
         DomainDirectivesBuilder {
             inner: self,
-            domain: domain.into(),
+            domain,
             state: WantsIncoming {},
         }
     }
@@ -315,7 +334,7 @@ impl<'a> Builder<'a> {
 #[derive(Debug)]
 pub struct DomainDirectivesBuilder<'a, State: std::fmt::Debug> {
     inner: Builder<'a>,
-    domain: String,
+    domain: Domain,
     state: State,
 }
 

@@ -50,9 +50,11 @@ const my_command = cmd::build(#{
     #[test]
     fn parse() {
         let config = std::sync::Arc::new(local_test());
-        let queue_manger =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                .unwrap();
+        let queue_manger = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+            config.clone(),
+            vec![],
+        )
+        .unwrap();
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         RuleEngine::with_hierarchy(
@@ -67,9 +69,11 @@ const my_command = cmd::build(#{
     #[test]
     fn run() {
         let config = std::sync::Arc::new(local_test());
-        let queue_manger =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                .unwrap();
+        let queue_manger = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+            config.clone(),
+            vec![],
+        )
+        .unwrap();
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         RuleEngine::with_hierarchy(

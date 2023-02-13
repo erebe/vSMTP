@@ -68,7 +68,6 @@ mod dns {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "lookup", return_raw)]
     pub fn lookup(ncc: NativeCallContext, name: &str) -> EngineResult<rhai::Array> {
         super::Impl::lookup(&get_global!(ncc, srv)?, name)
@@ -112,7 +111,6 @@ mod dns {
     /// # "#)?.build()));
     /// ```
     #[doc(hidden)]
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "lookup", return_raw)]
     pub fn lookup_obj(ncc: NativeCallContext, name: SharedObject) -> EngineResult<rhai::Array> {
         super::lookup(ncc, &name.to_string())
@@ -151,11 +149,10 @@ mod dns {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "client ip: 127.0.0.1 -> [\"localhost.\"]".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(
+    /// #  r#"250 client ip: 127.0.0.1 -> ["localhost."]"#.parse().unwrap(),
+    /// # )));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rlookup", return_raw)]
     pub fn rlookup(ncc: NativeCallContext, name: &str) -> EngineResult<rhai::Array> {
         super::Impl::rlookup(&get_global!(ncc, srv)?, name)
@@ -194,12 +191,11 @@ mod dns {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "client ip: 127.0.0.1 -> [\"localhost.\"]".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(
+    /// #  r#"250 client ip: 127.0.0.1 -> ["localhost."]"#.parse().unwrap(),
+    /// # )));
     /// ```
     #[doc(hidden)]
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rlookup", return_raw)]
     pub fn rlookup_obj(ncc: NativeCallContext, name: SharedObject) -> EngineResult<rhai::Array> {
         super::rlookup(ncc, &name.to_string())

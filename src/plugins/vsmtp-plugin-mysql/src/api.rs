@@ -17,11 +17,11 @@
 
 use anyhow::{self, Context};
 use mysql::prelude::Queryable;
-
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_rule_engine::rhai;
 
 /// Parameters available for the mysql service. Used
 /// with serde for easy parsing.
@@ -277,7 +277,6 @@ pub mod mysql_api {
     /// }
     /// ```
     #[rhai_fn(global, name = "query", return_raw, pure)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn query_obj(
         database: &mut MySQL,
         query: vsmtp_rule_engine::api::SharedObject,

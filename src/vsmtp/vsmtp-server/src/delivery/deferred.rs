@@ -18,15 +18,13 @@ use crate::ProcessMessage;
 use anyhow::Context;
 use time::ext::NumericalDuration;
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::transfer::EmailTransferStatus;
-use vsmtp_config::{Config, DnsResolvers};
-use vsmtp_delivery::{split_and_sort_and_send, Sender, SenderOutcome};
+use vsmtp_common::transfer::Status;
+use vsmtp_config::Config;
+use vsmtp_delivery::{split_and_sort_and_send, SenderOutcome};
 
 pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
-    sender: std::sync::Arc<Sender>,
     flushing_at: time::OffsetDateTime,
 ) {
     let queued = match queue_manager.list(&QueueID::Deferred).await {
@@ -52,13 +50,11 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 
         if let Err(error) = handle_one_in_deferred_queue(
             config.clone(),
-            resolvers.clone(),
             queue_manager.clone(),
             ProcessMessage {
                 message_uuid,
                 delegated: false,
             },
-            sender.clone(),
             flushing_at,
         )
         .await
@@ -71,10 +67,8 @@ pub async fn flush_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 #[tracing::instrument(name = "deferred", skip_all, err, fields(uuid = %process_message.message_uuid))]
 async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
-    sender: std::sync::Arc<Sender>,
     flushing_at: time::OffsetDateTime,
 ) -> anyhow::Result<()> {
     tracing::debug!("Processing email.");
@@ -85,19 +79,21 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 
     let last_error = ctx
         .rcpt_to
-        .forward_paths
-        .iter()
-        .filter_map(|i| match &i.email_status {
-            EmailTransferStatus::HeldBack { errors } => errors.last().map(|e| e.timestamp),
+        .delivery
+        .values()
+        .flatten()
+        .filter_map(|i| match &i.1 {
+            Status::HeldBack { errors } => errors.last().map(|e| e.timestamp),
             _ => None,
         })
         .min();
 
     let held_back_count = ctx
         .rcpt_to
-        .forward_paths
-        .iter()
-        .filter(|i| matches!(i.email_status, EmailTransferStatus::HeldBack { .. }))
+        .delivery
+        .values()
+        .flatten()
+        .filter(|i| matches!(i.1, Status::HeldBack { .. }))
         .count() as i64;
 
     match last_error {
@@ -116,7 +112,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 
     let msg = queue_manager.get_msg(&process_message.message_uuid).await?;
 
-    match split_and_sort_and_send(&config, &mut ctx, &msg, resolvers, sender).await {
+    match split_and_sort_and_send(config, &mut ctx, &msg).await {
         SenderOutcome::MoveToDead => queue_manager
             .move_to(&QueueID::Deferred, &QueueID::Dead, &ctx)
             .await
@@ -142,40 +138,52 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vsmtp_common::{rcpt::Rcpt, Address};
+    use vsmtp_common::transport::{AbstractTransport, WrapperSerde};
+    use vsmtp_config::DnsResolvers;
+    use vsmtp_delivery::{Deliver, Forward, MBox, Maildir};
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
 
     #[tokio::test]
     async fn move_to_deferred() {
         let config = std::sync::Arc::new(local_test());
-        let queue_manager =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                .unwrap();
+        let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+            config.clone(),
+            vec![
+                Deliver::get_symbol(),
+                Forward::get_symbol(),
+                Maildir::get_symbol(),
+                MBox::get_symbol(),
+            ],
+        )
+        .unwrap();
+        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         let mut ctx = local_ctx();
         let message_uuid = uuid::Uuid::new_v4();
         ctx.mail_from.message_uuid = message_uuid;
-        ctx.rcpt_to.forward_paths.push(Rcpt::new(
-            <Address as std::str::FromStr>::from_str("test@localhost").unwrap(),
-        ));
+        ctx.rcpt_to
+            .delivery
+            .entry(WrapperSerde::Ready(std::sync::Arc::new(Deliver::new(
+                resolvers.get_resolver_root(),
+                config.clone(),
+            ))))
+            .and_modify(|rcpt| {
+                rcpt.push(("test@localhost".parse().unwrap(), Status::default()));
+            })
+            .or_insert_with(|| vec![("test@localhost".parse().unwrap(), Status::default())]);
 
         queue_manager
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
             .await
             .unwrap();
 
-        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
-        let sender = std::sync::Arc::new(Sender::default());
-
         handle_one_in_deferred_queue(
             config.clone(),
-            resolvers,
             queue_manager.clone(),
             ProcessMessage {
                 message_uuid,
                 delegated: false,
             },
-            sender,
             time::OffsetDateTime::UNIX_EPOCH,
         )
         .await
@@ -199,9 +207,11 @@ mod tests {
     #[tokio::test]
     async fn move_to_dead() {
         let config = std::sync::Arc::new(local_test());
-        let queue_manager =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone())
-                .unwrap();
+        let queue_manager = <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
+            config.clone(),
+            vec![],
+        )
+        .unwrap();
 
         let mut ctx = local_ctx();
         let message_uuid = uuid::Uuid::new_v4();
@@ -211,18 +221,14 @@ mod tests {
             .write_both(&QueueID::Deferred, &ctx, &local_msg())
             .await
             .unwrap();
-        let resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
-        let sender = std::sync::Arc::new(Sender::default());
 
         handle_one_in_deferred_queue(
             config.clone(),
-            resolvers,
             queue_manager.clone(),
             ProcessMessage {
                 message_uuid,
                 delegated: false,
             },
-            sender,
             time::OffsetDateTime::UNIX_EPOCH,
         )
         .await

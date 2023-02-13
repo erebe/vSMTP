@@ -48,6 +48,7 @@ mod dsl {
 
 pub use dsl::cmd::new_module as new_module_cmd;
 pub use dsl::smtp::new_module as new_module_smtp;
+pub use rhai;
 
 #[macro_use]
 mod error;

@@ -15,23 +15,26 @@
  *
 */
 use crate::{
-    auth::Credentials, rcpt::Rcpt, status::Status, Address, CipherSuite, ClientName,
-    ProtocolVersion,
+    auth::Credentials,
+    status, transfer,
+    transport::{AbstractTransport, DeliverTo, WrapperSerde},
+    Address, CipherSuite, ClientName, Domain, ProtocolVersion,
 };
 use vsmtp_auth::{dkim, spf};
 
 /// What rules should be executed regarding the domains of the sender and recipients.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
     /// The sender's domain is unknown, contained domain is only one of the recipients.
     /// If none, it means all recipients are unknown, or that the rcpt stage has not
     /// yet been executed.
-    Incoming(Option<String>),
+    Incoming(Option<Domain>),
     /// The sender's domain is known, and the recipient domain is not : going out.
     Outgoing {
         /// Domain of the reverse path.
-        domain: String,
+        domain: Domain,
     },
     /// The sender's domain is known, and recipients domains are the same.
     /// Use the sender's domain to execute your rules.
@@ -75,10 +78,13 @@ pub enum Context {
     Finished(ContextFinished),
 }
 
+///
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    ///
     #[error("state is not in correct state")]
     BadState,
+    ///
     #[error("bad argument: {0}")]
     BadArgument(String), // TODO: do not use string here
 }
@@ -123,7 +129,7 @@ impl Context {
         &mut self,
         client_addr: std::net::SocketAddr,
         server_addr: std::net::SocketAddr,
-        server_name: String,
+        server_name: Domain,
         timestamp: time::OffsetDateTime,
         uuid: uuid::Uuid,
     ) -> Result<&mut Self, Error> {
@@ -256,20 +262,7 @@ impl Context {
     }
 
     ///
-    #[must_use]
-    pub fn skipped(&self) -> &Option<Status> {
-        match self {
-            Self::Empty => unreachable!(),
-            Self::Connect(ContextConnect { connect })
-            | Self::Helo(ContextHelo { connect, .. })
-            | Self::MailFrom(ContextMailFrom { connect, .. })
-            | Self::RcptTo(ContextRcptTo { connect, .. })
-            | Self::Finished(ContextFinished { connect, .. }) => &connect.skipped,
-        }
-    }
-
-    ///
-    pub fn set_skipped(&mut self, status: Status) {
+    pub fn set_skipped(&mut self, status: status::Status) {
         match self {
             Self::Empty => unreachable!(),
             Self::Connect(ContextConnect { connect })
@@ -321,7 +314,7 @@ impl Context {
 
     /// Get the name of the server which the client connected to.
     #[must_use]
-    pub fn server_name(&self) -> &String {
+    pub fn server_name(&self) -> &Domain {
         match self {
             Self::Empty => unreachable!(),
             Self::Connect(ContextConnect { connect })
@@ -368,7 +361,7 @@ impl Context {
     /// * state if not [`Stage::Connect`] or [`Stage::Helo`]
     pub fn to_secured(
         &mut self,
-        sni: Option<String>,
+        sni: Option<Domain>,
         protocol_version: rustls::ProtocolVersion,
         cipher_suite: rustls::CipherSuite,
         peer_certificates: Option<Vec<rustls::Certificate>>,
@@ -553,7 +546,11 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::MailFrom`] or after
-    pub fn add_forward_path(&mut self, forward_path: Address) -> Result<(), Error> {
+    pub fn add_forward_path(
+        &mut self,
+        forward_path: Address,
+        transport: std::sync::Arc<dyn AbstractTransport>,
+    ) -> Result<(), Error> {
         match self {
             Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
             Self::MailFrom(ContextMailFrom {
@@ -566,15 +563,30 @@ impl Context {
                     helo: helo.clone(),
                     mail_from: mail_from.clone(),
                     rcpt_to: RcptToProperties {
-                        forward_paths: vec![Rcpt::new(forward_path)],
-                        transaction_type: TransactionType::Internal, // FIXME: should not have default value
+                        // FIXME: should not have default value
+                        transaction_type: TransactionType::Internal,
+                        delivery: std::iter::once((
+                            WrapperSerde::Ready(transport),
+                            vec![(forward_path.clone(), transfer::Status::default())],
+                        ))
+                        .collect::<_>(),
+                        forward_paths: vec![forward_path],
                     },
                 });
                 Ok(())
             }
             Self::RcptTo(ContextRcptTo { rcpt_to, .. })
             | Self::Finished(ContextFinished { rcpt_to, .. }) => {
-                rcpt_to.forward_paths.push(Rcpt::new(forward_path));
+                rcpt_to.forward_paths.push(forward_path.clone());
+                let new_rcpt = (forward_path, transfer::Status::default());
+
+                rcpt_to
+                    .delivery
+                    .entry(WrapperSerde::Ready(transport))
+                    .and_modify(|t| {
+                        t.push(new_rcpt.clone());
+                    })
+                    .or_insert_with(|| vec![new_rcpt]);
                 Ok(())
             }
         }
@@ -593,16 +605,15 @@ impl Context {
             }
             Self::RcptTo(ContextRcptTo { rcpt_to, .. })
             | Self::Finished(ContextFinished { rcpt_to, .. }) => {
-                if let Some(index) = rcpt_to
-                    .forward_paths
-                    .iter()
-                    .position(|rcpt| rcpt.address == *forward_path)
-                {
-                    rcpt_to.forward_paths.swap_remove(index);
-                    Ok(true)
-                } else {
-                    Ok(false)
+                rcpt_to.forward_paths.retain(|rcpt| rcpt != forward_path);
+
+                for rcpts in &mut rcpt_to.delivery.values_mut() {
+                    if let Some(index) = rcpts.iter().position(|(rcpt, _)| *rcpt == *forward_path) {
+                        rcpts.swap_remove(index);
+                        return Ok(true);
+                    }
                 }
+                Ok(false)
             }
         }
     }
@@ -612,7 +623,7 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::RcptTo`] or after
-    pub const fn forward_paths(&self) -> Result<&Vec<Rcpt>, Error> {
+    pub const fn forward_paths(&self) -> Result<&Vec<Address>, Error> {
         match self {
             Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
                 Err(Error::BadState)
@@ -627,13 +638,41 @@ impl Context {
     /// # Errors
     ///
     /// * state if not [`Stage::RcptTo`] or after
-    pub fn forward_paths_mut(&mut self) -> Result<&mut Vec<Rcpt>, Error> {
+    pub fn forward_paths_mut(&mut self) -> Result<&mut Vec<Address>, Error> {
         match self {
             Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
                 Err(Error::BadState)
             }
             Self::RcptTo(ContextRcptTo { rcpt_to, .. })
             | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&mut rcpt_to.forward_paths),
+        }
+    }
+
+    /// # Errors
+    ///
+    /// * state if not [`Stage::RcptTo`] or after
+    pub fn delivery(&self) -> Result<&std::collections::HashMap<WrapperSerde, DeliverTo>, Error> {
+        match self {
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
+                Err(Error::BadState)
+            }
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&rcpt_to.delivery),
+        }
+    }
+
+    /// # Errors
+    ///
+    /// * state if not [`Stage::RcptTo`] or after
+    pub fn delivery_mut(
+        &mut self,
+    ) -> Result<&mut std::collections::HashMap<WrapperSerde, DeliverTo>, Error> {
+        match self {
+            Self::Empty | Self::Connect { .. } | Self::Helo { .. } | Self::MailFrom { .. } => {
+                Err(Error::BadState)
+            }
+            Self::RcptTo(ContextRcptTo { rcpt_to, .. })
+            | Self::Finished(ContextFinished { rcpt_to, .. }) => Ok(&mut rcpt_to.delivery),
         }
     }
 
@@ -672,7 +711,8 @@ impl Context {
                     mail_from: mail_from.clone(),
                     rcpt_to: RcptToProperties {
                         transaction_type,
-                        forward_paths: Vec::new(),
+                        delivery: std::collections::HashMap::new(),
+                        forward_paths: vec![],
                     },
                 });
                 Ok(())
@@ -769,7 +809,8 @@ impl Context {
 }
 
 /// Properties of the TLS connection
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct TlsProperties {
     ///
     pub protocol_version: crate::ProtocolVersion,
@@ -810,7 +851,8 @@ where
 }
 
 /// Properties of the authentication SASL
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct AuthProperties {
     /// Has the SASL authentication been successful?
     pub authenticated: bool,
@@ -820,8 +862,9 @@ pub struct AuthProperties {
     pub credentials: Option<Credentials>,
 }
 
-///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Properties accessible right after the TCP connection
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct ConnectProperties {
     ///
     #[serde(with = "time::serde::iso8601")]
@@ -833,17 +876,18 @@ pub struct ConnectProperties {
     ///
     pub server_addr: std::net::SocketAddr,
     ///
-    pub server_name: String,
+    pub server_name: Domain,
     ///
-    pub skipped: Option<Status>,
+    pub skipped: Option<status::Status>,
     ///
     pub tls: Option<TlsProperties>,
     ///
     pub auth: Option<AuthProperties>,
 }
 
-///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Properties accessible after the HELO/EHLO command
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct HeloProperties {
     ///
     pub client_name: ClientName,
@@ -851,8 +895,9 @@ pub struct HeloProperties {
     pub using_deprecated: bool,
 }
 
-///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Properties accessible after the MAIL FROM command
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct MailFromProperties {
     ///
     pub reverse_path: Option<Address>,
@@ -863,17 +908,21 @@ pub struct MailFromProperties {
     pub message_uuid: uuid::Uuid,
 }
 
-///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Properties accessible after the RCPT TO command
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct RcptToProperties {
     ///
-    pub forward_paths: Vec<Rcpt>,
+    pub forward_paths: Vec<Address>,
+    ///
+    pub delivery: std::collections::HashMap<WrapperSerde, DeliverTo>,
     ///
     pub transaction_type: TransactionType,
 }
 
-///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Properties accessible once the message has been fully received
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct FinishedProperties {
     ///
     pub dkim: Option<dkim::VerificationResult>,
@@ -881,7 +930,6 @@ pub struct FinishedProperties {
     // FIXME: spf result could be in the MailFromProperties
     pub spf: Option<spf::Result>,
 }
-
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Serialize)]
@@ -918,7 +966,8 @@ pub struct ContextRcptTo {
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "testing", derive(PartialEq, Eq))]
 pub struct ContextFinished {
     #[serde(flatten)]
     pub connect: ConnectProperties,

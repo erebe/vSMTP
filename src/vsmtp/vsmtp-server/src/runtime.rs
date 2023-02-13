@@ -16,8 +16,9 @@
 */
 use crate::{delivery, processing, ProcessMessage, Server};
 use anyhow::Context;
+use vsmtp_common::transport::{AbstractTransport, DeserializerFn, DESERIALIZER_SYMBOL_NAME};
 use vsmtp_config::{Config, DnsResolvers};
-use vsmtp_delivery::Sender;
+use vsmtp_delivery::{Deliver, Forward, MBox, Maildir};
 use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
@@ -68,6 +69,56 @@ where
         .map_err(anyhow::Error::new)
 }
 
+#[allow(unsafe_code)]
+#[tracing::instrument]
+fn load_plugin(path: &std::path::Path) -> Vec<libloading::Library> {
+    let mut libs = vec![];
+
+    let dir = match std::fs::read_dir(path) {
+        Ok(dir) => dir,
+        Err(e) => {
+            tracing::warn!(%e);
+            return libs;
+        }
+    };
+    for i in dir {
+        match i {
+            Err(e) => tracing::warn!(%e),
+            Ok(dir_entry) => match unsafe { libloading::Library::new(dir_entry.path()) } {
+                Ok(lib) => {
+                    libs.push(lib);
+                }
+                Err(e) => tracing::warn!(%e),
+            },
+        }
+    }
+    libs
+}
+
+fn get_transport_deserializer(libs: &[libloading::Library]) -> Vec<DeserializerFn> {
+    libs.iter()
+        .filter_map(|lib| {
+            #[allow(unsafe_code)]
+            match unsafe { lib.get::<DeserializerFn>(DESERIALIZER_SYMBOL_NAME.as_bytes()) } {
+                Ok(symbol) => {
+                    tracing::trace!(?lib, "`DeserializerFn` symbol found");
+                    Some(*symbol)
+                }
+                Err(e) => {
+                    tracing::trace!(?lib, %e);
+                    None
+                }
+            }
+        })
+        .chain([
+            <Deliver as AbstractTransport>::get_symbol(),
+            <Forward as AbstractTransport>::get_symbol(),
+            <Maildir as AbstractTransport>::get_symbol(),
+            <MBox as AbstractTransport>::get_symbol(),
+        ])
+        .collect::<Vec<_>>()
+}
+
 /// Start the `vSMTP` server's runtime
 ///
 /// # Errors
@@ -84,6 +135,17 @@ pub fn start_runtime(
 ) -> anyhow::Result<()> {
     let config = std::sync::Arc::new(config);
 
+    let libs = load_plugin(
+        &config
+            .path
+            .clone()
+            .expect("has been set at this point")
+            .parent()
+            .expect("config is not at `/` level")
+            .join("plugins"),
+    );
+    let transport_deserializer = get_transport_deserializer(&libs);
+
     let mut error_handler = tokio::sync::mpsc::channel::<()>(3);
 
     let (delivery_channel, working_channel) = (
@@ -91,8 +153,10 @@ pub fn start_runtime(
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size),
     );
 
-    let queue_manager =
-        <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(config.clone())?;
+    let queue_manager = <vqueue::fs::QueueManager as vqueue::GenericQueueManager>::init(
+        config.clone(),
+        transport_deserializer,
+    )?;
 
     let resolvers = std::sync::Arc::new(
         DnsResolvers::from_config(&config).context("could not initialize dns")?,
@@ -100,11 +164,9 @@ pub fn start_runtime(
 
     let rule_engine = std::sync::Arc::new(RuleEngine::new(
         config.clone(),
-        resolvers.clone(),
+        resolvers,
         queue_manager.clone(),
     )?);
-
-    let sender = std::sync::Arc::new(Sender::default());
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
@@ -113,10 +175,8 @@ pub fn start_runtime(
         delivery::start(
             config.clone(),
             rule_engine.clone(),
-            resolvers,
             queue_manager.clone(),
             delivery_channel.1,
-            sender,
         ),
         timeout,
     )?;
@@ -152,7 +212,7 @@ pub fn start_runtime(
                     return;
                 }
             };
-            if let Err(error) = server.listen_and_serve(sockets).await {
+            if let Err(error) = server.listen(sockets).await {
                 tracing::error!(%error, "Receiver failure.");
             }
         },

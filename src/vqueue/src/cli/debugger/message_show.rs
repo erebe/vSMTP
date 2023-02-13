@@ -74,7 +74,7 @@ mod tests {
         let mut output = vec![];
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let mut ctx = local_ctx();
         let msg_uuid = uuid::Uuid::new_v4();
@@ -129,13 +129,14 @@ mod tests {
   "auth": null,
   "client_name": "client.testserver.com",
   "using_deprecated": false,
-  "reverse_path": "client@client.testserver.com",
+  "reverse_path": "client@testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
-  "forward_paths": [],
-  "transaction_type": {{
-    "incoming": null
-  }},
+  "forward_paths": [
+    "recipient@testserver.com"
+  ],
+  "delivery": {{}},
+  "transaction_type": "internal",
   "dkim": null,
   "spf": null
 }}
@@ -161,7 +162,7 @@ Message body:
         let mut output = vec![];
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let mut ctx = local_ctx();
         let msg_uuid = uuid::Uuid::new_v4();
@@ -216,13 +217,14 @@ Message body:
   "auth": null,
   "client_name": "client.testserver.com",
   "using_deprecated": false,
-  "reverse_path": "client@client.testserver.com",
+  "reverse_path": "client@testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
-  "forward_paths": [],
-  "transaction_type": {{
-    "incoming": null
-  }},
+  "forward_paths": [
+    "recipient@testserver.com"
+  ],
+  "delivery": {{}},
+  "transaction_type": "internal",
   "dkim": null,
   "spf": null
 }}

@@ -15,8 +15,6 @@
  *
 */
 
-use anyhow::Context;
-
 /// Codes as the start of each lines of a reply
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
@@ -40,87 +38,57 @@ pub enum ReplyCode {
     },
 }
 
+const ENHANCED: i32 = 0;
+const SIMPLE: i32 = 1;
+
 impl ReplyCode {
     ///
     #[must_use]
     pub fn is_error(&self) -> bool {
         match self {
-            Self::Code { code } | Self::Enhanced { code, .. } => code / 100 >= 4,
+            Self::Code { code, .. } | Self::Enhanced { code, .. } => code / 100 >= 4,
         }
     }
 
-    fn try_parse<'a>(self, words: &[&str], line: &'a str) -> anyhow::Result<(Self, &'a str)> {
-        match (self, words) {
-            (Self::Enhanced { .. }, [_, "", ..]) => anyhow::bail!("empty second words"),
-            (Self::Enhanced { .. }, [code, enhanced, ..]) => {
-                let enhanced_len = enhanced.len();
-                let enhanced = enhanced
-                    .splitn(3, '.')
-                    .map(|s| {
-                        s.parse::<u16>().with_context(|| {
-                            format!("The '{s}' enhanced code part is not a number")
-                        })?;
-                        Ok(s.to_string())
-                    })
-                    .collect::<anyhow::Result<Vec<_>>>()
-                    .context("failed to parse enhanced code")?
-                    .join(".");
+    fn try_parse(which: i32, words: &[&str]) -> Option<Self> {
+        match (which, words) {
+            (ENHANCED, [_, "", ..]) => None,
+            (ENHANCED, [code, enhanced, ..]) => {
+                let mut enhanced = enhanced.splitn(3, '.').map(str::parse::<u16>);
 
-                Ok((
-                    Self::Enhanced {
-                        code: code
-                            .parse::<u16>()
-                            .with_context(|| format!("'{code}' code is not a number"))?,
-                        enhanced,
+                let (a, b, c) = (
+                    enhanced.next()?.ok()?,
+                    enhanced.next()?.ok()?,
+                    enhanced.next()?.ok()?,
+                );
+
+                Some(Self::Enhanced {
+                    code: match Self::try_parse(SIMPLE, &[code])? {
+                        Self::Code { code, .. } => code,
+                        Self::Enhanced { .. } => unreachable!(),
                     },
-                    {
-                        let mut line = &line[code.len() + 1 + enhanced_len..];
-                        if line.starts_with(' ') {
-                            line = &line[1..];
-                        }
-                        line
-                    },
-                ))
+                    enhanced: format!("{a}.{b}.{c}"),
+                })
             }
-            (Self::Code { .. }, [code, ..]) => Ok((
-                Self::Code {
-                    code: code
-                        .parse::<u16>()
-                        .with_context(|| format!("'{code}' code is not a number"))?,
-                },
-                {
-                    let mut line = &line[code.len()..];
-                    if line.starts_with(' ') {
-                        line = &line[1..];
-                    }
-                    line
-                },
-            )),
-            _ => anyhow::bail!("reply code invalid data {line}"),
+            (SIMPLE, [code, ..]) => Some(Self::Code {
+                code: code.parse::<u16>().ok()?,
+            }),
+            _ => None,
         }
     }
 
-    ///
-    /// # Errors
-    ///
-    /// * not the right format
-    pub fn parse(line: &str) -> anyhow::Result<(Self, &'_ str)> {
-        let words = line.split(' ').collect::<Vec<&str>>();
-        for i in [
-            Self::Enhanced {
-                code: u16::default(),
-                enhanced: String::default(),
-            },
-            Self::Code {
-                code: u16::default(),
-            },
-        ] {
-            let output = i.try_parse(words.as_slice(), line);
-            if output.is_ok() {
-                return output;
+    pub(super) fn from_str(s: &str) -> anyhow::Result<(Self, String)> {
+        for i in ENHANCED..=SIMPLE {
+            let words = s.split([' ', '-']).collect::<Vec<&str>>();
+            if let Some(code) = Self::try_parse(i, words.as_slice()) {
+                // FIXME: do not need to_string().len(), make a get_length() method
+                let code_len = code.to_string().len();
+
+                return Ok((code, s[code_len..].to_string()));
             }
         }
-        anyhow::bail!("reply code invalid format {words:?}");
+
+        anyhow::bail!("cannot parse {s:?}")
     }
 }
 
@@ -137,69 +105,63 @@ impl std::fmt::Display for ReplyCode {
 mod tests {
     use crate::ReplyCode;
 
-    #[test]
-    fn display() {
-        assert_eq!(
-            format!("{}", ReplyCode::Code { code: 250 }),
-            "250".to_string()
-        );
-
-        assert_eq!(
-            format!(
-                "{}",
-                ReplyCode::Enhanced {
-                    code: 504,
-                    enhanced: "5.5.4".to_string()
-                }
-            ),
-            "504 5.5.4".to_string()
-        );
-    }
-
-    #[test]
-    fn parse() {
-        assert_eq!(
-            ReplyCode::parse("250").unwrap(),
-            (ReplyCode::Code { code: 250 }, "")
-        );
-        assert_eq!(
-            ReplyCode::parse("504 ").unwrap(),
-            (ReplyCode::Code { code: 504 }, "")
-        );
-        assert_eq!(
-            ReplyCode::parse("220 {name} ESMTP Service ready").unwrap(),
-            (ReplyCode::Code { code: 220 }, "{name} ESMTP Service ready")
-        );
-
-        assert_eq!(
-            ReplyCode::parse("504 5.5.4").unwrap(),
-            (
-                ReplyCode::Enhanced {
-                    code: 504,
-                    enhanced: "5.5.4".to_string()
-                },
-                ""
-            )
-        );
-        assert_eq!(
-            ReplyCode::parse("504 5.5.4 ").unwrap(),
-            (
-                ReplyCode::Enhanced {
-                    code: 504,
-                    enhanced: "5.5.4".to_string()
-                },
-                ""
-            )
-        );
-        assert_eq!(
-            ReplyCode::parse("451 5.7.3 STARTTLS is required to send mail").unwrap(),
-            (
-                ReplyCode::Enhanced {
-                    code: 451,
-                    enhanced: "5.7.3".to_string()
-                },
-                "STARTTLS is required to send mail"
-            )
-        );
+    // NOTE: if the separator is `-`, it will not be included in the output of `ReplyCode::to_string()`
+    // but is handled correctly in `Reply::to_string()`
+    #[rstest::rstest]
+    #[case(
+        "250",
+        (&ReplyCode::Code { code: 250 }, ""),
+        "250"
+    )]
+    #[case(
+        "504 5.5.4",
+        (&ReplyCode::Enhanced {
+            code: 504,
+            enhanced: "5.5.4".to_string(),
+        },
+        ""),
+        "504 5.5.4",
+    )]
+    #[case(
+        "250-2.0.0",
+        (&ReplyCode::Enhanced {
+            code: 250,
+            enhanced: "2.0.0".to_string(),
+        },
+        ""),
+        "250 2.0.0",
+    )]
+    #[case(
+        "250 ",
+        (&ReplyCode::Code { code: 250 }, " "),
+        "250"
+    )]
+    #[case(
+        "504 5.5.4 ",
+        (&ReplyCode::Enhanced {
+            code: 504,
+            enhanced: "5.5.4".to_string(),
+        },
+        " "),
+        "504 5.5.4",
+    )]
+    #[case(
+        "250-2.0.0 ",
+        (&ReplyCode::Enhanced {
+            code: 250,
+            enhanced: "2.0.0".to_string(),
+        },
+        " "),
+        "250 2.0.0",
+    )]
+    fn parse_reply(
+        #[case] input: &str,
+        #[case] expected: (&ReplyCode, &str),
+        #[case] to_string: &str,
+    ) {
+        let (code, message) = ReplyCode::from_str(input).unwrap();
+        pretty_assertions::assert_eq!(code, *expected.0);
+        pretty_assertions::assert_eq!(code.to_string(), to_string);
+        pretty_assertions::assert_eq!(message, expected.1);
     }
 }

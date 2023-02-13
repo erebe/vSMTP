@@ -1028,6 +1028,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "erased-serde"
+version = "0.3.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4ca605381c017ec7a5fef5e548f1cfaa419ed0f6df6367339300db74c92aa7d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3906,13 +3915,16 @@ version = "2.1.1"
 dependencies = [
  "addr",
  "anyhow",
+ "async-trait",
  "base64 0.21.0",
  "either",
+ "erased-serde",
  "fastrand",
  "lettre",
  "libc",
  "pretty_assertions",
  "rsasl",
+ "rstest",
  "rustls",
  "rustls-pemfile",
  "serde",
@@ -3969,11 +3981,14 @@ dependencies = [
  "anyhow",
  "async-trait",
  "env_logger",
+ "erased-serde",
  "futures-util",
  "lettre",
  "pem",
  "rstest",
  "rustls",
+ "serde",
+ "serde_json",
  "test-log",
  "time",
  "tokio",
@@ -4135,6 +4150,7 @@ dependencies = [
  "vsmtp-auth",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-delivery",
  "vsmtp-mail-parser",
  "vsmtp-plugin-vsl",
  "vsmtp-test",
@@ -4157,6 +4173,7 @@ dependencies = [
  "futures-util",
  "iai",
  "lettre",
+ "libloading",
  "log",
  "pretty_assertions",
  "rand",

@@ -47,21 +47,28 @@ mod types {
     pub mod address;
     pub mod client_name;
     pub mod code_id;
+    pub mod domain;
     pub mod reply;
     pub mod reply_code;
+    pub mod target;
     pub mod tls_cipher_suite;
     pub mod tls_protocol_version;
 }
 
 pub use types::{
-    address::{Address, Domain},
+    address::Address,
     client_name::ClientName,
     code_id::CodeID,
+    domain::{iter_to_root, Domain},
     reply::Reply,
     reply_code::*,
+    target::Target,
     tls_cipher_suite::CipherSuite,
     tls_protocol_version::ProtocolVersion,
 };
+
+///
+pub mod transport;
 
 ///
 pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
@@ -69,7 +76,7 @@ pub type ReplyOrCodeID = either::Either<CodeID, Reply>;
 mod context;
 pub use context::{
     AuthProperties, ConnectProperties, Context, ContextConnect, ContextFinished, ContextHelo,
-    ContextMailFrom, ContextRcptTo, FinishedProperties, HeloProperties, MailFromProperties,
+    ContextMailFrom, ContextRcptTo, Error, FinishedProperties, HeloProperties, MailFromProperties,
     RcptToProperties, Stage, TlsProperties, TransactionType,
 };
 
@@ -78,9 +85,6 @@ pub mod libc_abstraction;
 
 /// status of the mail context
 pub mod status;
-
-/// rcpt data structure.
-pub mod rcpt;
 
 /// transfer method for delivery / forwarding.
 pub mod transfer;

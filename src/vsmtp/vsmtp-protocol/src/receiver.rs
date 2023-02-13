@@ -15,10 +15,8 @@
  *
 */
 use crate::{
-    sink::Sink,
-    stream::{Error, Stream},
-    AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError,
-    RcptToArgs, ReceiverHandler, Verb,
+    reader::Reader, writer::Writer, AcceptArgs, AuthArgs, ConnectionKind, EhloArgs, Error,
+    HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, ReceiverHandler, Verb,
 };
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
@@ -91,8 +89,8 @@ pub struct Receiver<
     V::Value: Send + Sync,
 {
     pub(crate) handler: T,
-    pub(crate) sink: Sink<W>,
-    pub(crate) stream: Stream<R>,
+    pub(crate) sink: Writer<W>,
+    pub(crate) stream: Reader<R>,
     error_counter: ErrorCounter,
     context: ReceiverContext,
     kind: ConnectionKind,
@@ -141,7 +139,7 @@ where
             // FIXME: see https://github.com/tokio-rs/tls/issues/40
             let (read, write) = tokio::io::split(tls_tcp_stream);
 
-            let (stream, sink) = (Stream::new(read), Sink::new(write));
+            let (stream, sink) = (Reader::new(read), Writer::new(write));
 
             let secured_receiver = Receiver {
                 sink,
@@ -177,7 +175,7 @@ where
         message_size_max: usize,
     ) -> Self {
         let (read, write) = tcp_stream.into_split();
-        let (stream, sink) = (Stream::new(read), Sink::new(write));
+        let (stream, sink) = (Reader::new(read), Writer::new(write));
         Self {
             handler,
             sink,
@@ -414,6 +412,12 @@ where
                         continue;
                     }
                     Error::Io(io) => return Err(io),
+                    Error::Utf8(e) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            e.to_string(),
+                        ))
+                    }
                 },
             };
             tracing::trace!("<< {:?} ; {:?}", verb, std::str::from_utf8(&args.0));

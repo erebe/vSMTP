@@ -42,7 +42,6 @@ mod auth {
     /// The credentials will be verified depending on the mode of `saslauthd`.
     ///
     /// A native implementation will be provided in the future.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "unix_users", return_raw)]
     pub fn unix_users(ncc: NativeCallContext) -> EngineResult<Status> {
         let ctx = get_global!(ncc, ctx)?;
@@ -91,7 +90,6 @@ mod auth {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "is_authenticated", return_raw)]
     pub fn is_authenticated(ncc: NativeCallContext) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(get_global!(ncc, ctx)?.read())
@@ -121,7 +119,6 @@ mod auth {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "credentials", return_raw)]
     pub fn credentials(ncc: NativeCallContext) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(

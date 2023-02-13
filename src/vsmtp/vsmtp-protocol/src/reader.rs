@@ -15,8 +15,9 @@
  *
 */
 
-use crate::{command::Command, UnparsedArgs, Verb};
+use crate::{command::Command, Error, UnparsedArgs, Verb};
 use tokio::io::AsyncReadExt;
+use vsmtp_common::Reply;
 
 fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
     bytes
@@ -24,33 +25,18 @@ fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
         .position(|window| window == search)
 }
 
-pub struct Stream<R: tokio::io::AsyncRead + Unpin + Send> {
+/// Stream for reading commands from the client.
+pub struct Reader<R: tokio::io::AsyncRead + Unpin + Send> {
     pub(super) inner: R,
     initial_capacity: usize,
     additional_reserve: usize,
 }
 
-/// Error while processing the TCP/IP stream.
-#[derive(Debug, thiserror::Error)]
-#[allow(clippy::exhaustive_enums)]
-pub enum Error {
-    /// The buffer is longer than expected.
-    #[error("buffer is not supposed to be longer than {expected} bytes but got {got}")]
-    BufferTooLong {
-        /// Maximum size expected.
-        expected: usize,
-        /// Actual size.
-        got: usize,
-    },
-    /// Other IO error.
-    // TODO: enhance that
-    #[error("{0}")]
-    Io(#[from] std::io::Error),
-}
-
 // TODO: handle PIPELINING
-impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
+impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
+    /// Create a new stream.
     #[must_use]
+    #[inline]
     pub const fn new(tcp_stream: R) -> Self {
         Self {
             inner: tcp_stream,
@@ -59,6 +45,8 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
         }
     }
 
+    /// Produce a stream of "\r\n" terminated lines.
+    #[inline]
     pub fn as_line_stream(
         &mut self,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + '_ {
@@ -90,6 +78,8 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
         }
     }
 
+    /// Produce a stream of lines to generate IMF compliant messages.
+    #[inline]
     pub fn as_message_stream(
         &mut self,
         size_limit: usize,
@@ -99,7 +89,7 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
 
             for await line in self.as_line_stream() {
                 let mut line = line?;
-                tracing::trace!("{:?}", std::str::from_utf8(&line));
+                tracing::trace!("<< {:?}", std::str::from_utf8(&line));
 
                 if line == b".\r\n" {
                     return;
@@ -122,6 +112,8 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
         }
     }
 
+    /// Produce a stream of ESMTP commands.
+    #[inline]
     pub fn as_command_stream(
         &mut self,
     ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
@@ -144,6 +136,40 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Stream<R> {
                         UnparsedArgs(line[verb.len()..].to_vec()),
                     ) },
                 ));
+            }
+        }
+    }
+
+    /// Produce a stream of SMTP replies.
+    #[inline]
+    pub fn as_reply_stream(
+        &mut self,
+    ) -> impl tokio_stream::Stream<Item = Result<Reply, Error>> + '_ {
+        use tokio_stream::StreamExt;
+
+        async_stream::stream! {
+            let line_stream = self.as_line_stream();
+            tokio::pin!(line_stream);
+
+            loop {
+                let mut next_reply = Vec::with_capacity(512);
+
+                loop {
+                    let new_line = line_stream.next().await;
+                    let new_line = match new_line {
+                        Some(new_line) => new_line?,
+                        None => return,
+                    };
+
+                    next_reply.extend_from_slice(&new_line);
+                    if new_line.get(3) == Some(&b' ') {
+                        break;
+                    }
+                }
+
+                let next_reply = std::str::from_utf8(&next_reply);
+                tracing::trace!("<< {:?}", next_reply);
+                yield <Reply as std::str::FromStr>::from_str(next_reply?).map_err(|_| todo!());
             }
         }
     }

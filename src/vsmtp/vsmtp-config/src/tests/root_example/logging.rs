@@ -15,7 +15,7 @@
  *
 */
 use crate::Config;
-use vsmtp_common::{collection, CodeID, Reply, ReplyCode};
+use vsmtp_common::{collection, CodeID, Reply};
 
 #[test]
 fn parse() {
@@ -47,9 +47,9 @@ fn parse() {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_smtp_codes(collection! {
-                CodeID::Help => Reply::new(ReplyCode::Code{ code: 214 },
-                    "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
-                        .to_string()),
+                CodeID::Help =>
+                    "214 This server supports the following commands\n\
+                    HELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH".parse::<Reply>().unwrap(),
                 CodeID::Greetings => "220 {name} ESMTP Service ready".parse().unwrap(),
             })
             .without_auth()

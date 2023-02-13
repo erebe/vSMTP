@@ -87,7 +87,6 @@ mod unix {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[must_use]
     #[doc(hidden)]
     #[cfg(all(feature = "unix", feature = "objects"))]

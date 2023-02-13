@@ -94,9 +94,9 @@ mod utils {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "test ok".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(
+    /// #  "250 test ok".parse().unwrap(),
+    /// # )));
     /// ```
     #[rhai_fn(global, name = "env")]
     pub fn env_str(variable: &str) -> rhai::Dynamic {
@@ -145,9 +145,9 @@ mod utils {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Code};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(Reply::new(
-    /// #  Code { code: 250 }, "test ok".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::Connect].2, Status::Accept(either::Right(
+    /// #  "250 test ok".parse().unwrap(),
+    /// # )));
     /// ```
     #[rhai_fn(global, name = "env", pure)]
     #[doc(hidden)]

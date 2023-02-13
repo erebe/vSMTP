@@ -171,10 +171,11 @@ impl Object {
 
     /// Create a new code object.
     pub fn new_code(code: u16, text: impl Into<String>) -> Object {
-        Object::Code(vsmtp_common::Reply::new(
-            vsmtp_common::ReplyCode::Code { code },
-            text.into(),
-        ))
+        Object::Code(
+            format!("{code} {}", text.into())
+                .parse::<vsmtp_common::Reply>()
+                .unwrap(),
+        )
     }
 
     /// Create a new code object with an enhanced code.
@@ -182,13 +183,11 @@ impl Object {
     where
         T: Into<String>,
     {
-        Object::Code(vsmtp_common::Reply::new(
-            vsmtp_common::ReplyCode::Enhanced {
-                code,
-                enhanced: enhanced.into(),
-            },
-            text.into(),
-        ))
+        Object::Code(
+            format!("{code} {} {}", enhanced.into(), text.into())
+                .parse::<vsmtp_common::Reply>()
+                .unwrap(),
+        )
     }
 }
 
@@ -204,7 +203,7 @@ impl Object {
             (Object::Address(addr), Object::Identifier(identifier)) => {
                 addr.local_part() == identifier.as_str()
             }
-            (Object::Address(addr), Object::Fqdn(fqdn)) => addr.domain() == fqdn.as_str(),
+            (Object::Address(addr), Object::Fqdn(fqdn)) => addr.domain().to_string() == *fqdn,
             _ => false,
         }
     }
@@ -221,7 +220,9 @@ impl Object {
                 .map(|ip6| rg6.contains(&ip6))
                 .unwrap_or(false),
             Object::Regex(regex) => regex.find(other).is_some(),
-            Object::Address(addr) => addr.local_part() == other || addr.domain() == other,
+            Object::Address(addr) => {
+                addr.local_part() == other || addr.domain().to_string() == other
+            }
             _ => false,
         }
     }
@@ -260,7 +261,7 @@ impl std::fmt::Display for Object {
             Object::Fqdn(fqdn) => write!(f, "{fqdn}"),
             Object::Regex(regex) => write!(f, "{regex}"),
             Object::Identifier(ident) => write!(f, "{ident}"),
-            Object::Code(reply) => write!(f, "{} {}", reply.code(), reply.text()),
+            Object::Code(reply) => write!(f, "{reply}"),
         }
     }
 }
@@ -566,14 +567,12 @@ pub mod utils {
 pub mod comparisons {
 
     /// Operator `==` for `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn object_is_self(this: &mut SharedObject, other: SharedObject) -> bool {
         **this == *other
     }
 
     /// Operator `!=` for `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", pure)]
     pub fn object_not_self(this: &mut SharedObject, other: SharedObject) -> bool {
         **this != *other
@@ -592,14 +591,12 @@ pub mod comparisons {
     }
 
     /// Operator `==` for `&str` and `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw)]
     pub fn string_is_object(this: &str, other: SharedObject) -> RhaiResultOf<bool> {
         internal_string_is_object(this, &other)
     }
 
     /// Operator `!=` for `&str` and `SharedObject`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", return_raw)]
     pub fn string_not_object(this: &str, other: SharedObject) -> RhaiResultOf<bool> {
         internal_string_is_object(this, &other).map(|res| !res)
@@ -613,13 +610,11 @@ pub mod comparisons {
     }
 
     /// Operator `contains`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> bool {
         this.contains(&other)
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_map(map: &mut rhai::Map, object: SharedObject) -> bool {
         // FIXME: impl Ord on Object to prevent cloning.
