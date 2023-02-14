@@ -41,7 +41,7 @@ async-trait = { version = "0.1.61", default-features = false }
 
 anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
-fastrand = { version = "1.8.0", default-features = false }
+fastrand = { version = "1.9.0", default-features = false }
 
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
 time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
