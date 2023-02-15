@@ -74,7 +74,7 @@ async-stream = { version = "0.3.3", default-features = false }
 
 futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
-signal-hook = { version = "0.3.14", default-features = false, features = ["iterator"] }
+signal-hook = { version = "0.3.15", default-features = false, features = ["iterator"] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
 time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
