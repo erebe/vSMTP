@@ -30,7 +30,7 @@ lettre = { version = "0.10.2", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
+time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",

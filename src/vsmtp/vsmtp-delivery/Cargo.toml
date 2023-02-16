@@ -48,7 +48,7 @@ tracing = { version = "0.1.37", default-features = false, features = ["std", "at
 
 futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
-time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
+time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 
 users = { version = "0.11.0", default-features = false }
