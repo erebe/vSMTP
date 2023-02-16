@@ -15,7 +15,6 @@
  *
 */
 use crate::Config;
-use vsmtp_common::{collection, CodeID, Reply};
 
 #[test]
 fn parse() {
@@ -26,8 +25,8 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_vsl_file(&path_to_config).unwrap(),
         Config::builder()
-        .with_version_str(&format!(">={}, <3.0.0", env!("CARGO_PKG_VERSION")))
-        .unwrap()
+            .with_version_str(&format!(">={}, <3.0.0", env!("CARGO_PKG_VERSION")))
+            .unwrap()
             .with_path(path_to_config)
             .with_hostname()
             .with_default_system()
@@ -46,12 +45,7 @@ fn parse() {
             .without_tls_support()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
-            .with_smtp_codes(collection! {
-                CodeID::Help =>
-                    "214 This server supports the following commands\n\
-                    HELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH".parse::<Reply>().unwrap(),
-                CodeID::Greetings => "220 {name} ESMTP Service ready".parse().unwrap(),
-            })
+            .with_default_smtp_codes()
             .without_auth()
             .with_default_app()
             .with_default_vsl_settings()

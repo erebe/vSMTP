@@ -563,6 +563,37 @@ impl Builder<WantsAppVSL> {
             },
         }
     }
+
+    ///
+    #[must_use]
+    pub fn with_filter_path(
+        self,
+        filter_path: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppLogs> {
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                domain_dir: None,
+                filter_path: Some(filter_path.into()),
+            },
+        }
+    }
+
+    ///
+    #[must_use]
+    pub fn with_domain_dir_and_filter_path(
+        self,
+        domain_dir: impl Into<std::path::PathBuf>,
+        filter_path: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppLogs> {
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                domain_dir: Some(domain_dir.into()),
+                filter_path: Some(filter_path.into()),
+            },
+        }
+    }
 }
 
 impl Builder<WantsAppLogs> {
