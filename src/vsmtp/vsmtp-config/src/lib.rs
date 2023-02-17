@@ -19,11 +19,11 @@
 //!
 //! The type [`Config`] expose two methods :
 //! * [`Config::builder`] to create a new configuration builder.
-//! * [`Config::from_vsl_file`] to read a configuration from a TOML file.
+//! * [`Config::from_vsl_file`] to read a configuration from a vSL file.
 //!
 //! # Example
 //!
-//! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
+//! You can find examples of vSL config files at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
 
 /*
  * vSMTP mail transfer agent

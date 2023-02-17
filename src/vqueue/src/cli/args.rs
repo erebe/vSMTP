@@ -26,13 +26,21 @@ pub struct Args {
     #[clap(short, long, action)]
     pub version: bool,
 
-    /// Path of the vSMTP configuration file (toml format)
+    // NOTE: Can't use `PathBuf`, `default_value_t` needs `std::fmt::Display`.
+    /// Path of the vSMTP configuration file (vSL format)
+    #[arg(default_value_t = Args::default_config_location())]
     #[clap(short, long, action)]
-    pub config: Option<String>,
+    pub config: String,
 
     ///
     #[clap(subcommand)]
     pub command: Option<Commands>,
+}
+
+impl Args {
+    fn default_config_location() -> String {
+        String::from("/etc/vsmtp/vsmtp.vsl")
+    }
 }
 
 ///
@@ -113,7 +121,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: true,
-                config: None,
+                config: Args::default_config_location(),
                 command: None,
             },
             <Args as clap::Parser>::try_parse_from(["", "--version"]).unwrap()
@@ -135,7 +143,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Show {
                     queues: vec![],
                     empty_token: '0'
@@ -147,7 +155,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Show {
                     queues: vec![QueueID::Dead],
                     empty_token: '0'
@@ -159,7 +167,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Show {
                     queues: vec![],
                     empty_token: '.'
@@ -171,7 +179,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Show {
                     queues: vec![QueueID::Dead, QueueID::Deliver],
                     empty_token: '0'
@@ -186,7 +194,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Show {
@@ -206,7 +214,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Show {
@@ -227,7 +235,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Show {
@@ -251,7 +259,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Move {
@@ -275,7 +283,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Remove { yes: false }
@@ -293,7 +301,7 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
-                config: None,
+                config: Args::default_config_location(),
                 command: Some(Commands::Msg {
                     msg: uuid::Uuid::nil(),
                     command: MessageCommand::Remove { yes: true }

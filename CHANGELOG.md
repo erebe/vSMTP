@@ -13,6 +13,10 @@ release. They will however *never* happen in a patch release.
 
 ## [Unreleased] - ReleaseDate
 
+### Modified
+
+- vSMTP loads `/etc/vsmtp/vsmtp.vsl` by default if `-c` flag is missing, and stops if no configuration could be found in this path. (#1020)
+
 ## [2.1.1] - 2023-02-10
 
 ### Modified

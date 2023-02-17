@@ -37,9 +37,11 @@ pub struct Args {
     #[clap(short, long, action)]
     pub version: bool,
 
-    /// Path of the vSMTP configuration file. (toml format)
+    // NOTE: Can't use `PathBuf`, `default_value_t` needs `std::fmt::Display`.
+    /// Path of the vSMTP configuration file. (vSL format)
+    #[arg(default_value_t = Args::default_config_location())]
     #[clap(short, long, action)]
-    pub config: Option<String>,
+    pub config: String,
 
     /// Commands.
     #[clap(subcommand)]
@@ -56,6 +58,12 @@ pub struct Args {
     /// Make the server stop after a delay. (human readable format)
     #[clap(short, long, action)]
     pub timeout: Option<Timeout>,
+}
+
+impl Args {
+    fn default_config_location() -> String {
+        String::from("/etc/vsmtp/vsmtp.vsl")
+    }
 }
 
 ///
@@ -80,7 +88,7 @@ mod tests {
             Args {
                 version: false,
                 command: None,
-                config: Some("path".to_string()),
+                config: "path".to_string(),
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -92,7 +100,7 @@ mod tests {
             Args {
                 version: false,
                 command: Some(Commands::ConfigShow),
-                config: Some("path".to_string()),
+                config: "path".to_string(),
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -104,7 +112,7 @@ mod tests {
             Args {
                 version: false,
                 command: Some(Commands::ConfigDiff),
-                config: Some("path".to_string()),
+                config: "path".to_string(),
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -116,7 +124,7 @@ mod tests {
             Args {
                 version: true,
                 command: None,
-                config: None,
+                config: Args::default_config_location(),
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -128,7 +136,7 @@ mod tests {
             Args {
                 version: false,
                 command: None,
-                config: Some("path".to_string()),
+                config: "path".to_string(),
                 no_daemon: true,
                 stdout: false,
                 timeout: None
@@ -140,7 +148,7 @@ mod tests {
             Args {
                 version: false,
                 command: None,
-                config: Some("path".to_string()),
+                config: "path".to_string(),
                 no_daemon: true,
                 stdout: true,
                 timeout: Some(Timeout(std::time::Duration::from_secs(1)))
