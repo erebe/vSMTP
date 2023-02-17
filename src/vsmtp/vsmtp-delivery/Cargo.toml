@@ -23,6 +23,8 @@ pre-release-replacements = [
   { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "mail-parser\\]\nversion = .*", replace = "mail-parser]\nversion = \"={{version}}\"" },
+  { file = "Cargo.toml", prerelease = true, search = "protocol\\]\nversion = .*", replace = "protocol]\nversion = \"={{version}}\"" },
+
 ]
 
 [dependencies.vsmtp-common]
@@ -37,6 +39,10 @@ path = "../vsmtp-config"
 version = "=2.1.1"
 path = "../vsmtp-mail-parser"
 
+[dependencies.vsmtp-protocol]
+version = "=2.1.1"
+path = "../vsmtp-protocol"
+
 [dependencies]
 async-trait = { version = "0.1.64", default-features = false }
 anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
@@ -50,6 +56,12 @@ futures-util = { version = "0.3.24", default-features = false, features = ["asyn
 
 time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
+url = { version = "2.3.1", default-features = false }
+
+thiserror = { version = "1.0.38", default-features = false }
+strum = { version = "0.24.1", features = ["derive"] }
+serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }
+
 
 users = { version = "0.11.0", default-features = false }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [

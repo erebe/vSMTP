@@ -2,9 +2,13 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
 
+  * Added
+    * `transport::forward` parameters can be passed as url (#1018)
   * Modified
     * Loads `/etc/vsmtp/vsmtp.vsl` by default if the `-c`
       flag is missing. (#1020)
+  * Fixed
+    * `deliver` (default transport method) will accept the CN correctly (#1018)
 
  -- ltabis <l.tabis@viridit.com>  Thu, 16 Feb 2023 16:53:45 +0100
 

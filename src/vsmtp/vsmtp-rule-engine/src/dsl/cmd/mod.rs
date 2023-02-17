@@ -58,8 +58,8 @@ const my_command = cmd::build(#{
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         RuleEngine::with_hierarchy(
-            config,
             |builder| Ok(builder.add_root_filter_rules(VSL)?.build()),
+            config,
             dns_resolvers,
             queue_manger,
         )
@@ -77,12 +77,12 @@ const my_command = cmd::build(#{
         let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
         RuleEngine::with_hierarchy(
-            config,
             |builder| {
                 Ok(builder
                     .add_root_filter_rules(include_str!("test/main.vsl"))?
                     .build())
             },
+            config,
             dns_resolvers,
             queue_manger,
         )

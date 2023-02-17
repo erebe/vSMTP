@@ -50,6 +50,23 @@ impl ReplyCode {
         }
     }
 
+    /// Return the underlying value of the reply code
+    #[must_use]
+    pub fn value(&self) -> u16 {
+        match self {
+            Self::Code { code, .. } | Self::Enhanced { code, .. } => *code,
+        }
+    }
+
+    /// Return the enhanced value of the reply code
+    #[must_use]
+    pub fn details(&self) -> Option<&str> {
+        match self {
+            Self::Enhanced { enhanced, .. } => Some(enhanced),
+            Self::Code { .. } => None,
+        }
+    }
+
     fn try_parse(which: i32, words: &[&str]) -> Option<Self> {
         match (which, words) {
             (ENHANCED, [_, "", ..]) => None,

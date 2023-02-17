@@ -68,6 +68,7 @@ base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 thiserror = { version = "1.0.38", default-features = false }
 anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 strum = { version = "0.24.1", features = ["derive"] }
+serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }
 
 time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 

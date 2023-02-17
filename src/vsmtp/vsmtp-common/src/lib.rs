@@ -59,7 +59,7 @@ pub use types::{
     address::Address,
     client_name::ClientName,
     code_id::CodeID,
-    domain::{iter_to_root, Domain},
+    domain::{domain_iter, Domain},
     reply::Reply,
     reply_code::*,
     target::Target,

@@ -76,8 +76,8 @@ fn compile_errored(
     let dns_resolvers = std::sync::Arc::new(DnsResolvers::from_config(&config).unwrap());
 
     RuleEngine::with_hierarchy(
-        config,
         |builder| Ok(builder.add_root_filter_rules(script)?.build()),
+        config,
         dns_resolvers,
         queue_manger,
     )

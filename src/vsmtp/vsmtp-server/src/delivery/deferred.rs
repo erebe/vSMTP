@@ -123,10 +123,12 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
                     QueueID::Dead
                 )
             }),
+
         SenderOutcome::MoveToDeferred => queue_manager
             .write_ctx(&QueueID::Deferred, &ctx)
             .await
             .with_context(|| format!("failed to update context in `{}`", QueueID::Deferred)),
+
         SenderOutcome::RemoveFromDisk => {
             queue_manager
                 .remove_both(&QueueID::Deferred, &process_message.message_uuid)

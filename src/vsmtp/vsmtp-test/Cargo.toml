@@ -18,7 +18,7 @@ publish = false
 vsmtp-common = { path = "../vsmtp-common", features = ["testing"] }
 vsmtp-config = { path = "../vsmtp-config" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", features = ["builder"] }
 vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
@@ -79,7 +79,6 @@ tracing = { version = "0.1.37", default-features = false }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
 uuid = { version = "1.3.0", default-features = false, features = ["std", "v4", "fast-rng"] }
-
 
 [dev-dependencies]
 function_name = "0.3.0"

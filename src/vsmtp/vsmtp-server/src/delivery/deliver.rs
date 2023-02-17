@@ -42,10 +42,7 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     };
 
     for i in queued {
-        let message_uuid = match i
-            .as_ref()
-            .map(|i| <uuid::Uuid as std::str::FromStr>::from_str(i))
-        {
+        let message_uuid = match i.map(|i| <uuid::Uuid as std::str::FromStr>::from_str(&i)) {
             Ok(Ok(message_uuid)) => message_uuid,
             Ok(Err(error)) => {
                 tracing::error!(%error, "Invalid message id in deliver queue.");
@@ -70,19 +67,9 @@ pub async fn flush_deliver_queue<Q: GenericQueueManager + Sized + 'static>(
     }
 }
 
-/// handle and send one email pulled from the delivery queue.
-///
-/// # Errors
-///
-/// * failed to open the email.
-/// * failed to parse the email.
-/// * failed to send an email.
-/// * rule engine mutex is poisoned.
-/// * failed to add trace data to the email.
-/// * failed to copy the email to other queues or remove it from the delivery queue.
 #[allow(clippy::too_many_lines)]
 #[tracing::instrument(name = "delivery", skip_all, err(Debug), fields(uuid = %process_message.message_uuid))]
-pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
+pub(super) async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     queue_manager: std::sync::Arc<Q>,
     process_message: ProcessMessage,
@@ -94,16 +81,16 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         QueueID::Deliver
     };
 
-    let (ctx, mail_message) = queue_manager
+    let (ctx, msg) = queue_manager
         .get_both(&queue, &process_message.message_uuid)
         .await?;
 
     let mut skipped = ctx.connect.skipped.clone();
-    let (ctx, mut mail_message, result) = rule_engine.just_run_when(
+    let (ctx, mut msg, result) = rule_engine.just_run_when(
         &mut skipped,
         ExecutionStage::Delivery,
         vsmtp_common::Context::Finished(ctx),
-        mail_message,
+        msg,
     );
 
     let mut ctx = ctx.unwrap_finished().context("context is not finished")?;
@@ -115,7 +102,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .await?;
 
             queue_manager
-                .write_msg(&process_message.message_uuid, &mail_message)
+                .write_msg(&process_message.message_uuid, &msg)
                 .await?;
 
             tracing::warn!(status = status.as_ref(), "Rules skipped.");
@@ -130,12 +117,12 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .await?;
 
             queue_manager
-                .write_msg(&process_message.message_uuid, &mail_message)
+                .write_msg(&process_message.message_uuid, &msg)
                 .await?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
-            delegate(delegator, &ctx, &mail_message)?;
+            delegate(delegator, &ctx, &msg)?;
 
             tracing::warn!(status = status.as_ref(), "Rules skipped.");
 
@@ -156,7 +143,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
             queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
 
             queue_manager
-                .write_msg(&process_message.message_uuid, &mail_message)
+                .write_msg(&process_message.message_uuid, &msg)
                 .await?;
 
             return Ok(());
@@ -167,14 +154,14 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
         None => {}
     };
 
-    add_trace_information(&ctx, &mut mail_message, &result)?;
+    add_trace_information(&ctx, &mut msg, &result)?;
 
-    match split_and_sort_and_send(config, &mut ctx, &mail_message).await {
+    match split_and_sort_and_send(config, &mut ctx, &msg).await {
         SenderOutcome::MoveToDead => {
             queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;
 
             queue_manager
-                .write_msg(&process_message.message_uuid, &mail_message)
+                .write_msg(&process_message.message_uuid, &msg)
                 .await
         }
         SenderOutcome::MoveToDeferred => {
@@ -183,7 +170,7 @@ pub async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized + 'stat
                 .await?;
 
             queue_manager
-                .write_msg(&process_message.message_uuid, &mail_message)
+                .write_msg(&process_message.message_uuid, &msg)
                 .await
         }
         SenderOutcome::RemoveFromDisk => {
@@ -253,7 +240,6 @@ mod tests {
             },
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config.clone(),
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules("#{}")?
@@ -264,6 +250,7 @@ mod tests {
                             .build()
                             .build())
                     },
+                    config.clone(),
                     resolvers,
                     queue_manager.clone(),
                 )
@@ -312,7 +299,6 @@ mod tests {
             },
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config.clone(),
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules(&format!(
@@ -321,6 +307,7 @@ mod tests {
                             ))?
                             .build())
                     },
+                    config.clone(),
                     resolvers,
                     queue_manager.clone(),
                 )

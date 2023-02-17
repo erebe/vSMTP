@@ -66,9 +66,6 @@ pub enum TransferErrorsVariant {
     ConnectionTimedOut {},
 
     ///
-    TlsNoCertificate {},
-
-    ///
     MaxDeferredAttemptReached,
 
     ///
@@ -97,8 +94,7 @@ impl TransferErrorsVariant {
             | Self::Smtp { .. }
             | Self::StillWaiting
             | Self::RuleEngine(..)
-            | Self::DeliveryError { .. }
-            | Self::TlsNoCertificate { .. } => false,
+            | Self::DeliveryError { .. } => false,
         }
     }
 }

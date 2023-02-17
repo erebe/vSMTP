@@ -21,6 +21,7 @@ use crate::{utils::ipv6_with_scope_id, Domain};
 #[derive(
     Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, serde::Serialize, serde::Deserialize,
 )]
+#[serde(untagged)]
 pub enum Target {
     /// the target is a domain name.
     Domain(Domain),
@@ -28,6 +29,12 @@ pub enum Target {
     Ip(std::net::IpAddr),
     /// the target is an ip address with an associated port.
     Socket(std::net::SocketAddr),
+}
+
+impl Default for Target {
+    fn default() -> Self {
+        Self::Domain(Domain::default())
+    }
 }
 
 impl std::str::FromStr for Target {
@@ -52,5 +59,15 @@ impl std::str::FromStr for Target {
             },
             |_| ipv6_with_scope_id(s).map(Self::Socket),
         )
+    }
+}
+
+impl std::fmt::Display for Target {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Domain(domain) => write!(f, "{domain}"),
+            Self::Ip(ip) => write!(f, "{ip}"),
+            Self::Socket(socket) => write!(f, "{socket}"),
+        }
     }
 }

@@ -16,20 +16,15 @@
 */
 
 use crate::{
-    api::{Context, EngineResult, SharedObject},
-    get_global, ExecutionStage,
+    api::{EngineResult, SharedObject},
+    get_global,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use std::str::FromStr;
-use vsmtp_common::{
-    transfer::Status,
-    transport::{AbstractTransport, WrapperSerde},
-    Address, Target,
-};
-use vsmtp_delivery::{Deliver, Forward, MBox, Maildir};
+use vsmtp_common::Address;
+use vsmtp_delivery::{Deliver, Forward, MBox, Maildir, SenderParameters};
 
 pub use transport::*;
 
@@ -95,8 +90,6 @@ mod transport {
     /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::RcptTo].2, vsmtp_common::status::Status::Next);
     /// #
     /// # let config = vsmtp_test::config::local_test();
-    /// # let dns = vsmtp_config::DnsResolvers::from_config(&config).unwrap();
-    /// # let root_dns = dns.get_resolver_root();
     /// #
     /// # use vsmtp_common::{Address, Target};
     /// # let forward_paths = states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap();
@@ -112,8 +105,7 @@ mod transport {
     /// #   );
     /// #   let transport = std::sync::Arc::new(
     /// #     vsmtp_delivery::Forward::new(
-    /// #       Target::Ip(target.parse().unwrap()),
-    /// #       root_dns.clone(),
+    /// #       target.parse().unwrap(),
     /// #       std::sync::Arc::new(vsmtp_test::config::local_test())
     /// #     )
     /// #   );
@@ -126,19 +118,20 @@ mod transport {
     /// ```
     #[rhai_fn(name = "forward", return_raw)]
     pub fn forward(ncc: NativeCallContext, rcpt: &str, forward: &str) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(forward)
-            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-        let rcpt = Address::from_str(rcpt)
+        let params =
+            <SenderParameters as std::str::FromStr>::from_str(forward)
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        let rcpt = <Address as std::str::FromStr>::from_str(rcpt)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        let transport = std::sync::Arc::new(Forward::new(
-            to,
-            srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-            srv.config.clone(),
-        ));
-        set_transport_for_one(&ctx, &rcpt, transport)
+        let transport = std::sync::Arc::new(Forward::new(params, srv.config.clone()));
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(&rcpt, transport)
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
@@ -148,22 +141,22 @@ mod transport {
         rcpt: SharedObject,
         forward: &str,
     ) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(forward)
-            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-        let rcpt = Address::from_str(&rcpt.to_string())
+        let params =
+            <SenderParameters as std::str::FromStr>::from_str(forward)
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+        let rcpt = <Address as std::str::FromStr>::from_str(&rcpt.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_for_one(
-            &ctx,
-            &rcpt,
-            std::sync::Arc::new(Forward::new(
-                to,
-                srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-                srv.config.clone(),
-            )),
-        )
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(
+                &rcpt,
+                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
+            )
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
@@ -173,22 +166,20 @@ mod transport {
         rcpt: &str,
         forward: SharedObject,
     ) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(&forward.to_string())
+        let params = <SenderParameters as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-        let rcpt = Address::from_str(rcpt)
+        let rcpt = <Address as std::str::FromStr>::from_str(rcpt)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_for_one(
-            &ctx,
-            &rcpt,
-            std::sync::Arc::new(Forward::new(
-                to,
-                srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-                srv.config.clone(),
-            )),
-        )
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(
+                &rcpt,
+                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
+            )
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
@@ -198,22 +189,20 @@ mod transport {
         rcpt: SharedObject,
         forward: SharedObject,
     ) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(&forward.to_string())
+        let params = <SenderParameters as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-        let rcpt = Address::from_str(&rcpt.to_string())
+        let rcpt = <Address as std::str::FromStr>::from_str(&rcpt.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_for_one(
-            &ctx,
-            &rcpt,
-            std::sync::Arc::new(Forward::new(
-                to,
-                srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-                srv.config.clone(),
-            )),
-        )
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(
+                &rcpt,
+                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
+            )
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to forwarding for all recipients.
@@ -266,8 +255,7 @@ mod transport {
     /// # let bound = states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.delivery().unwrap().get(
     /// # &vsmtp_common::transport::WrapperSerde::Ready(std::sync::Arc::new(
     /// #   vsmtp_delivery::Forward::new(
-    /// #     vsmtp_common::Target::Ip("127.0.0.1".parse().unwrap()),
-    /// #     std::sync::Arc::new(trust_dns_resolver::TokioAsyncResolver::tokio_from_system_conf().unwrap()),
+    /// #     "127.0.0.1".parse().unwrap(),
     /// #     std::sync::Arc::new(vsmtp_test::config::local_test())
     /// #   )
     /// # ))
@@ -285,36 +273,35 @@ mod transport {
     /// ```
     #[rhai_fn(name = "forward_all", return_raw)]
     pub fn forward_all(ncc: NativeCallContext, forward: &str) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(forward)
-            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+        let params =
+            <SenderParameters as std::str::FromStr>::from_str(forward)
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        let transport = std::sync::Arc::new(Forward::new(
-            to,
-            srv.resolvers.get_resolver_root(),
-            srv.config.clone(),
-        ));
+        let transport = std::sync::Arc::new(Forward::new(params, srv.config.clone()));
 
-        set_transport_foreach(&ctx, transport)
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_foreach(transport)
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
     #[rhai_fn(name = "forward_all", return_raw)]
     pub fn forward_all_obj(ncc: NativeCallContext, forward: SharedObject) -> EngineResult<()> {
-        let to = <Target as std::str::FromStr>::from_str(&forward.to_string())
+        let params = <SenderParameters as std::str::FromStr>::from_str(&forward.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_foreach(
-            &ctx,
-            std::sync::Arc::new(Forward::new(
-                to,
-                srv.resolvers.get_resolver_root(),
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_foreach(std::sync::Arc::new(Forward::new(
+                params,
                 srv.config.clone(),
-            )),
-        )
+            )))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to deliver for a single recipient.
@@ -397,37 +384,42 @@ mod transport {
     /// ```
     #[rhai_fn(name = "deliver", return_raw)]
     pub fn deliver(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
-        let rcpt = Address::from_str(rcpt)
+        let rcpt = <Address as std::str::FromStr>::from_str(rcpt)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_for_one(
-            &ctx,
-            &rcpt,
-            std::sync::Arc::new(Deliver::new(
-                srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-                srv.config.clone(),
-            )),
-        )
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(
+                &rcpt,
+                std::sync::Arc::new(Deliver::new(
+                    srv.resolvers.get_resolver_or_root(&rcpt.domain()),
+                    srv.config.clone(),
+                )),
+            )
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
     #[rhai_fn(name = "deliver", return_raw)]
     pub fn deliver_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
-        let rcpt = Address::from_str(&rcpt.to_string())
+        let rcpt = <Address as std::str::FromStr>::from_str(&rcpt.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_for_one(
-            &ctx,
-            &rcpt,
-            std::sync::Arc::new(Deliver::new(
-                srv.resolvers.get_resolver_or_root(&rcpt.domain()),
-                srv.config.clone(),
-            )),
-        )
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(
+                &rcpt,
+                std::sync::Arc::new(Deliver::new(
+                    srv.resolvers.get_resolver_or_root(&rcpt.domain()),
+                    srv.config.clone(),
+                )),
+            )
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to deliver for all recipients.
@@ -499,13 +491,14 @@ mod transport {
     pub fn deliver_all(ncc: NativeCallContext) -> EngineResult<()> {
         let ctx = get_global!(ncc, ctx)?;
         let srv = get_global!(ncc, srv)?;
-        set_transport_foreach(
-            &ctx,
-            std::sync::Arc::new(Deliver::new(
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_foreach(std::sync::Arc::new(Deliver::new(
                 srv.resolvers.get_resolver_root(),
                 srv.config.clone(),
-            )),
-        )
+            )))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to mbox for a recipient.
@@ -577,7 +570,7 @@ mod transport {
     /// ```
     #[rhai_fn(name = "mbox", return_raw)]
     pub fn mbox(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
-        let rcpt = Address::from_str(rcpt)
+        let rcpt = <Address as std::str::FromStr>::from_str(rcpt)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
@@ -587,13 +580,17 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_for_one(&ctx, &rcpt, std::sync::Arc::new(MBox::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(MBox::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
     #[rhai_fn(name = "mbox", return_raw)]
     pub fn mbox_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
-        let rcpt = Address::from_str(&rcpt.to_string())
+        let rcpt = <Address as std::str::FromStr>::from_str(&rcpt.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
@@ -603,7 +600,11 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_for_one(&ctx, &rcpt, std::sync::Arc::new(MBox::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(MBox::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to mbox for all recipients.
@@ -676,7 +677,11 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_foreach(&ctx, std::sync::Arc::new(MBox::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_foreach(std::sync::Arc::new(MBox::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to maildir for a recipient.
@@ -746,7 +751,7 @@ mod transport {
     /// ```
     #[rhai_fn(name = "maildir", return_raw)]
     pub fn maildir(ncc: NativeCallContext, rcpt: &str) -> EngineResult<()> {
-        let rcpt = Address::from_str(rcpt)
+        let rcpt = <Address as std::str::FromStr>::from_str(rcpt)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
@@ -756,13 +761,17 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_for_one(&ctx, &rcpt, std::sync::Arc::new(Maildir::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(Maildir::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     #[doc(hidden)]
     #[rhai_fn(name = "maildir", return_raw)]
     pub fn maildir_obj(ncc: NativeCallContext, rcpt: SharedObject) -> EngineResult<()> {
-        let rcpt = Address::from_str(&rcpt.to_string())
+        let rcpt = <Address as std::str::FromStr>::from_str(&rcpt.to_string())
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
@@ -772,7 +781,11 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_for_one(&ctx, &rcpt, std::sync::Arc::new(Maildir::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(Maildir::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     /// Set the delivery method to maildir for all recipients.
@@ -847,65 +860,10 @@ mod transport {
             .system
             .group_local
             .clone();
-        set_transport_foreach(&ctx, std::sync::Arc::new(Maildir::new(grp)))
+
+        let mut guard = ctx.write().expect("mutex poisoned");
+        guard
+            .set_transport_foreach(std::sync::Arc::new(Maildir::new(grp)))
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-fn set_transport_for_one(
-    context: &Context,
-    search: &Address,
-    transport: std::sync::Arc<dyn AbstractTransport>,
-) -> EngineResult<()> {
-    let mut guard = vsl_guard_ok!(context.write());
-    let deliver = vsl_missing_ok!(
-        ref guard.delivery_mut().ok(),
-        "delivery",
-        ExecutionStage::RcptTo
-    );
-
-    for (_, v) in deliver.iter_mut() {
-        if let Some((idx, _)) = v
-            .iter()
-            .map(|(rcpt, _)| rcpt)
-            .enumerate()
-            .find(|(_, rcpt)| *rcpt == search)
-        {
-            v.swap_remove(idx);
-        }
-    }
-
-    deliver
-        .entry(WrapperSerde::Ready(transport.clone()))
-        .and_modify(|rcpt| rcpt.push((search.clone(), Status::default())))
-        .or_insert_with(|| vec![(search.clone(), Status::default())]);
-
-    Ok(())
-}
-
-#[allow(clippy::needless_pass_by_value)]
-fn set_transport_foreach(
-    context: &Context,
-    transport: std::sync::Arc<dyn AbstractTransport>,
-) -> EngineResult<()> {
-    let mut guard = vsl_guard_ok!(context.write());
-
-    let forward_paths =
-        vsl_missing_ok!(ref guard.forward_paths().ok(), "rcpt", ExecutionStage::RcptTo).clone();
-    let deliver = vsl_missing_ok!(
-        ref guard.delivery_mut().ok(),
-        "rcpt_list",
-        ExecutionStage::RcptTo
-    );
-
-    deliver.clear();
-    deliver.insert(
-        WrapperSerde::Ready(transport),
-        forward_paths
-            .into_iter()
-            .map(|i| (i, Status::default()))
-            .collect(),
-    );
-
-    Ok(())
 }

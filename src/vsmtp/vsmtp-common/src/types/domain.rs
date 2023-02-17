@@ -26,8 +26,8 @@ pub type Domain = trust_dns_resolver::Name;
 /// let domain = "www.john.doe.example.com".parse::<vsmtp_common::Domain>().unwrap();
 ///
 /// let domain_str = domain.to_string();
-/// let mut domain_part = vsmtp_common::iter_to_root(&domain_str);
-/// // assert_eq!(domain_part.next().unwrap(), "www.john.doe.example.com");
+/// let mut domain_part = vsmtp_common::domain_iter(&domain_str);
+/// assert_eq!(domain_part.next().unwrap(), "www.john.doe.example.com");
 /// assert_eq!(domain_part.next().unwrap(), "john.doe.example.com");
 /// assert_eq!(domain_part.next().unwrap(), "doe.example.com");
 /// assert_eq!(domain_part.next().unwrap(), "example.com");
@@ -35,18 +35,19 @@ pub type Domain = trust_dns_resolver::Name;
 /// assert_eq!(domain_part.next(), None);
 /// ```
 #[must_use]
-pub fn iter_to_root(domain: &str) -> IterDomain<'_> {
+#[allow(clippy::module_name_repetitions)]
+pub fn domain_iter(domain: &str) -> IterDomain<'_> {
     IterDomain::iter(domain)
 }
 
 #[allow(clippy::module_name_repetitions)]
-pub struct IterDomain<'a>(&'a str);
+pub struct IterDomain<'a>(Option<&'a str>);
 
 impl<'a> IterDomain<'a> {
     /// Create an iterator over the given domain.
     #[must_use]
     pub const fn iter(domain: &'a str) -> Self {
-        Self(domain)
+        Self(Some(domain))
     }
 }
 
@@ -54,9 +55,8 @@ impl<'a> Iterator for IterDomain<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.split_once('.').map(|(_, rest)| {
-            self.0 = rest;
-            self.0
-        })
+        let out = self.0;
+        self.0 = self.0.and_then(|s| s.split_once('.')).map(|(_, rest)| rest);
+        out
     }
 }

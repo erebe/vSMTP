@@ -36,8 +36,10 @@
     clippy::mod_module_files,
     clippy::shadow_reuse,
     clippy::pattern_type_mismatch,
-    clippy::missing_trait_methods
+    clippy::missing_trait_methods,
+    clippy::wildcard_enum_match_arm
 )]
+#![allow(clippy::std_instead_of_core)] // thiserror
 //
 #![cfg_attr(
     test,
@@ -54,9 +56,8 @@
 
 mod send;
 
-pub use send::{split_and_sort_and_send, SenderOutcome};
-use vsmtp_common::{Address, Domain};
-use vsmtp_config::Config;
+pub use send::{split_and_sort_and_send, SenderOutcome, SenderParameters, TlsPolicy};
+use vsmtp_common::Address;
 extern crate alloc;
 
 mod dns {
@@ -112,6 +113,7 @@ fn to_lettre_envelope<'item>(
     .expect("at least one rcpt")
 }
 
+/*
 fn get_cert_for_server(server_name: &Domain, config: &Config) -> Option<Vec<rustls::Certificate>> {
     config
         .server
@@ -119,6 +121,7 @@ fn get_cert_for_server(server_name: &Domain, config: &Config) -> Option<Vec<rust
         .get(server_name)
         .and_then(|v| v.tls.as_ref().map(|tls| tls.certificate.inner.clone()))
 }
+*/
 
 mod deliver;
 mod forward;

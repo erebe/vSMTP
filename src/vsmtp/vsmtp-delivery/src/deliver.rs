@@ -14,16 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    get_cert_for_server,
-    send::{smtp_send, SenderParameters},
-    to_lettre_envelope,
-};
+use crate::{send::SenderParameters, to_lettre_envelope};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     transfer::{Status, TransferErrorsVariant},
     transport::{AbstractTransport, DeliverTo},
-    Address, ContextFinished, Domain, SMTP_PORT,
+    Address, ContextFinished, Domain, Target,
 };
 use vsmtp_config::Config;
 extern crate alloc;
@@ -46,6 +42,7 @@ pub struct Deliver {
     #[serde(skip, default = "crate::dns::default")]
     resolver: alloc::sync::Arc<TokioAsyncResolver>,
     #[serde(skip)]
+    #[allow(dead_code)]
     config: alloc::sync::Arc<Config>,
     #[serde(flatten)]
     payload: Payload,
@@ -176,22 +173,15 @@ impl Deliver {
             // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
             tracing::warn!("empty set of MX records found for '{domain}'");
 
-            smtp_send(
-                SenderParameters {
-                    relay_target: domain.clone(),
-                    server_name: domain.clone(),
-                    hello_name: ctx.connect.server_name.clone(),
-                    port: SMTP_PORT,
-                    certificate: get_cert_for_server(&ctx.connect.server_name, &self.config)
-                        .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
-                },
-                &envelop,
-                message,
-            )
-            .await
-            .map_err(|e| TransferErrorsVariant::Smtp {
-                error: e.to_string(),
-            })?;
+            // get_cert_for_server(&ctx.connect.server_name, &self.config)
+            // .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
+
+            SenderParameters::from(Target::Domain(domain.clone()))
+                .smtp_send(&ctx.connect.server_name, &envelop, message, None)
+                .await
+                .map_err(|e| TransferErrorsVariant::Smtp {
+                    error: e.to_string(),
+                })?;
             return Ok(());
         }
 
@@ -201,8 +191,7 @@ impl Deliver {
             .collect::<Vec<_>>();
 
         for mx in &mxs {
-            tracing::debug!("Trying to send an email.");
-            tracing::trace!(%mx);
+            tracing::debug!(%mx, "Trying to send an email.");
 
             // checking for a null mx record.
             // see https://datatracker.ietf.org/doc/html/rfc7505
@@ -216,19 +205,12 @@ impl Deliver {
                 });
             }
 
-            match smtp_send(
-                SenderParameters {
-                    relay_target: (*mx).clone(),
-                    server_name: domain.clone(),
-                    hello_name: ctx.connect.server_name.clone(),
-                    port: SMTP_PORT,
-                    certificate: get_cert_for_server(&ctx.connect.server_name, &self.config)
-                        .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
-                },
-                &envelop,
-                message,
-            )
-            .await
+            // get_cert_for_server(&ctx.connect.server_name, &self.config)
+            // .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
+
+            match SenderParameters::from(Target::Domain((*mx).clone()))
+                .smtp_send(&ctx.connect.server_name, &envelop, message, None)
+                .await
             {
                 Ok(response) => {
                     tracing::info!("Email sent successfully");

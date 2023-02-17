@@ -62,9 +62,15 @@ pub use execution_state::ExecutionStage;
 pub use rule_engine::RuleEngine;
 pub use rule_state::RuleState;
 
-// TODO: restrain this to the rule engine import / allow only in cfg debug.
-/// Build sub domain hierarchy configurations.
-pub mod sub_domain_hierarchy;
+mod domain_hierarchy {
+    #[cfg(feature = "builder")]
+    pub mod builder;
+    pub mod tree;
+}
+
+#[cfg(feature = "builder")]
+pub use domain_hierarchy::builder::Builder;
+pub use domain_hierarchy::tree::SubDomainHierarchy;
 
 #[cfg(test)]
 mod tests;

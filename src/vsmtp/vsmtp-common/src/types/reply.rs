@@ -148,6 +148,11 @@ impl Reply {
             .collect::<String>()
     }
 
+    /// Return the reply received, with no [`ReplyCode`], no ending CRLF
+    pub fn lines(&self) -> impl Iterator<Item = &String> {
+        self.text.iter()
+    }
+
     /// Create a new reply with:
     /// * `text` = `self.text` + `other.text`
     /// * `code` = `other.code`
@@ -224,7 +229,7 @@ impl std::str::FromStr for Reply {
         }
 
         let reply = Self {
-            code: first_code.unwrap(),
+            code: first_code.ok_or_else(|| anyhow::anyhow!("No reply code found"))?,
             text,
             folded: String::new(),
         };
@@ -256,7 +261,7 @@ mod tests {
         &Reply {
             code: ReplyCode::Code { code: 501 },
             text: vec![String::new()],
-            folded:  "501 \r\n".to_string(),
+            folded: "501 \r\n".to_string(),
         }
     )]
     #[case(
@@ -294,7 +299,7 @@ mod tests {
                 "DSN".to_string(),
                 String::new(),
             ],
-            folded:  concat!(
+            folded: concat!(
                 "250-mydomain.tld\r\n",
                 "250-PIPELINING\r\n",
                 "250-8BITMIME\r\n",
@@ -349,6 +354,8 @@ mod tests {
 
         let output = input.parse::<Reply>().unwrap();
         pretty_assertions::assert_eq!(output, *expected);
+
+        dbg!(expected.code().value(), expected.code.details());
 
         let fold = output.fold();
         pretty_assertions::assert_eq!(input, fold);

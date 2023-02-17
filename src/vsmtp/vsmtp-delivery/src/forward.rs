@@ -14,16 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    get_cert_for_server,
-    send::{smtp_send, SenderParameters},
-    to_lettre_envelope,
-};
-use trust_dns_resolver::TokioAsyncResolver;
+use crate::{send::SenderParameters, to_lettre_envelope};
 use vsmtp_common::{
     transfer::{Status, TransferErrorsVariant},
     transport::{AbstractTransport, DeliverTo},
-    Address, ContextFinished, Domain, Target, SMTP_PORT,
+    Address, ContextFinished,
 };
 use vsmtp_config::Config;
 extern crate alloc;
@@ -33,7 +28,7 @@ extern crate alloc;
 struct Payload {
     #[serde(with = "r#type")]
     pub(super) r#type: String,
-    to: Target,
+    params: SenderParameters,
 }
 
 def_type_serde!("forward");
@@ -41,9 +36,8 @@ def_type_serde!("forward");
 /// the email will be directly delivered to the server, **without** mx lookup.
 #[derive(Debug, serde::Deserialize)]
 pub struct Forward {
-    #[serde(skip, default = "crate::dns::default")]
-    resolver: alloc::sync::Arc<TokioAsyncResolver>,
     #[serde(skip)]
+    #[allow(dead_code)]
     config: alloc::sync::Arc<Config>,
     #[serde(flatten)]
     payload: Payload,
@@ -65,31 +59,14 @@ impl Forward {
     /// create a new deliver with a resolver to get data from the distant dns server.
     #[must_use]
     #[inline]
-    pub fn new(
-        to: Target,
-        resolver: alloc::sync::Arc<TokioAsyncResolver>,
-        config: alloc::sync::Arc<Config>,
-    ) -> Self {
+    pub fn new(params: SenderParameters, config: alloc::sync::Arc<Config>) -> Self {
         Self {
-            resolver,
             config,
             payload: Payload {
-                to,
+                params,
                 r#type: "forward".to_owned(),
             },
         }
-    }
-
-    async fn reverse_lookup(
-        &self,
-        query: &std::net::IpAddr,
-    ) -> Result<Option<Domain>, trust_dns_resolver::error::ResolveError> {
-        Ok(self
-            .resolver
-            .reverse_lookup(*query)
-            .await?
-            .into_iter()
-            .next())
     }
 
     async fn deliver_inner(
@@ -101,51 +78,18 @@ impl Forward {
     ) -> Result<lettre::transport::smtp::response::Response, TransferErrorsVariant> {
         let envelop = to_lettre_envelope(from, to.iter().map(|(rcpt, _)| rcpt));
 
-        tracing::debug!(?self.payload.to, "Forwarding email.");
+        tracing::debug!(?self.payload.params, "Forwarding email.");
 
-        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
-        let (server, port) = match self.payload.to {
-            Target::Domain(ref domain) => (domain.clone(), None),
-            Target::Ip(ref ip) => (
-                self.reverse_lookup(ip)
-                    .await
-                    .map_err(|e| TransferErrorsVariant::DnsRecord {
-                        error: e.to_string(),
-                    })?
-                    .ok_or_else(|| TransferErrorsVariant::DnsRecord {
-                        error: format!("no domain found for {ip}"),
-                    })?,
-                None,
-            ),
-            Target::Socket(ref socket) => (
-                self.reverse_lookup(&socket.ip())
-                    .await
-                    .map_err(|e| TransferErrorsVariant::DnsRecord {
-                        error: e.to_string(),
-                    })?
-                    .ok_or_else(|| TransferErrorsVariant::DnsRecord {
-                        error: format!("no domain found for {ip}", ip = socket.ip()),
-                    })?,
-                Some(socket.port()),
-            ),
-        };
+        //  get_cert_for_server(&ctx.connect.server_name, &self.config)
+        //  .ok_or(TransferErrorsVariant::TlsNoCertificate {})?;
 
-        smtp_send(
-            SenderParameters {
-                relay_target: server.clone(),
-                server_name: server,
-                hello_name: ctx.connect.server_name.clone(),
-                port: port.unwrap_or(SMTP_PORT),
-                certificate: get_cert_for_server(&ctx.connect.server_name, &self.config)
-                    .ok_or(TransferErrorsVariant::TlsNoCertificate {})?,
-            },
-            &envelop,
-            message,
-        )
-        .await
-        .map_err(|e| TransferErrorsVariant::Smtp {
-            error: e.to_string(),
-        })
+        self.payload
+            .params
+            .smtp_send(&ctx.connect.server_name, &envelop, message, None)
+            .await
+            .map_err(|e| TransferErrorsVariant::Smtp {
+                error: e.to_string(),
+            })
     }
 }
 
@@ -193,11 +137,9 @@ impl AbstractTransport for Forward {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::{
         transfer::{Status, TransferErrorsVariant},
         transport::{AbstractTransport, WrapperSerde},
-        Target,
     };
     use vsmtp_test::config::{local_ctx, local_msg, local_test, with_tls};
 
@@ -207,13 +149,9 @@ mod tests {
         let ctx = local_ctx();
         let msg = local_msg();
 
-        let target = Target::Socket("127.0.0.1:9999".parse().unwrap());
+        let target = "127.0.0.1:9999".parse::<SenderParameters>().unwrap();
 
-        let transport = alloc::sync::Arc::new(Forward::new(
-            target.clone(),
-            alloc::sync::Arc::new(TokioAsyncResolver::tokio_from_system_conf().unwrap()),
-            alloc::sync::Arc::new(config),
-        ));
+        let transport = alloc::sync::Arc::new(Forward::new(target, alloc::sync::Arc::new(config)));
         let updated_rcpt = alloc::sync::Arc::clone(&transport)
             .deliver(
                 &ctx,
@@ -226,7 +164,9 @@ mod tests {
         match &updated_rcpt.first().unwrap().1 {
             Status::HeldBack { errors } => assert_eq!(
                 errors.first().unwrap().variant,
-                TransferErrorsVariant::TlsNoCertificate {}
+                TransferErrorsVariant::Smtp {
+                    error: "Connection error: Connection refused (os error 111)".to_owned()
+                }
             ),
             _ => panic!(),
         }
@@ -235,11 +175,10 @@ mod tests {
     #[rstest::rstest]
     #[case(
         &serde_json::json!({
-            "v": r#"{"type":"forward","to":{"Domain":"localhost"}}"#,
+            "v": r#"{"type":"forward","params":{"kind":"relay","host":"localhost","hello_name":null,"port":25,"credentials":null,"tls":"opportunistic"}}"#,
         }).to_string(),
         Forward::new(
-            Target::Domain("localhost".parse().expect("")),
-            alloc::sync::Arc::new(TokioAsyncResolver::tokio_from_system_conf().unwrap()),
+            "localhost".parse().expect(""),
             alloc::sync::Arc::new(local_test())
         )
     )]

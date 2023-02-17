@@ -209,8 +209,8 @@ mod tests {
         assert!(handle_one_in_working_queue(
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config,
                     |builder| Ok(builder.add_root_filter_rules("#{}")?.build()),
+                    config,
                     resolvers.clone(),
                     queue_manager.clone()
                 )
@@ -251,7 +251,6 @@ mod tests {
         handle_one_in_working_queue(
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config.clone(),
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules("#{}")?
@@ -262,6 +261,7 @@ mod tests {
                             .build()
                             .build())
                     },
+                    config.clone(),
                     resolvers.clone(),
                     queue_manager.clone(),
                 )
@@ -316,7 +316,6 @@ mod tests {
         handle_one_in_working_queue(
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config.clone(),
                     |builder| {
                         Ok(builder
                             .add_root_filter_rules(&format!(
@@ -325,6 +324,7 @@ mod tests {
                             ))?
                             .build())
                     },
+                    config.clone(),
                     resolvers.clone(),
                     queue_manager.clone(),
                 )
@@ -381,7 +381,6 @@ mod tests {
         handle_one_in_working_queue(
             std::sync::Arc::new(
                 RuleEngine::with_hierarchy(
-                    config.clone(),
                     move |builder| {
                         Ok(builder
                             .add_root_filter_rules(&rules)?
@@ -392,6 +391,7 @@ mod tests {
                             .build()
                             .build())
                     },
+                    config.clone(),
                     resolvers.clone(),
                     queue_manager.clone(),
                 )

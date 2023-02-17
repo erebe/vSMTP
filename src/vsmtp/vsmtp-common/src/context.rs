@@ -648,6 +648,61 @@ impl Context {
         }
     }
 
+    /// Set a delivery transport for a recipients.
+    ///
+    /// # Errors
+    ///
+    /// * state if not [`Stage::RcptTo`] or after
+    pub fn set_transport_for_one(
+        &mut self,
+        search: &Address,
+        transport: std::sync::Arc<dyn AbstractTransport>,
+    ) -> Result<(), Error> {
+        let deliver = self.delivery_mut()?;
+
+        for (_, v) in deliver.iter_mut() {
+            if let Some((idx, _)) = v
+                .iter()
+                .map(|(rcpt, _)| rcpt)
+                .enumerate()
+                .find(|(_, rcpt)| *rcpt == search)
+            {
+                v.swap_remove(idx);
+            }
+        }
+
+        deliver
+            .entry(WrapperSerde::Ready(transport))
+            .and_modify(|rcpt| rcpt.push((search.clone(), transfer::Status::default())))
+            .or_insert_with(|| vec![(search.clone(), transfer::Status::default())]);
+
+        Ok(())
+    }
+
+    /// Set a delivery transport for all recipients.
+    ///
+    /// # Errors
+    ///
+    /// * state if not [`Stage::RcptTo`] or after
+    pub fn set_transport_foreach(
+        &mut self,
+        transport: std::sync::Arc<dyn AbstractTransport>,
+    ) -> Result<(), Error> {
+        let forward_paths = self.forward_paths()?.clone();
+        let deliver = self.delivery_mut()?;
+
+        deliver.clear();
+        deliver.insert(
+            WrapperSerde::Ready(transport),
+            forward_paths
+                .into_iter()
+                .map(|i| (i, transfer::Status::default()))
+                .collect(),
+        );
+
+        Ok(())
+    }
+
     /// # Errors
     ///
     /// * state if not [`Stage::RcptTo`] or after
@@ -934,34 +989,34 @@ pub struct FinishedProperties {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ContextConnect {
-    pub connect: ConnectProperties,
+    connect: ConnectProperties,
 }
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ContextHelo {
-    pub connect: ConnectProperties,
-    pub helo: HeloProperties,
+    connect: ConnectProperties,
+    helo: HeloProperties,
 }
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ContextMailFrom {
-    pub connect: ConnectProperties,
-    pub helo: HeloProperties,
-    pub mail_from: MailFromProperties,
+    connect: ConnectProperties,
+    helo: HeloProperties,
+    mail_from: MailFromProperties,
 }
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ContextRcptTo {
-    pub connect: ConnectProperties,
-    pub helo: HeloProperties,
-    pub mail_from: MailFromProperties,
-    pub rcpt_to: RcptToProperties,
+    connect: ConnectProperties,
+    helo: HeloProperties,
+    mail_from: MailFromProperties,
+    rcpt_to: RcptToProperties,
 }
 
 #[doc(hidden)]
