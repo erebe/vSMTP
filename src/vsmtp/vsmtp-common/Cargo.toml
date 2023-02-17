@@ -44,7 +44,7 @@ addr = { version = "0.15.6", default-features = false, features = ["std"] }
 fastrand = { version = "1.9.0", default-features = false }
 
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
-time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
+time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 libc = { version = "0.2.139", default-features = false, features = ["std"] }
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 

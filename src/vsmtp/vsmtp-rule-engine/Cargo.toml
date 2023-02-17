@@ -83,7 +83,7 @@ lettre = { version = "0.10.2", default-features = false, features = [
 wait-timeout = { version = "0.2.0", default-features = false }
 users = { version = "0.11.0", default-features = false }
 
-time = { version = "0.3.18", default-features = false, features = ["std", "formatting", "macros"] }
+time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros"] }
 
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = ["system-config", "tokio-runtime"] }
 
