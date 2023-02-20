@@ -53,6 +53,7 @@ release. They will however *never* happen in a patch release.
   Now `mta-01.smtp.mydomain.tld`, `smtp.mydomain.tld` or `mydomain.tld` will be accepted.
 
 * `action` completely ignores it's return value. (#1024)
+* `spf::check` can be used from the `mail` stage. (#1027)
 
 ## [2.1.1] - 2023-02-10
 

@@ -42,17 +42,21 @@ pub enum TransactionType {
 }
 
 /// Stage of the step-by-step SMTP transaction
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, strum::Display)]
+#[strum(serialize_all = "lowercase")]
 pub enum Stage {
     /// The client has just connected to the server
     Connect,
     /// The client has sent the HELO/EHLO command
     Helo,
     /// The client has sent the MAIL FROM command
+    #[strum(serialize = "mail")]
     MailFrom,
     /// The client has sent the RCPT TO command
+    #[strum(serialize = "rcpt")]
     RcptTo,
     /// The client has sent the complete message
+    #[strum(serialize = "preq")]
     Finished,
 }
 
@@ -220,6 +224,7 @@ impl Context {
                         reverse_path,
                         mail_timestamp: now,
                         message_uuid: uuid::Uuid::new_v4(),
+                        spf: None,
                     },
                 });
                 Ok(())
@@ -250,10 +255,7 @@ impl Context {
                     helo: helo.clone(),
                     mail_from: mail_from.clone(),
                     rcpt_to: rcpt_to.clone(),
-                    finished: FinishedProperties {
-                        dkim: None,
-                        spf: None,
-                    },
+                    finished: FinishedProperties { dkim: None },
                 });
                 Ok(())
             }
@@ -787,12 +789,10 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub const fn spf(&self) -> Result<Option<&spf::Result>, Error> {
         match self {
-            Self::Empty
-            | Self::Connect(_)
-            | Self::Helo(_)
-            | Self::MailFrom(_)
-            | Self::RcptTo(_) => Err(Error::BadState),
-            Self::Finished(ContextFinished { finished, .. }) => Ok(finished.spf.as_ref()),
+            Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => Ok(mail_from.spf.as_ref()),
         }
     }
 
@@ -803,13 +803,11 @@ impl Context {
     /// * state if not [`Stage::Finished`]
     pub fn set_spf(&mut self, spf: spf::Result) -> Result<(), Error> {
         match self {
-            Self::Empty
-            | Self::Connect(_)
-            | Self::Helo(_)
-            | Self::MailFrom(_)
-            | Self::RcptTo(_) => Err(Error::BadState),
-            Self::Finished(ContextFinished { finished, .. }) => {
-                finished.spf = Some(spf);
+            Self::Empty | Self::Connect(_) | Self::Helo(_) => Err(Error::BadState),
+            Self::MailFrom(ContextMailFrom { mail_from, .. })
+            | Self::RcptTo(ContextRcptTo { mail_from, .. })
+            | Self::Finished(ContextFinished { mail_from, .. }) => {
+                mail_from.spf = Some(spf);
                 Ok(())
             }
         }
@@ -961,6 +959,8 @@ pub struct MailFromProperties {
     pub mail_timestamp: time::OffsetDateTime,
     ///
     pub message_uuid: uuid::Uuid,
+    ///
+    pub spf: Option<spf::Result>,
 }
 
 /// Properties accessible after the RCPT TO command
@@ -981,9 +981,6 @@ pub struct RcptToProperties {
 pub struct FinishedProperties {
     ///
     pub dkim: Option<dkim::VerificationResult>,
-    ///
-    // FIXME: spf result could be in the MailFromProperties
-    pub spf: Option<spf::Result>,
 }
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]

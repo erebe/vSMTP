@@ -132,13 +132,13 @@ mod tests {
   "reverse_path": "client@testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
+  "spf": null,
   "forward_paths": [
     "recipient@testserver.com"
   ],
   "delivery": {{}},
   "transaction_type": "internal",
-  "dkim": null,
-  "spf": null
+  "dkim": null
 }}
 Message body:
 {{
@@ -220,13 +220,13 @@ Message body:
   "reverse_path": "client@testserver.com",
   "mail_timestamp": "{mail_timestamp}",
   "message_uuid": "{msg_uuid}",
+  "spf": null,
   "forward_paths": [
     "recipient@testserver.com"
   ],
   "delivery": {{}},
   "transaction_type": "internal",
-  "dkim": null,
-  "spf": null
+  "dkim": null
 }}
 Message body:
 {}"#,

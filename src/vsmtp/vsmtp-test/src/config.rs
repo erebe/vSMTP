@@ -124,16 +124,14 @@ pub fn local_ctx() -> ContextFinished {
             mail_timestamp: time::OffsetDateTime::now_utc(),
             message_uuid: uuid::Uuid::new_v4(),
             reverse_path: Some("client@testserver.com".to_string().parse().expect("")),
+            spf: None,
         },
         rcpt_to: RcptToProperties {
             forward_paths: vec!["recipient@testserver.com".to_string().parse().expect("")],
             delivery: std::collections::HashMap::new(),
             transaction_type: TransactionType::Internal,
         },
-        finished: FinishedProperties {
-            dkim: None,
-            spf: None,
-        },
+        finished: FinishedProperties { dkim: None },
     }
 }
 
