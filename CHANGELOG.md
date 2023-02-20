@@ -52,6 +52,8 @@ release. They will however *never* happen in a patch release.
   Before a MX `mta-01.smtp.mydomain.tld` in the dns zone of `mydomain.tld` must had a certificate with the CN being `mydomain.tld`.
   Now `mta-01.smtp.mydomain.tld`, `smtp.mydomain.tld` or `mydomain.tld` will be accepted.
 
+* `action` completely ignores it's return value. (#1024)
+
 ## [2.1.1] - 2023-02-10
 
 ### Modified
