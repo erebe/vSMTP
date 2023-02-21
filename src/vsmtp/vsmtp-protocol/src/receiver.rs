@@ -109,6 +109,7 @@ where
         handshake_timeout: std::time::Duration,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<()>> {
         async_stream::try_stream! {
+            #[allow(clippy::expect_used)]
             let tcp_stream = self
                 .sink
                 .into_inner()
@@ -123,18 +124,19 @@ where
             )
             .await??;
 
-            let tls_config = tls_tcp_stream.get_ref().1.clone();
+            let tls_config = tls_tcp_stream.get_ref().1;
             let sni = tls_config.sni_hostname().map(str::to_string);
 
+            #[allow(clippy::expect_used)]
             let protocol_version = tls_config.protocol_version()
-                .expect("tls handshake completed").clone();
+                .expect("tls handshake completed");
+            #[allow(clippy::expect_used)]
             let negotiated_cipher_suite = tls_config.negotiated_cipher_suite()
-                .expect("tls handshake completed").clone();
+                .expect("tls handshake completed");
             let peer_certificates = tls_config. peer_certificates()
                 .map(<[rustls::Certificate]>::to_vec);
             let alpn_protocol = tls_config.alpn_protocol()
-                .map(<[u8]>::to_vec)
-                .clone();
+                .map(<[u8]>::to_vec);
 
             // FIXME: see https://github.com/tokio-rs/tls/issues/40
             let (read, write) = tokio::io::split(tls_tcp_stream);
@@ -194,7 +196,12 @@ where
 
     /// Handle the inner stream to produce a [`tokio_stream::Stream`], each item
     /// being a successful SMTP transaction.
+    ///
+    /// # Panics
+    ///
+    /// * if the [`ReceiverHandler::on_accept()`] produces a `message` or a `authenticate` outcome (which is invalid)
     #[inline]
+    #[allow(clippy::todo)]
     pub fn into_stream(
         mut self,
         client_addr: std::net::SocketAddr,
@@ -217,7 +224,8 @@ where
             let produced_context_accept = std::mem::take(&mut self.context);
             if let Some(outcome) = produced_context_accept.outcome {
                 match outcome {
-                    HandshakeOutcome::Message | HandshakeOutcome::Authenticate { .. } => todo!(),
+                    HandshakeOutcome::Message | HandshakeOutcome::Authenticate { .. } =>
+                        todo!("implementation of Handler is incorrect"),
                     HandshakeOutcome::UpgradeTLS { config, handshake_timeout } => {
                         for await i in self.upgrade_tls(config, handshake_timeout) {
                             yield i?;
@@ -282,6 +290,7 @@ impl<
 where
     V::Value: Send + Sync,
 {
+    #[allow(clippy::todo)]
     fn into_secured_stream(
         mut self,
         sni: Option<String>,
@@ -321,7 +330,7 @@ where
 
                         yield ();
                     },
-                    HandshakeOutcome::UpgradeTLS { .. } => todo!(),
+                    HandshakeOutcome::UpgradeTLS { .. } => todo!("smtp_handshake should not return UpgradeTLS"),
                     HandshakeOutcome::Authenticate { mechanism, initial_response } => {
                         let auth_result = self.authenticate(mechanism, initial_response).await;
                         // if security layer ...
@@ -417,6 +426,9 @@ where
                             std::io::ErrorKind::InvalidData,
                             e.to_string(),
                         ))
+                    }
+                    Error::ParsingError(e) => {
+                        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
                     }
                 },
             };

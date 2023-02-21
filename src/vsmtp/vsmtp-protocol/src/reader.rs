@@ -55,6 +55,7 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 
     /// Produce a stream of "\r\n" terminated lines.
     #[inline]
+    #[allow(clippy::todo, clippy::missing_panics_doc)]
     pub fn as_line_stream(
         &mut self,
     ) -> impl tokio_stream::Stream<Item = std::io::Result<Vec<u8>>> + '_ {
@@ -101,27 +102,26 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 
                 if line == b".\r\n" {
                     return;
-                } else {
-                    if line.first() == Some(&b'.') {
-                        line = line[1..].to_vec();
-                    }
-
-                    // TODO: handle line length max ?
-
-                    size += line.len();
-                    if size >= size_limit {
-                        yield Err(Error::BufferTooLong { expected: size_limit, got: size });
-                        return;
-                    }
-
-                    yield Ok(line);
                 }
+                if line.first() == Some(&b'.') {
+                    line = line[1..].to_vec();
+                }
+
+                // TODO: handle line length max ?
+                size += line.len();
+                if size >= size_limit {
+                    yield Err(Error::BufferTooLong { expected: size_limit, got: size });
+                    return;
+                }
+
+                yield Ok(line);
             }
         }
     }
 
     /// Produce a stream of ESMTP commands.
     #[inline]
+    #[allow(clippy::expect_used)]
     pub fn as_command_stream(
         &mut self,
     ) -> impl tokio_stream::Stream<Item = Result<Command<Verb, UnparsedArgs>, Error>> + '_ {
@@ -177,7 +177,8 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
 
                 let next_reply = std::str::from_utf8(&next_reply);
                 tracing::trace!("<< {:?}", next_reply);
-                yield <Reply as std::str::FromStr>::from_str(next_reply?).map_err(|_| todo!());
+                yield <Reply as std::str::FromStr>::from_str(next_reply?)
+                    .map_err(|e| Error::ParsingError(e.to_string()));
             }
         }
     }

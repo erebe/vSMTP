@@ -23,8 +23,6 @@ pre-release-replacements = [
   { file = "Cargo.toml", prerelease = true, search = "common\\]\nversion = .*", replace = "common]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "config\\]\nversion = .*", replace = "config]\nversion = \"={{version}}\"" },
   { file = "Cargo.toml", prerelease = true, search = "mail-parser\\]\nversion = .*", replace = "mail-parser]\nversion = \"={{version}}\"" },
-  { file = "Cargo.toml", prerelease = true, search = "protocol\\]\nversion = .*", replace = "protocol]\nversion = \"={{version}}\"" },
-
 ]
 
 [dependencies.vsmtp-common]
@@ -38,10 +36,6 @@ path = "../vsmtp-config"
 [dependencies.vsmtp-mail-parser]
 version = "=2.1.1"
 path = "../vsmtp-mail-parser"
-
-[dependencies.vsmtp-protocol]
-version = "=2.1.1"
-path = "../vsmtp-protocol"
 
 [dependencies]
 async-trait = { version = "0.1.64", default-features = false }

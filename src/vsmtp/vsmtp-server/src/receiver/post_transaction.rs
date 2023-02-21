@@ -80,7 +80,7 @@ impl<M: OnMail + Send> Handler<M> {
             Err(Error::BufferTooLong { expected, got }) => {
                 Err(ParserError::BufferTooLong { expected, got })
             }
-            Err(Error::Utf8(_)) => todo!(),
+            Err(Error::ParsingError(_) | Error::Utf8(_)) => todo!(),
         });
 
         let mail = match BasicParser::default().parse(stream).await {

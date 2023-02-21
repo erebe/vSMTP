@@ -34,4 +34,7 @@ pub enum Error {
     /// Invalid UTF-8.
     #[error("{0}")]
     Utf8(#[from] std::str::Utf8Error),
+    /// Invalid command or reply.
+    #[error("{0}")]
+    ParsingError(String),
 }
