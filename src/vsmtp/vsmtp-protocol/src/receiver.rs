@@ -111,8 +111,8 @@ where
         async_stream::try_stream! {
             let tcp_stream = self
                 .sink
-                .inner
-                .reunite(self.stream.inner)
+                .into_inner()
+                .reunite(self.stream.into_inner())
                 .expect("valid stream/sink pair");
 
             let acceptor = tokio_rustls::TlsAcceptor::from(config);

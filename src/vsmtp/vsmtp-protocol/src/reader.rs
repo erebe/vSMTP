@@ -27,7 +27,7 @@ fn find(bytes: &[u8], search: &[u8]) -> Option<usize> {
 
 /// Stream for reading commands from the client.
 pub struct Reader<R: tokio::io::AsyncRead + Unpin + Send> {
-    pub(super) inner: R,
+    inner: R,
     initial_capacity: usize,
     additional_reserve: usize,
 }
@@ -43,6 +43,14 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
             initial_capacity: 80,
             additional_reserve: 100,
         }
+    }
+
+    /// Consume the instance and return the underlying reader.
+    #[must_use]
+    #[inline]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn into_inner(self) -> R {
+        self.inner
     }
 
     /// Produce a stream of "\r\n" terminated lines.

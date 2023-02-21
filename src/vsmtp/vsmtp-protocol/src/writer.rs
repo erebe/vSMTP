@@ -20,14 +20,30 @@ use vsmtp_common::Reply;
 
 /// Sink for sending reply to the client
 pub struct Writer<W: tokio::io::AsyncWrite + Unpin + Send> {
-    pub(super) inner: W,
+    inner: W,
+}
+
+impl<W: tokio::io::AsyncWrite + Unpin + Send> AsMut<W> for Writer<W> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut W {
+        &mut self.inner
+    }
 }
 
 impl<W: tokio::io::AsyncWrite + Unpin + Send> Writer<W> {
     /// Create a new instance
     #[inline]
+    #[must_use]
     pub const fn new(inner: W) -> Self {
         Self { inner }
+    }
+
+    /// Consume the instance and return the underlying writer.
+    #[inline]
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn into_inner(self) -> W {
+        self.inner
     }
 
     /// Send the buffer to the client.

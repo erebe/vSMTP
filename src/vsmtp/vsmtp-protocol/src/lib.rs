@@ -63,5 +63,6 @@ pub use reader::Reader;
 pub use receiver::{Receiver, ReceiverContext};
 pub use receiver_handler::ReceiverHandler;
 pub use smtp_sasl::{AuthError, CallbackWrap};
+pub use tokio_rustls;
 pub use tokio_rustls::rustls;
 pub use writer::Writer;

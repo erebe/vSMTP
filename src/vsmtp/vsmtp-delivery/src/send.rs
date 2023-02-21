@@ -22,7 +22,6 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_protocol::ConnectionKind;
 extern crate alloc;
 
 ///
@@ -190,9 +189,6 @@ const SUPPORTED_TLS_POLICY: &[TlsPolicy; 4] = &[
 #[allow(clippy::exhaustive_structs)]
 pub struct SenderParameters {
     ///
-    #[serde(default)]
-    pub kind: ConnectionKind,
-    ///
     #[serde(default, alias = "domain")]
     pub host: Target,
     ///
@@ -254,12 +250,12 @@ impl TryFrom<url::Url> for SenderParameters {
         };
 
         let scheme = value.scheme();
-        let (credentials, port, kind) = if scheme == "smtps" {
+        let (credentials, port, mut tls_policy) = if scheme == "smtps" {
             match value.password() {
                 Some(password) => (
                     Some((value.username(), password)),
                     value.port().unwrap_or(SUBMISSIONS_PORT),
-                    ConnectionKind::Tunneled,
+                    TlsPolicy::Tunnel,
                 ),
                 None => return Err(SenderParametersParseError::MissingCredentials),
             }
@@ -269,14 +265,14 @@ impl TryFrom<url::Url> for SenderParameters {
                     (
                         None,
                         value.port().unwrap_or(SMTP_PORT),
-                        ConnectionKind::Relay,
+                        TlsPolicy::default(),
                     )
                 },
                 |password| {
                     (
                         Some((value.username(), password)),
                         value.port().unwrap_or(SUBMISSION_PORT),
-                        ConnectionKind::Submission,
+                        TlsPolicy::default(),
                     )
                 },
             )
@@ -286,15 +282,13 @@ impl TryFrom<url::Url> for SenderParameters {
             });
         };
 
-        let mut tls_policy = if kind == ConnectionKind::Tunneled {
-            TlsPolicy::Tunnel
-        } else {
-            TlsPolicy::default()
-        };
-
         for (k, v) in value.query_pairs() {
             match k {
                 alloc::borrow::Cow::Borrowed("tls") => {
+                    if tls_policy == TlsPolicy::Tunnel {
+                        return Err(SenderParametersParseError::TunnelOverride);
+                    }
+
                     tls_policy = v.parse().map_err(|_err| {
                         SenderParametersParseError::InvalidParameters {
                             got: v.into_owned(),
@@ -316,16 +310,11 @@ impl TryFrom<url::Url> for SenderParameters {
             }
         }
 
-        if kind == ConnectionKind::Tunneled && tls_policy != TlsPolicy::Tunnel {
-            return Err(SenderParametersParseError::TunnelOverride);
-        }
-
         Ok(Self {
             host,
             hello_name: None,
             port,
             credentials: credentials.map(|(user, pass)| (user.to_owned(), pass.to_owned())),
-            kind,
             tls: tls_policy,
         })
     }
@@ -352,7 +341,6 @@ impl From<Target> for SenderParameters {
     fn from(value: Target) -> Self {
         match value {
             Target::Domain(domain) => Self {
-                kind: ConnectionKind::Relay,
                 host: Target::Domain(domain),
                 hello_name: None,
                 port: SMTP_PORT,
@@ -360,7 +348,6 @@ impl From<Target> for SenderParameters {
                 tls: TlsPolicy::default(),
             },
             Target::Ip(ip) => Self {
-                kind: ConnectionKind::Relay,
                 host: Target::Ip(ip),
                 hello_name: None,
                 port: SMTP_PORT,
@@ -368,7 +355,6 @@ impl From<Target> for SenderParameters {
                 tls: TlsPolicy::default(),
             },
             Target::Socket(socket) => Self {
-                kind: ConnectionKind::Relay,
                 host: Target::Ip(socket.ip()),
                 hello_name: None,
                 port: socket.port(),

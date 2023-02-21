@@ -175,7 +175,7 @@ mod tests {
     #[rstest::rstest]
     #[case(
         &serde_json::json!({
-            "v": r#"{"type":"forward","params":{"kind":"relay","host":"localhost","hello_name":null,"port":25,"credentials":null,"tls":"opportunistic"}}"#,
+            "v": r#"{"type":"forward","params":{"host":"localhost","hello_name":null,"port":25,"credentials":null,"tls":"opportunistic"}}"#,
         }).to_string(),
         Forward::new(
             "localhost".parse().expect(""),

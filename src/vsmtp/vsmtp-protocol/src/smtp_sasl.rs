@@ -138,7 +138,7 @@ where
             rsasl::prelude::Mechname::parse(temp.as_bytes()).expect("mechanism is valid");
         let mut session = sasl_server.start_suggested(selected)?;
 
-        let mut adapter = AdapterSMTPandSASL(&mut self.sink.inner);
+        let mut adapter = AdapterSMTPandSASL(self.sink.as_mut());
         let challenge_stream = self.stream.as_line_stream().map(|line| {
             let l = line.map(|buffer| {
                 buffer
