@@ -78,7 +78,7 @@ signal-hook = { version = "0.3.15", default-features = false, features = ["itera
 
 trust-dns-resolver = { version = "0.22.0", default-features = false }
 time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros"] }
-lettre = { version = "0.10.2", default-features = false, features = [
+lettre = { version = "0.10.3", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
