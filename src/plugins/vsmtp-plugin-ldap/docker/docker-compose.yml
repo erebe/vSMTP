@@ -10,7 +10,7 @@ services:
       # updates are on the develop branch.
       context: ../../../../docker
       args:
-        VSMTP_BRANCH: feat/ldap
+        VSMTP_BRANCH: develop
     volumes:
       # certificates generated following https://scriptcrunch.com/create-ca-tls-ssl-certificates-keys/
       - ./certs:/opt/bitnami/openldap/certs
