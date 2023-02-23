@@ -15,7 +15,7 @@ release. They will however *never* happen in a patch release.
 
 ### Added
 
-* `transport::forward` parameters can be passed as url (#1018)
+* `transport::forward` parameters can be passed as url. (#1018)
 
 ```js
 #{
@@ -38,6 +38,64 @@ release. They will however *never* happen in a patch release.
     // is equivalent to
     transport::forward_all("smtp://domain.tld?tls=tunnel");
   }
+}
+```
+
+* A LDAP plugin, enabling you to search and compare attributes in an active directory. (#928)
+
+```js
+import "plugins/libvsmtp_plugin_ldap" as ldap;
+
+// A service used to connect to and query an active directory.
+export const directory = ldap::connect(#{
+  url: "ldap://openldap:1389",
+  connections: 4,
+  timeout: "20s",
+  bind: #{
+    dn: "cn=admin,dc=example,dc=org",
+    pw: "admin",
+  }
+});
+```
+
+```js
+#{
+  mail: [
+    rule "search for user in AD" || {
+      let user = ctx::mail_from().local_part;
+      let address = ctx::mail_from().to_string();
+
+      let search = directory.search(
+          "dc=example,dc=org",
+          // Search the whole tree.
+          "sub",
+          // Match on the user id and address.
+          `(|(uid=${user})(mail=${address}))`,
+          // Get all attributes from the entries.
+          []
+      );
+
+      if search.result == "error" {
+          log("warn", `User could not be found in database: ${search.error}`);
+          return state::deny();
+      }
+
+      log("info", `Entry for ${user} found in AD.`);
+
+      // Log every entry and their attributes.
+      for entry in search.entries {
+          log("info", `dn=${entry.dn}`);
+          log("info", `dn=${entry.attrs}`);
+          for attr in entry.attrs.keys() {
+              for value in entry.attrs.get(attr) {
+                  log("info", `  attr=${attr},value=${value}`);
+              }
+          }
+      }
+
+      state::next()
+    }
+  ]
 }
 ```
 

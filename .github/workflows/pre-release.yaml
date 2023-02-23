@@ -58,6 +58,7 @@ jobs:
           - path: "src/vsmtp/vsmtp-plugin-vsl"
           - path: "src/plugins/vsmtp-plugin-csv"
           - path: "src/plugins/vsmtp-plugin-mysql"
+          - path: "src/plugins/vsmtp-plugin-ldap"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

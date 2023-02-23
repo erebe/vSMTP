@@ -3,7 +3,8 @@ vsmtp (x.y.z) UNRELEASED; urgency=low
   [ Updated by ltabis ]
 
   * Added
-    * `transport::forward` parameters can be passed as url (#1018)
+    * `transport::forward` parameters can be passed as url. (#1018)
+    * LDAP plugin. (#928)
   * Modified
     * Loads `/etc/vsmtp/vsmtp.vsl` by default if the `-c`
       flag is missing. (#1020)
