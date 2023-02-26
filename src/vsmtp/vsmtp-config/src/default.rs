@@ -25,7 +25,7 @@ use crate::{
     },
     Config,
 };
-use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply, ReplyCode};
+use vsmtp_common::{auth::Mechanism, collection, CodeID, Reply};
 
 impl Default for Config {
     fn default() -> Self {
@@ -398,100 +398,35 @@ impl FieldServerSMTP {
     // TODO: should be const and compile time checked
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
         let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
-            CodeID::Greetings => Reply::new(
-                ReplyCode::Code{ code: 220 }, "{name} Service ready\r\n"
-            ),
-            CodeID::Help => Reply::new(
-                ReplyCode::Code{ code: 214 }, "joining us https://viridit.com/support\r\n"
-            ),
-            CodeID::Closing => Reply::new(
-                ReplyCode::Code{ code: 221 }, "Service closing transmission channel\r\n"
-            ),
-            CodeID::Helo => Reply::new(
-                ReplyCode::Code{ code: 250 }, "Ok\r\n"
-            ),
-            // CodeID::EhloPain => Reply::new(
-            //     ReplyCode::Code{ code: 200 }, ""
-            // ),
-            // CodeID::EhloSecured => Reply::new(
-            //     ReplyCode::Code{ code: 200 }, ""
-            // ),
-            CodeID::DataStart => Reply::new(
-                ReplyCode::Code{ code: 354 }, "Start mail input; end with <CRLF>.<CRLF>\r\n"
-            ),
-            CodeID::Ok => Reply::new(
-                ReplyCode::Code{ code: 250 }, "Ok\r\n"
-            ),
-            CodeID::Failure => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Requested action aborted: local error in processing\r\n"
-            ),
-            CodeID::Denied => Reply::new(
-                ReplyCode::Code{ code: 554 }, "permanent problems with the remote server\r\n"
-            ),
-            CodeID::UnrecognizedCommand => Reply::new(
-                ReplyCode::Code{ code: 500 }, "Syntax error command unrecognized\r\n"
-            ),
-            CodeID::SyntaxErrorParams => Reply::new(
-                ReplyCode::Code{ code: 501 }, "Syntax error in parameters or arguments\r\n"
-            ),
-            CodeID::ParameterUnimplemented => Reply::new(
-                ReplyCode::Code{ code: 504 }, "Command parameter not implemented\r\n"
-            ),
-            CodeID::Unimplemented => Reply::new(
-                ReplyCode::Code{ code: 502 }, "Command not implemented\r\n"
-            ),
-            CodeID::BadSequence => Reply::new(
-                ReplyCode::Code{ code: 503 }, "Bad sequence of commands\r\n"
-            ),
-            CodeID::MessageSizeExceeded => Reply::new(
-                ReplyCode::Enhanced { code: 552, enhanced: "4.3.1".to_string() }, "Message size exceeds fixed maximum message size\r\n"
-            ),
-            CodeID::TlsGoAhead => Reply::new(
-                ReplyCode::Code{ code: 220 }, "TLS go ahead\r\n"
-            ),
-            CodeID::TlsNotAvailable => Reply::new(
-                ReplyCode::Code{ code: 454 }, "TLS not available due to temporary reason\r\n"
-            ),
-            CodeID::AlreadyUnderTLS => Reply::new(
-                ReplyCode::Enhanced{ code: 554, enhanced: "5.5.1".to_string() }, "Error: TLS already active\r\n"
-            ),
-            CodeID::AuthSucceeded => Reply::new(
-                ReplyCode::Enhanced{ code: 235, enhanced: "2.7.0".to_string() }, "Authentication succeeded\r\n"
-            ),
-            CodeID::AuthMechNotSupported => Reply::new(
-                ReplyCode::Enhanced{ code: 504, enhanced: "5.5.4".to_string() }, "Mechanism is not supported\r\n"
-            ),
-            CodeID::AuthClientMustNotStart => Reply::new(
-                ReplyCode::Enhanced{ code: 501, enhanced: "5.7.0".to_string() }, "Client must not start with this mechanism\r\n"
-            ),
-            CodeID::AuthMechanismMustBeEncrypted => Reply::new(
-                ReplyCode::Enhanced{ code: 538, enhanced: "5.7.11".to_string() },
-                    "Encryption required for requested authentication mechanism\r\n"
-            ),
-            CodeID::AuthInvalidCredentials => Reply::new(
-                ReplyCode::Enhanced{ code: 535, enhanced: "5.7.8".to_string() }, "Authentication credentials invalid\r\n"
-            ),
-            CodeID::AuthClientCanceled => Reply::new(
-                ReplyCode::Code{ code: 501 }, "Authentication canceled by client\r\n"
-            ),
-            CodeID::AuthErrorDecode64 => Reply::new(
-                ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64\r\n"
-            ),
-            CodeID::AuthTempError => Reply::new(
-                ReplyCode::Enhanced{ code: 454, enhanced: "4.7.0".to_string() }, "Temporary authentication failure\r\n"
-            ),
-            CodeID::ConnectionMaxReached => Reply::new(
-                ReplyCode::Code{ code: 554 }, "Cannot process connection, closing\r\n"
-            ),
-            CodeID::TooManyError => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Too many errors from the client\r\n"
-            ),
-            CodeID::Timeout => Reply::new(
-                ReplyCode::Code{ code: 451 }, "Timeout - closing connection\r\n"
-            ),
-            CodeID::TooManyRecipients => Reply::new(
-                ReplyCode::Code{ code: 452 }, "Requested action not taken: too many recipients\r\n"
-            ),
+            CodeID::Greetings => "220 {name} Service ready\r\n".parse::<Reply>().unwrap(),
+            CodeID::Help => "214 joining us https://viridit.com/support\r\n".parse::<Reply>().unwrap(),
+            CodeID::Closing => "221 Service closing transmission channel\r\n".parse::<Reply>().unwrap(),
+            CodeID::Helo => "250 Ok\r\n".parse::<Reply>().unwrap(),
+            CodeID::DataStart => "354 Start mail input; end with <CRLF>.<CRLF>\r\n".parse::<Reply>().unwrap(),
+            CodeID::Ok => "250 Ok\r\n".parse::<Reply>().unwrap(),
+            CodeID::Failure => "451 Requested action aborted: local error in processing\r\n".parse::<Reply>().unwrap(),
+            CodeID::Denied => "554 permanent problems with the remote server\r\n".parse::<Reply>().unwrap(),
+            CodeID::UnrecognizedCommand => "500 Syntax error command unrecognized\r\n".parse::<Reply>().unwrap(),
+            CodeID::SyntaxErrorParams => "501 Syntax error in parameters or arguments\r\n".parse::<Reply>().unwrap(),
+            CodeID::ParameterUnimplemented => "504 Command parameter not implemented\r\n".parse::<Reply>().unwrap(),
+            CodeID::Unimplemented => "502 Command not implemented\r\n".parse::<Reply>().unwrap(),
+            CodeID::BadSequence => "503 Bad sequence of commands\r\n".parse::<Reply>().unwrap(),
+            CodeID::MessageSizeExceeded => "552 4.3.1 Message size exceeds fixed maximum message size\r\n".parse::<Reply>().unwrap(),
+            CodeID::TlsGoAhead => "220 TLS go ahead\r\n".parse::<Reply>().unwrap(),
+            CodeID::TlsNotAvailable => "454 TLS not available due to temporary reason\r\n".parse::<Reply>().unwrap(),
+            CodeID::AlreadyUnderTLS => "554 5.5.1 Error: TLS already active\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthMechNotSupported => "504 5.5.4 Mechanism is not supported\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthClientMustNotStart => "501 5.7.0 Client must not start with this mechanism\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthMechanismMustBeEncrypted => "538 5.7.11 Encryption required for requested authentication mechanism\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthClientCanceled => "501 Authentication canceled by client\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64\r\n".parse::<Reply>().unwrap(),
+            CodeID::AuthTempError => "454 4.7.0 Temporary authentication failure\r\n".parse::<Reply>().unwrap(),
+            CodeID::ConnectionMaxReached => "554 Cannot process connection, closing\r\n".parse::<Reply>().unwrap(),
+            CodeID::TooManyError => "451 Too many errors from the client\r\n".parse::<Reply>().unwrap(),
+            CodeID::Timeout => "451 Timeout - closing connection\r\n".parse::<Reply>().unwrap(),
+            CodeID::TooManyRecipients => "452 Requested action not taken: too many recipients\r\n".parse::<Reply>().unwrap(),
         };
 
         assert!(

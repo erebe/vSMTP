@@ -99,7 +99,17 @@ run_test! {
 
                         assert_eq!(mail.helo.client_name.to_string(), "foo");
                         assert_eq!(mail.mail_from.reverse_path, Some(addr!("john.doe@example.com")));
-                        assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("green@example.com").into(), addr!("grey@example.com").into()]);
+                        assert!(
+                            mail.rcpt_to.delivery
+                                .values()
+                                .flatten()
+                                .map(|(addr, _)| addr)
+                                .cloned()
+                                .eq([
+                                    addr!("green@example.com"),
+                                    addr!("grey@example.com")
+                                ])
+                        );
 
                         assert!(body.get_header("X-Connect").is_some());
                         assert_eq!(
@@ -120,7 +130,7 @@ run_test! {
                     TransactionType::Outgoing { domain } => {
                         println!("Outgoing");
 
-                        assert_eq!(domain.as_str(), "example.com");
+                        assert_eq!(domain, "example.com".parse().unwrap());
                         assert_eq!(mail.rcpt_to.forward_paths.len(), 0);
                     },
                     TransactionType::Incoming(_) => panic!("The email should be internal & outgoing"),

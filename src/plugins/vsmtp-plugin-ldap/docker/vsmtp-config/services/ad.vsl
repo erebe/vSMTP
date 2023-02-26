@@ -1,0 +1,29 @@
+import "plugins/libvsmtp_plugin_ldap" as ldap;
+
+// A service used to connect to and query an AD.
+export const directory = ldap::connect(#{
+    url: "ldap://openldap:1389",
+    connections: 4,
+    timeout: "20s",
+    bind: #{
+        dn: "cn=admin,dc=example,dc=org",
+        pw: "admin",
+    }
+});
+
+// TODO: test tls using the following service.
+
+// // The same service as `directory` using tls.
+// export const directory_tls = ldap::connect(#{
+//     url: "ldaps://openldap:1636",
+//     connections: 4,
+//     timeout: "20s",
+//     bind: #{
+//         dn: "cn=admin,dc=example,dc=org",
+//         pw: "admin",
+//     },
+//     tls: #{
+//         starttls: true,
+//         cafile: "/opt/bitnami/openldap/certs/openldapCA.pem",
+//     },
+// });

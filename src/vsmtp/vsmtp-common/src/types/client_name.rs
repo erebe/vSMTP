@@ -15,15 +15,16 @@
  *
 */
 
+use crate::Domain;
+
 /// Identity of the client.
 #[derive(
     Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
 )]
 #[serde(untagged)]
 pub enum ClientName {
-    // TODO: wrap in a type domain & ensure fqdn
     /// FQDN of the client.
-    Domain(String),
+    Domain(Domain),
     /// IP address of the client.
     Ip4(std::net::Ipv4Addr),
     /// IP address of the client.

@@ -17,7 +17,7 @@
                 return state::deny(code::c451_7_1());
             } catch (err) {
                 // No record were found, the email is probably not a spam.
-                log("debug", `Seems ${helo} was not not found in dnsbl. (eventual error: ${err})`);
+                log("debug", `Seems ${helo} was not not found in dnsbl. (error: ${err})`);
                 return state::next();
             }
         }

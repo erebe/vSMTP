@@ -53,7 +53,7 @@ run_test! {
       let mut config = with_tls();
       config.app.vsl.domain_dir = Some("./src/template/sni".into());
       config.server.r#virtual.insert(
-          "testserver.com".to_string(),
+          "testserver.com".parse().unwrap(),
           FieldServerVirtual {
               is_default: false,
               tls: Some(
@@ -103,7 +103,7 @@ async fn domain_not_defined() {
         let mut config = with_tls();
         config.app.vsl.domain_dir = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
-            "testserver.com".to_string(),
+            "testserver.com".parse().unwrap(),
             FieldServerVirtual {
                 is_default: false,
                 tls: Some(
@@ -140,7 +140,7 @@ async fn domain_not_defined_with_default() {
         let mut config = with_tls();
         config.app.vsl.domain_dir = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
-            "testserver.com".to_string(),
+            "testserver.com".parse().unwrap(),
             FieldServerVirtual {
                 is_default: true,
                 tls: Some(
@@ -187,7 +187,7 @@ run_test! {
       let mut config = with_tls();
       config.app.vsl.domain_dir = Some("./src/template/sni".into());
       config.server.r#virtual.insert(
-          "testserver.com".to_string(),
+          "testserver.com".parse().unwrap(),
           FieldServerVirtual {
               is_default: false,
               tls: Some(

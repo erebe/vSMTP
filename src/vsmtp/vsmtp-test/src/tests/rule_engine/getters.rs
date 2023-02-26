@@ -67,27 +67,29 @@ run_test! {
                 );
 
                 if matches!(&ctx.rcpt_to.transaction_type,
-                        vsmtp_common::TransactionType::Outgoing { domain }
-                            if domain == "example.com") {
-                    assert_eq!(
-                        vec![
+                    vsmtp_common::TransactionType::Outgoing { domain }
+                        if *domain == "example.com".parse::<vsmtp_common::Domain>().unwrap()) {
+                    assert!(ctx.rcpt_to.delivery
+                        .values()
+                        .flatten()
+                        .map(|(addr, _)| addr)
+                        .cloned()
+                        .eq([
                             addr!("add4@example.com"),
                             addr!("replace4@example.com"),
-                        ],
-                        *ctx.rcpt_to.forward_paths.iter()
-                            .map(|i| i.address.clone())
-                            .collect::<Vec<_>>()
+                        ])
                     );
                 } else {
-                    assert_eq!(
-                        vec![
+                    assert!(ctx.rcpt_to.delivery
+                        .values()
+                        .flatten()
+                        .map(|(addr, _)| addr)
+                        .cloned()
+                        .eq([
                             addr!("test@example.com"),
                             addr!("add4@example.com"),
                             addr!("replace4@example.com"),
-                        ],
-                        *ctx.rcpt_to.forward_paths.iter()
-                            .map(|i| i.address.clone())
-                            .collect::<Vec<_>>()
+                        ])
                     );
                 }
 
@@ -101,7 +103,7 @@ run_test! {
         Ok(
             builder
                 .add_root_filter_rules(include_str!("getters.vsl"))?
-                    .add_domain_rules("example.com")
+                    .add_domain_rules("example.com".parse().unwrap())
                         .with_incoming(include_str!("getters.vsl"))?
                         .with_outgoing(include_str!("getters.vsl"))?
                         .with_internal(include_str!("getters.vsl"))?

@@ -38,6 +38,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                 let queue_manager =
                     <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(
                         config.clone(),
+                        vec![],
                     )
                     .unwrap();
 
@@ -54,7 +55,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                     delivery_channel.0.clone(),
                 )
                 .unwrap()
-                .listen_and_serve((
+                .listen((
                     [format!("127.0.0.1:{port}")]
                         .iter()
                         .map(socket_bind_anyhow)

@@ -48,7 +48,7 @@ run_test! {
         "mail from: <any@example.com>\r\n",
     ],
     expected = [
-        "0 welcome to the test\r\n",
+        "100 welcome to the test\r\n",
         "250 Ok\r\n",
         "554 permanent problems with the remote server\r\n",
     ],

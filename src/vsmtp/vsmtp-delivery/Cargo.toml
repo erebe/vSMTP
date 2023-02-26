@@ -40,13 +40,22 @@ path = "../vsmtp-mail-parser"
 [dependencies]
 async-trait = { version = "0.1.64", default-features = false }
 anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
+erased-serde = { version = "0.3.24", default-features = false, features = ["std"] }
+serde = { version = "1.0.144", default-features = false, features = ["std", "derive"] }
+serde_json = { version = "1.0.91", default-features = false, features = ["std"] }
 
 tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 
 futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
-time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros"] }
+time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
+url = { version = "2.3.1", default-features = false }
+
+thiserror = { version = "1.0.38", default-features = false }
+strum = { version = "0.24.1", features = ["derive"] }
+serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }
+
 
 users = { version = "0.11.0", default-features = false }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
@@ -54,12 +63,11 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "dnssec-ring",
   "tokio-runtime",
 ] }
-lettre = { version = "0.10.2", default-features = false, features = [
+lettre = { version = "0.10.3", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
   "tracing",
-  "pool",
 ] }
 rustls = { version = "0.20.8", default-features = false, features = ["tls12", "logging"] }
 pem = { version = "1.1.1", default-features = false }

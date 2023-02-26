@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    receiver::ReceiverContext, smtp_sasl::CallbackWrap, stream::Error, AcceptArgs, AuthArgs,
-    AuthError, EhloArgs, HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
+    receiver::ReceiverContext, smtp_sasl::CallbackWrap, AcceptArgs, AuthArgs, AuthError, EhloArgs,
+    Error, HeloArgs, MailFromArgs, ParseArgsError, RcptToArgs, UnparsedArgs, Verb,
 };
 use tokio_rustls::rustls;
 // TODO: should we move these type in this crate

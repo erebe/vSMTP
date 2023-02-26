@@ -17,6 +17,7 @@
 
 use crate::{transfer::SmtpConnection, ReplyOrCodeID};
 
+// NOTE: only in this crate and not the rule-engine one because of the [`Context::skipped`] field.
 /// Status of the mail context treated by the rule engine.
 #[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]

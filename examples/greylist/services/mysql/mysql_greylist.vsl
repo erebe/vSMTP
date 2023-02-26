@@ -1,6 +1,7 @@
 // Here is an example of a mysql database service setup.
+import "plugins/libvsmtp_plugin_mysql" as mysql;
 
-export const mysql_greylist = mysql(#{
+export const mysql_greylist = mysql::connect(#{
     // the url to connect to your database.
     url: "mysql://localhost/?user=greylist-manager&password=your-password",
     // the number of connections to open on your database. (optional, 4 by default)

@@ -3,12 +3,13 @@ use crate::{
     Config,
 };
 use trust_dns_resolver::{config::ResolverConfig, error::ResolveError, TokioAsyncResolver};
+use vsmtp_common::Domain;
 
 ///
 #[derive(Debug)]
 pub struct DnsResolvers {
-    root: TokioAsyncResolver,
-    inner: std::collections::HashMap<String, TokioAsyncResolver>,
+    root: std::sync::Arc<TokioAsyncResolver>,
+    inner: std::collections::HashMap<Domain, std::sync::Arc<TokioAsyncResolver>>,
 }
 
 impl DnsResolvers {
@@ -19,13 +20,15 @@ impl DnsResolvers {
     /// * could not initialize the DNS resolver for the root domain or any of the subdomains
     pub fn from_config(config: &Config) -> Result<Self, ResolveError> {
         Ok(Self {
-            root: Self::build_dns_from_config(&config.server.dns)?,
+            root: Self::build_dns_from_config(&config.server.dns).map(std::sync::Arc::new)?,
             inner: config
                 .server
                 .r#virtual
                 .iter()
                 .filter_map(|(domain, c)| c.dns.as_ref().map(|c| (domain, c)))
-                .map(|(domain, c)| Self::build_dns_from_config(c).map(|c| (domain.clone(), c)))
+                .map(|(domain, c)| {
+                    Self::build_dns_from_config(c).map(|c| (domain.clone(), std::sync::Arc::new(c)))
+                })
                 .collect::<Result<std::collections::HashMap<_, _>, ResolveError>>()?,
         })
     }
@@ -37,28 +40,29 @@ impl DnsResolvers {
     /// * could not initialize the DNS resolver
     pub fn from_system_conf() -> Result<Self, ResolveError> {
         Ok(Self {
-            root: TokioAsyncResolver::tokio_from_system_conf()?,
+            root: std::sync::Arc::new(TokioAsyncResolver::tokio_from_system_conf()?),
             inner: std::collections::HashMap::new(),
         })
     }
 
     ///
     #[must_use]
-    pub fn get_resolver(&self, domain: &str) -> Option<&TokioAsyncResolver> {
-        self.inner.get(domain)
+    pub fn get_resolver(&self, domain: &Domain) -> Option<std::sync::Arc<TokioAsyncResolver>> {
+        self.inner.get(domain).cloned()
     }
 
     ///
     #[must_use]
-    pub const fn get_resolver_root(&self) -> &TokioAsyncResolver {
-        &self.root
+    pub fn get_resolver_root(&self) -> std::sync::Arc<TokioAsyncResolver> {
+        self.root.clone()
     }
 
     ///
     #[must_use]
-    pub fn get_resolver_or_root(&self, domain: &str) -> &TokioAsyncResolver {
+    pub fn get_resolver_or_root(&self, domain: &Domain) -> std::sync::Arc<TokioAsyncResolver> {
         self.inner
             .get(domain)
+            .cloned()
             .unwrap_or_else(|| self.get_resolver_root())
     }
 

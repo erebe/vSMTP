@@ -9,10 +9,4 @@ All fields are optional, and defaults are used if missing.
 
 Check out the [minimal] config to get started and use `vsmtp config-show` to see the default values.
 
-* [simple](./simple.toml)
-* [tls](./tls.toml)
-* [logging](./logging.toml)
-* [secured](./secured.toml)
-* [antivirus](./antivirus.toml)
-
 [minimal]: ./minimal.toml

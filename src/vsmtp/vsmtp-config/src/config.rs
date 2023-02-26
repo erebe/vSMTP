@@ -48,6 +48,7 @@ pub struct Config {
 pub mod field {
     use super::{CodeID, Mechanism, Reply};
     use vsmtp_auth::dkim;
+    use vsmtp_common::Domain;
 
     /// This structure contains all the field to configure the server at the startup.
     #[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -91,7 +92,7 @@ pub mod field {
         pub dns: FieldServerDNS,
         /// see [`FieldServerVirtual`]
         #[serde(default)]
-        pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
+        pub r#virtual: std::collections::BTreeMap<Domain, FieldServerVirtual>,
     }
 
     /// Readonly configuration for the dkim module.

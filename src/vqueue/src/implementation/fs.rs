@@ -16,6 +16,7 @@
  */
 use crate::{FilesystemQueueManagerExt, QueueID};
 use anyhow::Context;
+use vsmtp_common::transport::DeserializerFn;
 use vsmtp_config::Config;
 
 extern crate alloc;
@@ -24,6 +25,7 @@ extern crate alloc;
 // TODO: handle canonicalization of path (& chown)
 pub struct QueueManager {
     config: alloc::sync::Arc<Config>,
+    transport_deserializer: Vec<DeserializerFn>,
 }
 
 impl core::fmt::Debug for QueueManager {
@@ -37,7 +39,10 @@ impl core::fmt::Debug for QueueManager {
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
     #[inline]
-    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>> {
+    fn init(
+        config: alloc::sync::Arc<Config>,
+        transport_deserializer: Vec<DeserializerFn>,
+    ) -> anyhow::Result<alloc::sync::Arc<Self>> {
         <QueueID as strum::IntoEnumIterator>::iter()
             .map(|q| {
                 let dir = Self::get_root_folder(&config, &q).join(q.to_string());
@@ -47,12 +52,20 @@ impl FilesystemQueueManagerExt for QueueManager {
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        Ok(alloc::sync::Arc::new(Self { config }))
+        Ok(alloc::sync::Arc::new(Self {
+            config,
+            transport_deserializer,
+        }))
     }
 
     #[inline]
     fn get_config(&self) -> &Config {
         &self.config
+    }
+
+    #[inline]
+    fn get_transport_deserializer(&self) -> &[DeserializerFn] {
+        &self.transport_deserializer
     }
 }
 
@@ -67,9 +80,10 @@ mod tests {
             "QueueManager { .. }",
             format!(
                 "{:?}",
-                <super::QueueManager as crate::GenericQueueManager>::init(alloc::sync::Arc::new(
-                    local_test()
-                ))
+                <super::QueueManager as crate::GenericQueueManager>::init(
+                    alloc::sync::Arc::new(local_test()),
+                    vec![]
+                )
                 .unwrap()
             )
         );

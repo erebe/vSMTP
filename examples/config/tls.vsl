@@ -1,6 +1,4 @@
 fn on_config(config) {
-
-
     config.server.name = "testserver.com";
 
     config.server.tls = #{
@@ -9,6 +7,9 @@ fn on_config(config) {
         protocol_version: ["TLSv1.3"],
     };
 
+    // Configuring domain like the following is not recommended,
+    // see the domain specific configuration in the book:
+    // https://vsmtp.rs/get-started/config-file-struct/filtering.html#domain-specific-configuration
     config.server.virtual["testserver1.com"] = #{};
 
     config.server.virtual["testserver2.com"] = #{ dns: #{ type: "system" } };

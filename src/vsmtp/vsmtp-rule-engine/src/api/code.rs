@@ -44,9 +44,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 554, enhanced: "5.7.1".to_string() }, "Relay access denied".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "554 5.7.1 Relay access denied\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c554_7_1")]
@@ -70,9 +72,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.20".to_string() }, "No passing DKIM signature found".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.7.20 No passing DKIM signature found\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_20")]
@@ -96,9 +100,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.21".to_string() }, "No acceptable DKIM signature found".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #    "550 5.7.21 No acceptable DKIM signature found\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_21")]
@@ -122,9 +128,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.22".to_string() }, "No valid author-matched DKIM signature found".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #    "550 5.7.22 No valid author-matched DKIM signature found\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_22")]
@@ -153,9 +161,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.23".to_string() }, "SPF validation failed".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.7.23 SPF validation failed\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_23")]
@@ -179,9 +189,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.24".to_string() }, "SPF validation error".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.7.24 SPF validation error\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_24")]
@@ -204,9 +216,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.25".to_string() }, "Reverse DNS validation failed".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.7.25 Reverse DNS validation failed\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_25")]
@@ -229,9 +243,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 500, enhanced: "5.7.26".to_string() }, "Multiple authentication checks failed".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "500 5.7.26 Multiple authentication checks failed\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c500_7_26")]
@@ -255,10 +271,12 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.7.27".to_string() }, "Sender address has null MX".to_string(),
-    /// # ))));
-    /// ```    
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.7.27 Sender address has null MX\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
+    /// ```
     #[must_use]
     #[rhai_fn(name = "c550_7_27")]
     pub fn c550_7_27() -> SharedObject {
@@ -283,9 +301,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 556, enhanced: "5.1.10".to_string() }, "Recipient address has null MX".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "556 5.1.10 Recipient address has null MX\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c556_1_10")]
@@ -308,9 +328,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 451, enhanced: "4.7.1".to_string() }, "Sender is not authorized. Please try again.".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "451 4.7.1 Sender is not authorized. Please try again.\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c451_7_1")]
@@ -336,9 +358,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 451, enhanced: "4.3.0".to_string() }, "Multiple destination domains per transaction is unsupported. Please try again.".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "451 4.3.0 Multiple destination domains per transaction is unsupported. Please try again.\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c451_3_0")]
@@ -368,9 +392,11 @@ mod code {
     /// }
     /// # "#)?.build()));
     /// # use vsmtp_common::{status::Status, CodeID, Reply, ReplyCode::Enhanced};
-    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2, Status::Deny(either::Right(Reply::new(
-    /// #  Enhanced { code: 550, enhanced: "5.1.1".to_string() }, "The email account that you tried to reach does not exist. Please try again.".to_string(),
-    /// # ))));
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::MailFrom].2,
+    /// #   Status::Deny(either::Right(
+    /// #     "550 5.1.1 The email account that you tried to reach does not exist. Please try again.\r\n".parse().unwrap(),
+    /// #   ))
+    /// # );
     /// ```
     #[must_use]
     #[rhai_fn(name = "c550_1_1")]
@@ -392,52 +418,52 @@ mod tests {
     fn codes() {
         assert_eq!(
             code::c554_7_1().to_string(),
-            "554 5.7.1 Relay access denied".to_string()
+            "554 5.7.1 Relay access denied\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_20().to_string(),
-            "550 5.7.20 No passing DKIM signature found".to_string()
+            "550 5.7.20 No passing DKIM signature found\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_21().to_string(),
-            "550 5.7.21 No acceptable DKIM signature found".to_string()
+            "550 5.7.21 No acceptable DKIM signature found\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_22().to_string(),
-            "550 5.7.22 No valid author-matched DKIM signature found".to_string()
+            "550 5.7.22 No valid author-matched DKIM signature found\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_23().to_string(),
-            "550 5.7.23 SPF validation failed".to_string()
+            "550 5.7.23 SPF validation failed\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_24().to_string(),
-            "550 5.7.24 SPF validation error".to_string()
+            "550 5.7.24 SPF validation error\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_25().to_string(),
-            "550 5.7.25 Reverse DNS validation failed".to_string()
+            "550 5.7.25 Reverse DNS validation failed\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_26().to_string(),
-            "500 5.7.26 Multiple authentication checks failed".to_string()
+            "500 5.7.26 Multiple authentication checks failed\r\n".to_string()
         );
         assert_eq!(
             code::c550_7_27().to_string(),
-            "550 5.7.27 Sender address has null MX".to_string()
+            "550 5.7.27 Sender address has null MX\r\n".to_string()
         );
         assert_eq!(
             code::c556_1_10().to_string(),
-            "556 5.1.10 Recipient address has null MX".to_string()
+            "556 5.1.10 Recipient address has null MX\r\n".to_string()
         );
         assert_eq!(
             code::greylist().to_string(),
-            "451 4.7.1 Sender is not authorized. Please try again.".to_string()
+            "451 4.7.1 Sender is not authorized. Please try again.\r\n".to_string()
         );
-        assert_eq!(code::multi_destination().to_string(), "451 4.3.0 Multiple destination domains per transaction is unsupported. Please try again.".to_string());
+        assert_eq!(code::multi_destination().to_string(), "451 4.3.0 Multiple destination domains per transaction is unsupported. Please try again.\r\n".to_string());
         assert_eq!(
             code::unknown_account().to_string(),
-            "550 5.1.1 The email account that you tried to reach does not exist. Please try again."
+            "550 5.1.1 The email account that you tried to reach does not exist. Please try again.\r\n"
                 .to_string()
         );
     }

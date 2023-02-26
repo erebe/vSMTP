@@ -68,16 +68,19 @@ run_test! {
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                let fp = ctx.rcpt_to.forward_paths;
+                let fp = ctx.rcpt_to.delivery;
 
                 assert_eq!(fp.len(), 2);
-                assert_eq!(ctx.rcpt_to.transaction_type, TransactionType::Incoming(Some("mydomain.com".to_owned())));
+                assert_eq!(ctx.rcpt_to.transaction_type, TransactionType::Incoming(Some("mydomain.com".parse().unwrap())));
+                assert!(fp.values().flatten().map(|(addr, _)| addr).cloned().eq([
+                    addr!("oliver@mydomain.com"),
+                    addr!("john.doe@mydomain.com")
+                ]));
 
-                assert_eq!(fp[0].address, addr!("oliver@mydomain.com"));
 
                 // FIXME: logical error: adding a recipient with `add_rcpt_envelop` should take
                 //        the `transaction_type` field into account, which it does not do for now.
-                assert_eq!(fp[1].address, addr!("john.doe@mydomain.com"));
+
                 // assert_eq!(fp[1].transaction_type, TransactionType::Incoming(Some("mydomain.com".to_owned())));
 
                 CodeID::Ok

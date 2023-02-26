@@ -1,5 +1,3 @@
 fn on_config(config) {
-
-
     config
 }

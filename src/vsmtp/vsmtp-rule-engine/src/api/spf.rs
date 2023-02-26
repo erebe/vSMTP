@@ -23,7 +23,7 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_auth::viaspf;
-use vsmtp_common::ClientName;
+use vsmtp_common::{ClientName, Stage};
 
 const AUTH_HEADER: &str = "Authentication-Results";
 const SPF_HEADER: &str = "Received-SPF";
@@ -47,17 +47,21 @@ mod spf {
     /// * `policy` - "strict" | "soft"
     ///
     /// # Return
+    ///
     /// * `deny(code550_7_23 | code550_7_24)` - an error occurred during lookup. (returned even when a softfail is received using the "strict" policy)
     /// * `next()` - the operation succeeded.
     ///
     /// # Effective smtp stage
-    /// `rcpt` and onwards.
+    ///
+    /// `mail` and onwards.
     ///
     /// # Errors
+    ///
     /// * The `header` argument is not valid.
     /// * The `policy` argument is not valid.
     ///
     /// # Note
+    ///
     /// `spf::check` only checks for the sender's identity, not the `helo` value.
     ///
     /// # Example
@@ -86,7 +90,6 @@ mod spf {
     ///     ],
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check", return_raw)]
     pub fn check(ncc: NativeCallContext, header: &str, policy: &str) -> EngineResult<Status> {
         let ctx = get_global!(ncc, ctx)?;
@@ -199,7 +202,7 @@ mod spf {
     ///
     /// # Effective smtp stage
     ///
-    /// `rcpt` and onwards.
+    /// `mail` and onwards.
     ///
     /// # Errors
     ///
@@ -236,7 +239,6 @@ mod spf {
     ///     ],
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check", return_raw)]
     pub fn check_with_header(ncc: NativeCallContext, header: &str) -> EngineResult<Status> {
         check(ncc, header, "strict")
@@ -252,7 +254,7 @@ mod spf {
     ///
     /// # Effective smtp stage
     ///
-    /// `rcpt` and onwards.
+    /// `mail` and onwards.
     ///
     /// # Note
     ///
@@ -271,7 +273,6 @@ mod spf {
     ///     ]
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check_raw", return_raw)]
     pub fn check_raw(ncc: NativeCallContext) -> EngineResult<rhai::Map> {
         let ctx = get_global!(ncc, ctx)?;
@@ -282,25 +283,25 @@ mod spf {
 }
 
 /// Inner spf check implementation.
+///
 /// # Result
+/// * SPF records result.
+///
 /// # Errors
-/// # Panics
+/// * Pre mail from stage.
+/// * Invalid identity.
 pub fn check(ctx: &Context, srv: &Server) -> EngineResult<vsmtp_auth::spf::Result> {
     let (spf_sender, ip) = {
         let ctx = vsl_guard_ok!(ctx.read());
-        let mail_from = ctx
-            .reverse_path()
-            .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
+        let mail_from = vsl_stage_ok!(ctx.reverse_path(), "spf::check", Stage::MailFrom);
 
         let spf_sender = match mail_from {
             Some(mail_from) => vsl_generic_ok!(viaspf::Sender::from_address(mail_from.full())),
             None => {
-                let client_name = ctx
-                    .client_name()
-                    .map_err::<Box<rhai::EvalAltResult>, _>(|_| "bad state".into())?;
+                let client_name = vsl_stage_ok!(ctx.client_name(), "spf::check", Stage::MailFrom);
                 match client_name {
                     ClientName::Domain(domain) => {
-                        vsl_generic_ok!(viaspf::Sender::from_domain(domain))
+                        vsl_generic_ok!(viaspf::Sender::from_domain(&domain.to_string()))
                     }
                     // See https://www.rfc-editor.org/rfc/rfc7208#section-2.3
                     ClientName::Ip4(_) | ClientName::Ip6(_) => {
@@ -320,11 +321,13 @@ pub fn check(ctx: &Context, srv: &Server) -> EngineResult<vsmtp_auth::spf::Resul
 
     let resolver = srv.resolvers.get_resolver_root();
 
-    let spf_result = block_on!(vsmtp_auth::spf::evaluate(resolver, ip, &spf_sender));
+    let spf_result = block_on!(vsmtp_auth::spf::evaluate(&resolver, ip, &spf_sender));
 
-    vsl_guard_ok!(ctx.write())
-        .set_spf(spf_result.clone())
-        .unwrap();
+    vsl_stage_ok!(
+        vsl_guard_ok!(ctx.write()).set_spf(spf_result.clone()),
+        "spf::check",
+        Stage::MailFrom
+    );
 
     Ok(spf_result)
 }

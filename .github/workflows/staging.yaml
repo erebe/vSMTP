@@ -44,7 +44,7 @@ jobs:
           cargo +nightly fuzz run client \
             -- -dict="./fuzz/dict/command.dict" -max_total_time=1200
           pkill vsmtp
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v3
         if: failure() && steps.check.outcome == 'success'
         with:
           name: artifacts

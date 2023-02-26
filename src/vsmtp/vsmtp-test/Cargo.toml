@@ -15,22 +15,22 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common" }
+vsmtp-common = { path = "../vsmtp-common", features = ["testing"] }
 vsmtp-config = { path = "../vsmtp-config" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", features = ["builder"] }
 vsmtp-server = { path = "../vsmtp-server" }
 vqueue = { path = "../../vqueue", features = ["testing"] }
 vsmtp-protocol = { path = "../vsmtp-protocol" }
 
 async-trait = "0.1.64"
-lettre = { version = "0.10.2", default-features = false, features = [
+lettre = { version = "0.10.3", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
   "tracing",
 ] }
-time = { version = "0.3.17", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
+time = { version = "0.3.19", default-features = false, features = ["std", "formatting", "macros", "serde-well-known"] }
 trust-dns-resolver = { version = "0.22.0", default-features = false, features = [
   "system-config",
   "serde-config",
@@ -61,7 +61,7 @@ rsasl = { version = "=2.0.0", default-features = false, features = [
 ] }
 anyhow = "1.0.69"
 
-serde_json = "1.0.93"
+serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 
 tokio = { version = "1.25.0", default-features = false, features = [
   "macros",
@@ -71,7 +71,7 @@ tokio = { version = "1.25.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-tokio-stream = { version = "0.1.11", default-features = false, features = ["time"] }
+tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
 
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
 
@@ -79,7 +79,6 @@ tracing = { version = "0.1.37", default-features = false }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["env-filter", "fmt"] }
 
 uuid = { version = "1.3.0", default-features = false, features = ["std", "v4", "fast-rng"] }
-
 
 [dev-dependencies]
 function_name = "0.3.0"

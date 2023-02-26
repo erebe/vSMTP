@@ -14,6 +14,7 @@
     "authpass",
     "autodocs",
     "BITMIME",
+    "cafile",
     "canonicalization",
     "canonicalize",
     "capath",
@@ -112,7 +113,9 @@
     "SMTPS",
     "SMTPUTF",
     "softfail",
+    "spki",
     "splitn",
+    "starttls",
     "STARTTLS",
     "tempdir",
     "temperror",
@@ -192,5 +195,5 @@
     "RUSTUP_TOOLCHAIN": "stable"
   },
   "editor.wordWrapColumn": 120,
-  "evenBetterToml.formatter.columnWidth": 120,
+  "evenBetterToml.formatter.columnWidth": 120
 }

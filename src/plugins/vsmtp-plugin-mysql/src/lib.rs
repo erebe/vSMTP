@@ -38,6 +38,7 @@
 mod api;
 
 use rhai::{config::hashing::set_ahash_seed, exported_module, Module, Shared};
+use vsmtp_rule_engine::rhai;
 
 /// Entry point of the `vSMTP` plugin
 ///

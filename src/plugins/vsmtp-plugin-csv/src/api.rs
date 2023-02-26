@@ -124,7 +124,6 @@ pub mod csv_api {
     }
 
     /// Remove a record.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "rm", return_raw, pure)]
     pub fn remove_obj(
         database: &mut Csv,
@@ -143,7 +142,6 @@ pub mod csv_api {
     }
 
     /// Query the database.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "get", return_raw, pure)]
     pub fn query_obj(
         database: &mut Csv,

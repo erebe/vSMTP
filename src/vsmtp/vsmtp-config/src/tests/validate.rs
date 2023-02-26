@@ -28,13 +28,12 @@ fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
             &CodeID::EhloPain
         })
         .unwrap()
-        .text();
+        .as_ref();
 
-    let auth = plain_esmtp
-        .split("\r\n")
-        .find(|s| s.starts_with("AUTH"))
-        .unwrap();
-    let mechanism = auth.strip_prefix("AUTH").unwrap();
+    let Some(auth) = plain_esmtp.split("\r\n").find(|s| s.starts_with("250-AUTH")) else {
+        return Vec::new()
+    };
+    let mechanism = auth.strip_prefix("250-AUTH").unwrap();
 
     mechanism
         .split_whitespace()

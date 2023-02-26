@@ -200,6 +200,19 @@ macro_rules! vsl_conversion_ok {
     };
 }
 
+/// Asserts if a function has been executed during or after the desired stage.
+macro_rules! vsl_stage_ok {
+    ($result:expr, $function:expr, $expected:expr) => {
+        $result.map_err::<Box<rhai::EvalAltResult>, _>(|_| {
+            format!(
+                "`{}` vsl function executed before the `{}` stage",
+                $function, $expected
+            )
+            .into()
+        })?
+    };
+}
+
 impl From<RuntimeError> for Box<rhai::EvalAltResult> {
     fn from(err: RuntimeError) -> Self {
         err.to_string().into()

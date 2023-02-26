@@ -46,14 +46,12 @@ pub use state::*;
 mod state {
 
     /// Operator `==` for `Status`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn eq_status_operator(status_1: &mut Status, status_2: Status) -> bool {
         *status_1 == status_2
     }
 
     /// Operator `!=` for `Status`
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", pure)]
     pub fn neq_status_operator(status_1: &mut Status, status_2: Status) -> bool {
         !(*status_1 == status_2)

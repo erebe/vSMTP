@@ -44,7 +44,7 @@ run_test! {
       let mut config = with_tls();
       config.app.vsl.domain_dir = Some("./src/template/sni".into());
       config.server.r#virtual.insert(
-          "testserver.com".to_string(),
+          "testserver.com".parse().unwrap(),
           FieldServerVirtual {
             is_default: false,
             tls: Some(
@@ -90,7 +90,7 @@ run_test! {
       let mut config = with_tls();
       config.app.vsl.domain_dir = Some("./src/template/sni".into());
       config.server.r#virtual.insert(
-          "testserver.com".to_string(),
+          "testserver.com".parse().unwrap(),
           FieldServerVirtual {
             is_default: false,
               tls: Some(
@@ -133,7 +133,7 @@ run_test! {
         let mut config = with_tls();
         config.app.vsl.domain_dir = Some("./src/template/sni".into());
         config.server.r#virtual.insert(
-            "second.testserver.com".to_string(),
+            "second.testserver.com".parse().unwrap(),
             FieldServerVirtual {
                 is_default: false,
                 tls: Some(

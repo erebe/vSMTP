@@ -71,7 +71,7 @@ impl<M: OnMail + Send> Handler<M> {
             .to_connect(
                 args.client_addr,
                 args.server_addr,
-                self.config.server.name.clone(),
+                self.config.server.name.parse().unwrap(),
                 args.timestamp,
                 args.uuid,
             )
@@ -122,7 +122,7 @@ impl<M: OnMail + Send> Handler<M> {
                 Some(config) => ctx.upgrade_tls(config.clone(), std::time::Duration::from_secs(2)),
                 None => ctx.deny(),
             }
-            return "000 ignored value".parse().unwrap();
+            return "100 ignored value\r\n".parse().unwrap();
         }
 
         self.reply_or_code_in_config(e)
@@ -148,7 +148,7 @@ impl<M: OnMail + Send> Handler<M> {
             .write()
             .expect("state poisoned")
             .to_secured(
-                sni,
+                sni.map(|sni| sni.parse().unwrap()),
                 protocol_version,
                 cipher_suite,
                 peer_certificates,

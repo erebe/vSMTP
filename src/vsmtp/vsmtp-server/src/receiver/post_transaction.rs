@@ -80,6 +80,7 @@ impl<M: OnMail + Send> Handler<M> {
             Err(Error::BufferTooLong { expected, got }) => {
                 Err(ParserError::BufferTooLong { expected, got })
             }
+            Err(Error::ParsingError(_) | Error::Utf8(_)) => todo!(),
         });
 
         let mail = match BasicParser::default().parse(stream).await {
@@ -157,7 +158,7 @@ impl<M: OnMail + Send> Handler<M> {
                 )
                 .expect("bad state");
 
-            if mail_ctx.rcpt_to.forward_paths.is_empty() {
+            if mail_ctx.rcpt_to.delivery.is_empty() {
                 None
             } else {
                 let reply = match status {
@@ -182,7 +183,7 @@ impl<M: OnMail + Send> Handler<M> {
         };
 
         match (internal_reply, reply) {
-            (Some(internal_reply), Some(reply)) => Reply::combine(&internal_reply, &reply),
+            (Some(internal_reply), Some(reply)) => internal_reply.extended(&reply),
             (Some(internal_reply), None) => internal_reply,
             (None, Some(reply)) => reply,
             // both mail are empty: should be unreachable

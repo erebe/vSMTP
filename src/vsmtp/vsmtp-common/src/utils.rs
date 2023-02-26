@@ -20,7 +20,7 @@ use anyhow::Context;
 // TODO: handle the case when the port is not specified.
 /// parse an ip6 string address containing a scope id.
 /// NOTE: specifying a port is mandatory for this implementation,
-///       since it is only used for toml interface config & forwarding.
+///       since it is only used for vsl interface config & forwarding.
 ///
 /// # Errors
 /// * port was not found.

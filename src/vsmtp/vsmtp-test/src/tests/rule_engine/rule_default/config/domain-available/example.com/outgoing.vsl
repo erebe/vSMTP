@@ -1,10 +1,10 @@
 #{
     mail: [
-        rule "accept with code mail" || state::accept(code(0, "sender outgoing example.com")),
+        rule "accept with code mail" || state::accept(code(100, "sender outgoing example.com")),
     ],
 
     rcpt: [
-        rule "accept with code rcpt" || state::accept(code(0, "rcpt outgoing example.com")),
+        rule "accept with code rcpt" || state::accept(code(100, "rcpt outgoing example.com")),
     ],
 
     preq: [

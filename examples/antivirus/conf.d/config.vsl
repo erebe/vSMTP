@@ -1,6 +1,20 @@
 fn on_config(config) {
     config.server.dns.type = "system";
-    // config.app.vsl.domain_dir = "../../../examples/antivirus/domain-available/";
-    
+
+    config.server.interfaces = #{
+        addr: ["127.0.0.1:25"],
+        addr_submission: ["127.0.0.1:587"],
+        addr_submissions: ["127.0.0.1:465"],
+    };
+
+    // NOTE: `filepath` key use relative paths to automatically test our examples.
+    //        Use absolute or relative paths relative to your own system instead of those.
+    //
+    //        (for example: config.app.vsl.domain_dir = "/etc/vsmtp/domain-available/")
+
+    config.server.queues.dirpath = "examples/antivirus/spool";
+    config.app.dirpath = "examples/antivirus/app";
+    config.app.vsl.filter_path = "../../../examples/antivirus/filter.vsl";
+
     config
 }
