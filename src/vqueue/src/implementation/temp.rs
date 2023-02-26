@@ -17,6 +17,7 @@
 
 use crate::{FilesystemQueueManagerExt, QueueID};
 use anyhow::Context;
+use vsmtp_common::transport::DeserializerFn;
 use vsmtp_config::Config;
 
 extern crate alloc;
@@ -25,6 +26,7 @@ extern crate alloc;
 pub struct QueueManager {
     config: alloc::sync::Arc<Config>,
     pub(crate) tempdir: tempfile::TempDir,
+    transport_deserializer: Vec<DeserializerFn>,
 }
 
 impl core::fmt::Debug for QueueManager {
@@ -38,10 +40,14 @@ impl core::fmt::Debug for QueueManager {
 #[async_trait::async_trait]
 impl FilesystemQueueManagerExt for QueueManager {
     #[inline]
-    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>> {
+    fn init(
+        config: alloc::sync::Arc<Config>,
+        transport_deserializer: Vec<DeserializerFn>,
+    ) -> anyhow::Result<alloc::sync::Arc<Self>> {
         let this = alloc::sync::Arc::new(Self {
             config,
             tempdir: tempfile::Builder::new().rand_bytes(20).tempdir()?,
+            transport_deserializer,
         });
 
         for i in <QueueID as strum::IntoEnumIterator>::iter() {
@@ -58,6 +64,11 @@ impl FilesystemQueueManagerExt for QueueManager {
     #[inline]
     fn get_config(&self) -> &Config {
         &self.config
+    }
+
+    #[inline]
+    fn get_transport_deserializer(&self) -> &[DeserializerFn] {
+        &self.transport_deserializer
     }
 
     #[inline]

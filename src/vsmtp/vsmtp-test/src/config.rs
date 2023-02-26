@@ -45,7 +45,7 @@ macro_rules! root_example {
 /// * config cannot be built
 #[must_use]
 pub fn local_test() -> Config {
-    Config::builder()
+    let mut config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
         .without_path()
@@ -69,7 +69,9 @@ pub fn local_test() -> Config {
         .with_system_dns()
         .without_virtual_entries()
         .validate()
-        .unwrap()
+        .unwrap();
+    config.path = Some("src/vsmtp/vsmtp-test/src/config.rs".into());
+    config
 }
 
 ///
@@ -108,29 +110,28 @@ pub fn local_ctx() -> ContextFinished {
             connect_timestamp: time::OffsetDateTime::now_utc(),
             client_addr: "127.0.0.1:25".parse().expect(""),
             server_addr: "127.0.0.1:5977".parse().expect(""),
-            server_name: "testserver.com".to_string(),
+            server_name: "testserver.com".parse().expect(""),
             connect_uuid: uuid::Uuid::new_v4(),
             auth: None,
             tls: None,
             skipped: None,
         },
         helo: HeloProperties {
-            client_name: ClientName::Domain("client.testserver.com".to_string()),
+            client_name: ClientName::Domain("client.testserver.com".parse().expect("")),
             using_deprecated: false,
         },
         mail_from: MailFromProperties {
             mail_timestamp: time::OffsetDateTime::now_utc(),
             message_uuid: uuid::Uuid::new_v4(),
-            reverse_path: Some("client@client.testserver.com".parse().expect("")),
-        },
-        rcpt_to: RcptToProperties {
-            forward_paths: vec![],
-            transaction_type: TransactionType::Incoming(None),
-        },
-        finished: FinishedProperties {
-            dkim: None,
+            reverse_path: Some("client@testserver.com".to_string().parse().expect("")),
             spf: None,
         },
+        rcpt_to: RcptToProperties {
+            forward_paths: vec!["recipient@testserver.com".to_string().parse().expect("")],
+            delivery: std::collections::HashMap::new(),
+            transaction_type: TransactionType::Internal,
+        },
+        finished: FinishedProperties { dkim: None },
     }
 }
 

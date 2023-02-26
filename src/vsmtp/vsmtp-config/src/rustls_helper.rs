@@ -15,6 +15,7 @@
  *
 */
 use rustls::ALL_CIPHER_SUITES;
+use vsmtp_common::Domain;
 
 use crate::field::{FieldServerTls, FieldServerVirtual, FieldServerVirtualTls};
 
@@ -62,7 +63,7 @@ impl rustls::server::ResolvesServerCert for CertResolver {
 #[doc(hidden)]
 pub fn get_rustls_config(
     config: &FieldServerTls,
-    virtual_entries: &std::collections::BTreeMap<String, FieldServerVirtual>,
+    virtual_entries: &std::collections::BTreeMap<Domain, FieldServerVirtual>,
 ) -> anyhow::Result<rustls::ServerConfig> {
     let protocol_version = match (
         config
@@ -95,7 +96,7 @@ pub fn get_rustls_config(
     {
         cert_resolver
             .add(
-                virtual_name,
+                &virtual_name.to_string(),
                 rustls::sign::CertifiedKey {
                     cert: certificate.inner.clone(),
                     key: rustls::sign::any_supported_type(&private_key.inner)?,

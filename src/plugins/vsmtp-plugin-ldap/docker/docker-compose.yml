@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  vsmtp:
+    depends_on:
+      - openldap
+    build:
+      dockerfile: Dockerfile
+      # Not using the official docker image since latest
+      # updates are on the develop branch.
+      context: ../../../../docker
+      args:
+        VSMTP_BRANCH: develop
+    volumes:
+      # certificates generated following https://scriptcrunch.com/create-ca-tls-ssl-certificates-keys/
+      - ./certs:/opt/bitnami/openldap/certs
+      - ./vsmtp-config/conf.d:/etc/vsmtp/conf.d
+      - ./vsmtp-config/services:/etc/vsmtp/services
+      - ./vsmtp-config/vsmtp.vsl:/etc/vsmtp/vsmtp.vsl
+      - ./vsmtp-config/filter.vsl:/etc/vsmtp/filter.vsl
+    ports:
+      - 127.0.0.1:10025:25
+    links:
+      - openldap
+
+  openldap:
+    image: docker.io/bitnami/openldap:latest
+    volumes:
+      - ./ldap-config:/ldifs
+      - ./certs:/opt/bitnami/openldap/certs
+      - openldap_data:/bitnami/openldap
+    environment:
+      - LDAP_ROOT=dc=example,dc=org
+      - LDAP_ADMIN_USERNAME=admin
+      - LDAP_ADMIN_PASSWORD=admin
+      - LDAP_CUSTOM_LDIF_DIR=/ldifs
+
+      - LDAP_ENABLE_TLS=yes
+      - LDAP_TLS_CERT_FILE=/opt/bitnami/openldap/certs/openldap.pem
+      - LDAP_TLS_KEY_FILE=/opt/bitnami/openldap/certs/openldap.key
+      - LDAP_TLS_CA_FILE=/opt/bitnami/openldap/certs/openldapCA.pem
+
+      - BITNAMI_DEBUG=true
+    expose:
+      - "1389:1389"
+      - "1636:1636"
+
+volumes:
+  vsmtp:
+  openldap_data:
+    name: openldap_data # Volumes have to be empty for the ldif files to be loaded correctly.
+    driver: local

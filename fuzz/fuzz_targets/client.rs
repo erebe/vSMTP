@@ -17,7 +17,7 @@ fuzz_target!(|data: &[u8]| {
         match std::io::Read::read(&mut stream, &mut buffer) {
             Ok(_) => (),
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => return,
-            Err(e) => panic!("{:?}", e),
+            Err(e) => panic!("{e:?}"),
         }
 
         if let Some(i) = command.next() {

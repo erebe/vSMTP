@@ -16,11 +16,25 @@
 */
 
 /// Type of SMTP connection.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, strum::Display)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    Hash,
+    strum::Display,
+    strum::EnumString,
+    serde_with::DeserializeFromStr,
+    serde_with::SerializeDisplay,
+)]
+#[strum(serialize_all = "lowercase")]
 #[non_exhaustive]
 pub enum ConnectionKind {
     /// Connection coming for relay (MTA on port 25)
     /// see <https://datatracker.ietf.org/doc/html/rfc5321>
+    #[default]
     Relay,
     /// Connection coming for submission (MSA on port 587)
     /// see <https://datatracker.ietf.org/doc/html/rfc6409>

@@ -18,7 +18,6 @@ use crate::{api::DetailedMailContext, cli::args::Commands, GenericQueueManager, 
 use vsmtp_common::ClientName;
 extern crate alloc;
 
-#[derive(Debug)]
 struct Content {
     queue_id: QueueID,
     now: std::time::SystemTime,
@@ -253,7 +252,7 @@ mod tests {
         let mut output = vec![];
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         Commands::show(
             vec![QueueID::Working, QueueID::Deliver],
@@ -275,7 +274,7 @@ mod tests {
         let mut output = vec![];
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         Commands::show(
             <QueueID as strum::IntoEnumIterator>::iter()
@@ -307,7 +306,7 @@ mod tests {
 
         let config = alloc::sync::Arc::new(local_test());
         let queue_manager =
-            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config), vec![]).unwrap();
 
         let queues = <QueueID as strum::IntoEnumIterator>::iter()
             .filter(|i| !matches!(i, &QueueID::Quarantine { .. }))
@@ -339,7 +338,7 @@ mod tests {
         let config = alloc::sync::Arc::new(local_test());
 
         let queue_manager =
-            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config)).unwrap();
+            crate::temp::QueueManager::init(alloc::sync::Arc::clone(&config), vec![]).unwrap();
 
         std::fs::write(
             format!(
@@ -381,7 +380,7 @@ mod tests {
 
         let config = alloc::sync::Arc::new(local_test());
 
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let msg = local_msg();
         let mut ctx = local_ctx();

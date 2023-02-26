@@ -22,7 +22,8 @@ use crate::ReplyCode;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
     code: ReplyCode,
-    text: String,
+    text: Vec<String>,
+    folded: String,
 }
 
 impl serde::Serialize for Reply {
@@ -94,13 +95,19 @@ impl<'de> serde::Deserialize<'de> for Reply {
                     }
                 }
                 let code = code.ok_or_else(|| serde::de::Error::missing_field("code"))?;
-                Ok(Reply::new(
-                    enhanced.map_or(ReplyCode::Code { code }, |enhanced| ReplyCode::Enhanced {
-                        code,
-                        enhanced,
+
+                let reply = Reply {
+                    code: enhanced.map_or(ReplyCode::Code { code }, |enhanced| {
+                        ReplyCode::Enhanced { code, enhanced }
                     }),
-                    text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
-                ))
+                    text: vec![text.ok_or_else(|| serde::de::Error::missing_field("text"))?],
+                    folded: String::new(),
+                };
+
+                Ok(Reply {
+                    folded: reply.fold(),
+                    ..reply
+                })
             }
         }
 
@@ -110,66 +117,26 @@ impl<'de> serde::Deserialize<'de> for Reply {
 
 impl Reply {
     ///
-    pub fn new(code: ReplyCode, text: impl Into<String>) -> Self {
-        Self {
-            code,
-            text: text.into(),
-        }
-    }
-
-    ///
     #[must_use]
     pub const fn code(&self) -> &ReplyCode {
         &self.code
     }
 
-    ///
-    #[must_use]
-    pub const fn text(&self) -> &String {
-        &self.text
-    }
+    fn fold(&self) -> String {
+        let prefix = self.code.to_string();
 
-    ///
-    pub fn set(&mut self, text: impl Into<String>) {
-        self.text = text.into();
-    }
-
-    ///
-    // TODO: should be private and called only when the object is constructed,
-    // the result should be cached
-    #[must_use]
-    pub fn fold(&self) -> String {
-        let prefix = match &self.code {
-            ReplyCode::Code { code } => format!("{code} "),
-            ReplyCode::Enhanced { code, enhanced } => format!("{code} {enhanced} "),
-        }
-        .chars()
-        .collect::<Vec<_>>();
-
-        let output = self
+        let mut output = self
             .text
-            .split("\r\n")
-            .filter(|s| !s.is_empty())
-            .flat_map(|line| {
-                line.chars()
-                    .collect::<Vec<char>>()
-                    .chunks(80 - (prefix.len() + 2))
-                    .flat_map(|c| [&prefix, c, &"\r\n".chars().collect::<Vec<_>>()].concat())
-                    .collect::<String>()
-                    .chars()
-                    .collect::<Vec<_>>()
-            })
-            .collect::<String>();
-
-        let mut output = output
-            .split("\r\n")
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
+            .iter()
+            .map(|line| format!("{prefix} {line}"))
             .collect::<Vec<_>>();
 
         let len = output.len();
-        for i in &mut output[0..len - 1] {
+        for i in output.iter_mut().take(len - 1) {
             i.replace_range(3..4, "-");
+        }
+        if let Some(s) = output.get_mut(len - 1) {
+            s.replace_range(3..4, " ");
         }
 
         output
@@ -181,11 +148,43 @@ impl Reply {
             .collect::<String>()
     }
 
+    /// Return the reply received, with no [`ReplyCode`], no ending CRLF
+    pub fn lines(&self) -> impl Iterator<Item = &String> {
+        self.text.iter()
+    }
+
+    /// Create a new reply with:
+    /// * `text` = `self.text` + `other.text`
+    /// * `code` = `other.code`
+    /// ```
+    /// # use vsmtp_common::Reply;
+    /// let first = "454 TLS not available due to temporary reason".parse::<Reply>().unwrap();
+    /// let second = "451 Too many errors from the client".parse::<Reply>().unwrap();
     ///
-    pub fn combine(informational: &Self, response: &Self) -> Self {
+    /// assert_eq!(
+    ///   first.extended(&second).to_string(),
+    ///   [
+    ///     "451-TLS not available due to temporary reason\r\n",
+    ///     "451 Too many errors from the client\r\n"
+    ///   ].concat()
+    /// );
+    /// ```
+    pub fn extended(mut self, other: &Self) -> Self {
+        self.text.extend(other.text.iter().cloned());
+        let reply = Self {
+            code: match &other.code {
+                ReplyCode::Code { code } => ReplyCode::Code { code: *code },
+                ReplyCode::Enhanced { code, enhanced } => ReplyCode::Enhanced {
+                    code: *code,
+                    enhanced: enhanced.to_string(),
+                },
+            },
+            text: self.text,
+            folded: String::new(),
+        };
         Self {
-            code: response.code.clone(),
-            text: format!("{}\r\n{}", informational.text, response.text),
+            folded: reply.fold(),
+            ..reply
         }
     }
 }
@@ -194,8 +193,62 @@ impl std::str::FromStr for Reply {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (code, text) = ReplyCode::parse(s)?;
-        Ok(Self::new(code, text.to_string()))
+        let x = s
+            .split("\r\n")
+            .filter(|s| !s.is_empty())
+            .map(ReplyCode::from_str);
+
+        let mut first_code = None;
+        let mut text = vec![];
+
+        for x in x {
+            let (new_code, mut line) = x?;
+
+            match (&first_code, new_code) {
+                (Some(ReplyCode::Code { code: first }), ReplyCode::Code { code: new })
+                    if *first == new => {}
+                (
+                    Some(ReplyCode::Enhanced {
+                        code: first,
+                        enhanced: first_enhanced,
+                    }),
+                    ReplyCode::Enhanced {
+                        code: new,
+                        enhanced: new_enhanced,
+                    },
+                ) if *first == new && *first_enhanced == new_enhanced => (),
+                (Some(_), _) => anyhow::bail!("Reply codes are not consistent"),
+                (None, anything) => first_code = Some(anything),
+            }
+
+            if !line.is_empty() {
+                let c = line.remove(0);
+                assert!(" -".contains(c));
+            }
+            text.push(line);
+        }
+
+        let reply = Self {
+            code: first_code.ok_or_else(|| anyhow::anyhow!("No reply code found"))?,
+            text,
+            folded: String::new(),
+        };
+        Ok(Self {
+            folded: reply.fold(),
+            ..reply
+        })
+    }
+}
+
+impl std::fmt::Display for Reply {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.folded)
+    }
+}
+
+impl AsRef<str> for Reply {
+    fn as_ref(&self) -> &str {
+        &self.folded
     }
 }
 
@@ -203,166 +256,108 @@ impl std::str::FromStr for Reply {
 mod tests {
     use crate::{Reply, ReplyCode};
 
-    mod fold {
-        use crate::{Reply, ReplyCode};
-
-        #[test]
-        fn no_fold() {
-            let output = Reply {
-                code: ReplyCode::Code { code: 220 },
-                text: "this is a custom code.".to_string(),
-            }
-            .fold();
-            pretty_assertions::assert_eq!(output, "220 this is a custom code.\r\n".to_string());
-            for i in output.split("\r\n") {
-                assert!(i.len() <= 78);
-            }
+    #[rstest::rstest]
+    #[case(
+        &Reply {
+            code: ReplyCode::Code { code: 501 },
+            text: vec![String::new()],
+            folded: "501 \r\n".to_string(),
         }
-
-        #[test]
-        fn one_line() {
-            let output = Reply {
-                code: ReplyCode::Enhanced {
-                    code: 220,
-                    enhanced: "2.0.0".to_string(),
-                },
-                text: [
-                    "this is a long message, a very very long message ...",
-                    " carriage return will be properly added automatically.",
-                ]
-                .concat(),
-            }
-            .fold();
-            pretty_assertions::assert_eq!(
-            output,
-            [
-                "220-2.0.0 this is a long message, a very very long message ... carriage return\r\n",
-                "220 2.0.0  will be properly added automatically.\r\n",
-            ]
-            .concat()
-        );
-            for i in output.split("\r\n") {
-                assert!(i.len() <= 78);
-            }
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Code { code: 220,},
+            text: vec!["this is a custom code.".to_string()],
+            folded: "220 this is a custom code.\r\n".to_string(),
         }
-
-        #[test]
-        fn two_line() {
-            let output = Reply {
-                code: ReplyCode::Enhanced {
-                    code: 220,
-                    enhanced: "2.0.0".to_string(),
-                },
-                text: [
-                    "this is a long message, a very very long message ...",
-                    " carriage return will be properly added automatically. Made by",
-                    " vSMTP mail transfer agent\nCopyright (C) 2022 viridIT SAS",
-                ]
-                .concat(),
-            }
-            .fold();
-            pretty_assertions::assert_eq!(
-            output,
-            [
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Enhanced { code: 504, enhanced: "5.5.4".to_string() },
+            text: vec![String::new()],
+            folded: "504 5.5.4 \r\n".to_string(),
+        }
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Enhanced { code: 451, enhanced: "5.7.3".to_string() },
+            text: vec!["STARTTLS is required to send mail".to_string()],
+            folded: "451 5.7.3 STARTTLS is required to send mail\r\n".to_string(),
+        }
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Code { code: 250, },
+            text: vec![
+                "mydomain.tld".to_string(),
+                "PIPELINING".to_string(),
+                "8BITMIME".to_string(),
+                "AUTH PLAIN LOGIN".to_string(),
+                "XCLIENT NAME HELO".to_string(),
+                "XFORWARD NAME ADDR PROTO HELO".to_string(),
+                "ENHANCEDSTATUSCODES".to_string(),
+                "DSN".to_string(),
+                String::new(),
+            ],
+            folded: concat!(
+                "250-mydomain.tld\r\n",
+                "250-PIPELINING\r\n",
+                "250-8BITMIME\r\n",
+                "250-AUTH PLAIN LOGIN\r\n",
+                "250-XCLIENT NAME HELO\r\n",
+                "250-XFORWARD NAME ADDR PROTO HELO\r\n",
+                "250-ENHANCEDSTATUSCODES\r\n",
+                "250-DSN\r\n",
+                "250 \r\n",
+            ).to_string(),
+        }
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Enhanced {
+                code: 220,
+                enhanced: "2.0.0".to_string(),
+            },
+            text: vec![
+                "this is a long message, a very very long message ...".to_string(),
+                " carriage return will be properly added automatically.".to_string(),
+            ],
+            folded: concat!(
+                "220-2.0.0 this is a long message, a very very long message ...\r\n",
+                "220 2.0.0  carriage return will be properly added automatically.\r\n",
+            ).to_string(),
+        }
+    )]
+    #[case(
+        &Reply {
+            code: ReplyCode::Enhanced {
+                code: 220,
+                enhanced: "2.0.0".to_string(),
+            },
+            text: vec![
+                "this is a long message, a very very long message ... carriage return".to_string(),
+                " will be properly added automatically. Made by vSMTP mail transfer a".to_string(),
+                "gent\nCopyright (C) 2022 viridIT SAS".to_string(),
+            ],
+            folded: concat!(
                 "220-2.0.0 this is a long message, a very very long message ... carriage return\r\n",
                 "220-2.0.0  will be properly added automatically. Made by vSMTP mail transfer a\r\n",
                 "220 2.0.0 gent\nCopyright (C) 2022 viridIT SAS\r\n",
-            ]
-            .concat()
-        );
-            for i in output.split("\r\n") {
-                assert!(i.len() <= 78);
-            }
+            ).to_string(),
+        }
+    )]
+    fn parse_reply(#[case] expected: &Reply) {
+        let input: &str = expected.as_ref();
+        for i in input.split("\r\n") {
+            assert!(i.len() <= 78);
         }
 
-        #[test]
-        fn ehlo_response() {
-            let output = Reply {
-                code: ReplyCode::Code { code: 250 },
-                text: [
-                    "testserver.com\r\n",
-                    "AUTH PLAIN LOGIN CRAM-MD5\r\n",
-                    "8BITMIME\r\n",
-                    "SMTPUTF8\r\n",
-                ]
-                .concat(),
-            }
-            .fold();
-            pretty_assertions::assert_eq!(
-                output,
-                [
-                    "250-testserver.com\r\n",
-                    "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
-                    "250-8BITMIME\r\n",
-                    "250 SMTPUTF8\r\n",
-                ]
-                .concat()
-            );
-            for i in output.split("\r\n") {
-                assert!(i.len() <= 78);
-            }
-        }
-    }
+        let output = input.parse::<Reply>().unwrap();
+        pretty_assertions::assert_eq!(output, *expected);
 
-    mod parse {
-        use crate::{Reply, ReplyCode};
+        dbg!(expected.code().value(), expected.code.details());
 
-        #[test]
-        fn basic() {
-            assert_eq!(
-                "250 Ok".parse::<Reply>().unwrap(),
-                Reply {
-                    code: ReplyCode::Code { code: 250 },
-                    text: "Ok".to_string()
-                }
-            );
-        }
-
-        #[test]
-        fn no_word() {
-            assert_eq!(
-                "250 ".parse::<Reply>().unwrap(),
-                Reply {
-                    code: ReplyCode::Code { code: 250 },
-                    text: String::new()
-                }
-            );
-        }
-
-        #[test]
-        fn basic_enhanced() {
-            assert_eq!(
-                "501 5.1.7 Invalid address".parse::<Reply>().unwrap(),
-                Reply {
-                    code: ReplyCode::Enhanced {
-                        code: 501,
-                        enhanced: "5.1.7".to_string()
-                    },
-                    text: "Invalid address".to_string()
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn combine() {
-        assert_eq!(
-            Reply::combine(
-                &Reply::new(
-                    ReplyCode::Code { code: 454 },
-                    "TLS not available due to temporary reason"
-                ),
-                &Reply::new(
-                    ReplyCode::Code { code: 451 },
-                    "Too many errors from the client"
-                ),
-            )
-            .fold(),
-            [
-                "451-TLS not available due to temporary reason\r\n",
-                "451 Too many errors from the client\r\n"
-            ]
-            .concat()
-        );
+        let fold = output.fold();
+        pretty_assertions::assert_eq!(input, fold);
     }
 }

@@ -19,11 +19,11 @@
 //!
 //! The type [`Config`] expose two methods :
 //! * [`Config::builder`] to create a new configuration builder.
-//! * [`Config::from_vsl_file`] to read a configuration from a TOML file.
+//! * [`Config::from_vsl_file`] to read a configuration from a vSL file.
 //!
 //! # Example
 //!
-//! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
+//! You can find examples of vSL config files at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
 
 /*
  * vSMTP mail transfer agent
@@ -57,13 +57,15 @@
 #[cfg(test)]
 mod tests;
 
-mod parser {
-    pub mod socket_addr;
+///
+pub mod parser {
+    pub(crate) mod socket_addr;
+    ///
     pub mod syst_group;
-    pub mod syst_user;
-    pub mod tls_certificate;
-    pub mod tls_private_key;
-    pub mod tracing_directive;
+    pub(crate) mod syst_user;
+    pub(crate) mod tls_certificate;
+    pub(crate) mod tls_private_key;
+    pub(crate) mod tracing_directive;
 }
 
 /// The configuration builder for programmatically instantiating
@@ -274,7 +276,8 @@ impl Config {
 
                 let domain_name = symlink_domain
                     .clone()
-                    .unwrap_or_else(|| pre_symlink_domain.clone());
+                    .unwrap_or_else(|| pre_symlink_domain.clone())
+                    .parse()?;
 
                 if let Some(v) = self.server.r#virtual.get_mut(&domain_name) {
                     if pre_symlink_domain == "default" {

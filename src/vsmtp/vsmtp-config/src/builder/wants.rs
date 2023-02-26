@@ -20,7 +20,7 @@ use crate::field::{
     FieldQueueDelivery, FieldQueueWorking, FieldServerDNS, FieldServerSMTPAuth,
     FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerTls, FieldServerVirtual,
 };
-use vsmtp_common::{CodeID, Reply};
+use vsmtp_common::{CodeID, Domain, Reply};
 
 ///
 pub struct WantsVersion(pub(crate) ());
@@ -139,5 +139,5 @@ pub struct WantsServerVirtual {
 ///
 pub struct WantsValidate {
     pub(crate) parent: WantsServerVirtual,
-    pub(super) r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
+    pub(super) r#virtual: std::collections::BTreeMap<Domain, FieldServerVirtual>,
 }

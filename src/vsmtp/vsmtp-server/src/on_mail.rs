@@ -17,10 +17,9 @@
 
 use crate::{Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::ContextFinished;
+use vsmtp_common::{status, transfer, ContextFinished};
 use vsmtp_common::{
-    status::Status,
-    transfer::{EmailTransferStatus, RuleEngineVariants, TransferErrorsVariant},
+    transfer::{RuleEngineVariants, TransferErrorsVariant},
     CodeID,
 };
 use vsmtp_mail_parser::MessageBody;
@@ -86,7 +85,7 @@ impl MailHandler {
         );
 
         let (write_to_queue, send_to_next_process, delegated) = match &skipped {
-            Some(status @ Status::Quarantine(path)) => {
+            Some(status @ status::Status::Quarantine(path)) => {
                 let quarantine = QueueID::Quarantine { name: path.into() };
                 queue_manager
                     .write_ctx(&quarantine, &mail_context)
@@ -96,10 +95,10 @@ impl MailHandler {
                 tracing::warn!(status = status.as_ref(), "Rules skipped.");
                 (None, None, false)
             }
-            Some(Status::Delegated(_)) => {
+            Some(status::Status::Delegated(_)) => {
                 return Err(MailHandlerError::InvalidDelegation);
             }
-            Some(Status::DelegationResult) => {
+            Some(status::Status::DelegationResult) => {
                 if let Some(old_message_id) = mail_message
                     .get_header("X-VSMTP-DELEGATION")
                     .and_then(|header| {
@@ -115,16 +114,18 @@ impl MailHandler {
 
                 (None, Some(Process::Processing), true)
             }
-            Some(Status::Deny(code)) => {
-                for rcpt in &mut mail_context.rcpt_to.forward_paths {
-                    rcpt.email_status = EmailTransferStatus::failed(
-                        TransferErrorsVariant::RuleEngine(RuleEngineVariants::Denied(code.clone())),
-                    );
+            Some(status::Status::Deny(code)) => {
+                for rcpt in &mut mail_context.rcpt_to.delivery.values_mut().flatten() {
+                    rcpt.1 = transfer::Status::failed(TransferErrorsVariant::RuleEngine(
+                        RuleEngineVariants::Denied(code.clone()),
+                    ));
                 }
 
                 (Some(QueueID::Dead), None, false)
             }
-            None | Some(Status::Next) => (Some(QueueID::Working), Some(Process::Processing), false),
+            None | Some(status::Status::Next) => {
+                (Some(QueueID::Working), Some(Process::Processing), false)
+            }
             Some(reason) => {
                 tracing::warn!(stage = %ExecutionStage::PreQ, status = ?reason.as_ref(), "Rules skipped.");
                 (Some(QueueID::Deliver), Some(Process::Delivery), false)

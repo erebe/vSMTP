@@ -153,7 +153,7 @@ macro_rules! run_test {
         };
 
         let queue_manager =
-            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+            <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone(), vec![]).unwrap();
 
         let queue_manager_cloned = std::sync::Arc::clone(&queue_manager);
 
@@ -178,11 +178,15 @@ macro_rules! run_test {
 
             let rule_engine: std::sync::Arc<vsmtp_rule_engine::RuleEngine> = {
                 let _f = || vsmtp_rule_engine::RuleEngine::new(
-                    config.clone(), resolvers.clone(), queue_manager.clone()
+                    config.clone(),
+                    resolvers.clone(),
+                    queue_manager.clone()
                 ).unwrap();                                         $(
                 let _f = || vsmtp_rule_engine::RuleEngine::with_hierarchy(
-                    config.clone(), $hierarchy_builder,
-                    resolvers.clone(), queue_manager.clone()
+                    $hierarchy_builder,
+                    config.clone(),
+                    resolvers.clone(),
+                    queue_manager.clone()
                 ).unwrap();                                         )?
                 std::sync::Arc::new(_f())
             };

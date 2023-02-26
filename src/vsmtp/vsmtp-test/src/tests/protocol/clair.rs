@@ -61,7 +61,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foobar");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("john@doe")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("aa@bb").into()]);
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("aa@bb")
+                    ])
+                );
                 CodeID::Ok
             }
         }
@@ -272,10 +280,16 @@ run_test! {
                     mail.mail_from.reverse_path,
                     Some(addr!(&format!("john{}@doe", self.count)))
                 );
-                assert_eq!(
-                    *mail.rcpt_to.forward_paths,
-                    vec![addr!(&format!("aa{}@bb", self.count)).into()]
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!(&format!("aa{}@bb", self.count))
+                    ])
                 );
+
                 pretty_assertions::assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
                     Mail {
@@ -358,10 +372,18 @@ run_test! {
                     mail.mail_from.reverse_path,
                     Some(addr!(&format!("john{}@doe", self.count)))
                 );
-                assert_eq!(
-                    *mail.rcpt_to.forward_paths,
-                    vec![addr!(&format!("aa{}@bb", self.count)).into()]
+
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!(&format!("aa{}@bb", self.count))
+                    ])
                 );
+
+
                 pretty_assertions::assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
                     Mail {

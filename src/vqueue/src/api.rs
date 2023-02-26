@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use vsmtp_common::ContextFinished;
+use vsmtp_common::{transport::DeserializerFn, ContextFinished};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 extern crate alloc;
@@ -85,7 +85,7 @@ mod tests {
 }
 
 ///
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DetailedMailContext {
     pub(crate) ctx: ContextFinished,
     pub(crate) modified_at: std::time::SystemTime,
@@ -103,12 +103,18 @@ where
     /// wrap the mutable inner state in a `Mutex` or `RwLock`.
     ///
     /// The configuration must be stored and accessible using [`GenericQueueManager::get_config()`].
-    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
+    fn init(
+        config: alloc::sync::Arc<Config>,
+        transport_deserializer: Vec<DeserializerFn>,
+    ) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized;
 
     ///
     fn get_config(&self) -> &Config;
+
+    ///
+    fn get_transport_deserializer(&self) -> &[DeserializerFn];
 
     ///
     async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()>;

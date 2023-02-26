@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        plugin: ["mysql", "memcached"]
+        plugin: ["mysql", "memcached", "ldap"]
     steps:
       - uses: actions/checkout@v3
       - name: run ${{ matrix.plugin }} tests

@@ -28,6 +28,9 @@ use rhai::plugin::{
 use vsmtp_common::Address;
 
 pub use envelop::*;
+use vsmtp_delivery::Deliver;
+
+use super::Server;
 
 /// Functions to inspect and mutate the SMTP envelop.
 #[rhai::plugin::export_module]
@@ -54,7 +57,6 @@ mod envelop {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rw_mail_from", return_raw)]
     pub fn rewrite_mail_from_envelop_str(
         ncc: NativeCallContext,
@@ -86,7 +88,6 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "rw_mail_from", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_mail_from_envelop_obj(
         ncc: NativeCallContext,
         new_addr: SharedObject,
@@ -117,14 +118,18 @@ mod envelop {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rw_rcpt", return_raw)]
     pub fn rewrite_rcpt_str_str(
         ncc: NativeCallContext,
         old_addr: &str,
         new_addr: &str,
     ) -> EngineResult<()> {
-        super::rewrite_rcpt(&mut get_global!(ncc, ctx)?, old_addr, new_addr)
+        super::rewrite_rcpt(
+            &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
+            old_addr,
+            new_addr,
+        )
     }
 
     /// Replace a recipient received by a `RCPT TO` command.
@@ -151,13 +156,17 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "rw_rcpt", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_obj_str(
         ncc: NativeCallContext,
         old_addr: SharedObject,
         new_addr: &str,
     ) -> EngineResult<()> {
-        super::rewrite_rcpt(&mut get_global!(ncc, ctx)?, &old_addr.to_string(), new_addr)
+        super::rewrite_rcpt(
+            &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
+            &old_addr.to_string(),
+            new_addr,
+        )
     }
 
     /// Replace a recipient received by a `RCPT TO` command.
@@ -184,13 +193,17 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "rw_rcpt", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_str_obj(
         ncc: NativeCallContext,
         old_addr: &str,
         new_addr: SharedObject,
     ) -> EngineResult<()> {
-        super::rewrite_rcpt(&mut get_global!(ncc, ctx)?, old_addr, &new_addr.to_string())
+        super::rewrite_rcpt(
+            &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
+            old_addr,
+            &new_addr.to_string(),
+        )
     }
 
     /// Replace a recipient received by a `RCPT TO` command.
@@ -217,7 +230,6 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "rw_rcpt", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_obj_obj(
         ncc: NativeCallContext,
         old_addr: SharedObject,
@@ -225,6 +237,7 @@ mod envelop {
     ) -> EngineResult<()> {
         super::rewrite_rcpt(
             &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
             &old_addr.to_string(),
             &new_addr.to_string(),
         )
@@ -254,10 +267,13 @@ mod envelop {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "add_rcpt", return_raw)]
     pub fn add_rcpt_envelop_str(ncc: NativeCallContext, new_addr: &str) -> EngineResult<()> {
-        super::add_rcpt_envelop(&mut get_global!(ncc, ctx)?, new_addr)
+        super::add_rcpt_envelop(
+            &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
+            new_addr,
+        )
     }
 
     /// Add a new recipient to the envelop. Note that this does not add
@@ -285,23 +301,24 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "add_rcpt", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn add_rcpt_envelop_obj(
         ncc: NativeCallContext,
         new_addr: SharedObject,
     ) -> EngineResult<()> {
-        super::add_rcpt_envelop(&mut get_global!(ncc, ctx)?, &new_addr.to_string())
+        super::add_rcpt_envelop(
+            &mut get_global!(ncc, ctx)?,
+            get_global!(ncc, srv)?,
+            &new_addr.to_string(),
+        )
     }
 
     /// Alias for `envelop::add_rcpt`.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "bcc", return_raw)]
     pub fn bcc_str(ncc: NativeCallContext, new_addr: &str) -> EngineResult<()> {
         super::add_rcpt_envelop_str(ncc, new_addr)
     }
 
     /// Alias for `envelop::add_rcpt`.
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "bcc", return_raw)]
     pub fn bcc_obj(ncc: NativeCallContext, new_addr: SharedObject) -> EngineResult<()> {
         super::add_rcpt_envelop_obj(ncc, new_addr)
@@ -331,7 +348,6 @@ mod envelop {
     /// }
     /// # "#)?.build()));
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "rm_rcpt", return_raw)]
     pub fn remove_rcpt_envelop_str(ncc: NativeCallContext, addr: &str) -> EngineResult<()> {
         super::remove_rcpt_envelop(&mut get_global!(ncc, ctx)?, addr)
@@ -362,7 +378,6 @@ mod envelop {
     /// # "#)?.build()));
     /// ```
     #[rhai_fn(name = "rm_rcpt", return_raw)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn remove_rcpt_envelop_obj(ncc: NativeCallContext, addr: SharedObject) -> EngineResult<()> {
         super::remove_rcpt_envelop(&mut get_global!(ncc, ctx)?, &addr.to_string())
     }
@@ -377,7 +392,13 @@ fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineRes
         .map_err(|e| e.to_string().into())
 }
 
-fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
+#[allow(clippy::needless_pass_by_value)]
+fn rewrite_rcpt(
+    context: &mut Context,
+    srv: Server,
+    old_addr: &str,
+    new_addr: &str,
+) -> EngineResult<()> {
     let old_addr = vsl_conversion_ok!(
         "address",
         <Address as std::str::FromStr>::from_str(old_addr)
@@ -392,18 +413,34 @@ fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> Engine
         .remove_forward_path(&old_addr)
         .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
     context
-        .add_forward_path(new_addr)
+        .add_forward_path(
+            new_addr,
+            std::sync::Arc::new(Deliver::new(
+                srv.resolvers.get_resolver_root(),
+                srv.config.clone(),
+            )),
+        )
         .map_err::<Box<rhai::EvalAltResult>, _>(|e| e.to_string().into())?;
 
     Ok(())
 }
 
-fn add_rcpt_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
-    vsl_guard_ok!(context.write())
-        .add_forward_path(vsl_conversion_ok!(
-            "address",
-            <Address as std::str::FromStr>::from_str(new_addr)
-        ))
+#[allow(clippy::needless_pass_by_value)]
+fn add_rcpt_envelop(context: &mut Context, srv: Server, new_addr: &str) -> EngineResult<()> {
+    let rcpt = vsl_conversion_ok!(
+        "address",
+        <Address as std::str::FromStr>::from_str(new_addr)
+    );
+    let mut guard = vsl_guard_ok!(context.write());
+
+    guard
+        .add_forward_path(
+            rcpt,
+            std::sync::Arc::new(Deliver::new(
+                srv.resolvers.get_resolver_root(),
+                srv.config.clone(),
+            )),
+        )
         .map_err(|err| format!("failed to run `add_rcpt_envelop`: {err}").into())
 }
 

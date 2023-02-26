@@ -44,7 +44,6 @@ The following is a list of plugins and features that we plan to add to vSMTP. (I
 | Name | License | Comment | Type | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | mysql | Public | MySQL/MariaDB connector | External | Available
-| mongodb | Public | MongoDB connecter | External | v2.2
 
 Do not hesitate to contact us for specific databases plugins.
 
@@ -56,6 +55,7 @@ Do not hesitate to contact us for specific databases plugins.
 | memc | Public | Memcached in-memory key-value store connector | External | v2.1
 | redis | Commercial | Adaptor for Redis in-memory data structure store | External | v2.1
 | bdb | Public | Berkeley DB connector | External | v2.2
+| mongodb | Public | MongoDB connecter | External | v2.2
 
 ## Misc
 

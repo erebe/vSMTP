@@ -20,7 +20,7 @@ use rhai::plugin::{
     Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult, TypeId,
 };
 use rhai::EvalAltResult;
-use vsmtp_common::Address;
+use vsmtp_common::{Address, Domain};
 
 pub use dmarc::*;
 
@@ -46,7 +46,6 @@ mod dmarc {
     ///   ]
     /// }
     /// ```
-    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(name = "check", return_raw)]
     pub fn check(ncc: NativeCallContext) -> EngineResult<vsmtp_common::status::Status> {
         let msg = get_global!(ncc, msg)?;
@@ -54,7 +53,7 @@ mod dmarc {
 
         let rfc5322_from = super::parse_rfc5322_from(&msg)?;
         let rfc5322_from = rfc5322_from.domain();
-        let record = get_dmarc_record(&srv, rfc5322_from)?;
+        let record = get_dmarc_record(&srv, &rfc5322_from)?;
 
         // tracing::warn!(%error, "DMARC record not found:");
         // return rule_state::next();
@@ -83,7 +82,7 @@ mod dmarc {
  spf={}
  reason="{}"
  smtp.mailfrom={}"#,
-            crate::api::utils::get_root_domain(ctx.server_name()),
+            crate::api::utils::get_root_domain(&ctx.server_name().to_string()),
             dkim.get("status")
                 .map(std::string::ToString::to_string)
                 .unwrap_or_default(),
@@ -94,9 +93,11 @@ mod dmarc {
 
         let dmarc_pass = dmarc_check(
             &record,
-            rfc5322_from,
+            &rfc5322_from,
             &dkim,
-            sender.as_ref().map_or("null", |s| s.domain()),
+            &sender
+                .as_ref()
+                .map_or("null".to_string(), |s| s.domain().to_string()),
             spf.result.as_str(),
         );
 
@@ -127,7 +128,7 @@ mod dmarc {
 
 fn dmarc_check(
     record: &vsmtp_auth::dmarc::Record,
-    rfc5322_from: &str,
+    rfc5322_from: &Domain,
     dkim_result: &rhai::Map,
     spf_mail_from: &str,
     spf_result: &str,
@@ -149,11 +150,12 @@ fn dmarc_check(
         None => return false,
     };
 
-    if record.dkim_is_aligned(rfc5322_from, &dkim_domain) && dkim_status == "pass" {
+    let rfc5322_from = rfc5322_from.to_string();
+    if record.dkim_is_aligned(&rfc5322_from, &dkim_domain) && dkim_status == "pass" {
         return true;
     }
 
-    if record.spf_is_aligned(rfc5322_from, spf_mail_from) && spf_result == "pass" {
+    if record.spf_is_aligned(&rfc5322_from, spf_mail_from) && spf_result == "pass" {
         return true;
     }
 
@@ -178,7 +180,7 @@ fn parse_rfc5322_from(msg: &Message) -> EngineResult<Address> {
         .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
 }
 
-fn get_dmarc_record(server: &Server, domain: &str) -> EngineResult<vsmtp_auth::dmarc::Record> {
+fn get_dmarc_record(server: &Server, domain: &Domain) -> EngineResult<vsmtp_auth::dmarc::Record> {
     let resolver = server.resolvers.get_resolver_root();
 
     let txt_record =

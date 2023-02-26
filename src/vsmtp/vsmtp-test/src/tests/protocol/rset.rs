@@ -67,7 +67,16 @@ run_test! {
 
                 assert_eq!(mail.helo.client_name.to_string(), "foo");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("a@b")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
+
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("b@c")
+                    ])
+                );
 
                 assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
@@ -172,7 +181,17 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foo2");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("d@e")));
-                assert_eq!(*mail.rcpt_to.forward_paths, vec![addr!("b@c").into()]);
+
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("b@c")
+                    ])
+                );
+
                 assert_eq!(
                     *message.parsed::<MailMimeParser>().unwrap(),
                     Mail {
@@ -254,8 +273,15 @@ run_test! {
             ) -> CodeID {
                 assert_eq!(mail.helo.client_name.to_string(), "foo");
                 assert_eq!(mail.mail_from.reverse_path, Some(addr!("foo2@foo")));
-                assert_eq!(*mail.rcpt_to.forward_paths,
-                   vec![addr!("toto2@bar").into(), addr!("toto3@bar").into()]
+                assert!(mail.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .map(|(addr, _)| addr)
+                    .cloned()
+                    .eq([
+                        addr!("toto2@bar"),
+                        addr!("toto3@bar")
+                    ])
                 );
 
                 pretty_assertions::assert_eq!(

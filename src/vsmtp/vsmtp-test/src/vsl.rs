@@ -20,10 +20,7 @@ use vqueue::GenericQueueManager;
 use vsmtp_common::status::Status;
 use vsmtp_config::{Config, DnsResolvers};
 use vsmtp_mail_parser::MessageBody;
-use vsmtp_rule_engine::{
-    sub_domain_hierarchy::{Builder, SubDomainHierarchy},
-    ExecutionStage, RuleEngine,
-};
+use vsmtp_rule_engine::{Builder, ExecutionStage, RuleEngine, SubDomainHierarchy};
 
 #[doc(hidden)]
 #[must_use]
@@ -33,11 +30,12 @@ pub fn run_with_msg_and_config(
     config: Config,
 ) -> std::collections::HashMap<ExecutionStage, (vsmtp_common::Context, MessageBody, Status)> {
     let config = arc!(config);
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).expect("queue_manager");
+    let queue_manager =
+        vqueue::temp::QueueManager::init(config.clone(), vec![]).expect("queue_manager");
     let resolvers = arc!(DnsResolvers::from_config(&config).expect("resolvers"));
 
     let rule_engine = std::sync::Arc::new(
-        RuleEngine::with_hierarchy(config, callback, resolvers, queue_manager)
+        RuleEngine::with_hierarchy(callback, config, resolvers, queue_manager)
             .expect("rule engine"),
     );
 

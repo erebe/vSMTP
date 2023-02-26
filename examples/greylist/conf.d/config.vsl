@@ -1,0 +1,27 @@
+
+fn on_config(config) {
+    config.server.name = "testserver.com";
+
+    config.server.interfaces = #{
+        addr: ["192.168.1.254:25", "192.168.1.254:10025"],
+        addr_submission: ["192.168.1.254:587"],
+        addr_submissions: ["192.168.1.254:465"],
+    };
+
+    config.server.tls = #{
+        preempt_cipherlist: false,
+        handshake_timeout: "200ms",
+        protocol_version: ["TLSv1.2", "TLSv1.3"],
+      };
+
+    // NOTE: `filepath` key use relative paths to automatically test our examples.
+    //        Use absolute or relative paths relative to your own system instead of those.
+    //
+    //        (for example: config.app.vsl.domain_dir = "/etc/vsmtp/main.vsl")
+
+    config.server.queues.dirpath = "examples/greylist/spool"
+    config.app.dirpath = "examples/greylist/app"
+    config.app.vsl.filter_path = "../../../examples/greylist/filter.vsl";
+
+    config
+}

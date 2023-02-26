@@ -81,9 +81,10 @@ run_test! {
                 _: MessageBody,
                 _: std::sync::Arc<dyn GenericQueueManager>,
             ) -> CodeID {
-                ctx.rcpt_to.forward_paths
-                    .iter()
-                    .find(|rcpt| rcpt.address.full() == "jane.doe@doe-family.com")
+                ctx.rcpt_to.delivery
+                    .values()
+                    .flatten()
+                    .find(|(addr, _)| *addr == "jane.doe@doe-family.com".parse().unwrap())
                     .unwrap();
 
                 CodeID::Ok

@@ -26,8 +26,7 @@ use time::format_description::well_known::Rfc2822;
 use vqueue::GenericQueueManager;
 use vsmtp_common::status::Status;
 use vsmtp_common::ContextFinished;
-use vsmtp_config::{Config, DnsResolvers};
-use vsmtp_delivery::Sender;
+use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::RuleEngine;
 
@@ -37,19 +36,10 @@ mod deliver;
 pub async fn start<Q: GenericQueueManager + Sized + 'static>(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
-    resolvers: std::sync::Arc<DnsResolvers>,
     queue_manager: std::sync::Arc<Q>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
-    sender: std::sync::Arc<Sender>,
 ) {
-    flush_deliver_queue(
-        config.clone(),
-        resolvers.clone(),
-        queue_manager.clone(),
-        rule_engine.clone(),
-        sender.clone(),
-    )
-    .await;
+    flush_deliver_queue(config.clone(), queue_manager.clone(), rule_engine.clone()).await;
 
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
@@ -60,11 +50,9 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                 tokio::spawn(
                     handle_one_in_delivery_queue(
                         config.clone(),
-                        resolvers.clone(),
                         queue_manager.clone(),
                         pm,
                         rule_engine.clone(),
-                        sender.clone(),
                     )
                 );
             }
@@ -74,9 +62,7 @@ pub async fn start<Q: GenericQueueManager + Sized + 'static>(
                 tokio::spawn(
                     flush_deferred_queue(
                         config.clone(),
-                        resolvers.clone(),
                         queue_manager.clone(),
-                        sender.clone(),
                         time::OffsetDateTime::now_utc(),
                     )
                 );

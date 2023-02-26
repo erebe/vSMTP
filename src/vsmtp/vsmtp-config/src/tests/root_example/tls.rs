@@ -51,17 +51,17 @@ fn parse() {
             .with_virtual_entries(
                 [
                     VirtualEntry {
-                        domain: "testserver1.com".to_string(),
+                        domain: "testserver1.com".parse().unwrap(),
                         tls: None,
                         dns: None,
                     },
                     VirtualEntry {
-                        domain: "testserver2.com".to_string(),
+                        domain: "testserver2.com".parse().unwrap(),
                         tls: None,
                         dns: Some(FieldServerDNS::System),
                     },
                     VirtualEntry {
-                        domain: "testserver3.com".to_string(),
+                        domain: "testserver3.com".parse().unwrap(),
                         tls: Some((
                             "../../../examples/config/tls/certificate.crt".to_string(),
                             "../../../examples/config/tls/private_key.key".to_string()
@@ -69,7 +69,7 @@ fn parse() {
                         dns: None,
                     },
                     VirtualEntry {
-                        domain: "testserver4.com".to_string(),
+                        domain: "testserver4.com".parse().unwrap(),
                         tls: Some((
                             "../../../examples/config/tls/certificate.crt".to_string(),
                             "../../../examples/config/tls/private_key.key".to_string()

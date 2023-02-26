@@ -87,7 +87,7 @@ mod tests {
         let input = std::io::Cursor::new(vec![]);
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let mut ctx = local_ctx();
         let msg_uuid = uuid::Uuid::new_v4();
@@ -129,7 +129,7 @@ mod tests {
         let input = std::io::Cursor::new(b"yes\n");
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let mut ctx = local_ctx();
         let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000001").unwrap();
@@ -172,7 +172,7 @@ mod tests {
         let input = std::io::Cursor::new(b"no\n");
 
         let config = alloc::sync::Arc::new(local_test());
-        let queue_manager = crate::temp::QueueManager::init(config).unwrap();
+        let queue_manager = crate::temp::QueueManager::init(config, vec![]).unwrap();
 
         let mut ctx = local_ctx();
         let msg_uuid = uuid::Uuid::try_parse("00000000-0000-0000-0000-000000000002").unwrap();

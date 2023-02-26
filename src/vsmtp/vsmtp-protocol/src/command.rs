@@ -16,7 +16,7 @@
 */
 
 use crate::ConnectionKind;
-use vsmtp_common::{auth::Mechanism, ClientName};
+use vsmtp_common::{auth::Mechanism, ClientName, Domain};
 extern crate alloc;
 
 /// Buffer received from the client.
@@ -65,8 +65,7 @@ impl AcceptArgs {
 #[non_exhaustive]
 pub struct HeloArgs {
     /// Name of the client.
-    // TODO: wrap in a domain
-    pub client_name: String,
+    pub client_name: Domain,
 }
 
 /// Information received from the client at the EHLO command.
@@ -153,11 +152,14 @@ impl TryFrom<UnparsedArgs> for HeloArgs {
             .to_vec();
 
         Ok(Self {
-            client_name: addr::parse_domain_name(
-                &String::from_utf8(value).map_err(ParseArgsError::InvalidUtf8)?,
+            client_name: Domain::from_utf8(
+                addr::parse_domain_name(
+                    &String::from_utf8(value).map_err(ParseArgsError::InvalidUtf8)?,
+                )
+                .map_err(|_err| ParseArgsError::InvalidArgs)?
+                .as_str(),
             )
-            .map_err(|_err| ParseArgsError::InvalidArgs)?
-            .to_string(),
+            .map_err(|_err| ParseArgsError::InvalidArgs)?,
         })
     }
 }
@@ -196,9 +198,12 @@ impl TryFrom<UnparsedArgs> for EhloArgs {
                 }
             }
             domain => ClientName::Domain(
-                addr::parse_domain_name(domain)
-                    .map_err(|_err| ParseArgsError::InvalidArgs)?
-                    .to_string(),
+                Domain::from_utf8(
+                    addr::parse_domain_name(domain)
+                        .map_err(|_err| ParseArgsError::InvalidArgs)?
+                        .as_str(),
+                )
+                .map_err(|_err| ParseArgsError::InvalidArgs)?,
             ),
         };
 

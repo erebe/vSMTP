@@ -1,7 +1,4 @@
 fn on_config(config) {
-
-
-
     config.server.client_count_max = 8;
 
     config.server.system.thread_pool = #{

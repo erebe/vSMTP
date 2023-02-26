@@ -25,7 +25,7 @@ use vsmtp_server::OnMail;
 
 fn to_args(client_name: &ClientName) -> String {
     match client_name {
-        ClientName::Domain(domain) => domain.clone(),
+        ClientName::Domain(domain) => domain.to_string(),
         ClientName::Ip4(ip) => format!("[{ip}]"),
         ClientName::Ip6(ip) => format!("[IPv6:{ip}]"),
     }
@@ -95,7 +95,7 @@ macro_rules! to_tab {
 )]
 #[case(
     Some("HELO"),
-    Some(ClientName::Domain("mydomain.com".to_string())),
+    Some(ClientName::Domain("mydomain.com".parse().unwrap())),
     to_tab!([
         "{verb} {client_name}\r\n",
         "MAIL FROM:<mailbox@mydomain.com>\r\n",
@@ -137,7 +137,7 @@ fn test(
     #[values("HELO", "EHLO")] verb: &str,
     #[case] verb_user: Option<&str>,
     #[values(
-        ClientName::Domain("mydomain.com".to_string()),
+        ClientName::Domain("mydomain.com".parse().unwrap()),
         ClientName::Ip4("0.0.0.0".parse().unwrap()),
         ClientName::Ip6("0011:2233:4455:6677:8899:aabb:ccdd:eeff".parse().unwrap())
     )]

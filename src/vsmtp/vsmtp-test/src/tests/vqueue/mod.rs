@@ -8,7 +8,8 @@ use vqueue::QueueID;
 async fn init_success() {
     let config = arc!(local_test());
     let queue_manager =
-        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone()).unwrap();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config.clone(), vec![])
+            .unwrap();
     assert_eq!(format!("{queue_manager:?}"), "TempQueueManager { .. }");
     pretty_assertions::assert_eq!(*queue_manager.get_config(), *config);
 }
@@ -19,13 +20,14 @@ async fn init_fail() {
     config.server.queues.dirpath = "/var/spool/vsmtp".into(); // no write access
     let config = arc!(config);
     let _queue_manager =
-        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config).unwrap_err();
+        <vqueue::temp::QueueManager as vqueue::GenericQueueManager>::init(config, vec![])
+            .unwrap_err();
 }
 
 #[tokio::test]
 async fn write_get_and_delete_ctx() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config, vec![]).unwrap();
 
     for i in [
         QueueID::Working,
@@ -46,7 +48,7 @@ async fn write_get_and_delete_ctx() {
 #[tokio::test]
 async fn write_ctx_after_dir_deleted() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone(), vec![]).unwrap();
 
     let i = QueueID::Working;
     let msg_uuid = uuid::Uuid::new_v4();
@@ -62,7 +64,7 @@ async fn write_ctx_after_dir_deleted() {
 #[tokio::test(flavor = "multi_thread")]
 async fn write_msg_after_dir_deleted() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone(), vec![]).unwrap();
 
     std::fs::remove_dir_all(&config.server.queues.dirpath).unwrap();
     let msg_uuid = uuid::Uuid::new_v4();
@@ -77,7 +79,7 @@ async fn write_msg_after_dir_deleted() {
 #[tokio::test]
 async fn write_get_and_delete_msg() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config, vec![]).unwrap();
     let msg_uuid = uuid::Uuid::new_v4();
 
     let msg = local_msg();
@@ -90,7 +92,7 @@ async fn write_get_and_delete_msg() {
 #[tokio::test]
 async fn write_get_and_delete_both() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config, vec![]).unwrap();
 
     for i in [
         QueueID::Working,
@@ -117,7 +119,7 @@ async fn write_get_and_delete_both() {
 #[tokio::test]
 async fn move_same_queue() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone(), vec![]).unwrap();
 
     let ctx = local_ctx();
     queue_manager
@@ -129,7 +131,7 @@ async fn move_same_queue() {
 #[tokio::test]
 async fn move_to() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone(), vec![]).unwrap();
 
     let mut ctx = local_ctx();
     let msg_uuid = uuid::Uuid::new_v4();
@@ -177,7 +179,7 @@ async fn move_to() {
 #[tokio::test]
 async fn move_to_from_id() {
     let config = arc!(local_test());
-    let queue_manager = vqueue::temp::QueueManager::init(config.clone()).unwrap();
+    let queue_manager = vqueue::temp::QueueManager::init(config.clone(), vec![]).unwrap();
 
     let mut ctx = local_ctx();
     let msg_uuid = uuid::Uuid::new_v4();

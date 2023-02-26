@@ -1,10 +1,10 @@
 #{
     connect: [
-        rule "accept any connection" || state::accept(code(0, "welcome to the test")),
+        rule "accept any connection" || state::accept(code(100, "welcome to the test")),
     ],
 
     mail: [
-        rule "accept any sender" || state::accept(code(0, `We accept everybody, even '${ctx::mail_from().domain}'`)),
+        rule "accept any sender" || state::accept(code(100, `We accept everybody, even '${ctx::mail_from().domain}'`)),
     ],
 
     rcpt: [

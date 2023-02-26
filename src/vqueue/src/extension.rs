@@ -16,7 +16,7 @@
  */
 use crate::{api::DetailedMailContext, GenericQueueManager, QueueID};
 use anyhow::Context;
-use vsmtp_common::ContextFinished;
+use vsmtp_common::{transport::DeserializerFn, ContextFinished};
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MessageBody;
 extern crate alloc;
@@ -45,23 +45,32 @@ pub trait FilesystemQueueManagerExt {
     }
 
     ///
-    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
+    fn init(
+        config: alloc::sync::Arc<Config>,
+        transport_deserializer: Vec<DeserializerFn>,
+    ) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized;
 
     ///
     fn get_config(&self) -> &Config;
+
+    ///
+    fn get_transport_deserializer(&self) -> &[DeserializerFn];
 }
 
 #[allow(clippy::missing_trait_methods)]
 #[async_trait::async_trait]
 impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueueManager for T {
     #[inline]
-    fn init(config: alloc::sync::Arc<Config>) -> anyhow::Result<alloc::sync::Arc<Self>>
+    fn init(
+        config: alloc::sync::Arc<Config>,
+        transport_deserializer: Vec<DeserializerFn>,
+    ) -> anyhow::Result<alloc::sync::Arc<Self>>
     where
         Self: Sized,
     {
-        T::init(config)
+        T::init(config, transport_deserializer)
     }
 
     #[inline]
@@ -70,6 +79,12 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
+    fn get_transport_deserializer(&self) -> &[DeserializerFn] {
+        T::get_transport_deserializer(self)
+    }
+
+    #[inline]
+    #[tracing::instrument(skip(self))]
     async fn write_ctx(&self, queue: &QueueID, ctx: &ContextFinished) -> anyhow::Result<()> {
         let msg_uuid = &ctx.mail_from.message_uuid;
         let queue_path = self.get_queue_path(queue);
@@ -89,8 +104,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
             .truncate(true)
             .open(&msg_path)?;
 
-        let serialized = serde_json::to_string_pretty(ctx)?;
-        std::io::Write::write_all(&mut file, serialized.as_bytes())?;
+        serde_json::to_writer_pretty(&mut file, ctx).context("failed to write context")?;
 
         tracing::debug!(to = ?queue_path, "Email context written.");
 
@@ -98,6 +112,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn write_msg(&self, msg_uuid: &uuid::Uuid, msg: &MessageBody) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
         if !mails.exists() {
@@ -131,6 +146,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn remove_ctx(&self, queue: &QueueID, msg_uuid: &uuid::Uuid) -> anyhow::Result<()> {
         let mut ctx_filepath = self.get_queue_path(queue).join(msg_uuid.to_string());
 
@@ -145,6 +161,7 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn remove_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<()> {
         let mails = self.get_config().server.queues.dirpath.join("mails");
 
@@ -181,23 +198,38 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn get_ctx(
         &self,
         queue: &QueueID,
         msg_uuid: &uuid::Uuid,
     ) -> anyhow::Result<ContextFinished> {
         let mut ctx_filepath = self.get_queue_path(queue).join(msg_uuid.to_string());
-
         ctx_filepath.set_extension("json");
 
-        let content = std::fs::read_to_string(&ctx_filepath)
-            .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
+        let file = std::fs::File::open(&ctx_filepath)
+            .with_context(|| format!("Cannot open file at '{}'", ctx_filepath.display()))?;
+        let reader = std::io::BufReader::new(file);
 
-        serde_json::from_str::<ContextFinished>(&content)
-            .with_context(|| format!("Cannot deserialize: '{content:?}'"))
+        let mut deserialized: ContextFinished = serde_json::from_reader(reader)
+            .with_context(|| format!("Cannot deserialize at '{}'", ctx_filepath.display()))?;
+
+        deserialized.rcpt_to.delivery = deserialized
+            .rcpt_to
+            .delivery
+            .into_iter()
+            .map(|(transport, rcpt)| {
+                transport
+                    .to_ready(self.get_transport_deserializer())
+                    .map(|t| (t, rcpt))
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(deserialized)
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn get_detailed_ctx(
         &self,
         queue: &QueueID,
@@ -213,14 +245,28 @@ impl<T: FilesystemQueueManagerExt + Send + Sync + core::fmt::Debug> GenericQueue
         let content = std::fs::read_to_string(&ctx_filepath)
             .with_context(|| format!("Cannot read file '{}'", ctx_filepath.display()))?;
 
+        let mut deserialized = serde_json::from_str::<ContextFinished>(&content)
+            .with_context(|| format!("Cannot deserialize: '{content:?}'"))?;
+
+        deserialized.rcpt_to.delivery = deserialized
+            .rcpt_to
+            .delivery
+            .into_iter()
+            .map(|(transport, rcpt)| {
+                transport
+                    .to_ready(self.get_transport_deserializer())
+                    .map(|t| (t, rcpt))
+            })
+            .collect::<Result<_, _>>()?;
+
         Ok(DetailedMailContext {
-            ctx: serde_json::from_str::<ContextFinished>(&content)
-                .with_context(|| format!("Cannot deserialize: '{content:?}'"))?,
+            ctx: deserialized,
             modified_at,
         })
     }
 
     #[inline]
+    #[tracing::instrument(skip(self))]
     async fn get_msg(&self, msg_uuid: &uuid::Uuid) -> anyhow::Result<MessageBody> {
         let msg_filepath = std::path::PathBuf::from_iter([
             self.get_config().server.queues.dirpath.clone(),

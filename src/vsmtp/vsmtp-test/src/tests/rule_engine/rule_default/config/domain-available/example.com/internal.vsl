@@ -4,7 +4,7 @@
             msg::prepend_header("X-INTERNAL", ctx::rcpt());
             msg::prepend_header("X-CUSTOM", "An internal email");
 
-            state::accept(code(0, "internal example.com"))
+            state::accept(code(100, "internal example.com"))
         },
     ],
 }

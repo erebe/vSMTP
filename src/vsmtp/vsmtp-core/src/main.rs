@@ -57,10 +57,7 @@ fn try_main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let config = args.config.as_ref().map_or_else(
-        || Ok(Config::default()),
-        |path| Config::from_vsl_file(path).context("Cannot parse the configuration"),
-    )?;
+    let config = Config::from_vsl_file(&args.config).context("Cannot parse the configuration")?;
 
     if let Some(command) = args.command {
         match command {
