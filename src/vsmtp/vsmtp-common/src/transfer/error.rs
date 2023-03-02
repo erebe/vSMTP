@@ -156,8 +156,7 @@ pub enum Delivery {
         with_source: Option<String>,
     },
 
-    ///
-    // FIXME:
+    /// Internal error of the client
     #[error("client: {}",
         with_source
             .as_ref()
@@ -168,8 +167,7 @@ pub enum Delivery {
         with_source: Option<String>,
     },
 
-    ///
-    // FIXME:
+    /// Error due to the underlying connection
     #[error("connection: {}",
         with_source
             .as_ref()
@@ -179,6 +177,14 @@ pub enum Delivery {
         /// The source of the error
         with_source: Option<String>,
     },
+}
+
+impl From<std::io::Error> for Delivery {
+    fn from(err: std::io::Error) -> Self {
+        Self::Connection {
+            with_source: Some(err.to_string()),
+        }
+    }
 }
 
 /// Errors produced by the rule engine
@@ -254,7 +260,6 @@ impl From<trust_dns_resolver::error::ResolveError> for Lookup {
 
 impl From<lettre::transport::smtp::Error> for Delivery {
     fn from(value: lettre::transport::smtp::Error) -> Self {
-        dbg!(&value);
         let with_source = std::error::Error::source(&value).map(ToString::to_string);
 
         if value.is_client() {
