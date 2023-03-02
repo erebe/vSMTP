@@ -63,7 +63,7 @@ anyhow = "1.0.69"
 
 serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 
-tokio = { version = "1.25.0", default-features = false, features = [
+tokio = { version = "1.26.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",

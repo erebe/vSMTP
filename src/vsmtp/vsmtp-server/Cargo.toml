@@ -84,7 +84,7 @@ lettre = { version = "0.10.3", default-features = false, features = [
   "tokio1-rustls-tls",
   "tracing",
 ] }
-tokio = { version = "1.25.0", default-features = false, features = [
+tokio = { version = "1.26.0", default-features = false, features = [
   "macros",
   "sync",
   "fs",
