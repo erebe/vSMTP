@@ -3996,9 +3996,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "viaspf"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bbc287a04f05fabb7743b8e61463f1af3db591a7c9bcadb3b148581bf66225b"
+checksum = "1a46f184e974cdfb68eafeb3404a35ca540c023a2d5fb8caa0e264176b8215ce"
 dependencies = [
  "async-trait",
  "idna 0.3.0",
