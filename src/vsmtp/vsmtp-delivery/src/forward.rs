@@ -16,11 +16,10 @@
 */
 use crate::{send::SenderParameters, to_lettre_envelope};
 use vsmtp_common::{
-    transfer::{Status, TransferErrorsVariant},
+    transfer::{error::Variant, Status},
     transport::{AbstractTransport, DeliverTo},
     Address, ContextFinished,
 };
-use vsmtp_config::Config;
 extern crate alloc;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -36,9 +35,6 @@ def_type_serde!("forward");
 /// the email will be directly delivered to the server, **without** mx lookup.
 #[derive(Debug, serde::Deserialize)]
 pub struct Forward {
-    #[serde(skip)]
-    #[allow(dead_code)]
-    config: alloc::sync::Arc<Config>,
     #[serde(flatten)]
     payload: Payload,
 }
@@ -59,9 +55,8 @@ impl Forward {
     /// create a new deliver with a resolver to get data from the distant dns server.
     #[must_use]
     #[inline]
-    pub fn new(params: SenderParameters, config: alloc::sync::Arc<Config>) -> Self {
+    pub fn new(params: SenderParameters) -> Self {
         Self {
-            config,
             payload: Payload {
                 params,
                 r#type: "forward".to_owned(),
@@ -75,8 +70,8 @@ impl Forward {
         from: &Option<Address>,
         to: &DeliverTo,
         message: &[u8],
-    ) -> Result<lettre::transport::smtp::response::Response, TransferErrorsVariant> {
-        let envelop = to_lettre_envelope(from, to.iter().map(|(rcpt, _)| rcpt));
+    ) -> Result<lettre::transport::smtp::response::Response, Variant> {
+        let envelop = to_lettre_envelope(from, to.iter().map(|(rcpt, _)| rcpt))?;
 
         tracing::debug!(?self.payload.params, "Forwarding email.");
 
@@ -87,9 +82,7 @@ impl Forward {
             .params
             .smtp_send(&ctx.connect.server_name, &envelop, message, None)
             .await
-            .map_err(|e| TransferErrorsVariant::Smtp {
-                error: e.to_string(),
-            })
+            .map_err(|e| Variant::Delivery(vec![(self.payload.params.host.clone(), e)]))
     }
 }
 
@@ -138,20 +131,22 @@ impl AbstractTransport for Forward {
 mod tests {
     use super::*;
     use vsmtp_common::{
-        transfer::{Status, TransferErrorsVariant},
+        transfer::{
+            error::{Delivery, Variant},
+            Status,
+        },
         transport::{AbstractTransport, WrapperSerde},
     };
-    use vsmtp_test::config::{local_ctx, local_msg, local_test, with_tls};
+    use vsmtp_test::config::{local_ctx, local_msg};
 
     #[test_log::test(tokio::test)]
     async fn forward() {
-        let config = with_tls();
         let ctx = local_ctx();
         let msg = local_msg();
 
         let target = "127.0.0.1:9999".parse::<SenderParameters>().unwrap();
 
-        let transport = alloc::sync::Arc::new(Forward::new(target, alloc::sync::Arc::new(config)));
+        let transport = alloc::sync::Arc::new(Forward::new(target));
         let updated_rcpt = alloc::sync::Arc::clone(&transport)
             .deliver(
                 &ctx,
@@ -163,10 +158,13 @@ mod tests {
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().1 {
             Status::HeldBack { errors } => assert_eq!(
-                errors.first().unwrap().variant,
-                TransferErrorsVariant::Smtp {
-                    error: "Connection error: Connection refused (os error 111)".to_owned()
-                }
+                *errors.first().unwrap().variant(),
+                Variant::Delivery(vec![(
+                    "127.0.0.1".parse().unwrap(),
+                    Delivery::Connection {
+                        with_source: Some("Connection refused (os error 111)".to_owned())
+                    }
+                )])
             ),
             _ => panic!(),
         }
@@ -179,7 +177,6 @@ mod tests {
         }).to_string(),
         Forward::new(
             "localhost".parse().expect(""),
-            alloc::sync::Arc::new(local_test())
         )
     )]
     fn deserialize(#[case] input: &str, #[case] instance: Forward) {

@@ -18,7 +18,7 @@ use crate::ProcessMessage;
 use anyhow::Context;
 use time::ext::NumericalDuration;
 use vqueue::{GenericQueueManager, QueueID};
-use vsmtp_common::transfer::Status;
+use vsmtp_common::transfer::{Error, Status};
 use vsmtp_config::Config;
 use vsmtp_delivery::{split_and_sort_and_send, SenderOutcome};
 
@@ -83,7 +83,7 @@ async fn handle_one_in_deferred_queue<Q: GenericQueueManager + Sized + 'static>(
         .values()
         .flatten()
         .filter_map(|i| match &i.1 {
-            Status::HeldBack { errors } => errors.last().map(|e| e.timestamp),
+            Status::HeldBack { errors } => errors.last().map(Error::timestamp),
             _ => None,
         })
         .min();

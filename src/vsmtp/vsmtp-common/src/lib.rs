@@ -86,8 +86,14 @@ pub mod libc_abstraction;
 /// status of the mail context
 pub mod status;
 
-/// transfer method for delivery / forwarding.
-pub mod transfer;
+/// transfer related types
+pub mod transfer {
+    /// underlying transfer errors
+    pub mod error;
+    mod status;
+
+    pub use status::{Error, Status};
+}
 
 /// parsing utils.
 pub mod utils;

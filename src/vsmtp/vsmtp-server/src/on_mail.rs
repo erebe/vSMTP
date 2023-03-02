@@ -18,10 +18,7 @@
 use crate::{Process, ProcessMessage};
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{status, transfer, ContextFinished};
-use vsmtp_common::{
-    transfer::{RuleEngineVariants, TransferErrorsVariant},
-    CodeID,
-};
+use vsmtp_common::{transfer::error::Rule, CodeID};
 use vsmtp_mail_parser::MessageBody;
 use vsmtp_rule_engine::ExecutionStage;
 
@@ -116,9 +113,7 @@ impl MailHandler {
             }
             Some(status::Status::Deny(code)) => {
                 for rcpt in &mut mail_context.rcpt_to.delivery.values_mut().flatten() {
-                    rcpt.1 = transfer::Status::failed(TransferErrorsVariant::RuleEngine(
-                        RuleEngineVariants::Denied(code.clone()),
-                    ));
+                    rcpt.1 = transfer::Status::failed(Rule::Denied(code.clone()));
                 }
 
                 (Some(QueueID::Dead), None, false)

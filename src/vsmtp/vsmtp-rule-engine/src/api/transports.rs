@@ -106,7 +106,6 @@ mod transport {
     /// #   let transport = std::sync::Arc::new(
     /// #     vsmtp_delivery::Forward::new(
     /// #       target.parse().unwrap(),
-    /// #       std::sync::Arc::new(vsmtp_test::config::local_test())
     /// #     )
     /// #   );
     /// #   let delivery = states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.delivery().unwrap();
@@ -126,8 +125,7 @@ mod transport {
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
-        let transport = std::sync::Arc::new(Forward::new(params, srv.config.clone()));
+        let transport = std::sync::Arc::new(Forward::new(params));
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
             .set_transport_for_one(&rcpt, transport)
@@ -148,14 +146,10 @@ mod transport {
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
 
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
-            .set_transport_for_one(
-                &rcpt,
-                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
-            )
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(Forward::new(params)))
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
@@ -172,13 +166,9 @@ mod transport {
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
-            .set_transport_for_one(
-                &rcpt,
-                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
-            )
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(Forward::new(params)))
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
@@ -195,13 +185,9 @@ mod transport {
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
-            .set_transport_for_one(
-                &rcpt,
-                std::sync::Arc::new(Forward::new(params, srv.config.clone())),
-            )
+            .set_transport_for_one(&rcpt, std::sync::Arc::new(Forward::new(params)))
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 
@@ -256,7 +242,6 @@ mod transport {
     /// # &vsmtp_common::transport::WrapperSerde::Ready(std::sync::Arc::new(
     /// #   vsmtp_delivery::Forward::new(
     /// #     "127.0.0.1".parse().unwrap(),
-    /// #     std::sync::Arc::new(vsmtp_test::config::local_test())
     /// #   )
     /// # ))
     /// # ).unwrap();
@@ -278,8 +263,7 @@ mod transport {
                 .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
-        let transport = std::sync::Arc::new(Forward::new(params, srv.config.clone()));
+        let transport = std::sync::Arc::new(Forward::new(params));
 
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
@@ -294,13 +278,9 @@ mod transport {
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         let ctx = get_global!(ncc, ctx)?;
-        let srv = get_global!(ncc, srv)?;
         let mut guard = ctx.write().expect("mutex poisoned");
         guard
-            .set_transport_foreach(std::sync::Arc::new(Forward::new(
-                params,
-                srv.config.clone(),
-            )))
+            .set_transport_foreach(std::sync::Arc::new(Forward::new(params)))
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
     }
 

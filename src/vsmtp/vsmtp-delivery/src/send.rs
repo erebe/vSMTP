@@ -16,7 +16,10 @@
 */
 use futures_util::FutureExt;
 use vsmtp_common::{
-    transfer::{Status, TransferErrorsVariant},
+    transfer::{
+        error::{Delivery, Queuer},
+        Status,
+    },
     transport::WrapperSerde,
     ContextFinished, Domain, Target, SMTP_PORT, SUBMISSIONS_PORT, SUBMISSION_PORT,
 };
@@ -115,7 +118,7 @@ pub async fn split_and_sort_and_send(
 
     for rcpt in &mut message_ctx.rcpt_to.delivery.values_mut().flatten() {
         if matches!(&rcpt.1, &Status::Waiting { .. }) {
-            rcpt.1.held_back(TransferErrorsVariant::StillWaiting);
+            rcpt.1.held_back(Queuer::StillWaiting);
         }
     }
 
@@ -124,7 +127,7 @@ pub async fn split_and_sort_and_send(
         if matches!(&rcpt.1, Status::HeldBack{ errors }
             if errors.len() >= config.server.queues.delivery.deferred_retry_max)
         {
-            rcpt.1 = Status::failed(TransferErrorsVariant::MaxDeferredAttemptReached);
+            rcpt.1 = Status::failed(Queuer::MaxDeferredAttemptReached);
             tracing::warn!("Delivery error count maximum reached, moving to dead.");
             out = Some(SenderOutcome::MoveToDead);
         }
@@ -373,7 +376,7 @@ impl SenderParameters {
         envelop: &lettre::address::Envelope,
         message: &[u8],
         certificate: Option<Vec<rustls::Certificate>>,
-    ) -> Result<lettre::transport::smtp::response::Response, lettre::transport::smtp::Error> {
+    ) -> Result<lettre::transport::smtp::response::Response, Delivery> {
         use lettre::transport::smtp::{
             client::{Certificate, Tls, TlsParameters},
             extension::ClientId,
@@ -428,7 +431,9 @@ impl SenderParameters {
 
         let transport = builder.build();
 
-        lettre::AsyncTransport::send_raw(&transport, envelop, message).await
+        lettre::AsyncTransport::send_raw(&transport, envelop, message)
+            .await
+            .map_err(Into::into)
     }
 }
 

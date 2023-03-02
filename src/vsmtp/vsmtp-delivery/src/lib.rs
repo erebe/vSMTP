@@ -57,7 +57,7 @@
 mod send;
 
 pub use send::{split_and_sort_and_send, SenderOutcome, SenderParameters, TlsPolicy};
-use vsmtp_common::Address;
+use vsmtp_common::{transfer::error::Envelop, Address};
 extern crate alloc;
 
 mod dns {
@@ -101,16 +101,20 @@ macro_rules! def_type_serde {
 }
 
 // at this point there should be no error
-#[allow(clippy::expect_used)]
+#[allow(clippy::panic_in_result_fn, clippy::unreachable)]
 fn to_lettre_envelope<'item>(
     from: &Option<Address>,
     rcpt: impl Iterator<Item = &'item Address>,
-) -> lettre::address::Envelope {
-    lettre::address::Envelope::new(
+) -> Result<lettre::address::Envelope, Envelop> {
+    match lettre::address::Envelope::new(
         from.as_ref().map(Address::to_lettre),
         rcpt.map(Address::to_lettre).collect::<Vec<_>>(),
-    )
-    .expect("at least one rcpt")
+    ) {
+        Ok(envelop) => Ok(envelop),
+        Err(lettre::error::Error::MissingTo) => Err(Envelop::NoRecipient),
+        // NOTE: the `Error::MissingTo` is the only error that can be returned by `Envelope::new`
+        Err(_) => unreachable!(),
+    }
 }
 
 /*

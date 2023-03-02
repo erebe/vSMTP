@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
-    transfer::{Status, TransferErrorsVariant},
+    transfer::{error::LocalDelivery, Status},
     transport::{AbstractTransport, DeliverTo},
     Address, ContextFinished,
 };
@@ -89,9 +89,7 @@ impl AbstractTransport for Maildir {
                 Some(Err(error)) => {
                     tracing::error!(%error, "Email delivery failure.");
 
-                    rcpt.1.held_back(TransferErrorsVariant::LocalDeliveryError {
-                        error: error.to_string(),
-                    });
+                    rcpt.1.held_back(LocalDelivery::Other(error.to_string()));
                 }
                 None => {
                     tracing::error!(
@@ -99,8 +97,8 @@ impl AbstractTransport for Maildir {
                         "Email delivery failure."
                     );
 
-                    rcpt.1.held_back(TransferErrorsVariant::NoSuchMailbox {
-                        name: rcpt.0.local_part().to_owned(),
+                    rcpt.1.held_back(LocalDelivery::MailboxDoNotExist {
+                        mailbox: rcpt.0.local_part().to_owned(),
                     });
                 }
             }
@@ -199,6 +197,7 @@ mod test {
 
     use super::*;
     use users::os::unix::UserExt;
+    use vsmtp_common::transfer::error::Variant;
     use vsmtp_common::{addr, transport::WrapperSerde};
     use vsmtp_test::config::local_ctx;
 
@@ -236,14 +235,16 @@ mod test {
     }
 
     #[rstest::rstest]
-    #[case::not_existing("foobar", Err(TransferErrorsVariant::NoSuchMailbox {
-        name: "foobar".to_owned()
-    }))]
-    #[case::no_privilege("root", Err(TransferErrorsVariant::LocalDeliveryError {
-        error: "failed to create /root/Maildir".to_owned()
-    }))]
+    #[case::not_existing("foobar", Err(Variant::LocalDelivery(
+        LocalDelivery::MailboxDoNotExist {
+            mailbox: "foobar".to_owned()
+        })
+    ))]
+    #[case::no_privilege("root", Err(Variant::LocalDelivery(
+        LocalDelivery::Other("failed to create /root/Maildir".to_owned())
+    )))]
     #[case::valid(users::get_current_username().unwrap().to_str().unwrap().to_owned(), Ok(()))]
-    fn maildir(#[case] mailbox: String, #[case] expected: Result<(), TransferErrorsVariant>) {
+    fn maildir(#[case] mailbox: String, #[case] expected: Result<(), Variant>) {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -287,7 +288,7 @@ mod test {
                     }
                     Err(error) => match result[0].1 {
                         Status::HeldBack { ref errors } => {
-                            assert_eq!(errors[0].variant, error);
+                            assert_eq!(*errors[0].variant(), error);
                         }
                         _ => unreachable!(),
                     },

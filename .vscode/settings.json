@@ -83,6 +83,7 @@
     "preq",
     "proto",
     "rcpts",
+    "rdata",
     "RDONLY",
     "RDWR",
     "readwrite",

@@ -19,7 +19,7 @@ use anyhow::Context;
 use vqueue::{GenericQueueManager, QueueID};
 use vsmtp_common::{
     status,
-    transfer::{self, RuleEngineVariants, TransferErrorsVariant},
+    transfer::{self, error::Rule},
 };
 use vsmtp_config::Config;
 use vsmtp_delivery::{split_and_sort_and_send, SenderOutcome};
@@ -135,9 +135,7 @@ pub(super) async fn handle_one_in_delivery_queue<Q: GenericQueueManager + Sized 
         }
         Some(status::Status::Deny(code)) => {
             for rcpt in &mut ctx.rcpt_to.delivery.values_mut().flatten() {
-                rcpt.1 = transfer::Status::failed(TransferErrorsVariant::RuleEngine(
-                    RuleEngineVariants::Denied(code.clone()),
-                ));
+                rcpt.1 = transfer::Status::failed(Rule::Denied(code.clone()));
             }
 
             queue_manager.move_to(&queue, &QueueID::Dead, &ctx).await?;

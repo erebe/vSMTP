@@ -38,6 +38,14 @@ pub enum ReplyCode {
     },
 }
 
+impl From<lettre::transport::smtp::response::Code> for ReplyCode {
+    fn from(value: lettre::transport::smtp::response::Code) -> Self {
+        Self::Code {
+            code: value.to_string().parse().expect("code format is valid"),
+        }
+    }
+}
+
 const ENHANCED: i32 = 0;
 const SIMPLE: i32 = 1;
 

@@ -17,7 +17,10 @@
 use crate::{send::SenderParameters, to_lettre_envelope};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    transfer::{Status, TransferErrorsVariant},
+    transfer::{
+        error::{Lookup, Variant},
+        Status,
+    },
     transport::{AbstractTransport, DeliverTo},
     Address, ContextFinished, Domain, Target,
 };
@@ -156,16 +159,14 @@ impl Deliver {
         from: &Option<Address>,
         domain: &Domain,
         rcpt: &DeliverTo,
-    ) -> Result<(), TransferErrorsVariant> {
-        let envelop = to_lettre_envelope(from, rcpt.iter().map(|(r, _)| r));
+    ) -> Result<(), Variant> {
+        let envelop = to_lettre_envelope(from, rcpt.iter().map(|(r, _)| r))?;
         tracing::trace!(?envelop);
 
         let records = self
             .get_mx_records(&domain.to_string())
             .await
-            .map_err(|e| TransferErrorsVariant::DnsRecord {
-                error: e.to_string(),
-            })?;
+            .map_err(Into::<Lookup>::into)?;
         tracing::trace!(?records);
 
         if records.is_empty() {
@@ -179,9 +180,7 @@ impl Deliver {
             SenderParameters::from(Target::Domain(domain.clone()))
                 .smtp_send(&ctx.connect.server_name, &envelop, message, None)
                 .await
-                .map_err(|e| TransferErrorsVariant::Smtp {
-                    error: e.to_string(),
-                })?;
+                .map_err(|e| Variant::Delivery(vec![(Target::Domain(domain.clone()), e)]))?;
             return Ok(());
         }
 
@@ -190,7 +189,8 @@ impl Deliver {
             .map(trust_dns_resolver::proto::rr::rdata::MX::exchange)
             .collect::<Vec<_>>();
 
-        for mx in &mxs {
+        let mut e = vec![];
+        for mx in mxs {
             tracing::debug!(%mx, "Trying to send an email.");
 
             // checking for a null mx record.
@@ -200,9 +200,10 @@ impl Deliver {
                     "Trying to deliver to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages."
                 );
 
-                return Err(TransferErrorsVariant::HasNullMX {
+                return Err(Lookup::ContainsNullMX {
                     domain: domain.clone(),
-                });
+                }
+                .into());
             }
 
             // get_cert_for_server(&ctx.connect.server_name, &self.config)
@@ -225,13 +226,12 @@ impl Deliver {
                         %err,
                         "failed to send message"
                     );
+                    e.push((Target::Domain(mx.clone()), err));
                 }
             }
         }
 
-        Err(TransferErrorsVariant::DeliveryError {
-            targets: mxs.into_iter().cloned().collect(),
-        })
+        Err(Variant::Delivery(e))
     }
 }
 
@@ -281,7 +281,7 @@ mod test {
         TokioAsyncResolver,
     };
     use vsmtp_common::{
-        transfer::{Status, TransferErrorsVariant},
+        transfer::{error::Variant, Status},
         transport::{AbstractTransport, WrapperSerde},
     };
     use vsmtp_test::config::{local_ctx, local_msg, local_test};
@@ -310,10 +310,9 @@ mod test {
         #[allow(clippy::wildcard_enum_match_arm)]
         match &updated_rcpt.first().unwrap().1 {
             Status::HeldBack { errors } => assert_eq!(
-                errors.first().unwrap().variant,
-                TransferErrorsVariant::DnsRecord {
-                    error: "no record found for Query { name: Name(\"foo.bar.\"), query_type: MX, query_class: IN }".to_owned(),
-                }
+                *errors.first().unwrap().variant(),
+                // error: "no record found for Query { name: Name(\"foo.bar.\"), query_type: MX, query_class: IN }".to_owned()
+                Variant::Lookup(Lookup::NoRecords {})
             ),
             _ => panic!(),
         }

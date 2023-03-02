@@ -49,7 +49,7 @@ pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
 use anyhow::Context;
-use vsmtp_common::transfer::SmtpConnection;
+use vsmtp_common::status::SmtpConnection;
 use vsmtp_common::{Address, ContextFinished};
 use vsmtp_mail_parser::MessageBody;
 

@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::transfer::SmtpConnection;
+use vsmtp_common::status::SmtpConnection;
 
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, NativeCallContext, PluginFunction, RhaiResult, TypeId,

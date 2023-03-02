@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::transfer::SmtpConnection;
+use vsmtp_common::status::SmtpConnection;
 
 /// A service used to communicate with a third-party program using SMTP.
 #[derive(Debug, Clone)]
