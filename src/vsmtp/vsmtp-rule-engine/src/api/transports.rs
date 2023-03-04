@@ -115,6 +115,62 @@ mod transport {
     /// #   assert!(bound.iter().map(|(r, _)| r).any(|r| *r == *addr));
     /// # }
     /// ```
+    ///
+    /// Or with url:
+    ///
+    /// ```
+    /// # let rules = r#"
+    /// #{
+    ///     rcpt: [
+    /// #      action "rm default value" || {
+    /// #        envelop::rm_rcpt("recipient@testserver.com");
+    /// #        envelop::add_rcpt("my.address@foo.com");
+    /// #      },
+    ///       action "set forward" || {
+    ///         let user = "root@domain.tld";
+    ///         let pass = "xxxxxx";
+    ///         let host = "smtp.domain.tld";
+    ///         let port = 25;
+    ///         transport::forward_all(`smtp://${user}:${pass}@${host}:${port}?tls=opportunistic`);
+    ///       },
+    ///    ]
+    /// }
+    /// # "#;
+    /// #
+    /// # let states = vsmtp_test::vsl::run(|builder| Ok(builder
+    /// #   .add_root_filter_rules("#{}")?
+    /// #      .add_domain_rules("testserver.com".parse().unwrap())
+    /// #        .with_incoming(rules)?
+    /// #        .with_outgoing(rules)?
+    /// #        .with_internal(rules)?
+    /// #      .build()
+    /// #   .build())
+    /// # );
+    /// # assert_eq!(states[&vsmtp_rule_engine::ExecutionStage::RcptTo].2, vsmtp_common::status::Status::Next);
+    /// # use vsmtp_common::Address;
+    /// # let bound = states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.delivery().unwrap().get(
+    /// # &vsmtp_common::transport::WrapperSerde::Ready(std::sync::Arc::new(
+    /// #   vsmtp_delivery::Forward::new(
+    /// #     vsmtp_delivery::SenderParameters {
+    /// #       host: vsmtp_common::Target::Domain("smtp.domain.tld".parse().unwrap()),
+    /// #       hello_name: None,
+    /// #       port: 25,
+    /// #       credentials: Some(("root@domain.tld".to_string(), "xxxxxx".to_string())),
+    /// #       tls: vsmtp_delivery::TlsPolicy::StarttlsOpportunistic,
+    /// #     }
+    /// #   )
+    /// # ))
+    /// # ).unwrap();
+    /// # for (addr, expected_addr) in states[&vsmtp_rule_engine::ExecutionStage::RcptTo].0.forward_paths().unwrap().iter().zip([
+    /// #     "my.address@foo.com",
+    /// # ]) {
+    /// #   assert_eq!(
+    /// #     *addr,
+    /// #     Address::new_unchecked(expected_addr.to_string())
+    /// #   );
+    /// #   assert!(bound.iter().map(|(r, _)| r).any(|r| *r == *addr));
+    /// # }
+    /// ```
     #[rhai_fn(name = "forward", return_raw)]
     pub fn forward(ncc: NativeCallContext, rcpt: &str, forward: &str) -> EngineResult<()> {
         let params =

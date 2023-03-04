@@ -51,6 +51,7 @@ futures-util = { version = "0.3.24", default-features = false, features = ["asyn
 time = { version = "0.3.20", default-features = false, features = ["std", "formatting", "macros"] }
 addr = { version = "0.15.6", default-features = false, features = ["std"] }
 url = { version = "2.3.1", default-features = false }
+urlencoding = { version = "2.1.2", default-features = false }
 
 thiserror = { version = "1.0.38", default-features = false }
 strum = { version = "0.24.1", features = ["derive"] }

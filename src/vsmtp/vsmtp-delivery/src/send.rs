@@ -235,6 +235,9 @@ pub enum SenderParametersParseError {
 
     #[error("url parse error: {0}")]
     Url(#[from] url::ParseError),
+
+    #[error("{0}")]
+    Utf8(#[from] alloc::string::FromUtf8Error),
 }
 
 impl TryFrom<url::Url> for SenderParameters {
@@ -317,7 +320,14 @@ impl TryFrom<url::Url> for SenderParameters {
             host,
             hello_name: None,
             port,
-            credentials: credentials.map(|(user, pass)| (user.to_owned(), pass.to_owned())),
+            credentials: credentials
+                .map(
+                    |(user, pass)| match (urlencoding::decode(user), urlencoding::decode(pass)) {
+                        (Ok(user), Ok(pass)) => Ok((user.to_string(), pass.to_string())),
+                        (_, Err(e)) | (Err(e), _) => Err(e),
+                    },
+                )
+                .transpose()?,
             tls: tls_policy,
         })
     }

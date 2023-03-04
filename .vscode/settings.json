@@ -129,6 +129,7 @@
     "tokio",
     "udeps",
     "unencrypted",
+    "urlencoding",
     "uuid",
     "viaspf",
     "viridit",
