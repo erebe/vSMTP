@@ -15,9 +15,37 @@
  *
 */
 
-use crate::dkim::Signature;
+use crate::dkim::{self, PublicKey, Signature};
 use base64::Engine;
 use vsmtp_mail_parser::MessageBody;
+
+#[ignore = "used for debugging with FILE env var as input file"]
+#[test_log::test]
+fn verify_file() {
+    let filepath = option_env!("FILE").unwrap();
+    let file_content = std::fs::read_to_string(filepath).unwrap();
+    let body = MessageBody::try_from(file_content.as_str()).unwrap();
+
+    let signature = <Signature as std::str::FromStr>::from_str(
+        &body.inner().get_header("DKIM-Signature", true).unwrap(),
+    )
+    .unwrap();
+
+    let txt_record = trust_dns_resolver::Resolver::default()
+        .unwrap()
+        .txt_lookup(dbg!(signature.get_dns_query()))
+        .unwrap();
+
+    let keys = txt_record
+        .into_iter()
+        .map(|i| <PublicKey as std::str::FromStr>::from_str(&i.to_string()));
+
+    let keys = keys
+        .collect::<Result<Vec<_>, <PublicKey as std::str::FromStr>::Err>>()
+        .unwrap();
+
+    dkim::verify(&signature, body.inner(), keys.first().unwrap()).unwrap();
+}
 
 #[test]
 fn mail_5() {

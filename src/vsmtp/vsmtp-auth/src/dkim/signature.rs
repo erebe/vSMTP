@@ -116,14 +116,14 @@ impl Signature {
     }
 
     pub(super) fn get_header_for_hash(&self, message: &RawBody) -> String {
-        let mut last_index = std::collections::HashMap::<&str, usize>::new();
+        let mut last_index = std::collections::HashMap::<String, usize>::new();
 
         let headers = message.headers();
 
         let mut output = vec![];
         for header in &self.headers_field {
             let idx = last_index
-                .get(header.as_str())
+                .get(&header.to_lowercase())
                 .map_or(headers.len(), |x| *x);
 
             if let Some((pos, (key, value))) = headers[..idx]
@@ -131,10 +131,7 @@ impl Signature {
                 .enumerate()
                 .rfind(|(_, (key, _))| key.eq_ignore_ascii_case(header))
             {
-                last_index
-                    .entry(key.as_str())
-                    .and_modify(|v| *v = pos)
-                    .or_insert(pos);
+                last_index.insert(key.to_lowercase(), pos);
                 output.push(format!("{key}:{value}"));
             }
         }
