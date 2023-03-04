@@ -43,6 +43,10 @@ pub struct Args {
     #[clap(short, long, action)]
     pub config: String,
 
+    /// Absolute path of a dotenv file.
+    #[clap(short, long, action)]
+    pub env: Option<String>,
+
     /// Commands.
     #[clap(subcommand)]
     pub command: Option<Commands>,
@@ -80,6 +84,7 @@ mod tests {
 
     use super::*;
 
+    #[allow(clippy::too_many_lines)]
     #[test]
     fn parse_arg() {
         assert!(<Args as clap::Parser>::try_parse_from([""]).is_ok());
@@ -89,6 +94,7 @@ mod tests {
                 version: false,
                 command: None,
                 config: "path".to_string(),
+                env: None,
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -99,8 +105,22 @@ mod tests {
         assert_eq!(
             Args {
                 version: false,
+                command: None,
+                config: Args::default_config_location(),
+                env: Some("env".to_string()),
+                no_daemon: false,
+                stdout: false,
+                timeout: None
+            },
+            <Args as clap::Parser>::try_parse_from(["", "--env", "env"]).unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                version: false,
                 command: Some(Commands::ConfigShow),
                 config: "path".to_string(),
+                env: None,
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -113,6 +133,7 @@ mod tests {
                 version: false,
                 command: Some(Commands::ConfigDiff),
                 config: "path".to_string(),
+                env: None,
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -125,6 +146,7 @@ mod tests {
                 version: true,
                 command: None,
                 config: Args::default_config_location(),
+                env: None,
                 no_daemon: false,
                 stdout: false,
                 timeout: None
@@ -137,6 +159,7 @@ mod tests {
                 version: false,
                 command: None,
                 config: "path".to_string(),
+                env: None,
                 no_daemon: true,
                 stdout: false,
                 timeout: None
@@ -149,6 +172,7 @@ mod tests {
                 version: false,
                 command: None,
                 config: "path".to_string(),
+                env: None,
                 no_daemon: true,
                 stdout: true,
                 timeout: Some(Timeout(std::time::Duration::from_secs(1)))
@@ -157,6 +181,30 @@ mod tests {
                 "",
                 "-c",
                 "path",
+                "--no-daemon",
+                "--stdout",
+                "--timeout",
+                "1s"
+            ])
+            .unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                version: false,
+                command: None,
+                config: "path".to_string(),
+                env: Some("env".to_string()),
+                no_daemon: true,
+                stdout: true,
+                timeout: Some(Timeout(std::time::Duration::from_secs(1)))
+            },
+            <Args as clap::Parser>::try_parse_from([
+                "",
+                "-c",
+                "path",
+                "--env",
+                "env",
                 "--no-daemon",
                 "--stdout",
                 "--timeout",

@@ -47,6 +47,7 @@ mod rule_engine {
 }
 mod rules {
     mod codes;
+    mod dotenv;
     mod quarantine;
 }
 mod vqueue;

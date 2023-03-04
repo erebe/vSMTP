@@ -34,6 +34,7 @@
     "dnssec",
     "docsrs",
     "domainkey",
+    "dotenv",
     "dylib",
     "ehlo",
     "ENHANCEDSTATUSCODES",

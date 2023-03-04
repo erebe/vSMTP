@@ -119,5 +119,9 @@ fn try_main() -> anyhow::Result<()> {
         // setuid(config.server.system.user.uid())?;
     }
 
+    if let Some(t) = args.env {
+        dotenv::from_path(t)?;
+    }
+
     start_runtime(config, sockets, args.timeout.map(|t| t.0))
 }
