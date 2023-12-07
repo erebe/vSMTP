@@ -88,7 +88,7 @@ anyhow = { version = "1.0.69", default-features = false, features = ["std"] }
 either = { version = "1.8.1", default-features = false, features = ["use_std"] }
 humantime = { version = "2.1.0", default-features = false }
 
-tracing = { version = "0.1.37", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
+tracing = { version = "0.1.40", default-features = false, features = ["std", "attributes", "release_max_level_info"] }
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["smallvec", "fmt", "ansi", "std"] }
 tracing-appender = { version = "0.2.2", default-features = false }
 tracing-journald = { version = "0.3.0", default-features = false }
