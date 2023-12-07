@@ -71,7 +71,7 @@ trust-dns-resolver = { version = "0.22.0", default-features = false, features = 
   "tokio-runtime",
 ] }
 
-semver = { version = "1.0.16", default-features = false, features = ["std", "serde"] }
+semver = { version = "1.0.20", default-features = false, features = ["std", "serde"] }
 serde_json = { version = "1.0.93", default-features = false, features = ["std"] }
 serde_with = { version = "2.2.0", default-features = false, features = ["std", "macros"] }
 serde_path_to_error = "0.1.9"
