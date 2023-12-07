@@ -54,7 +54,7 @@ tokio = { version = "1.26.0", default-features = false, features = [
   "mio",
   "rt-multi-thread",
 ] }
-env_logger = "0.10.0"
+env_logger = "0.10.1"
 tokio-rustls = "0.23.4"
 rustls-pemfile = { version = "1.0.2", default-features = false }
 vsmtp-config = { path = "../../vsmtp/vsmtp-config" }
