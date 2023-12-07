@@ -21,7 +21,7 @@ jobs:
   run-fuzz:
     runs-on: ubuntu-latest # could be self-hosted
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - uses: actions/cache@v3
         with:
