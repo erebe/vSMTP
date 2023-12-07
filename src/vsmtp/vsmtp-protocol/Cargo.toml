@@ -46,7 +46,7 @@ tokio = { version = "1.26.0", default-features = false, features = [
 ] }
 async-trait = { version = "0.1.64", default-features = false }
 tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
-async-stream = { version = "0.3.4", default-features = false }
+async-stream = { version = "0.3.5", default-features = false }
 
 tokio-rustls = { version = "0.23.4", default-features = false, features = ["logging", "tls12"] }
 rsasl = { version = "=2.0.0", default-features = false, features = [
