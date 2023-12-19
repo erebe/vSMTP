@@ -14,13 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 use crate::{
     channel_message::ProcessMessage, on_mail::MailHandler, receiver::handler::Handler,
     ValidationVSL,
 };
 use anyhow::Context;
+use ppp::{HeaderResult, PartialResult, v2};
+use ppp::v2::Addresses;
+use tokio::io::AsyncReadExt;
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
+use tracing::error;
 use vqueue::GenericQueueManager;
 use vsmtp_common::CodeID;
 use vsmtp_config::{get_rustls_config, Config};
@@ -235,7 +240,27 @@ impl Server {
         while let Some((server_addr, (kind, client))) =
             tokio_stream::StreamExt::next(&mut map).await
         {
-            let (stream, client_addr) = client?;
+            let (mut stream, _client_addr) = client?;
+
+            // unwrap proxy protocol
+            let mut buffer = [0; 1024];
+            let mut header = loop {
+                let read = stream.peek(&mut buffer).await?;
+                let header = ppp::v2::Header::try_from(&buffer[..read]);
+                if header.is_complete() {
+                    break header?.to_owned();
+                }
+            };
+            let _ = stream.read_exact(&mut buffer[..header.header.len()]).await?;
+
+            let (server_addr, client_addr) = match header.addresses {
+                Addresses::IPv4(ip) => (SocketAddr::V4(SocketAddrV4::new(ip.destination_address, ip.destination_port)), SocketAddr::V4(SocketAddrV4::new(ip.source_address, ip.source_port))),
+                Addresses::IPv6(ip) => (SocketAddr::V6(SocketAddrV6::new(ip.destination_address, ip.destination_port, 0, 0)), SocketAddr::V6(SocketAddrV6::new(ip.source_address, ip.source_port, 0, 0))),
+                Addresses::Unix(_) | Addresses::Unspecified => {
+                    error!("Unsupported address family for proxy_protocol");
+                    continue;
+                }
+            };
 
             self.handle_client(
                 client_counter.clone(),
