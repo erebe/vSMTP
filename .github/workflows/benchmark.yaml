@@ -18,7 +18,7 @@ jobs:
           toolchain: stable
 
       - name: Checkout main
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
 
@@ -36,7 +36,7 @@ jobs:
           path: ./target/iai
 
       - name: Checkout PR
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download a single artifact
         continue-on-error: true

@@ -29,7 +29,7 @@ jobs:
           fi
         id: get-bump-method
       - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: Swatinem/rust-cache@v2
@@ -61,7 +61,7 @@ jobs:
           - path: "src/plugins/vsmtp-plugin-ldap"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@v1
         with:
@@ -80,7 +80,7 @@ jobs:
             platform_path: x86_64-unknown-linux-gnu
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build package for ubuntu ${{ matrix.version }}
         shell: bash
         run: |
@@ -108,7 +108,7 @@ jobs:
             platform_path: x86_64-unknown-linux-gnu
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: build for debian
         shell: bash
         run: |
@@ -132,7 +132,7 @@ jobs:
   #       version: [ubi8, ubi9]
   #     # TODO: add arm64 support.
   #   steps:
-  #     - uses: actions/checkout@v3
+  #     - uses: actions/checkout@v4
   #     - name: build for redhat
   #       shell: bash
   #       run: |
