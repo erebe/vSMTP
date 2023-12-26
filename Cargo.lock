@@ -2108,7 +2108,7 @@ dependencies = [
  "mysql_common",
  "named_pipe",
  "once_cell",
- "pem",
+ "pem 1.1.1",
  "percent-encoding",
  "rustls",
  "rustls-pemfile",
@@ -2377,6 +2377,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8835c273a76a90455d7344889b0964598e3316e2a79ede8e36f16bdcf2228b8"
 dependencies = [
  "base64 0.13.1",
+]
+
+[[package]]
+name = "pem"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b8fcc794035347fb64beda2d3b462595dd2753e3f268d89c5aae77e8cf2c310"
+dependencies = [
+ "base64 0.21.0",
 ]
 
 [[package]]
@@ -4150,7 +4159,7 @@ dependencies = [
  "base64 0.21.0",
  "hostname",
  "humantime-serde",
- "pem",
+ "pem 3.0.3",
  "pretty_assertions",
  "rhai",
  "ring-compat",
@@ -4184,7 +4193,7 @@ dependencies = [
  "erased-serde",
  "futures-util",
  "lettre",
- "pem",
+ "pem 3.0.3",
  "rstest",
  "rustls",
  "serde",
