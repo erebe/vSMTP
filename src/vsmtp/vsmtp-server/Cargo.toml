@@ -71,7 +71,7 @@ ppp = { version = "2.2.0" }
 either = { version = "1.8.1", default-features = false, features = ["use_std", "serde"] }
 
 tokio-stream = { version = "0.1.12", default-features = false, features = ["time"] }
-async-stream = { version = "0.3.4", default-features = false }
+async-stream = { version = "0.3.5", default-features = false }
 
 futures-util = { version = "0.3.24", default-features = false, features = ["async-await"] }
 
