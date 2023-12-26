@@ -29,7 +29,7 @@ vsmtp-common = { path = "../vsmtp-common", version = "=2.1.1" }
 rhai = { version = "1.12.0", features = ["unchecked", "sync", "internals", "no_closure", "metadata"] }
 
 strum = { version = "0.24.1", default-features = false, features = ["std", "derive"] }
-regex = { version = "1.7.1", default-features = false, features = ["std", "perf", "unicode"] }
+regex = { version = "1.9.4", default-features = false, features = ["std", "perf", "unicode"] }
 iprange = { version = "0.6.7", default-features = false, features = [
     # "serde" # TODO
 ] }
