@@ -16,14 +16,14 @@ impl MailParser for BasicParser {
                 break;
             }
             if !line.first().map_or(false, |c| [b' ', b'\t'].contains(c)) && !line.contains(&b':') {
-                body.push_str(std::str::from_utf8(line).unwrap());
+                body.push_str(String::from_utf8_lossy(line).as_ref());
                 break;
             }
-            headers.push(String::from_utf8(line.clone()).expect("todo: handle non utf8"));
+            headers.push(String::from_utf8_lossy(line).to_string());
         }
 
         for line in stream {
-            body.push_str(std::str::from_utf8(line).expect("todo: handle non utf8"));
+            body.push_str(String::from_utf8_lossy(line).as_ref());
         }
 
         Ok(either::Left(RawBody::new(headers, body)))
