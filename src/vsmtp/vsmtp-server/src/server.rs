@@ -14,14 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 use crate::{
     channel_message::ProcessMessage, on_mail::MailHandler, receiver::handler::Handler,
     ValidationVSL,
 };
 use anyhow::Context;
-use ppp::{HeaderResult, PartialResult, v2};
 use ppp::v2::Addresses;
+use ppp::{v2, HeaderResult, PartialResult};
+use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::io::AsyncReadExt;
 use tokio_rustls::rustls;
 use tokio_stream::StreamExt;
@@ -251,11 +251,27 @@ impl Server {
                     break header?.to_owned();
                 }
             };
-            let _ = stream.read_exact(&mut buffer[..header.header.len()]).await?;
+            let _ = stream
+                .read_exact(&mut buffer[..header.header.len()])
+                .await?;
 
             let (server_addr, client_addr) = match header.addresses {
-                Addresses::IPv4(ip) => (SocketAddr::V4(SocketAddrV4::new(ip.destination_address, ip.destination_port)), SocketAddr::V4(SocketAddrV4::new(ip.source_address, ip.source_port))),
-                Addresses::IPv6(ip) => (SocketAddr::V6(SocketAddrV6::new(ip.destination_address, ip.destination_port, 0, 0)), SocketAddr::V6(SocketAddrV6::new(ip.source_address, ip.source_port, 0, 0))),
+                Addresses::IPv4(ip) => (
+                    SocketAddr::V4(SocketAddrV4::new(
+                        ip.destination_address,
+                        ip.destination_port,
+                    )),
+                    SocketAddr::V4(SocketAddrV4::new(ip.source_address, ip.source_port)),
+                ),
+                Addresses::IPv6(ip) => (
+                    SocketAddr::V6(SocketAddrV6::new(
+                        ip.destination_address,
+                        ip.destination_port,
+                        0,
+                        0,
+                    )),
+                    SocketAddr::V6(SocketAddrV6::new(ip.source_address, ip.source_port, 0, 0)),
+                ),
                 Addresses::Unix(_) | Addresses::Unspecified => {
                     error!("Unsupported address family for proxy_protocol");
                     continue;

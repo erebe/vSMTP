@@ -30,8 +30,11 @@ fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
         .unwrap()
         .as_ref();
 
-    let Some(auth) = plain_esmtp.split("\r\n").find(|s| s.starts_with("250-AUTH")) else {
-        return Vec::new()
+    let Some(auth) = plain_esmtp
+        .split("\r\n")
+        .find(|s| s.starts_with("250-AUTH"))
+    else {
+        return Vec::new();
     };
     let mechanism = auth.strip_prefix("250-AUTH").unwrap();
 

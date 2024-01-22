@@ -77,7 +77,10 @@ impl<R: tokio::io::AsyncRead + Unpin + Send> Reader<R> {
                     let read_size = self.inner.read_buf(&mut buffer).await?;
                     if read_size == 0 {
                         if !buffer.is_empty() {
-                            todo!("what about the remaining buffer? {:?}", buffer);
+                           Err(std::io::Error::new(
+                                std::io::ErrorKind::UnexpectedEof,
+                                "unexpected EOF while reading line",
+                            ))?;
                         }
                         return;
                     }
